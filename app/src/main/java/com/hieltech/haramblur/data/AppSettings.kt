@@ -3,12 +3,12 @@ package com.hieltech.haramblur.data
 import com.hieltech.haramblur.detection.Language
 
 data class AppSettings(
-    // Detection Settings
+    // Detection Settings - Female-focused
     val enableFaceDetection: Boolean = true,
     val enableNSFWDetection: Boolean = true,
-    val blurMaleFaces: Boolean = true,
+    val blurMaleFaces: Boolean = false, // Disabled - focus on female content only
     val blurFemaleFaces: Boolean = true,
-    val detectionSensitivity: Float = 0.5f, // 0.0 = least sensitive, 1.0 = most sensitive
+    val detectionSensitivity: Float = 0.7f, // Higher sensitivity for better female detection
     
     // Blur Settings
     val blurIntensity: BlurIntensity = BlurIntensity.MEDIUM,
@@ -46,9 +46,9 @@ data class AppSettings(
     val enableArabicText: Boolean = true,
     val customReflectionTime: Int = 15, // seconds for custom reflection periods
     
-    // Advanced Detection Settings
-    val genderConfidenceThreshold: Float = 0.8f,
-    val nsfwConfidenceThreshold: Float = 0.7f,
+    // Advanced Detection Settings - Optimized for female detection
+    val genderConfidenceThreshold: Float = 0.5f, // Lower threshold for better female face detection
+    val nsfwConfidenceThreshold: Float = 0.6f, // Lower threshold for better body content detection
     val enableFallbackDetection: Boolean = true,
     val enablePerformanceMonitoring: Boolean = true
 )

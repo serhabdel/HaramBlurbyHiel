@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.hieltech.haramblur.ui.MainScreen
 import com.hieltech.haramblur.ui.SettingsScreen
+import com.hieltech.haramblur.ui.DebugScreen
 import com.hieltech.haramblur.ui.theme.HaramBlurTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -37,11 +38,17 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable("main") {
                             MainScreen(
-                                onNavigateToSettings = { navController.navigate("settings") }
+                                onNavigateToSettings = { navController.navigate("settings") },
+                                onNavigateToDebug = { navController.navigate("debug") }
                             )
                         }
                         composable("settings") {
                             SettingsScreen(
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable("debug") {
+                            DebugScreen(
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }

@@ -3,6 +3,8 @@ package com.hieltech.haramblur.ml
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.util.Log
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetector
@@ -30,8 +32,8 @@ class FaceDetectionManager @Inject constructor(
     
     private val faceDetector: FaceDetector by lazy {
         val options = FaceDetectorOptions.Builder()
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE) // Use accurate mode for better detection
-            .setMinFaceSize(0.05f) // Detect smaller faces - 5% of image instead of 10%
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE) // Use accurate mode for better female face detection
+            .setMinFaceSize(0.03f) // Detect even smaller faces - 3% of image for better female face coverage
             .enableTracking() // Enable face tracking for better performance
             .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL) // Enable all classifications
             .build()
@@ -39,53 +41,84 @@ class FaceDetectionManager @Inject constructor(
         FaceDetection.getClient(options)
     }
     
+    // GPU-accelerated face detector for high performance
+    private val gpuFaceDetector: FaceDetector by lazy {
+        val options = FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST) // Fast mode for GPU processing
+            .setMinFaceSize(0.04f) // Slightly larger minimum for GPU processing
+            .enableTracking() // Enable face tracking
+            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+            .build()
+        
+        FaceDetection.getClient(options)
+    }
+    
     suspend fun detectFaces(bitmap: Bitmap, appSettings: AppSettings? = null): FaceDetectionResult {
-        return try {
-            Log.d(TAG, "Starting face detection on ${bitmap.width}x${bitmap.height} bitmap")
+        return withContext(Dispatchers.Default) {
+            try {
+                val startTime = System.currentTimeMillis()
+                Log.d(TAG, "👤 Face detection started - Image: ${bitmap.width}x${bitmap.height}")
+                Log.d(TAG, "🎯 Detection settings - Female focus: ${appSettings?.blurFemaleFaces ?: false}, GPU: ${appSettings?.enableGPUAcceleration ?: false}")
+                
+                // Choose detector based on GPU setting
+                val detector = if (appSettings?.enableGPUAcceleration == true) {
+                    Log.d(TAG, "⚡ Using GPU-accelerated face detector")
+                    gpuFaceDetector
+                } else {
+                    Log.d(TAG, "🔄 Using CPU face detector")
+                    faceDetector
+                }
+                
+                val inputImage = InputImage.fromBitmap(bitmap, 0)
+                
+                // Detect faces using ML Kit
+                val faces = detector.process(inputImage).await()
+                Log.d(TAG, "🔍 ML Kit detected ${faces.size} raw faces")
             
-            val inputImage = InputImage.fromBitmap(bitmap, 0)
-            val faces = faceDetector.process(inputImage).await()
-            
-            val faceInfo = coroutineScope {
-                faces.map { face ->
-                    async {
-                        val rect = Rect(
-                            face.boundingBox.left,
-                            face.boundingBox.top,
-                            face.boundingBox.right,
-                            face.boundingBox.bottom
-                        )
-                        
-                        // Use enhanced gender detection
-                        val genderResult = if (enhancedGenderDetector.isReady()) {
-                            enhancedGenderDetector.detectGender(face, bitmap)
-                        } else {
-                            // Fallback to MLModelManager
-                            mlModelManager.detectGender(face, bitmap)
+                val faceInfo = coroutineScope {
+                    faces.map { face ->
+                        async {
+                            val rect = Rect(
+                                face.boundingBox.left,
+                                face.boundingBox.top,
+                                face.boundingBox.right,
+                                face.boundingBox.bottom
+                            )
+                            
+                            // Enhanced gender detection using multiple indicators
+                            val genderResult = enhancedGenderDetector.detectGender(face, bitmap)
+                            val isFemale = genderResult.gender == Gender.FEMALE
+                            Log.v(TAG, "  Face #${faces.indexOf(face)}: confidence=${(face.trackingId ?: 0)}, female=$isFemale (${(genderResult.confidence * 100).toInt()}%)")
+                            
+                            DetectedFace(rect, genderResult.gender, genderResult.confidence, genderResult)
                         }
-                        
-                        DetectedFace(rect, genderResult.gender, genderResult.confidence, genderResult)
-                    }
-                }.map { it.await() }
+                    }.map { it.await() }
+                }
+                
+                Log.d(TAG, "🧠 Analyzing ${faces.size} faces for gender and filtering...")
+                val detectedFaces = faceInfo
+                
+                Log.d(TAG, "✅ Face detection completed in ${System.currentTimeMillis() - startTime}ms")
+                Log.d(TAG, "📊 Results: ${detectedFaces.size} total faces")
+                
+                FaceDetectionResult(
+                    facesDetected = detectedFaces.size,
+                    detectedFaces = detectedFaces,
+                    success = true,
+                    error = null
+                )
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Face detection failed", e)
+                Log.e(TAG, "   • Error type: ${e.javaClass.simpleName}")
+                Log.e(TAG, "   • Error message: ${e.message}")
+                FaceDetectionResult(
+                    facesDetected = 0,
+                    detectedFaces = emptyList(),
+                    success = false,
+                    error = e.message
+                )
             }
-            
-            Log.d(TAG, "Face detection completed: ${faces.size} faces found")
-            
-            FaceDetectionResult(
-                facesDetected = faces.size,
-                detectedFaces = faceInfo,
-                success = true,
-                error = null
-            )
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Face detection failed", e)
-            FaceDetectionResult(
-                facesDetected = 0,
-                detectedFaces = emptyList(),
-                success = false,
-                error = e.message
-            )
         }
     }
     
@@ -234,8 +267,11 @@ class FaceDetectionManager @Inject constructor(
         val faceRectangles: List<Rect>
             get() = detectedFaces.map { it.boundingBox }
             
-        fun getMaleFaces(): List<DetectedFace> = detectedFaces.filter { it.estimatedGender == Gender.MALE }
-        fun getFemaleFaces(): List<DetectedFace> = detectedFaces.filter { it.estimatedGender == Gender.FEMALE }
+        fun getMaleFaces(): List<DetectedFace> = emptyList() // No longer detect/return male faces
+        fun getFemaleFaces(): List<DetectedFace> = detectedFaces.filter { 
+            it.estimatedGender == Gender.FEMALE || 
+            (it.estimatedGender == Gender.UNKNOWN && it.genderConfidence < 0.6f) // Include low-confidence unknowns as potential females
+        }
         fun getUnknownGenderFaces(): List<DetectedFace> = detectedFaces.filter { it.estimatedGender == Gender.UNKNOWN }
         
         /**
@@ -246,17 +282,18 @@ class FaceDetectionManager @Inject constructor(
             
             detectedFaces.forEach { face ->
                 val shouldBlur = when (face.estimatedGender) {
-                    Gender.MALE -> {
-                        appSettings.blurMaleFaces && 
-                        (face.genderConfidence >= 0.8f || shouldUseSaferFiltering(face, appSettings))
-                    }
                     Gender.FEMALE -> {
+                        // Enhanced female detection with much lower confidence threshold
                         appSettings.blurFemaleFaces && 
-                        (face.genderConfidence >= 0.8f || shouldUseSaferFiltering(face, appSettings))
+                        (face.genderConfidence >= 0.4f || shouldUseSaferFiltering(face, appSettings))
                     }
                     Gender.UNKNOWN -> {
-                        // For unknown gender, use safer filtering approach
-                        shouldUseSaferFiltering(face, appSettings)
+                        // For unknown gender, use safer filtering approach focused on female detection
+                        appSettings.blurFemaleFaces && shouldUseSaferFiltering(face, appSettings)
+                    }
+                    Gender.MALE -> {
+                        // No longer blur male faces - focus only on female content
+                        false
                     }
                 }
                 
@@ -269,19 +306,19 @@ class FaceDetectionManager @Inject constructor(
         }
         
         /**
-         * Determine if safer filtering should be applied for low confidence cases
+         * Enhanced safer filtering focused on female detection with lower confidence threshold
          */
         private fun shouldUseSaferFiltering(face: DetectedFace, appSettings: AppSettings): Boolean {
             return when {
-                // If confidence is very low, apply safer filtering based on user preferences
-                face.genderConfidence < 0.6f -> {
-                    // If user has both male and female blur enabled, blur unknown faces
-                    appSettings.blurMaleFaces && appSettings.blurFemaleFaces
+                // For female-focused detection, use much lower confidence threshold
+                face.genderConfidence < 0.5f -> {
+                    // If female blur is enabled, blur low-confidence faces as safety measure
+                    appSettings.blurFemaleFaces
                 }
-                // If confidence is moderate, be more conservative
-                face.genderConfidence < 0.8f -> {
-                    // Apply the more restrictive setting (if either is enabled, blur)
-                    appSettings.blurMaleFaces || appSettings.blurFemaleFaces
+                // If confidence is moderate, be more liberal for female detection
+                face.genderConfidence < 0.7f -> {
+                    // For female detection, blur moderate confidence faces
+                    appSettings.blurFemaleFaces
                 }
                 else -> false
             }
@@ -298,17 +335,18 @@ class FaceDetectionManager @Inject constructor(
          * Get faces filtered by gender with confidence consideration
          */
         fun getFilteredFaces(
-            includeMales: Boolean,
-            includeFemales: Boolean,
-            includeUnknown: Boolean,
-            minConfidence: Float = 0.7f
+            includeMales: Boolean = false, // Default to false since we focus on females
+            includeFemales: Boolean = true,
+            includeUnknown: Boolean = true,
+            minConfidence: Float = 0.4f // Lower confidence for better female detection
         ): List<DetectedFace> {
             return detectedFaces.filter { face ->
-                val meetsConfidence = face.genderConfidence >= minConfidence || face.estimatedGender == Gender.UNKNOWN
+                val meetsConfidence = face.genderConfidence >= minConfidence || 
+                                    (face.estimatedGender == Gender.UNKNOWN && includeFemales) // Include unknowns when looking for females
                 val meetsGenderCriteria = when (face.estimatedGender) {
-                    Gender.MALE -> includeMales
+                    Gender.MALE -> false // Never include males in our female-focused app
                     Gender.FEMALE -> includeFemales
-                    Gender.UNKNOWN -> includeUnknown
+                    Gender.UNKNOWN -> includeUnknown && includeFemales // Treat unknowns as potential females
                 }
                 meetsConfidence && meetsGenderCriteria
             }

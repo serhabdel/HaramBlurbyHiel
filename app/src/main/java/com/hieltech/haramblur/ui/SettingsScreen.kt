@@ -71,230 +71,82 @@ fun SettingsScreen(
                 )
             }
             
-            // Gender-Specific Blur Settings
+            // Female Content Detection Settings
             if (settings.enableFaceDetection) {
-                SettingsSection(title = "🚹🚺 Gender Blur Settings") {
+                SettingsSection(title = "👩 Female Content Detection") {
                     SwitchSetting(
-                        title = "Blur Male Faces",
-                        description = "Apply blur to detected male faces",
-                        checked = settings.blurMaleFaces,
-                        onCheckedChange = { viewModel.updateMaleBlur(it) }
-                    )
-                    
-                    SwitchSetting(
-                        title = "Blur Female Faces",
-                        description = "Apply blur to detected female faces",
+                        title = "Detect Female Faces",
+                        description = "Automatically detect and blur female faces",
                         checked = settings.blurFemaleFaces,
                         onCheckedChange = { viewModel.updateFemaleBlur(it) }
                     )
-                }
-            }
-            
-            // Detection Sensitivity
-            SettingsSection(title = "🎯 Detection Sensitivity") {
-                Column {
-                    Text(
-                        text = "Sensitivity: ${(settings.detectionSensitivity * 100).toInt()}%",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = when {
-                            settings.detectionSensitivity < 0.3f -> "Conservative - May miss some content"
-                            settings.detectionSensitivity < 0.7f -> "Balanced - Good accuracy"
-                            else -> "Aggressive - May blur normal content"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                     
-                    Slider(
-                        value = settings.detectionSensitivity,
-                        onValueChange = { viewModel.updateSensitivity(it) },
-                        modifier = Modifier.fillMaxWidth()
+                    SwitchSetting(
+                        title = "Detect Female Body",
+                        description = "Detect and blur female body parts and inappropriate content",
+                        checked = settings.enableNSFWDetection,
+                        onCheckedChange = { viewModel.updateNSFWDetection(it) }
                     )
                 }
             }
             
-            // Blur Intensity Settings
-            SettingsSection(title = "💪 Blur Strength") {
-                RadioButtonGroup(
-                    title = "Blur Intensity",
-                    options = BlurIntensity.values().map { it.displayName to it.description },
-                    selectedIndex = BlurIntensity.values().indexOf(settings.blurIntensity),
-                    onSelectionChange = { index ->
-                        viewModel.updateBlurIntensity(BlurIntensity.values()[index])
-                    }
+            // Core Settings
+            SettingsSection(title = "⚙️ Core Settings") {
+                SliderSetting(
+                    title = "Detection Accuracy",
+                    description = "Higher values detect more content but may blur normal images",
+                    value = settings.detectionSensitivity,
+                    range = 0.3f..0.9f,
+                    onValueChange = { viewModel.updateSensitivity(it) },
+                    valueFormatter = { "${(it * 100).toInt()}%" }
                 )
-            }
-            
-            // Blur Style Settings
-            SettingsSection(title = "🎨 Blur Style") {
-                RadioButtonGroup(
-                    title = "Visual Effect",
-                    options = BlurStyle.values().map { it.displayName to it.description },
-                    selectedIndex = BlurStyle.values().indexOf(settings.blurStyle),
-                    onSelectionChange = { index ->
-                        viewModel.updateBlurStyle(BlurStyle.values()[index])
-                    }
-                )
-            }
-            
-            // Performance Settings
-            SettingsSection(title = "⚡ Performance") {
-                RadioButtonGroup(
-                    title = "Processing Speed",
-                    options = ProcessingSpeed.values().map { it.displayName to it.description },
-                    selectedIndex = ProcessingSpeed.values().indexOf(settings.processingSpeed),
-                    onSelectionChange = { index ->
-                        viewModel.updateProcessingSpeed(ProcessingSpeed.values()[index])
-                    }
+                
+                SwitchSetting(
+                    title = "GPU Acceleration",
+                    description = "Use GPU for 3x faster detection (recommended)",
+                    checked = settings.enableGPUAcceleration,
+                    onCheckedChange = { viewModel.updateGPUAcceleration(it) }
                 )
                 
                 SwitchSetting(
                     title = "Real-time Processing",
-                    description = "Process content as soon as it appears",
+                    description = "Process content instantly as it appears",
                     checked = settings.enableRealTimeProcessing,
                     onCheckedChange = { viewModel.updateRealTimeProcessing(it) }
                 )
             }
             
-            // Enhanced Detection Settings
-            SettingsSection(title = "🔍 Enhanced Detection") {
+            // Visual Settings
+            SettingsSection(title = "🎨 Visual Settings") {
                 RadioButtonGroup(
-                    title = "Gender Detection Accuracy",
-                    options = GenderAccuracy.values().map { it.name to it.description },
-                    selectedIndex = GenderAccuracy.values().indexOf(settings.genderDetectionAccuracy),
+                    title = "Blur Intensity",
+                    options = listOf(
+                        "Strong" to "Maximum privacy with solid blur",
+                        "Maximum" to "Complete coverage for sensitive content"
+                    ),
+                    selectedIndex = if (settings.blurIntensity == BlurIntensity.STRONG) 0 else 1,
                     onSelectionChange = { index ->
-                        viewModel.updateGenderDetectionAccuracy(GenderAccuracy.values()[index])
+                        viewModel.updateBlurIntensity(if (index == 0) BlurIntensity.STRONG else BlurIntensity.MAXIMUM)
                     }
                 )
-                
-                SliderSetting(
-                    title = "Content Density Threshold",
-                    description = "Percentage of screen content that triggers full-screen blur",
-                    value = settings.contentDensityThreshold,
-                    range = 0.1f..0.8f,
-                    onValueChange = { viewModel.updateContentDensityThreshold(it) },
-                    valueFormatter = { "${(it * 100).toInt()}%" }
-                )
-                
-                SwitchSetting(
-                    title = "Ultra-Fast Mode",
-                    description = "Maximum speed processing with reduced accuracy",
-                    checked = settings.ultraFastModeEnabled,
-                    onCheckedChange = { viewModel.updateUltraFastMode(it) }
-                )
-                
-                SliderSetting(
-                    title = "Mandatory Reflection Time",
-                    description = "Required wait time before continuing after warnings",
-                    value = settings.mandatoryReflectionTime.toFloat(),
-                    range = 5f..30f,
-                    onValueChange = { viewModel.updateMandatoryReflectionTime(it.toInt()) },
-                    valueFormatter = { "${it.toInt()} seconds" }
-                )
-                
-                SwitchSetting(
-                    title = "Full-Screen Warnings",
-                    description = "Show warning dialogs for high-density inappropriate content",
-                    checked = settings.fullScreenWarningEnabled,
-                    onCheckedChange = { viewModel.updateFullScreenWarning(it) }
-                )
             }
             
-            // Performance Enhancement Settings
-            SettingsSection(title = "⚡ Performance Enhancement") {
-                SliderSetting(
-                    title = "Max Processing Time",
-                    description = "Maximum time allowed for content detection",
-                    value = settings.maxProcessingTimeMs.toFloat(),
-                    range = 25f..200f,
-                    onValueChange = { viewModel.updateMaxProcessingTime(it.toLong()) },
-                    valueFormatter = { "${it.toInt()}ms" }
-                )
-                
+            // Advanced Settings (Collapsed by default)
+            SettingsSection(title = "⚙️ Advanced Settings") {
                 SwitchSetting(
-                    title = "GPU Acceleration",
-                    description = "Use GPU for faster content detection",
-                    checked = settings.enableGPUAcceleration,
-                    onCheckedChange = { viewModel.updateGPUAcceleration(it) }
-                )
-                
-                SliderSetting(
-                    title = "Frame Skip Threshold",
-                    description = "Skip frames during rapid scrolling",
-                    value = settings.frameSkipThreshold.toFloat(),
-                    range = 1f..10f,
-                    onValueChange = { viewModel.updateFrameSkipThreshold(it.toInt()) },
-                    valueFormatter = { "${it.toInt()} frames" }
-                )
-                
-                SliderSetting(
-                    title = "Image Downscale Ratio",
-                    description = "Reduce image size for faster processing",
-                    value = settings.imageDownscaleRatio,
-                    range = 0.25f..1.0f,
-                    onValueChange = { viewModel.updateImageDownscaleRatio(it) },
-                    valueFormatter = { "${(it * 100).toInt()}%" }
-                )
-            }
-            
-            // Advanced Settings
-            SettingsSection(title = "⚙️ Advanced") {
-                SliderSetting(
-                    title = "Blur Area Expansion",
-                    description = "Extra pixels around detected areas",
-                    value = settings.expandBlurArea.toFloat(),
-                    range = 0f..100f,
-                    onValueChange = { viewModel.updateBlurExpansion(it.toInt()) },
-                    valueFormatter = { "${it.toInt()} pixels" }
-                )
-                
-                SwitchSetting(
-                    title = "Full Screen Blur for NSFW",
-                    description = "Blur entire screen for inappropriate content",
+                    title = "Full Screen Blur for High Content",
+                    description = "Blur entire screen when too much inappropriate content is detected",
                     checked = settings.enableFullScreenBlurForNSFW,
                     onCheckedChange = { viewModel.updateFullScreenBlur(it) }
                 )
                 
-                SwitchSetting(
-                    title = "Show Blur Borders",
-                    description = "Display borders around blurred areas",
-                    checked = settings.showBlurBorders,
-                    onCheckedChange = { viewModel.updateBlurBorders(it) }
-                )
-                
                 SliderSetting(
-                    title = "Gender Confidence Threshold",
-                    description = "Minimum confidence required for gender detection",
+                    title = "Detection Confidence",
+                    description = "Lower values detect more content but may have false positives",
                     value = settings.genderConfidenceThreshold,
-                    range = 0.5f..0.95f,
+                    range = 0.4f..0.8f,
                     onValueChange = { viewModel.updateGenderConfidenceThreshold(it) },
                     valueFormatter = { "${(it * 100).toInt()}%" }
-                )
-                
-                SliderSetting(
-                    title = "NSFW Confidence Threshold",
-                    description = "Minimum confidence required for NSFW detection",
-                    value = settings.nsfwConfidenceThreshold,
-                    range = 0.5f..0.95f,
-                    onValueChange = { viewModel.updateNSFWConfidenceThreshold(it) },
-                    valueFormatter = { "${(it * 100).toInt()}%" }
-                )
-                
-                SwitchSetting(
-                    title = "Fallback Detection",
-                    description = "Use backup detection methods when primary fails",
-                    checked = settings.enableFallbackDetection,
-                    onCheckedChange = { viewModel.updateFallbackDetection(it) }
-                )
-                
-                SwitchSetting(
-                    title = "Performance Monitoring",
-                    description = "Monitor and log detection performance metrics",
-                    checked = settings.enablePerformanceMonitoring,
-                    onCheckedChange = { viewModel.updatePerformanceMonitoring(it) }
                 )
             }
             

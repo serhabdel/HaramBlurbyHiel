@@ -247,29 +247,33 @@ class SettingsViewModel @Inject constructor(
     fun applyOptimalSettings() {
         viewModelScope.launch {
             val optimal = AppSettings(
+                // Female-focused detection settings
                 enableFaceDetection = true,
                 enableNSFWDetection = true,
-                blurMaleFaces = true,
+                blurMaleFaces = false, // Disabled - female-only focus
                 blurFemaleFaces = true,
-                detectionSensitivity = 0.6f, // Slightly more sensitive
+                detectionSensitivity = 0.7f, // High sensitivity for better female detection
                 blurIntensity = BlurIntensity.STRONG,
                 blurStyle = BlurStyle.COMBINED,
-                expandBlurArea = 40,
+                expandBlurArea = 50, // Larger area for better female face coverage
                 processingSpeed = ProcessingSpeed.BALANCED,
                 enableRealTimeProcessing = true,
                 enableFullScreenBlurForNSFW = true,
                 showBlurBorders = false, // Cleaner look
                 enableHoverToReveal = false,
-                // Enhanced settings
-                genderDetectionAccuracy = GenderAccuracy.HIGH,
-                contentDensityThreshold = 0.4f,
+                // Enhanced settings optimized for female detection
+                genderDetectionAccuracy = GenderAccuracy.BALANCED,
+                contentDensityThreshold = 0.3f, // Lower threshold for more coverage
                 mandatoryReflectionTime = 15,
                 ultraFastModeEnabled = false,
                 fullScreenWarningEnabled = true,
-                maxProcessingTimeMs = 50L,
-                enableGPUAcceleration = true,
-                frameSkipThreshold = 3,
-                imageDownscaleRatio = 0.5f
+                maxProcessingTimeMs = 75L, // Slightly higher for better accuracy
+                enableGPUAcceleration = true, // Enable GPU by default
+                frameSkipThreshold = 2, // Lower skip threshold for better detection
+                imageDownscaleRatio = 0.6f, // Higher quality for better detection
+                // Lower confidence thresholds for better female detection
+                genderConfidenceThreshold = 0.4f,
+                nsfwConfidenceThreshold = 0.5f
             )
             settingsRepository.updateSettings(optimal)
         }

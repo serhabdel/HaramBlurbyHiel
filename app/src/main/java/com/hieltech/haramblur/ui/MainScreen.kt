@@ -6,6 +6,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun MainScreen(
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToDebug: () -> Unit = {},
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -37,6 +39,9 @@ fun MainScreen(
                     ) 
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToDebug) {
+                        Icon(Icons.Default.Build, contentDescription = "Debug")
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
@@ -57,7 +62,7 @@ fun MainScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             
-            // Status Card
+            // Enhanced Status Card with Real-time Indicators
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -84,19 +89,45 @@ fun MainScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Text(
-                        text = if (serviceRunning) "HaramBlur Active" else "HaramBlur Inactive",
+                        text = if (serviceRunning) "🛡️ HaramBlur Active" else "❌ HaramBlur Inactive",
                         style = MaterialTheme.typography.headlineSmall,
                         textAlign = TextAlign.Center
                     )
                     
                     Text(
                         text = if (serviceRunning) 
-                            "Content filtering is active across all apps" 
+                            "Female content detection and filtering active" 
                         else "Enable accessibility service to start filtering",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(top = 4.dp)
                     )
+                    
+                    if (serviceRunning) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        // Quick Status Indicators
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            StatusIndicator(
+                                icon = "👤",
+                                label = "Face Detection",
+                                isActive = true
+                            )
+                            StatusIndicator(
+                                icon = "🔞",
+                                label = "Content Filter",
+                                isActive = true
+                            )
+                            StatusIndicator(
+                                icon = "⚡",
+                                label = "GPU Accel",
+                                isActive = true
+                            )
+                        }
+                    }
                 }
             }
             
@@ -160,6 +191,46 @@ fun MainScreen(
                 }
             }
             
+            // Quick Actions Card
+            if (serviceRunning) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "⚡ Quick Actions",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { /* TODO: Implement optimal settings */ },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("🎯 Optimal")
+                            }
+                            
+                            Button(
+                                onClick = { /* TODO: Implement reset settings */ },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("🔄 Reset")
+                            }
+                        }
+                    }
+                }
+            }
+            
             // Privacy Notice
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -171,21 +242,44 @@ fun MainScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "🔒 Privacy First",
+                        text = "🔒 Privacy & Focus",
                         style = MaterialTheme.typography.titleMedium
                     )
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Text(
-                        text = "• No data is sent to external servers\n" +
-                                "• All content analysis happens on your device\n" +
-                                "• No screenshots are stored or shared\n" +
-                                "• Complete transparency in operation",
+                        text = "• Focused on female content detection only\n" +
+                                "• All processing happens locally on device\n" +
+                                "• GPU acceleration for better performance\n" +
+                                "• No data leaves your device",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StatusIndicator(
+    icon: String,
+    label: String,
+    isActive: Boolean
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.titleLarge,
+            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+            textAlign = TextAlign.Center
+        )
     }
 }

@@ -52,93 +52,86 @@ class ContentDetectionEngine @Inject constructor(
         bitmap: Bitmap,
         appSettings: AppSettings
     ): ContentAnalysisResult = withContext(Dispatchers.Default) {
-        
-        if (!isInitialized) {
-            return@withContext ContentAnalysisResult.failed("Engine not initialized")
-        }
-        
-        Log.d(TAG, "Starting content analysis on ${bitmap.width}x${bitmap.height} image")
+        val startTime = System.currentTimeMillis()
         
         return@withContext try {
-            // Check if we should use fast processing
-            if (appSettings.ultraFastModeEnabled || appSettings.maxProcessingTimeMs <= 100L) {
-                return@withContext analyzeContentFast(bitmap, appSettings)
+            Log.d(TAG, "📸 Starting content analysis - Image: ${bitmap.width}x${bitmap.height}")
+            
+            // Use concurrent processing for better performance
+            val faceDetectionDeferred = if (appSettings.enableFaceDetection) {
+                async {
+                    Log.d(TAG, "👤 Starting face detection...")
+                    val result = faceDetectionManager.detectFaces(bitmap, appSettings)
+                    Log.d(TAG, "👤 Face detection completed - Found ${result.detectedFaces.size} faces")
+                    result
+                }
+            } else {
+                async {
+                    Log.d(TAG, "👤 Face detection disabled")
+                    FaceDetectionManager.FaceDetectionResult(0, emptyList(), true, null)
+                }
             }
             
-            withTimeout(DETECTION_TIMEOUT_MS) {
-                val analysisJobs = mutableListOf<Deferred<*>>()
-                
-                // Face detection based on settings
-                val faceDetectionJob = async {
-                    if (appSettings.enableFaceDetection) {
-                        faceDetectionManager.detectFaces(bitmap)
-                    } else {
-                        FaceDetectionManager.FaceDetectionResult(0, emptyList(), true, null)
-                    }
+            // NSFW detection (concurrent with face detection)
+            val nsfwDetectionDeferred = if (appSettings.enableNSFWDetection && mlModelManager.isModelReady()) {
+                async {
+                    Log.d(TAG, "🔞 Starting NSFW content detection...")
+                    val result = mlModelManager.detectNSFWFast(bitmap)
+                    Log.d(TAG, "🔞 NSFW detection completed")
+                    result
                 }
-                analysisJobs.add(faceDetectionJob)
-                
-                // NSFW detection based on settings
-                val nsfwDetectionJob = async {
-                    if (appSettings.enableNSFWDetection && mlModelManager.isModelReady()) {
-                        mlModelManager.detectNSFW(bitmap)
-                    } else {
-                        MLModelManager.DetectionResult(false, 0.0f, "NSFW detection disabled")
-                    }
+            } else {
+                async {
+                    Log.d(TAG, "🔞 NSFW detection disabled")
+                    MLModelManager.DetectionResult(false, 0.0f, "NSFW detection disabled")
                 }
-                analysisJobs.add(nsfwDetectionJob)
-                
-                // Wait for all detection tasks to complete
-                val faceResult = faceDetectionJob.await()
-                val nsfwResult = nsfwDetectionJob.await()
-                
-                // Perform density analysis if enabled
-                val densityAnalysisResult = if (appSettings.fullScreenWarningEnabled) {
-                    contentDensityAnalyzer.analyzeScreenContent(bitmap)
-                } else {
-                    null
-                }
-                
-                // Determine full-screen blur decision
-                val fullScreenDecision = densityAnalysisResult?.let { densityResult ->
-                    fullScreenBlurTrigger.shouldTriggerFullScreenBlur(densityResult, appSettings)
-                }
-                
-                // Combine results based on app settings and density analysis
-                val shouldBlur = determineBlurDecisionWithDensity(faceResult, nsfwResult, densityAnalysisResult, appSettings)
-                val blurRegions = calculateBlurRegionsWithDensity(faceResult, nsfwResult, densityAnalysisResult, fullScreenDecision, bitmap, appSettings)
-                
-                // Determine recommended action
-                val recommendedAction = densityAnalysisResult?.let { densityResult ->
-                    fullScreenBlurTrigger.calculateRecommendedAction(densityResult, appSettings).action
-                } ?: if (shouldBlur) ContentAction.SELECTIVE_BLUR else ContentAction.NO_ACTION
-                
-                val requiresFullScreenWarning = fullScreenDecision?.shouldTrigger == true
-                
-                val processingTime = System.currentTimeMillis() - System.currentTimeMillis() // Will be calculated properly
-                
-                Log.d(TAG, "Content analysis completed: shouldBlur=$shouldBlur, regions=${blurRegions.size}, fullScreen=$requiresFullScreenWarning, action=$recommendedAction")
-                
-                ContentAnalysisResult(
-                    shouldBlur = shouldBlur,
-                    blurRegions = blurRegions,
-                    faceDetectionResult = faceResult,
-                    nsfwDetectionResult = nsfwResult,
-                    processingTimeMs = processingTime,
-                    success = true,
-                    error = null,
-                    densityAnalysisResult = densityAnalysisResult,
-                    fullScreenBlurDecision = fullScreenDecision,
-                    recommendedAction = recommendedAction,
-                    requiresFullScreenWarning = requiresFullScreenWarning
-                )
             }
-        } catch (e: TimeoutCancellationException) {
-            Log.w(TAG, "Content analysis timed out")
-            ContentAnalysisResult.failed("Analysis timed out")
+            
+            // Wait for both detections to complete
+            val faceResult = faceDetectionDeferred.await()
+            val nsfwResult = nsfwDetectionDeferred.await()
+            
+            Log.d(TAG, "📊 Detection results summary:")
+            Log.d(TAG, "   • Faces detected: ${faceResult.detectedFaces.size}")
+            Log.d(TAG, "   • NSFW content: ${nsfwResult.isNSFW}")
+            
+            // Calculate blur regions
+            val blurRegions = calculateBlurRegions(
+                faceResult,
+                nsfwResult,
+                appSettings
+            )
+            
+            Log.d(TAG, "🎯 Generated ${blurRegions.size} blur regions")
+            
+            val processingTime = System.currentTimeMillis() - startTime
+            
+            Log.d(TAG, "✅ Content analysis completed in ${processingTime}ms")
+            
+            ContentAnalysisResult(
+                shouldBlur = blurRegions.isNotEmpty(),
+                blurRegions = blurRegions,
+                faceDetectionResult = faceResult,
+                nsfwDetectionResult = nsfwResult,
+                processingTimeMs = processingTime,
+                success = true,
+                error = null
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "Content analysis failed", e)
-            ContentAnalysisResult.failed("Analysis failed: ${e.message}")
+            val processingTime = System.currentTimeMillis() - startTime
+            Log.e(TAG, "❌ Content analysis failed after ${processingTime}ms", e)
+            Log.e(TAG, "   • Error type: ${e.javaClass.simpleName}")
+            Log.e(TAG, "   • Error message: ${e.message}")
+            
+            ContentAnalysisResult(
+                shouldBlur = false,
+                blurRegions = emptyList(),
+                faceDetectionResult = null,
+                nsfwDetectionResult = null,
+                processingTimeMs = processingTime,
+                success = false,
+                error = e.message
+            )
         }
     }
     
@@ -151,8 +144,10 @@ class ContentDetectionEngine @Inject constructor(
     ): ContentAnalysisResult = withContext(Dispatchers.Default) {
         
         val startTime = System.currentTimeMillis()
+        Log.d(TAG, "🔍 Starting content analysis - Bitmap: ${bitmap.width}x${bitmap.height}")
+        Log.d(TAG, "⚙️ Settings - Female faces: ${appSettings.blurFemaleFaces}, NSFW: ${appSettings.enableNSFWDetection}, GPU: ${appSettings.enableGPUAcceleration}")
         
-        return@withContext try {
+        try {
             // Check if frame should be processed
             val frameDecision = frameOptimizationManager.shouldProcessFrame()
             if (!frameDecision.shouldProcess) {
@@ -168,8 +163,10 @@ class ContentDetectionEngine @Inject constructor(
                 )
             }
             
-            // Set performance mode based on settings
+            // Enhanced performance mode with GPU acceleration priority
             val performanceMode = when {
+                appSettings.enableGPUAcceleration && appSettings.ultraFastModeEnabled -> PerformanceMode.ULTRA_FAST
+                appSettings.enableGPUAcceleration -> PerformanceMode.FAST
                 appSettings.ultraFastModeEnabled -> PerformanceMode.ULTRA_FAST
                 appSettings.maxProcessingTimeMs <= 50L -> PerformanceMode.ULTRA_FAST
                 appSettings.maxProcessingTimeMs <= 100L -> PerformanceMode.FAST
@@ -178,6 +175,11 @@ class ContentDetectionEngine @Inject constructor(
             
             fastContentDetector.setPerformanceMode(performanceMode)
             mlModelManager.setPerformanceMode(performanceMode)
+            
+            // Log GPU acceleration status
+            if (appSettings.enableGPUAcceleration) {
+                Log.d(TAG, "GPU acceleration enabled for faster female content detection")
+            }
             
             // Perform fast detection
             val fastResult = fastContentDetector.detectContentFast(bitmap, appSettings)
@@ -247,152 +249,67 @@ class ContentDetectionEngine @Inject constructor(
         }
     }
     
-    private fun determineBlurDecisionWithDensity(
-        faceResult: FaceDetectionManager.FaceDetectionResult,
-        nsfwResult: MLModelManager.DetectionResult,
-        densityResult: DensityAnalysisResult?,
-        settings: AppSettings
-    ): Boolean {
-        // Check density analysis first if available
-        densityResult?.let { density ->
-            val fullScreenDecision = fullScreenBlurTrigger.shouldTriggerFullScreenBlur(density, settings)
-            if (fullScreenDecision.shouldTrigger) {
-                Log.d(TAG, "Blur decision: Full-screen blur triggered by density analysis")
-                return true
-            }
-            
-            // Check if density analysis recommends any blur action
-            if (density.recommendedAction != ContentAction.NO_ACTION) {
-                Log.d(TAG, "Blur decision: Density analysis recommends ${density.recommendedAction}")
-                return true
-            }
-        }
-        
-        // Fall back to traditional blur decision logic
-        return determineBlurDecision(faceResult, nsfwResult, settings)
-    }
-    
-    private fun determineBlurDecision(
-        faceResult: FaceDetectionManager.FaceDetectionResult,
-        nsfwResult: MLModelManager.DetectionResult,
-        settings: AppSettings
-    ): Boolean {
-        // Decision logic based on settings and detection results
-        
-        if (settings.enableNSFWDetection && nsfwResult.isNSFW && nsfwResult.confidence >= settings.detectionSensitivity) {
-            Log.d(TAG, "Blur decision: NSFW content detected (confidence: ${nsfwResult.confidence}, threshold: ${settings.detectionSensitivity})")
-            return true
-        }
-        
-        if (settings.enableFaceDetection && faceResult.hasFaces()) {
-            val maleFaces = faceResult.getMaleFaces()
-            val femaleFaces = faceResult.getFemaleFaces()
-            
-            val shouldBlurMales = settings.blurMaleFaces && maleFaces.isNotEmpty()
-            val shouldBlurFemales = settings.blurFemaleFaces && femaleFaces.isNotEmpty()
-            
-            if (shouldBlurMales || shouldBlurFemales) {
-                Log.d(TAG, "Blur decision: Gender-specific faces detected (males: ${maleFaces.size}, females: ${femaleFaces.size})")
-                return true
-            }
-        }
-        
-        return false
-    }
-    
-    private fun calculateBlurRegionsWithDensity(
-        faceResult: FaceDetectionManager.FaceDetectionResult,
-        nsfwResult: MLModelManager.DetectionResult,
-        densityResult: DensityAnalysisResult?,
-        fullScreenDecision: FullScreenBlurDecision?,
-        bitmap: Bitmap,
-        settings: AppSettings
-    ): List<Rect> {
-        // Check if full-screen blur is required
-        if (fullScreenDecision?.shouldTrigger == true) {
-            Log.d(TAG, "Applying full-screen blur: ${fullScreenDecision.reason}")
-            return listOf(Rect(0, 0, bitmap.width, bitmap.height))
-        }
-        
-        // Check if density analysis provides critical regions
-        densityResult?.let { density ->
-            if (density.criticalRegions.isNotEmpty() && density.inappropriateContentDensity > 0.3f) {
-                Log.d(TAG, "Using ${density.criticalRegions.size} critical regions from density analysis")
-                
-                // Combine critical regions with traditional blur regions
-                val traditionalRegions = calculateBlurRegions(faceResult, nsfwResult, settings)
-                val allRegions = mutableListOf<Rect>()
-                allRegions.addAll(density.criticalRegions)
-                allRegions.addAll(traditionalRegions)
-                
-                return mergeOverlappingRegions(allRegions)
-            }
-        }
-        
-        // Fall back to traditional blur region calculation
-        return calculateBlurRegions(faceResult, nsfwResult, settings)
-    }
-    
     private fun calculateBlurRegions(
         faceResult: FaceDetectionManager.FaceDetectionResult,
         nsfwResult: MLModelManager.DetectionResult,
-        settings: AppSettings
+        appSettings: AppSettings
     ): List<Rect> {
-        val regions = mutableListOf<Rect>()
+        val blurRegions = mutableListOf<Rect>()
         
-        // Add face regions based on gender-specific settings
-        if (settings.enableFaceDetection && faceResult.hasFaces()) {
+        // Add female face regions with enhanced detection
+        if (appSettings.enableFaceDetection && faceResult.hasFaces()) {
             val facesToBlur = mutableListOf<Rect>()
             
-            // Add male faces if enabled
-            if (settings.blurMaleFaces) {
-                facesToBlur.addAll(faceResult.getMaleFaces().map { it.boundingBox })
-            }
-            
-            // Add female faces if enabled
-            if (settings.blurFemaleFaces) {
+            // Focus on female faces only
+            if (appSettings.blurFemaleFaces) {
                 facesToBlur.addAll(faceResult.getFemaleFaces().map { it.boundingBox })
+                
+                // Enhanced: Include unknown gender faces with lower confidence for safety
+                val unknownFaces = faceResult.getUnknownGenderFaces()
+                    .filter { it.genderConfidence < 0.6f }
+                    .map { it.boundingBox }
+                facesToBlur.addAll(unknownFaces)
             }
             
-            // Expand face rectangles slightly for better coverage
+            // Enhanced expansion for better coverage of female faces/hair
             val expandedFaceRegions = facesToBlur.map { face ->
-                val expansion = 30 // pixels expansion for better coverage
+                val expansion = 45 // Increased expansion for better female face coverage including hair
                 Rect(
                     maxOf(0, face.left - expansion),
-                    maxOf(0, face.top - expansion),
+                    maxOf(0, face.top - (expansion * 1.5).toInt()), // More expansion on top for hair
                     face.right + expansion,
                     face.bottom + expansion
                 )
             }
-            regions.addAll(expandedFaceRegions)
+            blurRegions.addAll(expandedFaceRegions)
             
-            Log.d(TAG, "Added ${expandedFaceRegions.size} face blur regions (males: ${settings.blurMaleFaces}, females: ${settings.blurFemaleFaces})")
+            Log.d(TAG, "Added ${expandedFaceRegions.size} female face blur regions")
         }
         
-        // If NSFW content is detected, blur significant portions or full screen
-        if (settings.enableNSFWDetection && nsfwResult.isNSFW) {
+        // Enhanced female body/NSFW content detection with better coverage
+        if (appSettings.enableNSFWDetection && nsfwResult.isNSFW) {
             when {
-                nsfwResult.confidence > 0.7f -> {
-                    // Very high confidence - blur entire screen
-                    regions.add(Rect(0, 0, 1080, 2400)) // Full screen blur
-                    Log.d(TAG, "Full screen blur applied for high NSFW confidence: ${nsfwResult.confidence}")
+                nsfwResult.confidence > 0.6f -> {
+                    // High confidence - blur entire screen for female body content
+                    blurRegions.add(Rect(0, 0, 1080, 2400)) // Full screen blur
+                    Log.d(TAG, "Full screen blur applied for high female body content confidence: ${nsfwResult.confidence}")
                 }
-                nsfwResult.confidence > 0.5f -> {
-                    // Medium confidence - blur center portion (likely content area)
-                    val centerBlur = Rect(50, 200, 1030, 2200) // Most of screen except edges
-                    regions.add(centerBlur)
-                    Log.d(TAG, "Center screen blur applied for medium NSFW confidence: ${nsfwResult.confidence}")
+                nsfwResult.confidence > 0.4f -> {
+                    // Medium confidence - blur large center area covering typical female body regions
+                    val centerBlur = Rect(20, 150, 1060, 2250) // Almost full screen with small margins
+                    blurRegions.add(centerBlur)
+                    Log.d(TAG, "Large area blur applied for medium female body content confidence: ${nsfwResult.confidence}")
                 }
-                nsfwResult.confidence > 0.3f -> {
-                    // Lower confidence - blur middle section where inappropriate content likely appears
-                    val middleBlur = Rect(100, 400, 980, 2000)
-                    regions.add(middleBlur)
-                    Log.d(TAG, "Middle screen blur applied for moderate NSFW confidence: ${nsfwResult.confidence}")
+                nsfwResult.confidence > 0.25f -> {
+                    // Lower confidence - blur typical body areas (torso/chest region)
+                    val bodyBlur = Rect(80, 300, 1000, 1800) // Focus on torso area
+                    blurRegions.add(bodyBlur)
+                    Log.d(TAG, "Body area blur applied for moderate female body content confidence: ${nsfwResult.confidence}")
                 }
             }
         }
         
-        return regions
+        return blurRegions
     }
     
     private fun mergeOverlappingRegions(regions: List<Rect>): List<Rect> {
