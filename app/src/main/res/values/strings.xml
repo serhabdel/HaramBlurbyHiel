@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">HaramBlur</string>
+    <string name="accessibility_service_description">HaramBlur helps you navigate your device with respect for Islamic values by automatically detecting and blurring inappropriate content across all apps. All processing happens locally on your device for complete privacy.</string>
+</resources>
