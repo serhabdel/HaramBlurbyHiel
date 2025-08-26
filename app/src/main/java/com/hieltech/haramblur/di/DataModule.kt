@@ -3,6 +3,7 @@ package com.hieltech.haramblur.di
 import android.content.Context
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.data.QuranicRepository
+import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.data.database.DatabaseInitializer
 import com.hieltech.haramblur.data.database.SiteBlockingDatabase
 import dagger.Module
@@ -36,6 +37,15 @@ object DataModule {
         databaseInitializer: DatabaseInitializer
     ): QuranicRepository {
         return QuranicRepository(database, databaseInitializer)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLogRepository(
+        @ApplicationContext context: Context,
+        database: SiteBlockingDatabase
+    ): LogRepository {
+        return LogRepository(context, database)
     }
     
     // Database Components

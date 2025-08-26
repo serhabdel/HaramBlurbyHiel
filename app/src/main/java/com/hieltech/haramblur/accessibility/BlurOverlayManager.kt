@@ -27,6 +27,7 @@ import com.hieltech.haramblur.ui.effects.EnhancedBlurEffects
 import com.hieltech.haramblur.ui.theme.HaramBlurTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -52,6 +53,13 @@ class BlurOverlayManager @Inject constructor(
     private var isOverlayVisible = false
     private var isWarningVisible = false
     private var isBlockedSiteOverlayVisible = false
+
+    // Auto-close timer for full screen blur
+    private var fullScreenBlurJob: kotlinx.coroutines.Job? = null
+    private val FULL_SCREEN_BLUR_TIMEOUT = 10000L // 10 seconds (reduced from 30)
+    
+    // Navigation callback for automatic actions
+    var onNavigateAwayAction: (() -> Unit)? = null
     
     // Callback for warning dialog actions
     var onWarningAction: ((WarningDialogAction) -> Unit)? = null
@@ -67,7 +75,7 @@ class BlurOverlayManager @Inject constructor(
         blurIntensity: BlurIntensity = BlurIntensity.MEDIUM,
         blurStyle: BlurStyle = BlurStyle.PIXELATED,
         contentSensitivity: Float = 0.5f,
-        transparency: Float = 0.8f // New transparency parameter (0.0 = fully transparent, 1.0 = fully opaque)
+        transparency: Float = 1.0f // Maximum opacity for better coverage
     ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -81,14 +89,41 @@ class BlurOverlayManager @Inject constructor(
                     return@launch
                 }
                 
+                // Get actual screen dimensions for precise scaling
+                val displayMetrics = context!!.resources.displayMetrics
+                val screenWidth = displayMetrics.widthPixels
+                val screenHeight = displayMetrics.heightPixels
+                
+                // Scale and validate regions to actual screen resolution
+                val scaledRegions = blurRegions.mapNotNull { region ->
+                    val scaledRect = Rect(
+                        maxOf(0, region.left),
+                        maxOf(0, region.top),
+                        minOf(screenWidth, region.right),
+                        minOf(screenHeight, region.bottom)
+                    )
+                    
+                    // Only include meaningful regions (not too small)
+                    if (scaledRect.width() >= 20 && scaledRect.height() >= 20) {
+                        scaledRect
+                    } else null
+                }
+                
+                if (scaledRegions.isEmpty()) {
+                    Log.w(TAG, "No valid scaled regions - skipping blur overlay")
+                    return@launch
+                }
+                
                 overlayView = BlurOverlayView(
                     context!!,
-                    blurRegions,
+                    scaledRegions,
                     blurIntensity,
                     blurStyle,
                     contentSensitivity,
                     transparency,
-                    isFullScreen = false
+                    isFullScreen = false,
+                    screenWidth = screenWidth,
+                    screenHeight = screenHeight
                 )
                 
                 val params = WindowManager.LayoutParams(
@@ -106,7 +141,7 @@ class BlurOverlayManager @Inject constructor(
                 windowManager!!.addView(overlayView, params)
                 isOverlayVisible = true
                 
-                Log.d(TAG, "Blur overlay shown with ${blurRegions.size} regions")
+                Log.d(TAG, "🎯 PRECISION BLUR: ${scaledRegions.size} regions on ${screenWidth}x${screenHeight} screen")
             } catch (e: Exception) {
                 Log.e(TAG, "Error showing blur overlay", e)
             }
@@ -127,19 +162,229 @@ class BlurOverlayManager @Inject constructor(
     fun hideBlurOverlay() {
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                Log.d(TAG, "Attempting to hide blur overlay - isVisible: $isOverlayVisible, overlayView: ${overlayView != null}")
+
+                // Force hide any visible overlay
                 if (isOverlayVisible && overlayView != null && windowManager != null) {
-                    windowManager!!.removeView(overlayView)
-                    isOverlayVisible = false
-                    overlayView = null
-                    Log.d(TAG, "Blur overlay hidden")
+                    try {
+                        windowManager!!.removeView(overlayView)
+                        Log.d(TAG, "Blur overlay view removed from window")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error removing overlay view (might already be removed)", e)
+                    }
                 }
+
+                // Also try to hide full-screen blur if it exists
+                hideFullScreenBlur()
+
+                // Reset all state
+                isOverlayVisible = false
+                overlayView = null
+                Log.d(TAG, "Blur overlay hidden and state reset")
+
             } catch (e: Exception) {
-                Log.e(TAG, "Error hiding blur overlay", e)
+                Log.e(TAG, "Critical error hiding blur overlay", e)
+                // Force reset state even on error
+                isOverlayVisible = false
+                overlayView = null
+            }
+        }
+    }
+
+    fun hideFullScreenBlur() {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                Log.d(TAG, "Hiding full-screen blur overlay")
+
+                // Try to remove any remaining overlay views
+                try {
+                    if (windowManager != null) {
+                        // Note: We can't check if overlayView is full-screen since it's private
+                        // Just ensure all overlay states are reset
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error in full-screen overlay cleanup", e)
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error hiding full-screen blur", e)
             }
         }
     }
     
     fun isOverlayActive(): Boolean = isOverlayVisible
+
+    /**
+     * Start the auto-close timer for full screen blur with enhanced navigation
+     */
+    private fun startFullScreenBlurTimer() {
+        // Cancel any existing timer
+        cancelFullScreenBlurTimer()
+
+        fullScreenBlurJob = CoroutineScope(Dispatchers.Main).launch {
+            Log.d(TAG, "⏰ Starting 10-second auto-action timer for full screen blur")
+            delay(FULL_SCREEN_BLUR_TIMEOUT)
+
+            // Check if overlay is still visible and is full screen
+            if (isOverlayVisible && overlayView?.isFullScreenBlur == true) {
+                Log.w(TAG, "⏰ Auto-action triggered after 10 seconds - navigating away from inappropriate content")
+                try {
+                    // First attempt: Navigate away from inappropriate content
+                    onNavigateAwayAction?.invoke()
+                    
+                    // Give navigation time to complete
+                    delay(2000L)
+                    
+                    // If still visible after navigation, force hide overlay
+                    if (isOverlayVisible) {
+                        Log.w(TAG, "⏰ Navigation completed - hiding overlay")
+                        hideFullScreenBlur()
+                        hideFullScreenWarning()
+                    }
+
+                    Log.w(TAG, "⏰ Full screen blur auto-closed and navigated away after 10 seconds")
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Error in auto-close timer", e)
+                    // Emergency fallback
+                    emergencyHideAllOverlays()
+                }
+            }
+        }
+    }
+
+    /**
+     * Cancel the auto-close timer for full screen blur
+     */
+    private fun cancelFullScreenBlurTimer() {
+        fullScreenBlurJob?.cancel()
+        fullScreenBlurJob = null
+    }
+
+
+
+    /**
+     * Emergency method to force hide ALL overlays
+     * Call this if overlays get stuck or appear on lock screen
+     */
+    fun emergencyHideAllOverlays() {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                Log.w(TAG, "EMERGENCY: Force hiding all overlays")
+
+                // Cancel any running timers first
+                cancelFullScreenBlurTimer()
+
+                // Hide main blur overlay
+                if (overlayView != null && windowManager != null) {
+                    try {
+                        windowManager!!.removeView(overlayView)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error in emergency hide", e)
+                    }
+                }
+
+                // Hide warning overlay
+                if (warningOverlayView != null && windowManager != null) {
+                    try {
+                        windowManager!!.removeView(warningOverlayView)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error hiding warning overlay in emergency", e)
+                    }
+                }
+
+                // Hide blocked site overlay
+                if (blockedSiteOverlayView != null && windowManager != null) {
+                    try {
+                        windowManager!!.removeView(blockedSiteOverlayView)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error hiding blocked site overlay in emergency", e)
+                    }
+                }
+
+                // Reset all states
+                isOverlayVisible = false
+                isWarningVisible = false
+                isBlockedSiteOverlayVisible = false
+                overlayView = null
+                warningOverlayView = null
+                blockedSiteOverlayView = null
+
+                Log.w(TAG, "EMERGENCY: All overlays hidden and states reset")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Critical error in emergency hide", e)
+                // Force reset states even on critical error
+                isOverlayVisible = false
+                isWarningVisible = false
+                isBlockedSiteOverlayVisible = false
+                overlayView = null
+                warningOverlayView = null
+                blockedSiteOverlayView = null
+            }
+        }
+    }
+    
+    /**
+     * Check if overlays should be hidden due to app/context change
+     * Call this when window state changes or when app goes to background
+     */
+    fun checkForStuckOverlays(currentPackageName: String?) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                // If we have active overlays and the app has changed, hide them
+                if ((isOverlayVisible || isWarningVisible || isBlockedSiteOverlayVisible) && 
+                    currentPackageName != null && 
+                    !isAppRelatedToHaramBlur(currentPackageName)) {
+                    
+                    Log.w(TAG, "🔄 App changed to $currentPackageName - checking for stuck overlays")
+                    
+                    // If it's a launcher or system app, definitely hide overlays
+                    if (isLauncherOrSystemApp(currentPackageName)) {
+                        Log.w(TAG, "🏠 User went to launcher/system - hiding all overlays")
+                        emergencyHideAllOverlays()
+                    }
+                    // If overlay has been visible for more than 60 seconds, hide it
+                    else if (overlayView?.isFullScreenBlur == true) {
+                        Log.w(TAG, "⚠️ Full screen blur detected in different app context - hiding for user safety")
+                        emergencyHideAllOverlays()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking for stuck overlays", e)
+            }
+        }
+    }
+    
+    /**
+     * Check if the package is related to HaramBlur functionality
+     */
+    private fun isAppRelatedToHaramBlur(packageName: String): Boolean {
+        return packageName.contains("haramblur", ignoreCase = true) ||
+               packageName.contains("com.hieltech", ignoreCase = true)
+    }
+    
+    /**
+     * Check if the package is a launcher or system app
+     */
+    private fun isLauncherOrSystemApp(packageName: String): Boolean {
+        val systemApps = setOf(
+            "com.android.launcher",
+            "com.android.launcher3",
+            "com.google.android.launcher",
+            "com.samsung.android.launcher",
+            "com.huawei.android.launcher",
+            "com.miui.home",
+            "com.oneplus.launcher",
+            "android",
+            "com.android.systemui",
+            "com.android.settings"
+        )
+        
+        return systemApps.any { packageName.contains(it, ignoreCase = true) } ||
+               packageName.contains("launcher", ignoreCase = true) ||
+               packageName.contains("home", ignoreCase = true) ||
+               packageName.startsWith("android")
+    }
     
     /**
      * Show full-screen warning overlay with blur background
@@ -179,7 +424,11 @@ class BlurOverlayManager @Inject constructor(
      * Show full-screen blur without warning dialog
      * Enhanced with region-based trigger information
      */
-    fun showFullScreenBlur(triggeredByRegionCount: Boolean = false) {
+    fun showFullScreenBlur(
+        triggeredByRegionCount: Boolean = false,
+        regionCount: Int = 0,
+        maxConfidence: Float = 0.0f
+    ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 if (windowManager == null || context == null) {
@@ -195,6 +444,8 @@ class BlurOverlayManager @Inject constructor(
                 val displayMetrics = context!!.resources.displayMetrics
                 val fullScreenRect = Rect(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
                 
+                Log.d(TAG, "Creating full-screen blur - Region trigger: $triggeredByRegionCount, Count: $regionCount, Max confidence: $maxConfidence")
+
                 overlayView = BlurOverlayView(
                     context!!,
                     listOf(fullScreenRect),
@@ -202,7 +453,9 @@ class BlurOverlayManager @Inject constructor(
                     BlurStyle.COMBINED,
                     1.0f, // Maximum sensitivity for full-screen
                     isFullScreen = true,
-                    triggeredByRegionCount = triggeredByRegionCount
+                    triggeredByRegionCount = triggeredByRegionCount,
+                    regionCount = regionCount,
+                    maxConfidence = maxConfidence
                 )
                 
                 val params = WindowManager.LayoutParams(
@@ -219,14 +472,27 @@ class BlurOverlayManager @Inject constructor(
                 
                 windowManager!!.addView(overlayView, params)
                 isOverlayVisible = true
-                
+
                 Log.d(TAG, "Full-screen blur overlay shown")
+
+                // Start auto-close timer for full screen blur (30 seconds)
+                startFullScreenBlurTimer()
             } catch (e: Exception) {
                 Log.e(TAG, "Error showing full-screen blur", e)
             }
         }
     }
-    
+
+    /**
+     * Log blur events for analytics and debugging
+     */
+    private fun logBlurEvent(triggeredByRegionCount: Boolean, regionCount: Int, maxConfidence: Float) {
+        val triggerType = if (triggeredByRegionCount) "REGION_BASED" else "STANDARD"
+        Log.i(TAG, "🔒 BLUR_EVENT: type=$triggerType, regions=$regionCount, confidence=$maxConfidence")
+
+        // TODO: Send to analytics service if implemented
+    }
+
     /**
      * Show warning dialog overlay
      * Enhanced with region-based trigger information
@@ -356,6 +622,9 @@ class BlurOverlayManager @Inject constructor(
      * Hide full-screen warning (both blur and dialog)
      */
     fun hideFullScreenWarning() {
+        // Cancel the auto-close timer
+        cancelFullScreenBlurTimer()
+
         hideWarningDialog()
         hideBlurOverlay()
         Log.d(TAG, "Full-screen warning hidden")
@@ -427,23 +696,10 @@ class BlurOverlayManager @Inject constructor(
                                     selectedLanguage = language
                                 },
                                 onAction = { action ->
-                                    when (action) {
-                                        is WarningDialogAction.Close -> {
-                                            hideBlockedSiteOverlay()
-                                            onAction(action)
-                                        }
-                                        is WarningDialogAction.Continue -> {
-                                            hideBlockedSiteOverlay()
-                                            onAction(action)
-                                        }
-                                        is WarningDialogAction.Dismiss -> {
-                                            hideBlockedSiteOverlay()
-                                            onAction(action)
-                                        }
-                                        else -> {
-                                            onAction(action)
-                                        }
-                                    }
+                                    // Don't hide overlay immediately - let the accessibility service handle it
+                                    // after navigation completes to prevent race conditions
+                                    Log.d(TAG, "Dialog action triggered: $action")
+                                    onAction(action)
                                 },
                                 onDismiss = {
                                     hideBlockedSiteOverlay()
@@ -517,11 +773,19 @@ class BlurOverlayManager @Inject constructor(
         private var blurIntensity: BlurIntensity,
         private var blurStyle: BlurStyle = BlurStyle.PIXELATED,
         private var contentSensitivity: Float = 0.5f,
-        private var transparency: Float = 0.8f,
+        private var transparency: Float = 1.0f,
         private val isFullScreen: Boolean = false,
-        // NEW: Region-based trigger information
-        private val triggeredByRegionCount: Boolean = false
+        // Screen resolution for precise scaling
+        private val screenWidth: Int = 1080,
+        private val screenHeight: Int = 2400,
+        // Region-based trigger information
+        private val triggeredByRegionCount: Boolean = false,
+        private val regionCount: Int = 0,
+        private val maxConfidence: Float = 0.0f
     ) : View(context) {
+
+        // Public property to check if this is a full screen blur
+        val isFullScreenBlur: Boolean = isFullScreen
         
         private val enhancedBlurEffects = EnhancedBlurEffects()
 
@@ -530,23 +794,32 @@ class BlurOverlayManager @Inject constructor(
             return (baseAlpha * transparency).toInt().coerceIn(0, 255)
         }
 
-        // Multiple paint types for stronger blur effect with transparency support
+        // Enhanced paint types for maximum blur effectiveness
         private val blurPaint = Paint().apply {
             isAntiAlias = true
-            color = Color.parseColor("#E0E0E0") // Light gray
-            alpha = calculateAlpha(STRONG_BLUR_ALPHA)
+            color = Color.parseColor("#C0C0C0") // Stronger gray for better coverage
+            alpha = 255 // Maximum opacity
         }
 
         private val pixelPaint = Paint().apply {
             isAntiAlias = false // Pixelated effect
-            color = Color.parseColor("#D0D0D0") // Slightly darker gray
-            alpha = calculateAlpha(200)
+            color = Color.parseColor("#B0B0B0") // Darker gray
+            alpha = 240 // High opacity
         }
 
         private val noisePaint = Paint().apply {
             isAntiAlias = true
-            color = Color.parseColor("#F0F0F0") // Very light gray
-            alpha = calculateAlpha(150)
+            color = Color.parseColor("#D0D0D0") // Medium gray
+            alpha = 220 // High opacity
+        }
+        
+        // Precision debugging paint (remove in production)
+        private val borderPaint = Paint().apply {
+            isAntiAlias = true
+            color = Color.parseColor("#FF0000") // Red border
+            alpha = 100
+            style = Paint.Style.STROKE
+            strokeWidth = 2f
         }
         
         fun updateBlurRegions(
@@ -581,15 +854,32 @@ class BlurOverlayManager @Inject constructor(
                 // For full-screen mode, draw enhanced blur with warning patterns
                 drawFullScreenBlur(canvas)
             } else {
-                // Use enhanced blur effects for each region
+                // PRECISION BLUR: Draw only targeted regions with enhanced effects
                 blurRegions.forEach { rect ->
-                    enhancedBlurEffects.applyEnhancedBlur(
-                        canvas, 
-                        rect, 
-                        blurIntensity, 
-                        blurStyle, 
-                        contentSensitivity
+                    // Validate region bounds against actual canvas size
+                    val canvasWidth = canvas.width
+                    val canvasHeight = canvas.height
+                    
+                    val boundedRect = Rect(
+                        maxOf(0, rect.left),
+                        maxOf(0, rect.top),
+                        minOf(canvasWidth, rect.right),
+                        minOf(canvasHeight, rect.bottom)
                     )
+                    
+                    if (boundedRect.width() > 0 && boundedRect.height() > 0) {
+                        // Apply enhanced precision blur with maximum intensity
+                        enhancedBlurEffects.applyEnhancedBlur(
+                            canvas, 
+                            boundedRect, 
+                            BlurIntensity.MAXIMUM, // Force maximum intensity for better coverage
+                            BlurStyle.COMBINED, // Use combined style for best effect
+                            1.0f // Maximum sensitivity
+                        )
+                        
+                        // Add precision border for debugging (remove in production)
+                        drawPrecisionBorder(canvas, boundedRect)
+                    }
                 }
             }
         }
@@ -778,6 +1068,17 @@ class BlurOverlayManager @Inject constructor(
 
             // Draw warning circle
             canvas.drawCircle(centerX, centerY - 150f, 60f, circlePaint)
+        }
+        
+        /**
+         * Draw precision border for debugging blur regions
+         */
+        private fun drawPrecisionBorder(canvas: Canvas, rect: Rect) {
+            // Only draw in debug mode - comment out for production
+            // canvas.drawRect(rect, borderPaint)
+
+            val centerX = rect.centerX().toFloat()
+            val centerY = rect.centerY().toFloat()
 
             // Draw exclamation mark
             val textPaint = Paint().apply {

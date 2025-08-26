@@ -174,6 +174,85 @@ fun DebugScreen(
                 }
             }
             
+            // Behavioral Actions Testing
+            Card {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "🎯 Behavioral Actions Testing",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        "Test the new behavioral intervention system:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Action Test Buttons
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { viewModel.testAction("CLOSE_TAB") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("🗂️ Test Close Tab Action")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testAction("SCROLL_UP") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("📜 Test Scroll Up Action")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testAction("NAVIGATE_SAFE") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("🛡️ Test Navigate to Safe Content")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testAction("SHOW_ISLAMIC") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("📖 Test Show Islamic Content")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testAction("EMERGENCY_BLUR") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("🚨 Test Emergency Blur")
+                        }
+
+                        Button(
+                            onClick = { viewModel.emergencyHideOverlays() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("🚨 EMERGENCY: Hide All Overlays")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        "Last Action Result:",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = debugState.lastActionResult ?: "No actions tested yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+
             // Recent Logs
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -183,7 +262,7 @@ fun DebugScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     debugState.recentLogs.forEach { log ->
                         Text(
                             text = "[${log.timestamp}] ${log.tag}: ${log.message}",
@@ -279,7 +358,8 @@ data class DebugState(
     val faceDetection: FaceDetectionDebugInfo = FaceDetectionDebugInfo(),
     val nsfwDetection: NSFWDetectionDebugInfo = NSFWDetectionDebugInfo(),
     val performance: PerformanceDebugInfo = PerformanceDebugInfo(),
-    val recentLogs: List<DebugLog> = emptyList()
+    val recentLogs: List<DebugLog> = emptyList(),
+    val lastActionResult: String? = null
 )
 
 data class ServiceDebugInfo(

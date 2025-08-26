@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Shield base -->
+    <path
+        android:fillColor="#FF2E7D32"
+        android:pathData="M24,4 L40,12 L40,24 C40,36 32,44 24,44 C16,44 8,36 8,24 L8,12 Z" />
+
+    <!-- Shield border -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF1B5E20"
+        android:strokeWidth="2"
+        android:pathData="M24,4 L40,12 L40,24 C40,36 32,44 24,44 C16,44 8,36 8,24 L8,12 Z" />
+
+    <!-- Islamic crescent moon -->
+    <path
+        android:fillColor="#FFFFD700"
+        android:pathData="M28,18 A6,6 0 0,1 28,30 A5,5 0 0,0 28,18" />
+
+    <!-- Central star -->
+    <path
+        android:fillColor="#FFFFD700"
+        android:pathData="M24,20 L26,24 L30,24 L27,27 L28,31 L24,28 L20,31 L21,27 L18,24 L22,24 Z" />
+
+    <!-- Decorative elements -->
+    <path
+        android:fillColor="#FF4CAF50"
+        android:fillAlpha="0.8"
+        android:pathData="M16,16 L20,14 L24,16 L20,18 Z" />
+
+    <path
+        android:fillColor="#FF4CAF50"
+        android:fillAlpha="0.8"
+        android:pathData="M32,16 L36,14 L40,16 L36,18 Z" />
+
+</vector>

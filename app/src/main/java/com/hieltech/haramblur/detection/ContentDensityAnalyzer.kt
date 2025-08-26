@@ -200,7 +200,11 @@ enum class ContentAction {
     SELECTIVE_BLUR,
     FULL_SCREEN_BLUR,
     BLOCK_AND_WARN,
-    IMMEDIATE_CLOSE
+    IMMEDIATE_CLOSE,
+    SCROLL_AWAY,        // Scroll page to move inappropriate content out of view
+    NAVIGATE_BACK,      // Go back to previous page/screen
+    AUTO_CLOSE_APP,     // Automatically close the current app
+    GENTLE_REDIRECT     // Show warning and redirect after short delay
 }
 
 /**

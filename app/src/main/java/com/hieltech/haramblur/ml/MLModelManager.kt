@@ -730,12 +730,16 @@ class MLModelManager @Inject constructor(
     
     /**
      * Run NSFW inference using the loaded TensorFlow Lite model
+     * Memory-optimized with proper resource management
      */
     private fun runNSFWInference(tensorImage: TensorImage, useFastMode: Boolean): Float {
         return nsfwInterpreter?.let { interpreter ->
+            var inputBuffer: ByteBuffer? = null
+            var outputBuffer: ByteBuffer? = null
+
             try {
                 // Prepare input buffer
-                val inputBuffer = ByteBuffer.allocateDirect(4 * INPUT_SIZE * INPUT_SIZE * 3)
+                inputBuffer = ByteBuffer.allocateDirect(4 * INPUT_SIZE * INPUT_SIZE * 3)
                 inputBuffer.order(ByteOrder.nativeOrder())
 
                 // Convert tensor image to input buffer
@@ -746,7 +750,7 @@ class MLModelManager @Inject constructor(
                 }
 
                 // Prepare output buffer (assuming single output with NSFW probability)
-                val outputBuffer = ByteBuffer.allocateDirect(4 * 1) // 1 output value
+                outputBuffer = ByteBuffer.allocateDirect(4 * 1) // 1 output value
                 outputBuffer.order(ByteOrder.nativeOrder())
 
                 // Run inference
@@ -762,6 +766,10 @@ class MLModelManager @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Error running NSFW inference", e)
                 throw e
+            } finally {
+                // Explicit cleanup of buffers
+                inputBuffer?.clear()
+                outputBuffer?.clear()
             }
         } ?: throw IllegalStateException("NSFW interpreter not initialized")
     }
@@ -836,17 +844,24 @@ class MLModelManager @Inject constructor(
                     continue
                 }
 
-                // Extract tile bitmap
-                val tileBitmap = Bitmap.createBitmap(
-                    bitmap,
-                    tileRect.left,
-                    tileRect.top,
-                    tileRect.width(),
-                    tileRect.height()
-                )
+                // Extract tile bitmap with safety checks
+                val tileBitmap = try {
+                    Bitmap.createBitmap(
+                        bitmap,
+                        tileRect.left,
+                        tileRect.top,
+                        tileRect.width(),
+                        tileRect.height()
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to create tile bitmap at ${tileRect}, skipping", e)
+                    continue // Skip this tile if bitmap creation fails
+                }
 
                 // Analyze tile for NSFW content
                 val confidence = analyzeTileForNSFW(tileBitmap, useFastMode)
+
+                // Always recycle the tile bitmap
                 tileBitmap.recycle()
 
                 // Check if this tile meets high confidence threshold
@@ -1075,17 +1090,57 @@ class MLModelManager @Inject constructor(
     }
     
     fun cleanup() {
-        Log.d(TAG, "Cleaning up ML models")
-        nsfwInterpreter?.close()
-        genderInterpreter?.close()
-        fastNsfwInterpreter?.close()
-        nsfwInterpreter = null
-        genderInterpreter = null
-        fastNsfwInterpreter = null
-        clearAllCaches()
-        gpuAccelerationManager.cleanup()
-        isInitialized = false
-        isGenderModelReady = false
+        Log.d(TAG, "Cleaning up ML models and resources")
+
+        try {
+            // Close all interpreters with proper error handling
+            nsfwInterpreter?.let { interpreter ->
+                try {
+                    interpreter.close()
+                    Log.d(TAG, "NSFW interpreter closed successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error closing NSFW interpreter", e)
+                }
+            }
+
+            genderInterpreter?.let { interpreter ->
+                try {
+                    interpreter.close()
+                    Log.d(TAG, "Gender interpreter closed successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error closing gender interpreter", e)
+                }
+            }
+
+            fastNsfwInterpreter?.let { interpreter ->
+                try {
+                    interpreter.close()
+                    Log.d(TAG, "Fast NSFW interpreter closed successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error closing fast NSFW interpreter", e)
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during ML model cleanup", e)
+        } finally {
+            // Always null out references regardless of close() success
+            nsfwInterpreter = null
+            genderInterpreter = null
+            fastNsfwInterpreter = null
+
+            // Clear all caches to free memory
+            clearAllCaches()
+
+            // Cleanup GPU acceleration resources
+            gpuAccelerationManager.cleanup()
+
+            // Reset initialization flags
+            isInitialized = false
+            isGenderModelReady = false
+
+            Log.d(TAG, "ML model cleanup completed")
+        }
     }
     
     fun isModelReady(): Boolean = isInitialized

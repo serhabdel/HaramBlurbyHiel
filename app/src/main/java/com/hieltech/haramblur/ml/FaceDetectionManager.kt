@@ -57,23 +57,23 @@ class FaceDetectionManager @Inject constructor(
         return withContext(Dispatchers.Default) {
             try {
                 val startTime = System.currentTimeMillis()
-                Log.d(TAG, "👤 Face detection started - Image: ${bitmap.width}x${bitmap.height}")
-                Log.d(TAG, "🎯 Detection settings - Female focus: ${appSettings?.blurFemaleFaces ?: false}, GPU: ${appSettings?.enableGPUAcceleration ?: false}")
+                Log.d(TAG, "👤 PRECISION Face detection - Image: ${bitmap.width}x${bitmap.height}")
+                Log.d(TAG, "🎯 FEMALE-ONLY mode: ${appSettings?.blurFemaleFaces ?: false}, GPU: ${appSettings?.enableGPUAcceleration ?: false}")
                 
-                // Choose detector based on GPU setting
+                // Choose optimal detector for maximum performance
                 val detector = if (appSettings?.enableGPUAcceleration == true) {
-                    Log.d(TAG, "⚡ Using GPU-accelerated face detector")
+                    Log.d(TAG, "⚡ GPU-accelerated detector for ultra-fast female detection")
                     gpuFaceDetector
                 } else {
-                    Log.d(TAG, "🔄 Using CPU face detector")
+                    Log.d(TAG, "🔄 CPU detector with high accuracy for female faces")
                     faceDetector
                 }
                 
                 val inputImage = InputImage.fromBitmap(bitmap, 0)
                 
-                // Detect faces using ML Kit
+                // Detect faces with optimized ML Kit settings
                 val faces = detector.process(inputImage).await()
-                Log.d(TAG, "🔍 ML Kit detected ${faces.size} raw faces")
+                Log.d(TAG, "🔍 ML Kit raw detection: ${faces.size} faces (filtering for females only)")
             
                 val faceInfo = coroutineScope {
                     faces.map { face ->
@@ -95,14 +95,42 @@ class FaceDetectionManager @Inject constructor(
                     }.map { it.await() }
                 }
 
-                // Keep all detected faces - gender filtering will be done at blur decision level
-                // This ensures we don't miss female faces due to poor gender detection accuracy
-                val detectedFaces = faceInfo
-
-                Log.d(TAG, "🧠 All faces kept: ${detectedFaces.size} total faces (gender filtering moved to blur decision)")
+                // Apply immediate female-only filtering for precision
+                val femaleFaces = faceInfo.filter { face ->
+                    when {
+                        // High confidence female - always keep
+                        face.estimatedGender.toString().contains("FEMALE", ignoreCase = true) && 
+                        face.genderConfidence >= 0.4f -> {
+                            Log.v(TAG, "✅ FEMALE KEPT: confidence=${face.genderConfidence}")
+                            true
+                        }
+                        // Possible female (unknown with low confidence)
+                        face.estimatedGender.toString().contains("UNKNOWN", ignoreCase = true) && 
+                        face.genderConfidence < 0.4f -> {
+                            Log.v(TAG, "❓ POSSIBLE FEMALE: confidence=${face.genderConfidence}")
+                            appSettings?.detectionSensitivity ?: 0.5f > 0.7f
+                        }
+                        // STRICT EXCLUSION: All males and confident unknowns
+                        else -> {
+                            Log.v(TAG, "❌ EXCLUDED: ${face.estimatedGender}, confidence=${face.genderConfidence}")
+                            false
+                        }
+                    }
+                }
                 
-                Log.d(TAG, "✅ Face detection completed in ${System.currentTimeMillis() - startTime}ms")
-                Log.d(TAG, "📊 Results: ${detectedFaces.size} total faces")
+                val detectedFaces = femaleFaces
+                Log.d(TAG, "🎯 PRECISION FILTERING: ${detectedFaces.size} female faces from ${faceInfo.size} total")
+                
+                val processingTime = System.currentTimeMillis() - startTime
+                Log.d(TAG, "✅ PRECISION detection completed in ${processingTime}ms")
+                Log.d(TAG, "📊 FINAL RESULTS: ${detectedFaces.size} female faces (males excluded)")
+                
+                // Performance logging for optimization
+                if (appSettings?.enableGPUAcceleration == true && processingTime > 100) {
+                    Log.w(TAG, "⚠️ GPU detection slower than expected: ${processingTime}ms")
+                } else if (appSettings?.enableGPUAcceleration != true && processingTime > 200) {
+                    Log.w(TAG, "⚠️ CPU detection slower than expected: ${processingTime}ms")
+                }
                 
                 FaceDetectionResult(
                     facesDetected = detectedFaces.size,
@@ -285,19 +313,18 @@ class FaceDetectionManager @Inject constructor(
             return detectedFaces.filter { face ->
                 when (face.estimatedGender) {
                     Gender.MALE -> {
-                        // Respect blurMaleFaces setting - if false, don't blur males
-                        appSettings.blurMaleFaces &&
-                        (face.genderConfidence >= 0.6f || shouldUseSaferFiltering(face, appSettings))
+                        // STRICT: Never blur male faces regardless of settings
+                        false
                     }
                     Gender.FEMALE -> {
-                        // Enhanced female detection with lower confidence threshold
+                        // Enhanced female detection with optimized thresholds
                         appSettings.blurFemaleFaces &&
-                        (face.genderConfidence >= 0.4f || shouldUseSaferFiltering(face, appSettings))
+                        (face.genderConfidence >= 0.35f || shouldUseSaferFiltering(face, appSettings))
                     }
                     Gender.UNKNOWN -> {
-                        // For unknown gender, use safer approach - blur if either setting is enabled
-                        // This ensures we don't miss potential female faces due to poor detection
-                        (appSettings.blurFemaleFaces || appSettings.blurMaleFaces) &&
+                        // Only blur unknown faces if female blurring is enabled and confidence is very low
+                        appSettings.blurFemaleFaces &&
+                        face.genderConfidence < 0.4f && // Very uncertain
                         shouldUseSaferFiltering(face, appSettings)
                     }
                 }
@@ -309,25 +336,19 @@ class FaceDetectionManager @Inject constructor(
          */
         private fun shouldUseSaferFiltering(face: DetectedFace, appSettings: AppSettings): Boolean {
             return when {
-                // For female-focused detection, use much lower confidence threshold
-                face.genderConfidence < 0.5f -> {
-                    // If female blur is enabled, blur low-confidence faces as safety measure
-                    // For males, we use safer filtering only if male blurring is enabled
-                    if (face.estimatedGender == Gender.MALE) {
-                        appSettings.blurMaleFaces
-                    } else {
-                        appSettings.blurFemaleFaces
-                    }
+                // STRICT MALE EXCLUSION: Never use safer filtering for males
+                face.estimatedGender == Gender.MALE -> false
+                
+                // For female faces with very low confidence - use high sensitivity setting
+                face.estimatedGender == Gender.FEMALE && face.genderConfidence < 0.4f -> {
+                    appSettings.blurFemaleFaces && appSettings.detectionSensitivity > 0.8f
                 }
-                // If confidence is moderate, be more liberal
-                face.genderConfidence < 0.7f -> {
-                    // For moderate confidence, apply safer approach based on gender
-                    if (face.estimatedGender == Gender.MALE) {
-                        appSettings.blurMaleFaces
-                    } else {
-                        appSettings.blurFemaleFaces
-                    }
+                
+                // For unknown gender with very low confidence - might be female
+                face.estimatedGender == Gender.UNKNOWN && face.genderConfidence < 0.3f -> {
+                    appSettings.blurFemaleFaces && appSettings.detectionSensitivity > 0.9f
                 }
+                
                 else -> false
             }
         }

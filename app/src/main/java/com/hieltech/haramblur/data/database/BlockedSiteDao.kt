@@ -78,6 +78,43 @@ interface BlockedSiteDao {
     
     @Query("SELECT * FROM blocked_sites WHERE source = :source AND is_active = 1")
     suspend fun getSitesBySource(source: String): List<BlockedSiteEntity>
+
+    // Custom blocking methods
+    @Query("SELECT * FROM blocked_sites WHERE added_by_user = 1 AND is_active = 1 ORDER BY date_added DESC")
+    suspend fun getUserAddedSites(): List<BlockedSiteEntity>
+
+    @Query("SELECT * FROM blocked_sites WHERE is_custom = 1 AND is_active = 1")
+    suspend fun getCustomSites(): List<BlockedSiteEntity>
+
+    @Query("SELECT COUNT(*) FROM blocked_sites WHERE added_by_user = 1 AND is_active = 1")
+    suspend fun getUserAddedSiteCount(): Int
+
+    @Query("INSERT OR REPLACE INTO blocked_sites (domain_hash, pattern, category, confidence, last_updated, is_regex, source, description, is_custom, added_by_user, custom_category, date_added, block_count, is_active) VALUES (:domainHash, :pattern, :category, :confidence, :lastUpdated, :isRegex, :source, :description, 1, 1, :customCategory, :dateAdded, 0, 1)")
+    suspend fun insertCustomSite(
+        domainHash: String,
+        pattern: String,
+        category: BlockingCategory,
+        confidence: Float,
+        lastUpdated: Long,
+        isRegex: Boolean = false,
+        source: String = "user_added",
+        description: String? = null,
+        customCategory: String? = null,
+        dateAdded: Long
+    ): Long
+
+    @Query("UPDATE blocked_sites SET block_count = block_count + 1 WHERE domain_hash = :domainHash")
+    suspend fun incrementBlockCount(domainHash: String)
+
+    @Query("SELECT * FROM blocked_sites WHERE pattern LIKE '%' || :query || '%' AND is_active = 1 ORDER BY added_by_user DESC, confidence DESC")
+    suspend fun searchSites(query: String): List<BlockedSiteEntity>
+
+    // Flow versions for custom sites
+    @Query("SELECT * FROM blocked_sites WHERE added_by_user = 1 AND is_active = 1 ORDER BY date_added DESC")
+    fun getUserAddedSitesFlow(): Flow<List<BlockedSiteEntity>>
+
+    @Query("SELECT COUNT(*) FROM blocked_sites WHERE added_by_user = 1 AND is_active = 1")
+    fun getUserAddedSiteCountFlow(): Flow<Int>
 }
 
 /**

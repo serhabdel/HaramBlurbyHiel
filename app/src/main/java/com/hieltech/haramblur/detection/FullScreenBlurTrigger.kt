@@ -2,15 +2,20 @@ package com.hieltech.haramblur.detection
 
 import android.util.Log
 import com.hieltech.haramblur.data.AppSettings
+import com.hieltech.haramblur.llm.OpenRouterLLMService
+import kotlinx.coroutines.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Handles full-screen blur triggering logic based on content density analysis
  * Determines when selective blur should escalate to full-screen blur with warnings
+ * Enhanced with OpenRouter LLM for intelligent decision making
  */
 @Singleton
-class FullScreenBlurTrigger @Inject constructor() {
+class FullScreenBlurTrigger @Inject constructor(
+    private val llmService: OpenRouterLLMService
+) {
     
     companion object {
         private const val TAG = "FullScreenBlurTrigger"
@@ -53,14 +58,38 @@ class FullScreenBlurTrigger @Inject constructor() {
             nsfwRegionCount >= settings.nsfwFullScreenRegionThreshold &&
             maxNsfwConfidence >= settings.nsfwHighConfidenceThreshold) {
 
-            Log.d(TAG, "🚨 CRITICAL: Region-based full-screen blur triggered - $nsfwRegionCount regions with confidence $maxNsfwConfidence")
+            Log.d(TAG, "🚨 CRITICAL: Region-based trigger activated - $nsfwRegionCount regions with confidence $maxNsfwConfidence")
+
+            // Check if LLM decision making is enabled for faster, smarter decisions
+            if (settings.enableLLMDecisionMaking && settings.openRouterApiKey.isNotBlank()) {
+                Log.d(TAG, "🤖 Using LLM for fast decision making")
+                // Note: LLM call will be made asynchronously by caller
+                return FullScreenBlurDecision(
+                    shouldTrigger = false,
+                    reason = "LLM_ENHANCED: $nsfwRegionCount regions detected - using AI decision",
+                    warningLevel = WarningLevel.CRITICAL,
+                    recommendedAction = ContentAction.SCROLL_AWAY, // Default while LLM decides
+                    reflectionTimeSeconds = 0,
+                    useLLMDecision = true
+                )
+            }
+
+            // Use graduated response instead of immediate full screen blur
+            val recommendedAction = when {
+                nsfwRegionCount >= 10 -> ContentAction.AUTO_CLOSE_APP
+                nsfwRegionCount >= 8 -> ContentAction.NAVIGATE_BACK
+                nsfwRegionCount >= 6 -> ContentAction.SCROLL_AWAY
+                else -> ContentAction.GENTLE_REDIRECT
+            }
+
+            Log.d(TAG, "🎯 Using graduated response: $recommendedAction for $nsfwRegionCount regions")
 
             return FullScreenBlurDecision(
-                shouldTrigger = true,
-                reason = "CRITICAL: $nsfwRegionCount high-confidence NSFW regions detected (threshold: ${settings.nsfwFullScreenRegionThreshold})",
+                shouldTrigger = false, // Don't trigger full screen blur - use navigation instead
+                reason = "ADAPTIVE: $nsfwRegionCount high-confidence NSFW regions detected - using $recommendedAction",
                 warningLevel = WarningLevel.CRITICAL,
-                recommendedAction = ContentAction.IMMEDIATE_CLOSE,
-                reflectionTimeSeconds = settings.mandatoryReflectionTime * 3 // Triple reflection time for critical region-based triggers
+                recommendedAction = recommendedAction,
+                reflectionTimeSeconds = 0 // No reflection time for automatic actions
             )
         }
         
@@ -477,6 +506,105 @@ class FullScreenBlurTrigger @Inject constructor() {
         
         return alternatives.distinct()
     }
+    
+    /**
+     * Make LLM-enhanced decision for fast, intelligent action selection
+     * @param nsfwRegionCount Number of NSFW regions detected
+     * @param maxNsfwConfidence Maximum confidence among NSFW regions
+     * @param settings Current app settings
+     * @param currentApp Current app package name (optional)
+     * @return LLM decision result with enhanced reasoning
+     */
+    suspend fun makeLLMEnhancedDecision(
+        nsfwRegionCount: Int,
+        maxNsfwConfidence: Float,
+        settings: AppSettings,
+        currentApp: String = "browser"
+    ): com.hieltech.haramblur.llm.LLMDecisionResult = withContext(Dispatchers.IO) {
+        
+        val startTime = System.currentTimeMillis()
+        
+        try {
+            Log.d(TAG, "🤖 Making LLM-enhanced decision for $nsfwRegionCount regions")
+            
+            // Determine content description based on region count and confidence
+            val contentDescription = when {
+                nsfwRegionCount >= 10 && maxNsfwConfidence >= 0.9f -> "extremely explicit web content"
+                nsfwRegionCount >= 8 && maxNsfwConfidence >= 0.8f -> "highly inappropriate content"
+                nsfwRegionCount >= 6 && maxNsfwConfidence >= 0.7f -> "multiple NSFW regions"
+                nsfwRegionCount >= 4 && maxNsfwConfidence >= 0.6f -> "moderate inappropriate content"
+                else -> "potentially inappropriate content"
+            }
+            
+            // Get LLM decision with timeout
+            val llmResult = withTimeoutOrNull(settings.llmTimeoutMs) {
+                llmService.getFastDecision(
+                    nsfwRegionCount = nsfwRegionCount,
+                    maxConfidence = maxNsfwConfidence,
+                    contentDescription = contentDescription,
+                    currentApp = currentApp,
+                    apiKey = settings.openRouterApiKey
+                )
+            }
+            
+            val processingTime = System.currentTimeMillis() - startTime
+            
+            if (llmResult != null) {
+                Log.d(TAG, "✅ LLM decision: ${llmResult.action} (${processingTime}ms)")
+                return@withContext llmResult.copy(responseTimeMs = processingTime)
+            } else {
+                Log.w(TAG, "⏰ LLM timeout after ${settings.llmTimeoutMs}ms, using fallback")
+                // Return fallback decision
+                return@withContext createFallbackLLMDecision(nsfwRegionCount, maxNsfwConfidence, processingTime)
+            }
+            
+        } catch (e: Exception) {
+            val processingTime = System.currentTimeMillis() - startTime
+            Log.e(TAG, "❌ LLM decision failed after ${processingTime}ms", e)
+            return@withContext createFallbackLLMDecision(nsfwRegionCount, maxNsfwConfidence, processingTime)
+        }
+    }
+    
+    /**
+     * Create fallback decision when LLM fails
+     */
+    private fun createFallbackLLMDecision(
+        regionCount: Int, 
+        confidence: Float, 
+        processingTime: Long
+    ): com.hieltech.haramblur.llm.LLMDecisionResult {
+        val (action, reasoning, urgency) = when {
+            regionCount >= 10 -> Triple(
+                ContentAction.AUTO_CLOSE_APP,
+                "Extreme content - close app",
+                com.hieltech.haramblur.llm.UrgencyLevel.CRITICAL
+            )
+            regionCount >= 8 -> Triple(
+                ContentAction.NAVIGATE_BACK,
+                "High NSFW content - go back",
+                com.hieltech.haramblur.llm.UrgencyLevel.HIGH
+            )
+            regionCount >= 6 -> Triple(
+                ContentAction.SCROLL_AWAY,
+                "Multiple regions - scroll away",
+                com.hieltech.haramblur.llm.UrgencyLevel.MEDIUM
+            )
+            else -> Triple(
+                ContentAction.SELECTIVE_BLUR,
+                "Moderate content - selective blur",
+                com.hieltech.haramblur.llm.UrgencyLevel.LOW
+            )
+        }
+        
+        return com.hieltech.haramblur.llm.LLMDecisionResult(
+            action = action,
+            reasoning = reasoning,
+            confidence = 0.8f,
+            urgency = urgency,
+            isLLMDecision = false,
+            responseTimeMs = processingTime
+        )
+    }
 }
 
 /**
@@ -487,7 +615,8 @@ data class FullScreenBlurDecision(
     val reason: String,
     val warningLevel: WarningLevel,
     val recommendedAction: ContentAction,
-    val reflectionTimeSeconds: Int
+    val reflectionTimeSeconds: Int,
+    val useLLMDecision: Boolean = false // Whether to use LLM for enhanced decision making
 )
 
 /**

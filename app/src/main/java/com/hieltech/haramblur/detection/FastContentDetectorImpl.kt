@@ -204,34 +204,42 @@ class FastContentDetectorImpl @Inject constructor(
                         val y = row * cellHeight
                         val cellRect = Rect(x, y, x + cellWidth, y + cellHeight)
                         
-                        // Extract cell bitmap
-                        val cellBitmap = Bitmap.createBitmap(
-                            scaledBitmap, 
-                            x, 
-                            y, 
-                            minOf(cellWidth, scaledBitmap.width - x),
-                            minOf(cellHeight, scaledBitmap.height - y)
+                                        // Extract cell bitmap with safety checks
+                val cellBitmap = try {
+                    Bitmap.createBitmap(
+                        scaledBitmap,
+                        x,
+                        y,
+                        minOf(cellWidth, scaledBitmap.width - x),
+                        minOf(cellHeight, scaledBitmap.height - y)
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to create cell bitmap at row=$row, col=$col, skipping", e)
+                    continue // Skip this cell if bitmap creation fails
+                }
+
+                try {
+                    // Analyze cell content
+                    val cellDensity = analyzeCellContent(cellBitmap)
+                    distributionMap[row][col] = cellDensity
+                    totalInappropriateContent += cellDensity
+                    totalCells++
+
+                    // Mark as critical region if density is high
+                    if (cellDensity > 0.6f) {
+                        // Scale back to original bitmap coordinates
+                        val originalRect = Rect(
+                            (x * bitmap.width) / scaledBitmap.width,
+                            (y * bitmap.height) / scaledBitmap.height,
+                            ((x + cellWidth) * bitmap.width) / scaledBitmap.width,
+                            ((y + cellHeight) * bitmap.height) / scaledBitmap.height
                         )
-                        
-                        // Analyze cell content
-                        val cellDensity = analyzeCellContent(cellBitmap)
-                        distributionMap[row][col] = cellDensity
-                        totalInappropriateContent += cellDensity
-                        totalCells++
-                        
-                        // Mark as critical region if density is high
-                        if (cellDensity > 0.6f) {
-                            // Scale back to original bitmap coordinates
-                            val originalRect = Rect(
-                                (x * bitmap.width) / scaledBitmap.width,
-                                (y * bitmap.height) / scaledBitmap.height,
-                                ((x + cellWidth) * bitmap.width) / scaledBitmap.width,
-                                ((y + cellHeight) * bitmap.height) / scaledBitmap.height
-                            )
-                            criticalRegions.add(originalRect)
-                        }
-                        
-                        cellBitmap.recycle()
+                        criticalRegions.add(originalRect)
+                    }
+                } finally {
+                    // Always recycle the cell bitmap
+                    cellBitmap.recycle()
+                }
                     }
                 }
                 

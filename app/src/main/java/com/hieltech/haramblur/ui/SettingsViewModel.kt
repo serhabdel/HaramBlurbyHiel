@@ -1,16 +1,20 @@
 package com.hieltech.haramblur.ui
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieltech.haramblur.data.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    @ApplicationContext private val context: Context,
+    private val logRepository: LogRepository
 ) : ViewModel() {
     
     val settings: StateFlow<AppSettings> = settingsRepository.settings
@@ -244,6 +248,79 @@ class SettingsViewModel @Inject constructor(
         }
     }
     
+    // Logging Settings Methods
+    fun updateDetailedLogging(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableDetailedLogging = enabled))
+        }
+    }
+
+    fun updateLogLevel(logLevel: LogLevel) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(logLevel = logLevel))
+        }
+    }
+
+    fun updateLogCategory(category: LogCategory, enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            val updatedCategories = if (enabled) {
+                current.enableLogCategories + category
+            } else {
+                current.enableLogCategories - category
+            }
+            settingsRepository.updateSettings(current.copy(enableLogCategories = updatedCategories))
+        }
+    }
+
+    fun updateLogRetentionDays(days: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(maxLogRetentionDays = days))
+        }
+    }
+
+    fun updatePerformanceLogging(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enablePerformanceLogging = enabled))
+        }
+    }
+
+    fun updateErrorReporting(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableErrorReporting = enabled))
+        }
+    }
+
+    fun updateUserActionLogging(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableUserActionLogging = enabled))
+        }
+    }
+
+    // Log Export Methods
+    suspend fun exportLogs(): String? {
+        return try {
+            viewModelScope.launch {
+                logRepository.logInfo("SettingsViewModel", "Exporting logs from settings")
+            }
+            val levels = listOf("DEBUG", "INFO", "WARN", "ERROR")
+            logRepository.exportLogsAsText(levels = levels)
+        } catch (e: Exception) {
+            viewModelScope.launch {
+                logRepository.logError("SettingsViewModel", "Failed to export logs", e)
+            }
+            null
+        }
+    }
+
+
+
     fun applyOptimalSettings() {
         viewModelScope.launch {
             val optimal = AppSettings(
@@ -273,9 +350,59 @@ class SettingsViewModel @Inject constructor(
                 imageDownscaleRatio = 0.6f, // Higher quality for better detection
                 // Lower confidence thresholds for better female detection
                 genderConfidenceThreshold = 0.4f,
-                nsfwConfidenceThreshold = 0.5f
+                nsfwConfidenceThreshold = 0.5f,
+                // Optimal logging settings
+                enableDetailedLogging = true,
+                logLevel = LogLevel.INFO,
+                enableLogCategories = setOf(
+                    LogCategory.DETECTION,
+                    LogCategory.BLOCKING,
+                    LogCategory.UI,
+                    LogCategory.ACCESSIBILITY,
+                    LogCategory.PERFORMANCE
+                ),
+                maxLogRetentionDays = 7,
+                enablePerformanceLogging = true,
+                enableErrorReporting = true,
+                enableUserActionLogging = true
             )
             settingsRepository.updateSettings(optimal)
+        }
+    }
+    
+    // LLM Decision Making Settings
+    fun updateLLMDecisionMaking(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableLLMDecisionMaking = enabled))
+        }
+    }
+    
+    fun updateOpenRouterApiKey(apiKey: String) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(openRouterApiKey = apiKey))
+        }
+    }
+    
+    fun updateLLMModel(model: String) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(llmModel = model))
+        }
+    }
+    
+    fun updateLLMTimeout(timeoutMs: Long) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(llmTimeoutMs = timeoutMs))
+        }
+    }
+    
+    fun updateLLMFallbackToRules(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(llmFallbackToRules = enabled))
         }
     }
 }
