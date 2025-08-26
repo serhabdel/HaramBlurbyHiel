@@ -1,6 +1,7 @@
 package com.hieltech.haramblur.detection
 
 import android.util.Log
+import com.hieltech.haramblur.utils.UrlUtils
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -94,8 +95,8 @@ class EmbeddedSiteBlockingList @Inject constructor() {
             Log.d(TAG, "Checking URL against embedded blocking list")
             
             val normalizedUrl = url.lowercase().trim()
-            val domain = extractDomain(normalizedUrl)
-            val domainHash = hashDomain(domain)
+            val domain = UrlUtils.extractDomain(normalizedUrl)
+            val domainHash = UrlUtils.hashDomainSimple(domain)
             
             // Check against blocked domains
             if (BLOCKED_DOMAINS.contains(domainHash)) {
@@ -186,7 +187,7 @@ class EmbeddedSiteBlockingList @Inject constructor() {
      * Check if embedded list contains domain
      */
     fun containsDomain(domain: String): Boolean {
-        val domainHash = hashDomain(domain.lowercase().trim())
+        val domainHash = UrlUtils.hashDomainSimple(domain.lowercase().trim())
         return BLOCKED_DOMAINS.contains(domainHash)
     }
     
@@ -203,26 +204,7 @@ class EmbeddedSiteBlockingList @Inject constructor() {
         )
     }
     
-    private fun extractDomain(url: String): String {
-        return try {
-            val withoutProtocol = url.substringAfter("://")
-            val domain = withoutProtocol.substringBefore("/")
-            val withoutWww = if (domain.startsWith("www.")) {
-                domain.substring(4)
-            } else {
-                domain
-            }
-            withoutWww.substringBefore(":")
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not extract domain from URL: $url", e)
-            url
-        }
-    }
-    
-    private fun hashDomain(domain: String): String {
-        // Simple hash function for domain (in production, use proper hashing)
-        return domain.hashCode().toString(16).padStart(12, '0').take(12)
-    }
+
     
     private fun determineCategory(pattern: String): BlockingCategory {
         return when {

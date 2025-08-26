@@ -1,9 +1,9 @@
 package com.hieltech.haramblur.data.database
 
 import com.hieltech.haramblur.detection.BlockingCategory
+import com.hieltech.haramblur.utils.UrlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -208,7 +208,7 @@ class DatabaseInitializer @Inject constructor(
         timestamp: Long
     ): BlockedSiteEntity {
         return BlockedSiteEntity(
-            domainHash = hashDomain(domain),
+            domainHash = UrlUtils.hashDomainSha256(domain),
             pattern = domain,
             category = category,
             confidence = confidence,
@@ -225,7 +225,7 @@ class DatabaseInitializer @Inject constructor(
         timestamp: Long
     ): BlockedSiteEntity {
         return BlockedSiteEntity(
-            domainHash = hashDomain(pattern),
+            domainHash = UrlUtils.hashDomainSha256(pattern),
             pattern = pattern,
             category = category,
             confidence = confidence,
@@ -235,9 +235,5 @@ class DatabaseInitializer @Inject constructor(
         )
     }
     
-    private fun hashDomain(domain: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hashBytes = digest.digest(domain.lowercase().toByteArray())
-        return hashBytes.joinToString("") { "%02x".format(it) }
-    }
+
 }

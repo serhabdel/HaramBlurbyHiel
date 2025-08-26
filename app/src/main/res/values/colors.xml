@@ -1,5 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Islamic-inspired color palette -->
+    <color name="islamic_emerald">#FF2E7D32</color>
+    <color name="islamic_emerald_light">#FF4CAF50</color>
+    <color name="islamic_emerald_dark">#FF1B5E20</color>
+
+    <color name="islamic_gold">#FFFFD700</color>
+    <color name="islamic_gold_dark">#FFFFB300</color>
+
+    <color name="islamic_blue">#FF1976D2</color>
+    <color name="islamic_blue_light">#FF42A5F5</color>
+
+    <color name="islamic_amber">#FFFF9800</color>
+    <color name="islamic_red">#FFD32F2F</color>
+
+    <!-- Gradient colors -->
+    <color name="gradient_start">#FF2E7D32</color>
+    <color name="gradient_end">#FF1B5E20</color>
+
+    <!-- Surface colors -->
+    <color name="surface_primary">#FFF8F9FA</color>
+    <color name="surface_secondary">#FFF1F3F4</color>
+
+    <!-- Legacy colors for compatibility -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

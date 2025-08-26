@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Islamic geometric pattern background -->
+    <path
+        android:fillColor="#FF2E7D32"
+        android:fillAlpha="0.1"
+        android:pathData="M0,0h200v200H0z" />
+
+    <!-- Central star pattern -->
+    <path
+        android:fillColor="#FFFFD700"
+        android:fillAlpha="0.8"
+        android:pathData="M100,40 L120,80 L160,80 L130,110 L140,150 L100,125 L60,150 L70,110 L40,80 L80,80 Z" />
+
+    <!-- Surrounding geometric elements -->
+    <path
+        android:fillColor="#FF4CAF50"
+        android:fillAlpha="0.6"
+        android:pathData="M50,50 L70,30 L90,50 L70,70 Z" />
+
+    <path
+        android:fillColor="#FF4CAF50"
+        android:fillAlpha="0.6"
+        android:pathData="M150,50 L170,30 L190,50 L170,70 Z" />
+
+    <path
+        android:fillColor="#FF4CAF50"
+        android:fillAlpha="0.6"
+        android:pathData="M50,150 L70,130 L90,150 L70,170 Z" />
+
+    <path
+        android:fillColor="#FF4CAF50"
+        android:fillAlpha="0.6"
+        android:pathData="M150,150 L170,130 L190,150 L170,170 Z" />
+
+    <!-- Crescent moon -->
+    <path
+        android:fillColor="#FFFFD700"
+        android:fillAlpha="0.9"
+        android:pathData="M160,35 A25,25 0 0,1 160,85 A20,20 0 0,0 160,35" />
+
+</vector>

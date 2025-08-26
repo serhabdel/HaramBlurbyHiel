@@ -447,6 +447,180 @@ dependencies {
 
 ---
 
-**Last Updated**: January 2025  
-**Project Lead**: Development Team  
+## 🎯 New Feature: Comprehensive App & Website Blocking System
+
+### Feature Overview
+A comprehensive blocking system that extends HaramBlur's capabilities to block apps and websites with time-based controls, scheduling, and personalized blocking rules.
+
+### High-Level Architecture
+
+#### Core Components
+
+1. **Navigation & UI Layer**
+   - `MainActivity` with bottom navigation
+   - `HomeScreen` - Dashboard with status and quick actions
+   - `BlockAppsAndSitesScreen` - Main blocking management interface
+   - `AppBlockingScreen` - Dedicated app blocking UI
+   - `SiteBlockingScreen` - Dedicated website blocking UI
+
+2. **Data Layer**
+   - `AppBlockingDatabase` - Extended database for app/website blocking
+   - `BlockedAppEntity` - App blocking configuration
+   - `BlockingScheduleEntity` - Time-based blocking schedules
+   - `AppBlockingRepository` - Data access for app blocking
+   - `BlockingScheduleRepository` - Data access for schedules
+
+3. **Business Logic Layer**
+   - `AppBlockingManager` - Core app blocking logic
+   - `ScheduleManager` - Time-based blocking management
+   - `BrowserWindowManager` - Enhanced browser management
+   - `AppBlockerService` - Background service for app blocking
+
+4. **System Integration Layer**
+   - Extended `HaramBlurAccessibilityService`
+   - `AppBlockerAccessibilityService` - Specialized for app blocking
+   - WorkManager integration for scheduled tasks
+
+#### Database Schema Extensions
+
+```sql
+-- App blocking configuration
+CREATE TABLE blocked_apps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    package_name TEXT NOT NULL UNIQUE,
+    app_name TEXT NOT NULL,
+    is_blocked BOOLEAN DEFAULT 0,
+    block_type TEXT DEFAULT 'simple', -- 'simple', 'time_based', 'scheduled'
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Time-based blocking schedules
+CREATE TABLE blocking_schedules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    app_package_name TEXT,
+    site_domain TEXT,
+    schedule_type TEXT NOT NULL, -- 'duration', 'time_range'
+    duration_minutes INTEGER, -- for duration-based blocking
+    start_hour INTEGER, -- for time-range blocking
+    start_minute INTEGER,
+    end_hour INTEGER,
+    end_minute INTEGER,
+    days_of_week TEXT, -- JSON array of days (0-6)
+    is_active BOOLEAN DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (app_package_name) REFERENCES blocked_apps (package_name) ON DELETE CASCADE,
+    FOREIGN KEY (site_domain) REFERENCES blocked_sites (domain_hash) ON DELETE CASCADE
+);
+
+-- Enhanced blocked sites table (extends existing)
+ALTER TABLE blocked_sites ADD COLUMN is_custom BOOLEAN DEFAULT 0;
+ALTER TABLE blocked_sites ADD COLUMN added_by_user BOOLEAN DEFAULT 0;
+ALTER TABLE blocked_sites ADD COLUMN custom_category TEXT;
+
+-- User preferences for blocking behavior
+CREATE TABLE blocking_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    strict_blocking BOOLEAN DEFAULT 0, -- close app immediately vs show warning
+    allow_temporary_unblock BOOLEAN DEFAULT 1,
+    temporary_unblock_duration INTEGER DEFAULT 5, -- minutes
+    show_quranic_verses BOOLEAN DEFAULT 1,
+    vibration_on_block BOOLEAN DEFAULT 1,
+    sound_on_block BOOLEAN DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+```
+
+#### Component Responsibilities
+
+**AppBlockingManager**
+- Install/uninstall app blocking rules
+- Manage app launch intents and restrictions
+- Handle time-based blocking logic
+- Integrate with system package manager
+
+**BrowserWindowManager**
+- Monitor browser tab changes
+- Close blocked tabs automatically
+- Navigate to safe pages when blocking
+- Handle multiple browser apps
+
+**ScheduleManager**
+- Manage blocking schedules
+- Calculate next blocking/unblocking times
+- Handle recurring schedules
+- Work with WorkManager for background tasks
+
+**Enhanced Accessibility Service**
+- Detect app launches and block them
+- Monitor browser URL changes
+- Handle app switching and blocking
+- Provide system-level blocking enforcement
+
+### Key Features Implementation
+
+#### 1. App Blocking with Time Controls
+- **Simple Blocking**: Toggle apps on/off
+- **Time-Based Blocking**: Block for 15min, 2hrs, custom duration
+- **Scheduled Blocking**: Block between specific hours/days
+- **Smart Blocking**: Block during prayer times, work hours, etc.
+
+#### 2. Website Blocking Enhancements
+- **Custom URL Addition**: User can add specific websites
+- **Category-Based Blocking**: Pre-defined categories (porn, social media, etc.)
+- **Browser Integration**: Works across Chrome, Firefox, Samsung Browser, etc.
+- **Tab Management**: Close blocked tabs, navigate to safe alternatives
+
+#### 3. User Experience
+- **Visual Feedback**: Clear indicators for blocked/unblocked status
+- **Quranic Guidance**: Show relevant verses when blocking
+- **Temporary Unblock**: Allow temporary access with reflection period
+- **Statistics**: Show blocking effectiveness and usage patterns
+
+### Technical Implementation Plan
+
+#### Phase 1: Database & Core Managers (Week 1)
+- Extend database schema for app blocking
+- Create AppBlockingManager and ScheduleManager
+- Implement basic app blocking functionality
+- Add WorkManager integration
+
+#### Phase 2: UI Implementation (Week 2)
+- Create bottom navigation structure
+- Implement HomeScreen and BlockAppsAndSitesScreen
+- Add app blocking toggle interface
+- Create website blocking management UI
+
+#### Phase 3: Time-Based Features (Week 3)
+- Implement duration-based blocking (15min, 2hrs, custom)
+- Add scheduled blocking with time ranges
+- Create recurring schedule management
+- Add smart blocking presets (prayer times, etc.)
+
+#### Phase 4: Browser Integration (Week 4)
+- Extend website blocking with custom URLs
+- Implement browser window management
+- Add multi-browser support
+- Create tab closing and navigation logic
+
+#### Phase 5: Advanced Features (Week 5)
+- Add Quranic guidance for blocked content
+- Implement temporary unblock with reflection periods
+- Create blocking statistics and analytics
+- Add user preference management
+
+### Success Criteria
+- **App Blocking**: Successfully blocks/unblocks apps with time controls
+- **Website Blocking**: Closes blocked tabs across major browsers
+- **Time-Based Blocking**: Accurate scheduling and duration management
+- **User Experience**: Intuitive interface with clear feedback
+- **Performance**: Minimal battery and resource impact
+- **Privacy**: All processing remains local with zero data transmission
+
+---
+
+**Last Updated**: January 2025
+**Project Lead**: Development Team
 **Status**: Ready for Implementation 🚀

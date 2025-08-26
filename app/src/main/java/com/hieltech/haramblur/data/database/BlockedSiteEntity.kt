@@ -44,7 +44,23 @@ data class BlockedSiteEntity(
     
     @ColumnInfo(name = "source")
     val source: String = "default", // default, user_added, community, etc.
-    
+
     @ColumnInfo(name = "description")
-    val description: String? = null
+    val description: String? = null,
+
+    // Enhanced fields for custom blocking
+    @ColumnInfo(name = "is_custom")
+    val isCustom: Boolean = false,
+
+    @ColumnInfo(name = "added_by_user")
+    val addedByUser: Boolean = false,
+
+    @ColumnInfo(name = "custom_category")
+    val customCategory: String? = null,
+
+    @ColumnInfo(name = "date_added")
+    val dateAdded: Long? = null,
+
+    @ColumnInfo(name = "block_count")
+    val blockCount: Int = 0
 )

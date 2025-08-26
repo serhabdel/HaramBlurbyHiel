@@ -5,10 +5,10 @@ import com.hieltech.haramblur.data.database.BlockedSiteEntity
 import com.hieltech.haramblur.data.database.FalsePositiveEntity
 import com.hieltech.haramblur.data.database.FalsePositiveStatus
 import com.hieltech.haramblur.data.database.SiteBlockingDatabase
+import com.hieltech.haramblur.utils.UrlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.URL
-import java.security.MessageDigest
+
 import java.util.regex.Pattern
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,7 +58,7 @@ class SiteBlockingManagerImpl @Inject constructor(
     override suspend fun checkUrl(url: String): SiteBlockingResult = withContext(Dispatchers.IO) {
         try {
             val cleanUrl = cleanUrl(url)
-            val domain = extractDomain(cleanUrl)
+            val domain = UrlUtils.extractDomain(cleanUrl)
             
             // Check cache first
             domainCache[domain]?.let { cachedResult ->
@@ -124,7 +124,7 @@ class SiteBlockingManagerImpl @Inject constructor(
     
     override suspend fun reportFalsePositive(url: String, reason: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val urlHash = hashDomain(url)
+            val urlHash = UrlUtils.hashDomainSha256(url)
             val report = FalsePositiveEntity(
                 urlHash = urlHash,
                 originalUrl = url,
@@ -132,11 +132,11 @@ class SiteBlockingManagerImpl @Inject constructor(
                 reason = reason,
                 status = FalsePositiveStatus.PENDING
             )
-            
+
             database.falsePositiveDao().insertReport(report)
-            
+
             // Remove from cache to prevent continued blocking
-            val domain = extractDomain(url)
+            val domain = UrlUtils.extractDomain(url)
             domainCache.remove(domain)
             
             true
@@ -155,9 +155,9 @@ class SiteBlockingManagerImpl @Inject constructor(
     
     override suspend fun addCustomBlockedSite(url: String, category: BlockingCategory): Boolean = withContext(Dispatchers.IO) {
         try {
-            val domain = extractDomain(url)
+            val domain = UrlUtils.extractDomain(url)
             val blockedSite = BlockedSiteEntity(
-                domainHash = hashDomain(domain),
+                domainHash = UrlUtils.hashDomainSha256(domain),
                 pattern = domain,
                 category = category,
                 confidence = 1.0f,
@@ -180,8 +180,8 @@ class SiteBlockingManagerImpl @Inject constructor(
     
     override suspend fun removeBlockedSite(url: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val domain = extractDomain(url)
-            val domainHash = hashDomain(domain)
+            val domain = UrlUtils.extractDomain(url)
+            val domainHash = UrlUtils.hashDomainSha256(domain)
             
             database.blockedSiteDao().deactivateSite(domainHash)
             
@@ -201,7 +201,7 @@ class SiteBlockingManagerImpl @Inject constructor(
         val blockedSiteDao = database.blockedSiteDao()
         
         // First check exact domain match
-        val domainHash = hashDomain(domain)
+        val domainHash = UrlUtils.hashDomainSha256(domain)
         val exactMatch = blockedSiteDao.getSiteByDomainHash(domainHash)
         
         if (exactMatch != null) {
@@ -345,38 +345,7 @@ class SiteBlockingManagerImpl @Inject constructor(
         return cleanUrl
     }
     
-    /**
-     * Extract domain from URL
-     */
-    private fun extractDomain(url: String): String {
-        return try {
-            val urlObj = URL(url)
-            var host = urlObj.host.lowercase()
-            
-            // Remove www prefix
-            if (host.startsWith("www.")) {
-                host = host.substring(4)
-            }
-            
-            host
-        } catch (e: Exception) {
-            // Fallback: try to extract domain manually
-            url.replace(Regex("^https?://"), "")
-                .replace(Regex("^www\\."), "")
-                .split("/")[0]
-                .split("?")[0]
-                .lowercase()
-        }
-    }
-    
-    /**
-     * Hash domain for privacy
-     */
-    private fun hashDomain(domain: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hashBytes = digest.digest(domain.lowercase().toByteArray())
-        return hashBytes.joinToString("") { "%02x".format(it) }
-    }
+
     
     /**
      * Build translation map from entity

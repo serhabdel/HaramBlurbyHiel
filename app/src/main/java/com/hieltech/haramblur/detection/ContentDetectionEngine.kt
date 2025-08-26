@@ -33,19 +33,24 @@ class ContentDetectionEngine @Inject constructor(
     suspend fun initialize(context: Context): Boolean {
         return try {
             Log.d(TAG, "Initializing content detection engine...")
-            
+
             val mlInitialized = mlModelManager.initialize(context)
             if (!mlInitialized) {
                 Log.w(TAG, "ML model initialization failed, continuing without it")
             }
-            
+
             isInitialized = true
             Log.d(TAG, "Content detection engine initialized successfully")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize content detection engine", e)
+            isInitialized = false
             false
         }
+    }
+
+    fun isEngineReady(): Boolean {
+        return isInitialized && mlModelManager.isModelReady()
     }
     
     suspend fun analyzeContent(
@@ -53,48 +58,73 @@ class ContentDetectionEngine @Inject constructor(
         appSettings: AppSettings
     ): ContentAnalysisResult = withContext(Dispatchers.Default) {
         val startTime = System.currentTimeMillis()
-        
+
         return@withContext try {
             Log.d(TAG, "📸 Starting content analysis - Image: ${bitmap.width}x${bitmap.height}")
-            
+
+            // Check if bitmap is valid
+            if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) {
+                Log.w(TAG, "Invalid bitmap provided for analysis")
+                return@withContext ContentAnalysisResult(
+                    shouldBlur = false,
+                    blurRegions = emptyList(),
+                    faceDetectionResult = null,
+                    nsfwDetectionResult = null,
+                    processingTimeMs = System.currentTimeMillis() - startTime,
+                    success = false,
+                    error = "Invalid bitmap",
+                    recommendedAction = ContentAction.NO_ACTION
+                )
+            }
+
             // Use concurrent processing for better performance
-            val faceDetectionDeferred = if (appSettings.enableFaceDetection) {
+            val faceDetectionDeferred = if (appSettings.enableFaceDetection && isEngineReady()) {
                 async {
-                    Log.d(TAG, "👤 Starting face detection...")
-                    val result = faceDetectionManager.detectFaces(bitmap, appSettings)
-                    Log.d(TAG, "👤 Face detection completed - Found ${result.detectedFaces.size} faces")
-                    result
+                    try {
+                        Log.d(TAG, "👤 Starting face detection...")
+                        val result = faceDetectionManager.detectFaces(bitmap, appSettings)
+                        Log.d(TAG, "👤 Face detection completed - Found ${result.detectedFaces.size} faces")
+                        result
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Face detection failed", e)
+                        FaceDetectionManager.FaceDetectionResult(0, emptyList(), false, e.message)
+                    }
                 }
             } else {
                 async {
-                    Log.d(TAG, "👤 Face detection disabled")
+                    Log.d(TAG, "👤 Face detection disabled or not ready")
                     FaceDetectionManager.FaceDetectionResult(0, emptyList(), true, null)
                 }
             }
-            
+
             // NSFW detection (concurrent with face detection)
             val nsfwDetectionDeferred = if (appSettings.enableNSFWDetection && mlModelManager.isModelReady()) {
                 async {
-                    Log.d(TAG, "🔞 Starting NSFW content detection...")
-                    val result = mlModelManager.detectNSFWFast(bitmap)
-                    Log.d(TAG, "🔞 NSFW detection completed")
-                    result
+                    try {
+                        Log.d(TAG, "🔞 Starting NSFW content detection...")
+                        val result = mlModelManager.detectNSFWFast(bitmap)
+                        Log.d(TAG, "🔞 NSFW detection completed")
+                        result
+                    } catch (e: Exception) {
+                        Log.e(TAG, "NSFW detection failed", e)
+                        MLModelManager.DetectionResult(false, 0.0f, "NSFW detection failed: ${e.message}")
+                    }
                 }
             } else {
                 async {
-                    Log.d(TAG, "🔞 NSFW detection disabled")
+                    Log.d(TAG, "🔞 NSFW detection disabled or not ready")
                     MLModelManager.DetectionResult(false, 0.0f, "NSFW detection disabled")
                 }
             }
-            
+
             // Wait for both detections to complete
             val faceResult = faceDetectionDeferred.await()
             val nsfwResult = nsfwDetectionDeferred.await()
-            
+
             Log.d(TAG, "📊 Detection results summary:")
             Log.d(TAG, "   • Faces detected: ${faceResult.detectedFaces.size}")
             Log.d(TAG, "   • NSFW content: ${nsfwResult.isNSFW}")
-            
+
             // Calculate blur regions
             val blurRegions = calculateBlurRegions(
                 faceResult,
@@ -197,15 +227,10 @@ class ContentDetectionEngine @Inject constructor(
             val maxRegionConfidence = fastResult.maxNsfwConfidence
             val regionRects = fastResult.nsfwRegionRects
 
-            // Check NEW 6-region rule for full-screen blur triggering
-            val regionBasedFullScreenTrigger = if (appSettings.enableRegionBasedFullScreen &&
-                regionCount >= appSettings.nsfwFullScreenRegionThreshold &&
-                maxRegionConfidence >= appSettings.nsfwHighConfidenceThreshold) {
-                Log.d(TAG, "🚨 Region-based full-screen blur triggered: $regionCount regions with max confidence $maxRegionConfidence")
-                true
-            } else {
-                false
-            }
+            // Enhanced region-based full-screen blur triggering with ML model integration
+            val regionBasedFullScreenTrigger = evaluateRegionBasedBlurTrigger(
+                regionCount, maxRegionConfidence, regionRects, appSettings
+            )
 
             // Perform quick density analysis if enabled and not in ultra-fast mode
             val densityAnalysisResult = if (appSettings.fullScreenWarningEnabled &&
@@ -215,37 +240,52 @@ class ContentDetectionEngine @Inject constructor(
                 null
             }
 
-            // Check for full-screen blur decision (existing density-based logic)
+            // Check for full-screen blur decision with region-based information
             val fullScreenDecision = densityAnalysisResult?.let { densityResult ->
-                fullScreenBlurTrigger.shouldTriggerFullScreenBlur(densityResult, appSettings)
+                fullScreenBlurTrigger.shouldTriggerFullScreenBlur(
+                    densityResult, 
+                    appSettings, 
+                    regionCount, 
+                    maxRegionConfidence
+                )
             }
 
-            // Override blur decision if full-screen blur is required (region-based takes priority)
-            val finalShouldBlur = regionBasedFullScreenTrigger ||
-                    fullScreenDecision?.shouldTrigger == true ||
-                    fastResult.shouldBlur
-            val finalBlurRegions = when {
-                regionBasedFullScreenTrigger -> {
-                    // Region-based full-screen blur
-                    listOf(Rect(0, 0, bitmap.width, bitmap.height))
+            // Use new graduated response system instead of traditional full-screen blur
+            val finalShouldBlur: Boolean
+            val finalBlurRegions: List<Rect>
+            val requiresFullScreenWarning: Boolean
+            val usesGraduatedResponse: Boolean
+            
+            when {
+                // NEW: Region-based graduated response (6+ regions triggers actions, not blur)
+                fullScreenDecision?.recommendedAction in listOf(
+                    ContentAction.SCROLL_AWAY, 
+                    ContentAction.NAVIGATE_BACK, 
+                    ContentAction.AUTO_CLOSE_APP, 
+                    ContentAction.GENTLE_REDIRECT
+                ) -> {
+                    finalShouldBlur = false  // Don't show blur - take action instead
+                    finalBlurRegions = emptyList()
+                    requiresFullScreenWarning = false
+                    usesGraduatedResponse = true
+                    Log.d(TAG, "🎯 Using graduated response: ${fullScreenDecision?.recommendedAction} for $regionCount regions")
                 }
-                fullScreenDecision?.shouldTrigger == true -> {
-                    // Density-based full-screen blur
-                    listOf(Rect(0, 0, bitmap.width, bitmap.height))
+                
+                // Traditional full-screen blur
+                regionBasedFullScreenTrigger || fullScreenDecision?.shouldTrigger == true -> {
+                    finalShouldBlur = true
+                    finalBlurRegions = listOf(Rect(0, 0, bitmap.width, bitmap.height))
+                    requiresFullScreenWarning = true
+                    usesGraduatedResponse = false
                 }
+                
+                // Selective blur
                 else -> {
-                    // Selective blur
-                    fastResult.blurRegions
+                    finalShouldBlur = fastResult.shouldBlur
+                    finalBlurRegions = fastResult.blurRegions
+                    requiresFullScreenWarning = false
+                    usesGraduatedResponse = false
                 }
-            }
-
-            // Determine recommended action
-            val recommendedAction = when {
-                regionBasedFullScreenTrigger -> ContentAction.FULL_SCREEN_BLUR
-                fullScreenDecision != null -> {
-                    fullScreenBlurTrigger.calculateRecommendedAction(densityAnalysisResult!!, appSettings).action
-                }
-                else -> if (finalShouldBlur) ContentAction.SELECTIVE_BLUR else ContentAction.NO_ACTION
             }
             
             // Convert fast result to standard result format
@@ -259,12 +299,12 @@ class ContentDetectionEngine @Inject constructor(
                 error = null,
                 densityAnalysisResult = densityAnalysisResult,
                 fullScreenBlurDecision = fullScreenDecision,
-                recommendedAction = recommendedAction,
-                requiresFullScreenWarning = regionBasedFullScreenTrigger || fullScreenDecision?.shouldTrigger == true,
+                recommendedAction = fullScreenDecision?.recommendedAction ?: ContentAction.NO_ACTION,
+                requiresFullScreenWarning = requiresFullScreenWarning,
                 nsfwRegionCount = regionCount,
                 maxNsfwConfidence = maxRegionConfidence,
                 nsfwRegionRects = regionRects,
-                triggeredByRegionCount = regionBasedFullScreenTrigger
+                triggeredByRegionCount = usesGraduatedResponse
             )
             
             Log.d(TAG, "Fast content analysis completed in ${processingTime}ms: shouldBlur=${fastResult.shouldBlur}")
@@ -396,9 +436,127 @@ class ContentDetectionEngine @Inject constructor(
         faceDetectionManager.cleanup()
         isInitialized = false
     }
+
+    /**
+     * Enhanced region-based blur trigger evaluation with ML model integration
+     * Provides sophisticated decision making based on multiple factors
+     */
+    private fun evaluateRegionBasedBlurTrigger(
+        regionCount: Int,
+        maxRegionConfidence: Float,
+        regionRects: List<Rect>,
+        settings: AppSettings
+    ): Boolean {
+        if (!settings.enableRegionBasedFullScreen) {
+            return false
+        }
+
+        // Primary region-based trigger (6+ regions with high confidence)
+        val basicRegionTrigger = regionCount >= settings.nsfwFullScreenRegionThreshold &&
+                                maxRegionConfidence >= settings.nsfwHighConfidenceThreshold
+
+        if (basicRegionTrigger) {
+            Log.d(TAG, "🚨 PRIMARY: Region-based trigger - $regionCount regions, confidence: $maxRegionConfidence")
+            return true
+        }
+
+        // Enhanced trigger: Based on region analysis patterns
+        val mlModelTrigger = evaluateEnhancedRegionTrigger(regionCount, maxRegionConfidence)
+        if (mlModelTrigger) {
+            Log.d(TAG, "🚨 ENHANCED: Region pattern trigger activated")
+            return true
+        }
+
+        // Spatial distribution trigger: Check if regions are concentrated in critical areas
+        val spatialTrigger = evaluateSpatialDistributionTrigger(regionRects)
+        if (spatialTrigger && regionCount >= 3) {
+            Log.d(TAG, "🚨 SPATIAL: Region concentration trigger activated")
+            return true
+        }
+
+        // Progressive trigger: Lower thresholds for persistent detection
+        val progressiveTrigger = regionCount >= 4 && maxRegionConfidence >= 0.6f
+        if (progressiveTrigger) {
+            Log.d(TAG, "🚨 PROGRESSIVE: Lower threshold trigger - $regionCount regions, confidence: $maxRegionConfidence")
+            return true
+        }
+
+        return false
+    }
+
+    /**
+     * Evaluate enhanced region trigger based on region analysis patterns
+     */
+    private fun evaluateEnhancedRegionTrigger(
+        regionCount: Int,
+        maxRegionConfidence: Float
+    ): Boolean {
+        // High confidence with moderate region count
+        if (maxRegionConfidence >= 0.85f && regionCount >= 4) {
+            return true
+        }
+
+        // Very high region count with moderate confidence
+        if (regionCount >= 8 && maxRegionConfidence >= 0.7f) {
+            return true
+        }
+
+        // Medium confidence with high region density
+        if (maxRegionConfidence >= 0.75f && regionCount >= 6) {
+            return true
+        }
+
+        return false
+    }
+
+    /**
+     * Evaluate spatial distribution of regions for critical area concentration
+     */
+    private fun evaluateSpatialDistributionTrigger(regionRects: List<Rect>): Boolean {
+        if (regionRects.size < 3) return false
+
+        // Calculate average region size to determine if regions are clustered
+        val avgWidth = regionRects.map { it.width() }.average()
+        val avgHeight = regionRects.map { it.height() }.average()
+
+        // Check if regions are relatively close to each other (within 2x average size)
+        var clusterCount = 0
+        for (i in regionRects.indices) {
+            for (j in i + 1 until regionRects.size) {
+                val rect1 = regionRects[i]
+                val rect2 = regionRects[j]
+
+                // Check if rectangles are close (overlapping or within proximity)
+                val proximityThreshold = (avgWidth + avgHeight) / 2 * 2
+                val distance = Math.sqrt(
+                    Math.pow((rect1.centerX() - rect2.centerX()).toDouble(), 2.0) +
+                    Math.pow((rect1.centerY() - rect2.centerY()).toDouble(), 2.0)
+                )
+
+                if (distance <= proximityThreshold) {
+                    clusterCount++
+                }
+            }
+        }
+
+        // If we have significant clustering (at least 3 pairs close together)
+        return clusterCount >= 3
+    }
     
-    fun isReady(): Boolean = isInitialized
-    
+    /**
+     * Make LLM-enhanced decision for content actions
+     * Delegates to the FullScreenBlurTrigger's LLM capabilities
+     */
+    suspend fun makeLLMEnhancedDecision(
+        nsfwRegionCount: Int,
+        maxNsfwConfidence: Float,
+        settings: AppSettings,
+        currentApp: String = "browser"
+    ): com.hieltech.haramblur.llm.LLMDecisionResult {
+        return fullScreenBlurTrigger.makeLLMEnhancedDecision(
+            nsfwRegionCount, maxNsfwConfidence, settings, currentApp
+        )
+    }
     
     data class ContentAnalysisResult(
         val shouldBlur: Boolean,

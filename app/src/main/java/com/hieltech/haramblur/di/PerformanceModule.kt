@@ -1,6 +1,7 @@
 package com.hieltech.haramblur.di
 
 import android.content.Context
+import androidx.work.WorkManager
 import com.hieltech.haramblur.detection.*
 import dagger.Module
 import dagger.Provides
@@ -79,4 +80,34 @@ object PerformanceModule {
             errorReportingManager
         )
     }
+
+    @Provides
+    @Singleton
+    fun provideAppBlockingManager(
+        database: com.hieltech.haramblur.data.database.SiteBlockingDatabase,
+        @ApplicationContext context: Context
+    ): AppBlockingManager {
+        return AppBlockingManagerImpl(database, context, context.packageManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideScheduleManager(
+        database: com.hieltech.haramblur.data.database.SiteBlockingDatabase,
+        @ApplicationContext context: Context
+    ): ScheduleManager {
+        return ScheduleManagerImpl(database, context, null)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEnhancedSiteBlockingManager(
+        database: com.hieltech.haramblur.data.database.SiteBlockingDatabase,
+        @ApplicationContext context: Context,
+        originalManager: SiteBlockingManager
+    ): EnhancedSiteBlockingManager {
+        return EnhancedSiteBlockingManager(database, context, originalManager)
+    }
+
+
 }

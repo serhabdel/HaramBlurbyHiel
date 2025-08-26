@@ -68,8 +68,16 @@ abstract class EnhancedDetectionModule {
         
         @Provides
         @Singleton
-        fun provideFullScreenBlurTrigger(): FullScreenBlurTrigger {
-            return FullScreenBlurTrigger()
+        fun provideOpenRouterLLMService(): com.hieltech.haramblur.llm.OpenRouterLLMService {
+            return com.hieltech.haramblur.llm.OpenRouterLLMService()
+        }
+        
+        @Provides
+        @Singleton
+        fun provideFullScreenBlurTrigger(
+            llmService: com.hieltech.haramblur.llm.OpenRouterLLMService
+        ): FullScreenBlurTrigger {
+            return FullScreenBlurTrigger(llmService)
         }
         
         @Provides

@@ -58,7 +58,29 @@ data class AppSettings(
     val nsfwHighConfidenceThreshold: Float = 0.7f, // Minimum confidence level for each region to be considered "high confidence"
     val regionDetectionTileSize: Int = 128, // Size of tiles used for region detection (adaptive based on screen size)
     val regionOverlapPercentage: Float = 0.5f, // Overlap percentage for sliding window region detection
-    val maxRegionDetectionTime: Long = 100L // Maximum time allowed for region detection in milliseconds
+    val maxRegionDetectionTime: Long = 100L, // Maximum time allowed for region detection in milliseconds
+
+    // NEW: LLM Decision Making Settings
+    val enableLLMDecisionMaking: Boolean = false, // Enable/disable OpenRouter LLM for faster decisions
+    val openRouterApiKey: String = "", // OpenRouter API key for LLM access
+    val llmModel: String = "google/gemma-2-9b-it:free", // LLM model to use for decisions
+    val llmTimeoutMs: Long = 3000L, // Maximum time to wait for LLM response
+    val llmFallbackToRules: Boolean = true, // Fall back to rule-based decisions if LLM fails
+    val llmDecisionConfidenceThreshold: Float = 0.7f, // Minimum confidence to trust LLM decision
+
+    // Logging Settings - Enterprise/SaaS-style logging
+    val enableDetailedLogging: Boolean = true, // Enable detailed logging for troubleshooting
+    val logLevel: LogLevel = LogLevel.INFO, // Minimum log level to record
+    val enableLogCategories: Set<LogCategory> = setOf(
+        LogCategory.DETECTION,
+        LogCategory.BLOCKING,
+        LogCategory.UI,
+        LogCategory.ACCESSIBILITY
+    ), // Which categories to log
+    val maxLogRetentionDays: Int = 7, // How long to keep logs
+    val enablePerformanceLogging: Boolean = true, // Log performance metrics
+    val enableErrorReporting: Boolean = true, // Log errors and crashes
+    val enableUserActionLogging: Boolean = true // Log user actions for troubleshooting
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {
@@ -86,4 +108,22 @@ enum class GenderAccuracy(val confidenceThreshold: Float, val description: Strin
     FAST(0.75f, "Fast detection, 75% accuracy"),
     BALANCED(0.85f, "Balanced speed and accuracy"),
     HIGH(0.92f, "High accuracy, slower processing")
+}
+
+enum class LogLevel(val priority: Int, val displayName: String, val description: String) {
+    DEBUG(0, "Debug", "All logs including debug information"),
+    INFO(1, "Info", "Informational messages and warnings"),
+    WARN(2, "Warning", "Warnings and errors only"),
+    ERROR(3, "Error", "Errors only")
+}
+
+enum class LogCategory(val displayName: String, val description: String) {
+    GENERAL("General", "General application logs"),
+    DETECTION("Detection", "Face and content detection logs"),
+    BLOCKING("Blocking", "Content blocking and blurring logs"),
+    UI("User Interface", "UI interaction and navigation logs"),
+    NETWORK("Network", "Network requests and connectivity logs"),
+    DATABASE("Database", "Database operations and queries"),
+    ACCESSIBILITY("Accessibility", "Accessibility service logs"),
+    PERFORMANCE("Performance", "Performance metrics and timing logs")
 }
