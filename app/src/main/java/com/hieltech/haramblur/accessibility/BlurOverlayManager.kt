@@ -63,10 +63,11 @@ class BlurOverlayManager @Inject constructor(
     }
     
     fun showBlurOverlay(
-        blurRegions: List<Rect>, 
+        blurRegions: List<Rect>,
         blurIntensity: BlurIntensity = BlurIntensity.MEDIUM,
         blurStyle: BlurStyle = BlurStyle.PIXELATED,
-        contentSensitivity: Float = 0.5f
+        contentSensitivity: Float = 0.5f,
+        transparency: Float = 0.8f // New transparency parameter (0.0 = fully transparent, 1.0 = fully opaque)
     ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -81,11 +82,12 @@ class BlurOverlayManager @Inject constructor(
                 }
                 
                 overlayView = BlurOverlayView(
-                    context!!, 
-                    blurRegions, 
-                    blurIntensity, 
+                    context!!,
+                    blurRegions,
+                    blurIntensity,
                     blurStyle,
                     contentSensitivity,
+                    transparency,
                     isFullScreen = false
                 )
                 
@@ -112,12 +114,13 @@ class BlurOverlayManager @Inject constructor(
     }
     
     fun updateBlurOverlay(
-        blurRegions: List<Rect>, 
+        blurRegions: List<Rect>,
         blurIntensity: BlurIntensity = BlurIntensity.MEDIUM,
         blurStyle: BlurStyle = BlurStyle.PIXELATED,
-        contentSensitivity: Float = 0.5f
+        contentSensitivity: Float = 0.5f,
+        transparency: Float = 0.8f
     ) {
-        overlayView?.updateBlurRegions(blurRegions, blurIntensity, blurStyle, contentSensitivity)
+        overlayView?.updateBlurRegions(blurRegions, blurIntensity, blurStyle, contentSensitivity, transparency)
         Log.d(TAG, "Blur overlay updated with ${blurRegions.size} regions")
     }
     
@@ -140,12 +143,17 @@ class BlurOverlayManager @Inject constructor(
     
     /**
      * Show full-screen warning overlay with blur background
+     * Enhanced with region-based trigger information
      */
     fun showFullScreenWarning(
         category: BlockingCategory,
         customMessage: String? = null,
         quranicVerse: QuranicVerse? = null,
-        reflectionTimeSeconds: Int? = null
+        reflectionTimeSeconds: Int? = null,
+        // NEW: Region-based trigger information
+        nsfwRegionCount: Int = 0,
+        maxNsfwConfidence: Float = 0.0f,
+        triggeredByRegionCount: Boolean = false
     ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -157,8 +165,8 @@ class BlurOverlayManager @Inject constructor(
                 // First show full-screen blur
                 showFullScreenBlur()
                 
-                // Then show warning dialog overlay
-                showWarningDialog(category, customMessage, quranicVerse, reflectionTimeSeconds)
+                // Then show warning dialog overlay with region-based information
+                showWarningDialog(category, customMessage, quranicVerse, reflectionTimeSeconds, nsfwRegionCount, maxNsfwConfidence, triggeredByRegionCount)
                 
                 Log.d(TAG, "Full-screen warning shown for category: ${category.displayName}")
             } catch (e: Exception) {
@@ -169,8 +177,9 @@ class BlurOverlayManager @Inject constructor(
     
     /**
      * Show full-screen blur without warning dialog
+     * Enhanced with region-based trigger information
      */
-    fun showFullScreenBlur() {
+    fun showFullScreenBlur(triggeredByRegionCount: Boolean = false) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 if (windowManager == null || context == null) {
@@ -187,12 +196,13 @@ class BlurOverlayManager @Inject constructor(
                 val fullScreenRect = Rect(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
                 
                 overlayView = BlurOverlayView(
-                    context!!, 
-                    listOf(fullScreenRect), 
-                    BlurIntensity.MAXIMUM, 
+                    context!!,
+                    listOf(fullScreenRect),
+                    BlurIntensity.MAXIMUM,
                     BlurStyle.COMBINED,
                     1.0f, // Maximum sensitivity for full-screen
-                    isFullScreen = true
+                    isFullScreen = true,
+                    triggeredByRegionCount = triggeredByRegionCount
                 )
                 
                 val params = WindowManager.LayoutParams(
@@ -219,12 +229,17 @@ class BlurOverlayManager @Inject constructor(
     
     /**
      * Show warning dialog overlay
+     * Enhanced with region-based trigger information
      */
     private fun showWarningDialog(
         category: BlockingCategory,
         customMessage: String? = null,
         quranicVerse: QuranicVerse? = null,
-        reflectionTimeSeconds: Int? = null
+        reflectionTimeSeconds: Int? = null,
+        // NEW: Region-based trigger information
+        nsfwRegionCount: Int = 0,
+        maxNsfwConfidence: Float = 0.0f,
+        triggeredByRegionCount: Boolean = false
     ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -357,7 +372,9 @@ class BlurOverlayManager @Inject constructor(
     fun showBlockedSiteOverlay(
         blockingResult: SiteBlockingResult,
         guidance: IslamicGuidance? = null,
-        onAction: (WarningDialogAction) -> Unit
+        onAction: (WarningDialogAction) -> Unit,
+        // NEW: Region-based trigger information
+        triggeredByRegionCount: Boolean = false
     ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -370,9 +387,9 @@ class BlurOverlayManager @Inject constructor(
                     hideBlockedSiteOverlay()
                 }
                 
-                // First show full-screen blur background
-                showFullScreenBlur()
-                
+                // First show full-screen blur background (enhanced for region-triggered)
+                showFullScreenBlur(triggeredByRegionCount)
+
                 // Then show blocked site dialog
                 showBlockedSiteDialog(blockingResult, guidance, onAction)
                 
@@ -500,41 +517,61 @@ class BlurOverlayManager @Inject constructor(
         private var blurIntensity: BlurIntensity,
         private var blurStyle: BlurStyle = BlurStyle.PIXELATED,
         private var contentSensitivity: Float = 0.5f,
-        private val isFullScreen: Boolean = false
+        private var transparency: Float = 0.8f,
+        private val isFullScreen: Boolean = false,
+        // NEW: Region-based trigger information
+        private val triggeredByRegionCount: Boolean = false
     ) : View(context) {
         
         private val enhancedBlurEffects = EnhancedBlurEffects()
-        
-        // Multiple paint types for stronger blur effect
+
+        // Helper method to calculate alpha based on transparency
+        private fun calculateAlpha(baseAlpha: Int): Int {
+            return (baseAlpha * transparency).toInt().coerceIn(0, 255)
+        }
+
+        // Multiple paint types for stronger blur effect with transparency support
         private val blurPaint = Paint().apply {
             isAntiAlias = true
             color = Color.parseColor("#E0E0E0") // Light gray
-            alpha = STRONG_BLUR_ALPHA
+            alpha = calculateAlpha(STRONG_BLUR_ALPHA)
         }
-        
+
         private val pixelPaint = Paint().apply {
             isAntiAlias = false // Pixelated effect
             color = Color.parseColor("#D0D0D0") // Slightly darker gray
-            alpha = 200
+            alpha = calculateAlpha(200)
         }
-        
+
         private val noisePaint = Paint().apply {
             isAntiAlias = true
             color = Color.parseColor("#F0F0F0") // Very light gray
-            alpha = 150
+            alpha = calculateAlpha(150)
         }
         
         fun updateBlurRegions(
-            newRegions: List<Rect>, 
+            newRegions: List<Rect>,
             intensity: BlurIntensity,
             style: BlurStyle = BlurStyle.PIXELATED,
-            sensitivity: Float = 0.5f
+            sensitivity: Float = 0.5f,
+            newTransparency: Float = 0.8f
         ) {
             blurRegions = newRegions
             blurIntensity = intensity
             blurStyle = style
             contentSensitivity = sensitivity
+            transparency = newTransparency
+
+            // Update paint alpha values based on new transparency
+            updatePaintAlpha()
+
             invalidate()
+        }
+
+        private fun updatePaintAlpha() {
+            blurPaint.alpha = calculateAlpha(STRONG_BLUR_ALPHA)
+            pixelPaint.alpha = calculateAlpha(200)
+            noisePaint.alpha = calculateAlpha(150)
         }
         
         override fun onDraw(canvas: Canvas) {
@@ -561,20 +598,39 @@ class BlurOverlayManager @Inject constructor(
             val width = canvas.width
             val height = canvas.height
             val fullRect = Rect(0, 0, width, height)
-            
-            // Draw base full-screen blur
+
+            // Draw base full-screen blur with different intensity for region-triggered
+            val baseColor = if (triggeredByRegionCount) {
+                Color.parseColor("#0D0D0D") // Even darker for region-triggered (more critical)
+            } else {
+                Color.parseColor("#1A1A1A") // Standard dark background
+            }
+
             val fullScreenPaint = Paint().apply {
                 isAntiAlias = true
-                color = Color.parseColor("#1A1A1A") // Dark background for warning
-                alpha = 240 // Almost opaque
+                color = baseColor
+                alpha = if (triggeredByRegionCount) 250 else 240 // More opaque for region-triggered
             }
             canvas.drawRect(fullRect, fullScreenPaint)
-            
-            // Add warning pattern overlay
-            drawWarningPattern(canvas, fullRect)
-            
-            // Add subtle Islamic geometric pattern
-            drawIslamicPattern(canvas, fullRect)
+
+            // Add different warning patterns based on trigger type
+            if (triggeredByRegionCount) {
+                drawRegionTriggeredWarningPattern(canvas, fullRect)
+            } else {
+                drawWarningPattern(canvas, fullRect)
+            }
+
+            // Add enhanced Islamic geometric pattern for region-triggered
+            if (triggeredByRegionCount) {
+                drawEnhancedIslamicPattern(canvas, fullRect)
+            } else {
+                drawIslamicPattern(canvas, fullRect)
+            }
+
+            // Add region count indicator for region-triggered blur
+            if (triggeredByRegionCount) {
+                drawRegionCountIndicator(canvas, fullRect)
+            }
         }
         
         private fun drawWarningPattern(canvas: Canvas, rect: Rect) {
@@ -607,11 +663,11 @@ class BlurOverlayManager @Inject constructor(
                 style = Paint.Style.STROKE
                 strokeWidth = 2f
             }
-            
+
             val centerX = rect.centerX().toFloat()
             val centerY = rect.centerY().toFloat()
             val radius = 100f
-            
+
             // Draw subtle geometric pattern in center
             for (i in 0 until 8) {
                 val angle = (i * 45) * Math.PI / 180
@@ -619,9 +675,131 @@ class BlurOverlayManager @Inject constructor(
                 val startY = centerY + (radius * 0.5f * Math.sin(angle)).toFloat()
                 val endX = centerX + (radius * Math.cos(angle)).toFloat()
                 val endY = centerY + (radius * Math.sin(angle)).toFloat()
-                
+
                 canvas.drawLine(startX, startY, endX, endY, patternPaint)
             }
+        }
+
+        /**
+         * NEW: Enhanced warning pattern for region-triggered full-screen blur
+         */
+        private fun drawRegionTriggeredWarningPattern(canvas: Canvas, rect: Rect) {
+            val patternPaint = Paint().apply {
+                isAntiAlias = true
+                color = Color.parseColor("#662222") // Dark red for critical region-triggered
+                alpha = 120
+            }
+
+            val spacing = 50 // More frequent lines for region-triggered
+            val lineWidth = 4f // Thicker lines
+
+            // Draw diagonal warning lines with more intensity
+            for (i in -rect.height() until rect.width() step spacing) {
+                canvas.drawLine(
+                    i.toFloat(),
+                    0f,
+                    (i + rect.height()).toFloat(),
+                    rect.height().toFloat(),
+                    patternPaint.apply { strokeWidth = lineWidth }
+                )
+            }
+
+            // Add cross-hatch pattern for more visual impact
+            for (i in -rect.width() until rect.height() step spacing) {
+                canvas.drawLine(
+                    0f,
+                    i.toFloat(),
+                    rect.width().toFloat(),
+                    (i + rect.width()).toFloat(),
+                    patternPaint.apply { strokeWidth = lineWidth * 0.7f }
+                )
+            }
+        }
+
+        /**
+         * NEW: Enhanced Islamic geometric pattern for region-triggered blur
+         */
+        private fun drawEnhancedIslamicPattern(canvas: Canvas, rect: Rect) {
+            val patternPaint = Paint().apply {
+                isAntiAlias = true
+                color = Color.parseColor("#4A2A2A") // Darker red-tinted for critical
+                alpha = 100
+                style = Paint.Style.STROKE
+                strokeWidth = 3f // Thicker lines
+            }
+
+            val centerX = rect.centerX().toFloat()
+            val centerY = rect.centerY().toFloat()
+            val radius = 120f // Larger pattern
+
+            // Draw enhanced geometric pattern with more complexity
+            for (i in 0 until 12) { // More points for complexity
+                val angle = (i * 30) * Math.PI / 180
+                val startX = centerX + (radius * 0.3f * Math.cos(angle)).toFloat()
+                val startY = centerY + (radius * 0.3f * Math.sin(angle)).toFloat()
+                val endX = centerX + (radius * Math.cos(angle)).toFloat()
+                val endY = centerY + (radius * Math.sin(angle)).toFloat()
+
+                canvas.drawLine(startX, startY, endX, endY, patternPaint)
+            }
+
+            // Add inner circle for more visual impact
+            val circlePaint = Paint().apply {
+                isAntiAlias = true
+                color = Color.parseColor("#4A2A2A")
+                alpha = 60
+                style = Paint.Style.STROKE
+                strokeWidth = 2f
+            }
+            canvas.drawCircle(centerX, centerY, radius * 0.5f, circlePaint)
+        }
+
+        /**
+         * NEW: Draw region count indicator for region-triggered blur
+         */
+        private fun drawRegionCountIndicator(canvas: Canvas, rect: Rect) {
+            val indicatorPaint = Paint().apply {
+                isAntiAlias = true
+                color = Color.parseColor("#FF6B6B") // Bright red for visibility
+                alpha = 180
+                textSize = 48f
+                textAlign = Paint.Align.CENTER
+            }
+
+            val centerX = rect.centerX().toFloat()
+            val centerY = rect.centerY().toFloat()
+
+            // Draw warning icon (exclamation mark in circle)
+            val circlePaint = Paint().apply {
+                isAntiAlias = true
+                color = Color.parseColor("#FF6B6B")
+                alpha = 150
+            }
+
+            // Draw warning circle
+            canvas.drawCircle(centerX, centerY - 150f, 60f, circlePaint)
+
+            // Draw exclamation mark
+            val textPaint = Paint().apply {
+                isAntiAlias = true
+                color = Color.WHITE
+                alpha = 255
+                textSize = 36f
+                textAlign = Paint.Align.CENTER
+            }
+
+            canvas.drawText("!", centerX, centerY - 140f, textPaint)
+
+            // Draw "Multiple NSFW Regions" text
+            val messagePaint = Paint().apply {
+                isAntiAlias = true
+                color = Color.parseColor("#FFCCCC") // Light red text
+                alpha = 200
+                textSize = 24f
+                textAlign = Paint.Align.CENTER
+            }
+
+            canvas.drawText("Multiple NSFW Regions Detected", centerX, centerY - 80f, messagePaint)
         }
         
         private fun drawStrongBlurEffect(canvas: Canvas, rect: Rect) {
@@ -638,7 +816,7 @@ class BlurOverlayManager @Inject constructor(
             val lightPaint = Paint().apply {
                 isAntiAlias = true
                 color = Color.parseColor("#E0E0E0")
-                alpha = 120 // Light opacity
+                alpha = calculateAlpha(120) // Light opacity with transparency
             }
             canvas.drawRect(rect, lightPaint)
             drawBlurBorder(canvas, rect)
@@ -647,37 +825,37 @@ class BlurOverlayManager @Inject constructor(
         private fun drawMediumBlur(canvas: Canvas, rect: Rect) {
             // Medium blur: Base layer + pixelation
             canvas.drawRect(rect, blurPaint)
-            drawPixelatedPattern(canvas, rect, pixelSize = 20, alpha = 150)
+            drawPixelatedPattern(canvas, rect, pixelSize = 20, alpha = calculateAlpha(150))
             drawBlurBorder(canvas, rect)
         }
         
         private fun drawStrongBlur(canvas: Canvas, rect: Rect) {
             // Strong blur: All layers for maximum privacy
             canvas.drawRect(rect, blurPaint)
-            drawPixelatedPattern(canvas, rect, pixelSize = 15, alpha = 200)
+            drawPixelatedPattern(canvas, rect, pixelSize = 15, alpha = calculateAlpha(200))
             drawNoisePattern(canvas, rect)
             drawBlurBorder(canvas, rect)
         }
         
         private fun drawMaximumBlur(canvas: Canvas, rect: Rect) {
-            // Maximum blur: Solid black coverage with no transparency
+            // Maximum blur: Solid black coverage with transparency support
             val maximumPaint = Paint().apply {
                 isAntiAlias = true
                 color = Color.BLACK
-                alpha = 255 // Completely opaque
+                alpha = calculateAlpha(255) // Apply transparency even to maximum blur
             }
             canvas.drawRect(rect, maximumPaint)
-            
+
             // Add dense pixelation pattern
-            drawPixelatedPattern(canvas, rect, pixelSize = 10, alpha = 255)
+            drawPixelatedPattern(canvas, rect, pixelSize = 10, alpha = calculateAlpha(255))
             drawNoisePattern(canvas, rect)
-            
-            // Strong border
+
+            // Strong border with transparency
             val strongBorderPaint = Paint().apply {
                 style = Paint.Style.STROKE
                 strokeWidth = 5f
                 color = Color.RED
-                alpha = 255
+                alpha = calculateAlpha(255)
                 isAntiAlias = true
             }
             canvas.drawRect(rect, strongBorderPaint)
@@ -736,10 +914,10 @@ class BlurOverlayManager @Inject constructor(
                 style = Paint.Style.STROKE
                 strokeWidth = 3f
                 color = Color.parseColor("#CCCCCC")
-                alpha = 180
+                alpha = calculateAlpha(180)
                 isAntiAlias = true
             }
-            
+
             // Draw subtle border around blurred area
             canvas.drawRect(rect, borderPaint)
         }

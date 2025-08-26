@@ -50,7 +50,15 @@ data class AppSettings(
     val genderConfidenceThreshold: Float = 0.5f, // Lower threshold for better female face detection
     val nsfwConfidenceThreshold: Float = 0.6f, // Lower threshold for better body content detection
     val enableFallbackDetection: Boolean = true,
-    val enablePerformanceMonitoring: Boolean = true
+    val enablePerformanceMonitoring: Boolean = true,
+
+    // NEW: Region-based Full-Screen Blur Settings
+    val enableRegionBasedFullScreen: Boolean = true, // Enable/disable the 6+ regions rule
+    val nsfwFullScreenRegionThreshold: Int = 6, // Number of NSFW regions required to trigger full-screen blur
+    val nsfwHighConfidenceThreshold: Float = 0.7f, // Minimum confidence level for each region to be considered "high confidence"
+    val regionDetectionTileSize: Int = 128, // Size of tiles used for region detection (adaptive based on screen size)
+    val regionOverlapPercentage: Float = 0.5f, // Overlap percentage for sliding window region detection
+    val maxRegionDetectionTime: Long = 100L // Maximum time allowed for region detection in milliseconds
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {

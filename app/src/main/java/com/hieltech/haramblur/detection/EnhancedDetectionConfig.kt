@@ -45,7 +45,7 @@ object EnhancedDetectionConfig {
     const val MAXIMUM_VERSE_DISPLAY_DURATION_SECONDS = 30
     
     // Model Paths
-    const val GENDER_DETECTION_MODEL_PATH = "models/gender_detection.tflite"
+    const val GENDER_DETECTION_MODEL_PATH = "models/model_lite_gender_q.tflite"
     const val ENHANCED_NSFW_MODEL_PATH = "models/enhanced_nsfw.tflite"
     const val FAST_DETECTION_MODEL_PATH = "models/fast_detection.tflite"
     

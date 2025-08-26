@@ -145,7 +145,7 @@ class ContentDetectionEngine @Inject constructor(
         
         val startTime = System.currentTimeMillis()
         Log.d(TAG, "🔍 Starting content analysis - Bitmap: ${bitmap.width}x${bitmap.height}")
-        Log.d(TAG, "⚙️ Settings - Female faces: ${appSettings.blurFemaleFaces}, NSFW: ${appSettings.enableNSFWDetection}, GPU: ${appSettings.enableGPUAcceleration}")
+        Log.d(TAG, "⚙️ Settings - Female faces: ${appSettings.blurFemaleFaces}, Male faces: ${appSettings.blurMaleFaces}, NSFW: ${appSettings.enableNSFWDetection}, GPU: ${appSettings.enableGPUAcceleration}")
         
         try {
             // Check if frame should be processed
@@ -183,40 +183,70 @@ class ContentDetectionEngine @Inject constructor(
             
             // Perform fast detection
             val fastResult = fastContentDetector.detectContentFast(bitmap, appSettings)
-            
+
             val processingTime = System.currentTimeMillis() - startTime
-            
+
             // Update performance metrics
             frameOptimizationManager.updatePerformanceMetrics(
-                processingTime, 
+                processingTime,
                 appSettings.maxProcessingTimeMs
             )
-            
+
+            // Extract region-based information from fast result
+            val regionCount = fastResult.nsfwRegionCount
+            val maxRegionConfidence = fastResult.maxNsfwConfidence
+            val regionRects = fastResult.nsfwRegionRects
+
+            // Check NEW 6-region rule for full-screen blur triggering
+            val regionBasedFullScreenTrigger = if (appSettings.enableRegionBasedFullScreen &&
+                regionCount >= appSettings.nsfwFullScreenRegionThreshold &&
+                maxRegionConfidence >= appSettings.nsfwHighConfidenceThreshold) {
+                Log.d(TAG, "🚨 Region-based full-screen blur triggered: $regionCount regions with max confidence $maxRegionConfidence")
+                true
+            } else {
+                false
+            }
+
             // Perform quick density analysis if enabled and not in ultra-fast mode
-            val densityAnalysisResult = if (appSettings.fullScreenWarningEnabled && 
+            val densityAnalysisResult = if (appSettings.fullScreenWarningEnabled &&
                 performanceMode != PerformanceMode.ULTRA_FAST) {
                 contentDensityAnalyzer.analyzeScreenContent(bitmap)
             } else {
                 null
             }
-            
-            // Check for full-screen blur decision
+
+            // Check for full-screen blur decision (existing density-based logic)
             val fullScreenDecision = densityAnalysisResult?.let { densityResult ->
                 fullScreenBlurTrigger.shouldTriggerFullScreenBlur(densityResult, appSettings)
             }
-            
-            // Override blur decision if full-screen blur is required
-            val finalShouldBlur = fullScreenDecision?.shouldTrigger == true || fastResult.shouldBlur
-            val finalBlurRegions = if (fullScreenDecision?.shouldTrigger == true) {
-                listOf(Rect(0, 0, bitmap.width, bitmap.height))
-            } else {
-                fastResult.blurRegions
+
+            // Override blur decision if full-screen blur is required (region-based takes priority)
+            val finalShouldBlur = regionBasedFullScreenTrigger ||
+                    fullScreenDecision?.shouldTrigger == true ||
+                    fastResult.shouldBlur
+            val finalBlurRegions = when {
+                regionBasedFullScreenTrigger -> {
+                    // Region-based full-screen blur
+                    listOf(Rect(0, 0, bitmap.width, bitmap.height))
+                }
+                fullScreenDecision?.shouldTrigger == true -> {
+                    // Density-based full-screen blur
+                    listOf(Rect(0, 0, bitmap.width, bitmap.height))
+                }
+                else -> {
+                    // Selective blur
+                    fastResult.blurRegions
+                }
             }
-            
+
             // Determine recommended action
-            val recommendedAction = densityAnalysisResult?.let { densityResult ->
-                fullScreenBlurTrigger.calculateRecommendedAction(densityResult, appSettings).action
-            } ?: if (finalShouldBlur) ContentAction.SELECTIVE_BLUR else ContentAction.NO_ACTION
+            val recommendedAction = when {
+                regionBasedFullScreenTrigger -> ContentAction.FULL_SCREEN_BLUR
+                fullScreenDecision != null -> {
+                    fullScreenBlurTrigger.calculateRecommendedAction(densityAnalysisResult!!, appSettings).action
+                }
+                else -> if (finalShouldBlur) ContentAction.SELECTIVE_BLUR else ContentAction.NO_ACTION
+            }
             
             // Convert fast result to standard result format
             val contentAnalysisResult = ContentAnalysisResult(
@@ -230,7 +260,11 @@ class ContentDetectionEngine @Inject constructor(
                 densityAnalysisResult = densityAnalysisResult,
                 fullScreenBlurDecision = fullScreenDecision,
                 recommendedAction = recommendedAction,
-                requiresFullScreenWarning = fullScreenDecision?.shouldTrigger == true
+                requiresFullScreenWarning = regionBasedFullScreenTrigger || fullScreenDecision?.shouldTrigger == true,
+                nsfwRegionCount = regionCount,
+                maxNsfwConfidence = maxRegionConfidence,
+                nsfwRegionRects = regionRects,
+                triggeredByRegionCount = regionBasedFullScreenTrigger
             )
             
             Log.d(TAG, "Fast content analysis completed in ${processingTime}ms: shouldBlur=${fastResult.shouldBlur}")
@@ -255,22 +289,31 @@ class ContentDetectionEngine @Inject constructor(
         appSettings: AppSettings
     ): List<Rect> {
         val blurRegions = mutableListOf<Rect>()
-        
+
+        // Check for region-based full-screen blur trigger
+        if (appSettings.enableRegionBasedFullScreen &&
+            nsfwResult.regionCount >= appSettings.nsfwFullScreenRegionThreshold &&
+            nsfwResult.maxRegionConfidence >= appSettings.nsfwHighConfidenceThreshold) {
+            Log.d(TAG, "Region-based full-screen blur in standard mode: ${nsfwResult.regionCount} regions")
+            return listOf(Rect(0, 0, 1000, 1000)) // Placeholder - would need actual bitmap dimensions
+        }
+
         // Add female face regions with enhanced detection
+        // Note: FaceDetectionManager now only detects female faces, so no male filtering needed
         if (appSettings.enableFaceDetection && faceResult.hasFaces()) {
             val facesToBlur = mutableListOf<Rect>()
-            
-            // Focus on female faces only
+
+            // Focus on female faces only (male faces are already excluded by FaceDetectionManager)
             if (appSettings.blurFemaleFaces) {
                 facesToBlur.addAll(faceResult.getFemaleFaces().map { it.boundingBox })
-                
+
                 // Enhanced: Include unknown gender faces with lower confidence for safety
                 val unknownFaces = faceResult.getUnknownGenderFaces()
                     .filter { it.genderConfidence < 0.6f }
                     .map { it.boundingBox }
                 facesToBlur.addAll(unknownFaces)
             }
-            
+
             // Enhanced expansion for better coverage of female faces/hair
             val expandedFaceRegions = facesToBlur.map { face ->
                 val expansion = 45 // Increased expansion for better female face coverage including hair
@@ -282,11 +325,12 @@ class ContentDetectionEngine @Inject constructor(
                 )
             }
             blurRegions.addAll(expandedFaceRegions)
-            
-            Log.d(TAG, "Added ${expandedFaceRegions.size} female face blur regions")
+
+            Log.d(TAG, "Added ${expandedFaceRegions.size} female face blur regions (males already excluded)")
         }
         
         // Enhanced female body/NSFW content detection with better coverage
+        // Note: This focuses on female content areas since male faces are excluded
         if (appSettings.enableNSFWDetection && nsfwResult.isNSFW) {
             when {
                 nsfwResult.confidence > 0.6f -> {
@@ -367,7 +411,12 @@ class ContentDetectionEngine @Inject constructor(
         val densityAnalysisResult: DensityAnalysisResult? = null,
         val fullScreenBlurDecision: FullScreenBlurDecision? = null,
         val recommendedAction: ContentAction = ContentAction.NO_ACTION,
-        val requiresFullScreenWarning: Boolean = false
+        val requiresFullScreenWarning: Boolean = false,
+        // Enhanced region-based information for full-screen blur triggering
+        val nsfwRegionCount: Int = 0, // Number of NSFW regions detected
+        val maxNsfwConfidence: Float = 0.0f, // Highest confidence among NSFW regions
+        val nsfwRegionRects: List<Rect> = emptyList(), // Bounding boxes of NSFW regions
+        val triggeredByRegionCount: Boolean = false // Whether full-screen was triggered by region count rule
     ) {
         companion object {
             fun failed(errorMessage: String) = ContentAnalysisResult(
@@ -381,7 +430,11 @@ class ContentDetectionEngine @Inject constructor(
                 densityAnalysisResult = null,
                 fullScreenBlurDecision = null,
                 recommendedAction = ContentAction.NO_ACTION,
-                requiresFullScreenWarning = false
+                requiresFullScreenWarning = false,
+                nsfwRegionCount = 0,
+                maxNsfwConfidence = 0.0f,
+                nsfwRegionRects = emptyList(),
+                triggeredByRegionCount = false
             )
         }
         

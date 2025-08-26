@@ -48,10 +48,51 @@ interface ContentDensityAnalyzer {
      * @return Recommended content action
      */
     fun calculateRecommendedAction(analysisResult: DensityAnalysisResult, settings: AppSettings): ContentAction
+
+    /**
+     * NEW: Analyze spatial distribution of NSFW regions
+     * @param nsfwRegionRects List of NSFW region bounding boxes
+     * @param bitmap Input bitmap for size reference
+     * @return Spatial distribution analysis for regions
+     */
+    suspend fun analyzeRegionSpatialDistribution(nsfwRegionRects: List<Rect>, bitmap: Bitmap): RegionSpatialDistribution
+
+    /**
+     * NEW: Check if region-based full-screen blur should be triggered
+     * @param nsfwRegionCount Number of NSFW regions detected
+     * @param maxNsfwConfidence Maximum confidence among regions
+     * @param settings Current app settings
+     * @return True if region-based full-screen blur should be triggered
+     */
+    fun shouldTriggerByRegionCount(
+        nsfwRegionCount: Int,
+        maxNsfwConfidence: Float,
+        settings: AppSettings
+    ): Boolean
+
+    /**
+     * NEW: Merge overlapping NSFW regions to avoid double-counting
+     * @param regionRects List of region bounding boxes
+     * @param regionConfidences List of region confidence scores
+     * @return Merged list of non-overlapping regions with consolidated confidence
+     */
+    fun mergeOverlappingRegions(
+        regionRects: List<Rect>,
+        regionConfidences: List<Float>
+    ): List<Pair<Rect, Float>>
+
+    /**
+     * NEW: Calculate coverage percentage of NSFW regions on screen
+     * @param regionRects List of NSFW region bounding boxes
+     * @param screenSize Screen dimensions
+     * @return Percentage of screen covered by NSFW regions (0.0 to 1.0)
+     */
+    fun calculateRegionCoverage(regionRects: List<Rect>, screenSize: Size): Float
 }
 
 /**
  * Result of density analysis with spatial distribution and recommendations
+ * Enhanced with region-based information
  */
 data class DensityAnalysisResult(
     val inappropriateContentDensity: Float, // 0.0 to 1.0
@@ -61,7 +102,12 @@ data class DensityAnalysisResult(
     val criticalRegions: List<Rect>,
     val blurCoveragePercentage: Float,
     val processingTimeMs: Long,
-    val gridAnalysis: GridAnalysis
+    val gridAnalysis: GridAnalysis,
+    // NEW: Enhanced region-based information
+    val nsfwRegionCount: Int = 0, // Number of NSFW regions detected
+    val maxNsfwConfidence: Float = 0.0f, // Highest confidence among NSFW regions
+    val nsfwRegionRects: List<Rect> = emptyList(), // Bounding boxes of NSFW regions
+    val regionBasedTrigger: Boolean = false // Whether region-based rule was triggered
 )
 
 /**
@@ -167,4 +213,39 @@ enum class WarningLevel(val level: Int, val description: String) {
     MEDIUM(3, "Medium level inappropriate content"),
     HIGH(4, "High level inappropriate content"),
     CRITICAL(5, "Critical level - immediate action required")
+}
+
+/**
+ * NEW: Spatial distribution analysis for NSFW regions
+ */
+data class RegionSpatialDistribution(
+    val totalRegions: Int,
+    val clusteredRegions: Int, // Regions that are close to each other
+    val distributedRegions: Int, // Regions that are spread out
+    val centerWeightedRegions: Int, // Regions concentrated in center
+    val edgeWeightedRegions: Int, // Regions concentrated on edges
+    val clusteringScore: Float, // 0.0 = evenly distributed, 1.0 = highly clustered
+    val coveragePercentage: Float, // Percentage of screen covered by regions
+    val dominantLocation: String // "center", "top", "bottom", "left", "right", "distributed"
+) {
+    /**
+     * Check if regions are highly clustered
+     */
+    fun isHighlyClustered(): Boolean = clusteringScore > 0.7f
+
+    /**
+     * Check if regions are evenly distributed
+     */
+    fun isEvenlyDistributed(): Boolean = clusteringScore < 0.3f
+
+    /**
+     * Get clustering description
+     */
+    fun getClusteringDescription(): String = when {
+        clusteringScore > 0.8f -> "Highly clustered"
+        clusteringScore > 0.6f -> "Moderately clustered"
+        clusteringScore > 0.4f -> "Somewhat clustered"
+        clusteringScore > 0.2f -> "Somewhat distributed"
+        else -> "Evenly distributed"
+    }
 }

@@ -122,9 +122,12 @@ class FastContentDetectorImpl @Inject constructor(
                 
                 val (faceResult, nsfwResult, skinToneResult) = results
                 
+                // Perform fast region detection for enhanced full-screen triggering
+                val regionAnalysis = performFastRegionDetection(processedBitmap, settings, currentPerformanceMode)
+
                 // Combine results and make blur decision
                 val shouldBlur = determineBlurDecisionFast(faceResult, nsfwResult, skinToneResult, settings)
-                val blurRegions = calculateBlurRegionsFast(faceResult, nsfwResult, processedBitmap, settings)
+                val blurRegions = calculateBlurRegionsFast(faceResult, nsfwResult, processedBitmap, settings, regionAnalysis)
                 val contentType = determineContentType(faceResult, nsfwResult, skinToneResult)
                 val confidence = calculateOverallConfidence(faceResult, nsfwResult, skinToneResult)
                 
@@ -147,7 +150,10 @@ class FastContentDetectorImpl @Inject constructor(
                     confidenceScore = confidence,
                     performanceMetrics = performanceMetrics,
                     qualityReduced = shouldReduceQuality,
-                    frameSkipped = false
+                    frameSkipped = false,
+                    nsfwRegionCount = regionAnalysis.regionCount,
+                    maxNsfwConfidence = regionAnalysis.maxConfidence,
+                    nsfwRegionRects = regionAnalysis.regionRects
                 )
                 
                 // Cache the result
@@ -456,10 +462,20 @@ class FastContentDetectorImpl @Inject constructor(
         faceResult: FaceDetectionManager.FaceDetectionResult,
         nsfwResult: MLModelManager.DetectionResult,
         bitmap: Bitmap,
-        settings: AppSettings
+        settings: AppSettings,
+        regionAnalysis: FastRegionAnalysis
     ): List<Rect> {
         val regions = mutableListOf<Rect>()
-        
+
+        // Check for region-based full-screen blur trigger (6+ high-confidence regions)
+        if (settings.enableRegionBasedFullScreen &&
+            regionAnalysis.regionCount >= settings.nsfwFullScreenRegionThreshold &&
+            regionAnalysis.maxConfidence >= settings.nsfwHighConfidenceThreshold) {
+            // Trigger full-screen blur due to high region count
+            Log.d(TAG, "Region-based full-screen blur triggered: ${regionAnalysis.regionCount} regions with max confidence ${regionAnalysis.maxConfidence}")
+            return listOf(Rect(0, 0, bitmap.width, bitmap.height))
+        }
+
         // Add face regions (simplified - no gender filtering for speed)
         if (settings.enableFaceDetection && faceResult.hasFaces()) {
             faceResult.detectedFaces.forEach { face ->
@@ -755,6 +771,119 @@ class FastContentDetectorImpl @Inject constructor(
             processingTimeMs = System.currentTimeMillis() - startTime
         )
     }
+
+    /**
+     * Perform fast region detection for enhanced full-screen blur triggering
+     * Uses simplified grid-based approach optimized for performance
+     */
+    private suspend fun performFastRegionDetection(
+        bitmap: Bitmap,
+        settings: AppSettings,
+        performanceMode: PerformanceMode
+    ): FastRegionAnalysis = withContext(Dispatchers.Default) {
+        val width = bitmap.width
+        val height = bitmap.height
+
+        // Determine grid size based on performance mode and bitmap dimensions
+        val gridSize = when (performanceMode) {
+            PerformanceMode.ULTRA_FAST -> 2 // 2x2 grid for maximum speed
+            PerformanceMode.FAST -> 3        // 3x3 grid for good speed/accuracy balance
+            else -> 4                         // 4x4 grid for better accuracy
+        }
+
+        val cellWidth = width / gridSize
+        val cellHeight = height / gridSize
+
+        val highConfidenceRegions = mutableListOf<Rect>()
+        val regionConfidences = mutableListOf<Float>()
+        var maxConfidence = 0.0f
+
+        // Analyze each grid cell
+        for (row in 0 until gridSize) {
+            for (col in 0 until gridSize) {
+                val x = col * cellWidth
+                val y = row * cellHeight
+                val cellRect = Rect(
+                    x,
+                    y,
+                    minOf(x + cellWidth, width),
+                    minOf(y + cellHeight, height)
+                )
+
+                // Skip if cell is too small
+                if (cellRect.width() < 32 || cellRect.height() < 32) {
+                    continue
+                }
+
+                // Extract cell bitmap
+                val cellBitmap = Bitmap.createBitmap(
+                    bitmap,
+                    cellRect.left,
+                    cellRect.top,
+                    cellRect.width(),
+                    cellRect.height()
+                )
+
+                // Analyze cell for NSFW content using fast heuristic
+                val confidence = analyzeCellForNSFWFast(cellBitmap)
+                cellBitmap.recycle()
+
+                // Check if this cell meets high confidence threshold
+                if (confidence >= settings.nsfwConfidenceThreshold) {
+                    highConfidenceRegions.add(cellRect)
+                    regionConfidences.add(confidence)
+                    maxConfidence = maxOf(maxConfidence, confidence)
+                }
+            }
+        }
+
+        return@withContext FastRegionAnalysis(
+            regionCount = highConfidenceRegions.size,
+            regionRects = highConfidenceRegions,
+            maxConfidence = maxConfidence
+        )
+    }
+
+    /**
+     * Fast NSFW analysis for a single cell
+     */
+    private fun analyzeCellForNSFWFast(cellBitmap: Bitmap): Float {
+        // Quick skin tone analysis with reduced sampling
+        val sampleStep = 4 // Sample every 4th pixel for speed
+        var skinPixels = 0
+        var totalPixels = 0
+
+        for (x in 0 until cellBitmap.width step sampleStep) {
+            for (y in 0 until cellBitmap.height step sampleStep) {
+                val pixel = cellBitmap.getPixel(x, y)
+                if (isSkinTonePixelFast(pixel)) {
+                    skinPixels++
+                }
+                totalPixels++
+            }
+        }
+
+        val skinRatio = if (totalPixels > 0) skinPixels.toFloat() / totalPixels else 0.0f
+
+        // Convert skin ratio to confidence score
+        return when {
+            skinRatio > 0.4f -> 0.8f
+            skinRatio > 0.3f -> 0.7f
+            skinRatio > 0.2f -> 0.6f
+            skinRatio > 0.15f -> 0.5f
+            skinRatio > 0.1f -> 0.4f
+            else -> 0.2f
+        }
+    }
+
+    /**
+     * Data class for fast region analysis results
+     */
+    private data class FastRegionAnalysis(
+        val regionCount: Int,
+        val regionRects: List<Rect>,
+        val maxConfidence: Float
+    )
     
     // Cache data classes
     private data class CachedDetectionResult(

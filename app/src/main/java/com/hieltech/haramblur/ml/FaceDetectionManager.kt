@@ -84,19 +84,22 @@ class FaceDetectionManager @Inject constructor(
                                 face.boundingBox.right,
                                 face.boundingBox.bottom
                             )
-                            
+
                             // Enhanced gender detection using multiple indicators
                             val genderResult = enhancedGenderDetector.detectGender(face, bitmap)
                             val isFemale = genderResult.gender == Gender.FEMALE
                             Log.v(TAG, "  Face #${faces.indexOf(face)}: confidence=${(face.trackingId ?: 0)}, female=$isFemale (${(genderResult.confidence * 100).toInt()}%)")
-                            
+
                             DetectedFace(rect, genderResult.gender, genderResult.confidence, genderResult)
                         }
                     }.map { it.await() }
                 }
-                
-                Log.d(TAG, "🧠 Analyzing ${faces.size} faces for gender and filtering...")
+
+                // Keep all detected faces - gender filtering will be done at blur decision level
+                // This ensures we don't miss female faces due to poor gender detection accuracy
                 val detectedFaces = faceInfo
+
+                Log.d(TAG, "🧠 All faces kept: ${detectedFaces.size} total faces (gender filtering moved to blur decision)")
                 
                 Log.d(TAG, "✅ Face detection completed in ${System.currentTimeMillis() - startTime}ms")
                 Log.d(TAG, "📊 Results: ${detectedFaces.size} total faces")
@@ -267,58 +270,63 @@ class FaceDetectionManager @Inject constructor(
         val faceRectangles: List<Rect>
             get() = detectedFaces.map { it.boundingBox }
             
-        fun getMaleFaces(): List<DetectedFace> = emptyList() // No longer detect/return male faces
-        fun getFemaleFaces(): List<DetectedFace> = detectedFaces.filter { 
-            it.estimatedGender == Gender.FEMALE || 
+        fun getMaleFaces(): List<DetectedFace> = emptyList() // Male faces are completely excluded from detection
+        fun getFemaleFaces(): List<DetectedFace> = detectedFaces.filter {
+            it.estimatedGender == Gender.FEMALE ||
             (it.estimatedGender == Gender.UNKNOWN && it.genderConfidence < 0.6f) // Include low-confidence unknowns as potential females
         }
         fun getUnknownGenderFaces(): List<DetectedFace> = detectedFaces.filter { it.estimatedGender == Gender.UNKNOWN }
         
         /**
          * Get faces to blur based on app settings and confidence thresholds
+         * Now properly respects both blurMaleFaces and blurFemaleFaces settings
          */
         fun getFacesToBlur(appSettings: AppSettings): List<DetectedFace> {
-            val facesToBlur = mutableListOf<DetectedFace>()
-            
-            detectedFaces.forEach { face ->
-                val shouldBlur = when (face.estimatedGender) {
+            return detectedFaces.filter { face ->
+                when (face.estimatedGender) {
+                    Gender.MALE -> {
+                        // Respect blurMaleFaces setting - if false, don't blur males
+                        appSettings.blurMaleFaces &&
+                        (face.genderConfidence >= 0.6f || shouldUseSaferFiltering(face, appSettings))
+                    }
                     Gender.FEMALE -> {
-                        // Enhanced female detection with much lower confidence threshold
-                        appSettings.blurFemaleFaces && 
+                        // Enhanced female detection with lower confidence threshold
+                        appSettings.blurFemaleFaces &&
                         (face.genderConfidence >= 0.4f || shouldUseSaferFiltering(face, appSettings))
                     }
                     Gender.UNKNOWN -> {
-                        // For unknown gender, use safer filtering approach focused on female detection
-                        appSettings.blurFemaleFaces && shouldUseSaferFiltering(face, appSettings)
+                        // For unknown gender, use safer approach - blur if either setting is enabled
+                        // This ensures we don't miss potential female faces due to poor detection
+                        (appSettings.blurFemaleFaces || appSettings.blurMaleFaces) &&
+                        shouldUseSaferFiltering(face, appSettings)
                     }
-                    Gender.MALE -> {
-                        // No longer blur male faces - focus only on female content
-                        false
-                    }
-                }
-                
-                if (shouldBlur) {
-                    facesToBlur.add(face)
                 }
             }
-            
-            return facesToBlur
         }
         
         /**
-         * Enhanced safer filtering focused on female detection with lower confidence threshold
+         * Enhanced safer filtering that respects both male and female blur settings
          */
         private fun shouldUseSaferFiltering(face: DetectedFace, appSettings: AppSettings): Boolean {
             return when {
                 // For female-focused detection, use much lower confidence threshold
                 face.genderConfidence < 0.5f -> {
                     // If female blur is enabled, blur low-confidence faces as safety measure
-                    appSettings.blurFemaleFaces
+                    // For males, we use safer filtering only if male blurring is enabled
+                    if (face.estimatedGender == Gender.MALE) {
+                        appSettings.blurMaleFaces
+                    } else {
+                        appSettings.blurFemaleFaces
+                    }
                 }
-                // If confidence is moderate, be more liberal for female detection
+                // If confidence is moderate, be more liberal
                 face.genderConfidence < 0.7f -> {
-                    // For female detection, blur moderate confidence faces
-                    appSettings.blurFemaleFaces
+                    // For moderate confidence, apply safer approach based on gender
+                    if (face.estimatedGender == Gender.MALE) {
+                        appSettings.blurMaleFaces
+                    } else {
+                        appSettings.blurFemaleFaces
+                    }
                 }
                 else -> false
             }
@@ -333,21 +341,24 @@ class FaceDetectionManager @Inject constructor(
         
         /**
          * Get faces filtered by gender with confidence consideration
+         * Now properly supports filtering both male and female faces
          */
         fun getFilteredFaces(
-            includeMales: Boolean = false, // Default to false since we focus on females
+            includeMales: Boolean = false,
             includeFemales: Boolean = true,
             includeUnknown: Boolean = true,
-            minConfidence: Float = 0.4f // Lower confidence for better female detection
+            minConfidence: Float = 0.5f
         ): List<DetectedFace> {
             return detectedFaces.filter { face ->
-                val meetsConfidence = face.genderConfidence >= minConfidence || 
-                                    (face.estimatedGender == Gender.UNKNOWN && includeFemales) // Include unknowns when looking for females
+                val meetsConfidence = face.genderConfidence >= minConfidence ||
+                                    (face.estimatedGender == Gender.UNKNOWN && (includeMales || includeFemales))
+
                 val meetsGenderCriteria = when (face.estimatedGender) {
-                    Gender.MALE -> false // Never include males in our female-focused app
+                    Gender.MALE -> includeMales
                     Gender.FEMALE -> includeFemales
-                    Gender.UNKNOWN -> includeUnknown && includeFemales // Treat unknowns as potential females
+                    Gender.UNKNOWN -> includeUnknown // Include unknowns when either gender is requested
                 }
+
                 meetsConfidence && meetsGenderCriteria
             }
         }

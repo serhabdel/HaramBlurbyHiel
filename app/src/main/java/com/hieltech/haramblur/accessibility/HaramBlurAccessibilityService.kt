@@ -208,7 +208,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             return
         }
         
-        Log.d(TAG, "⚙️ Processing with settings: Female blur=${currentSettings.blurFemaleFaces}, NSFW=${currentSettings.enableNSFWDetection}, GPU=${currentSettings.enableGPUAcceleration}")
+        Log.d(TAG, "⚙️ Processing with settings: Female blur=${currentSettings.blurFemaleFaces}, Male blur=${currentSettings.blurMaleFaces}, NSFW=${currentSettings.enableNSFWDetection}, GPU=${currentSettings.enableGPUAcceleration}")
         
         // Get dynamic processing cooldown from settings
         val interval = getProcessingInterval(currentSettings)
@@ -324,7 +324,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         } ?: false
         
         Log.d(TAG, "🔍 Detection summary: Female faces=$hasFemaleFaces, NSFW=$hasNSFWContent")
-        Log.d(TAG, "⚙️ Settings: blurFemaleFaces=${settings.blurFemaleFaces}, enableNSFW=${settings.enableNSFWDetection}, sensitivity=${settings.detectionSensitivity}")
+        Log.d(TAG, "⚙️ Settings: blurFemaleFaces=${settings.blurFemaleFaces}, blurMaleFaces=${settings.blurMaleFaces}, enableNSFW=${settings.enableNSFWDetection}, sensitivity=${settings.detectionSensitivity}")
         
         // Record detection for learning
         val detectedInappropriate = hasFemaleFaces || hasNSFWContent

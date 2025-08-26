@@ -62,7 +62,11 @@ data class FastDetectionResult(
     val confidenceScore: Float,
     val performanceMetrics: DetectionPerformanceMetrics,
     val qualityReduced: Boolean,
-    val frameSkipped: Boolean
+    val frameSkipped: Boolean,
+    // Enhanced region-based information for full-screen blur triggering
+    val nsfwRegionCount: Int = 0, // Number of NSFW regions detected in fast mode
+    val maxNsfwConfidence: Float = 0.0f, // Highest confidence among NSFW regions
+    val nsfwRegionRects: List<Rect> = emptyList() // Bounding boxes of NSFW regions
 )
 
 /**

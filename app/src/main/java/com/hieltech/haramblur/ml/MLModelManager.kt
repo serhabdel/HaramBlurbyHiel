@@ -29,8 +29,8 @@ class MLModelManager @Inject constructor(
     
     companion object {
         private const val TAG = "MLModelManager"
-        private const val NSFW_MODEL_PATH = "nsfw_model.tflite"
-        private const val GENDER_MODEL_PATH = "gender_model.tflite"
+        private const val NSFW_MODEL_PATH = "models/nsfw_mobilenet_v2_140_224.1.tflite"
+        private const val GENDER_MODEL_PATH = "models/model_lite_gender_q.tflite"
         private const val INPUT_SIZE = 224
         private const val GENDER_INPUT_SIZE = 96 // Smaller input for gender model
         private const val CONFIDENCE_THRESHOLD = 0.3f // Lowered for better sensitivity
@@ -96,13 +96,18 @@ class MLModelManager @Inject constructor(
         try {
             // Initialize standard NSFW model with GPU acceleration
             val options = gpuAccelerationManager.createOptimizedInterpreterOptions(enableGPU = true)
-            
-            // Placeholder: Create a simple model buffer
-            // TODO: Replace with actual NSFW model file
-            Log.d(TAG, "NSFW model placeholder initialized with GPU acceleration")
-            
-        } catch (e: IOException) {
-            Log.e(TAG, "Error loading NSFW model", e)
+
+            // Load the actual NSFW model file
+            try {
+                val modelBuffer = FileUtil.loadMappedFile(context, NSFW_MODEL_PATH)
+                nsfwInterpreter = Interpreter(modelBuffer, options)
+                Log.d(TAG, "NSFW model loaded successfully from: $NSFW_MODEL_PATH")
+            } catch (e: IOException) {
+                Log.w(TAG, "NSFW model file not found at $NSFW_MODEL_PATH, falling back to heuristics", e)
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing NSFW model", e)
         }
     }
     
@@ -122,17 +127,23 @@ class MLModelManager @Inject constructor(
     private fun initializeGenderModel(context: Context) {
         try {
             Log.d(TAG, "Initializing gender classification model...")
-            
+
             // Use optimized options with GPU acceleration
             val options = gpuAccelerationManager.createOptimizedInterpreterOptions(enableGPU = true)
-            
-            // TODO: Load actual gender model file when available
-            // For now, we'll use heuristic-based detection
-            isGenderModelReady = true
-            Log.d(TAG, "Gender model initialized successfully (heuristic mode) with GPU support")
-            
+
+            // Load the actual gender model file
+            try {
+                val modelBuffer = FileUtil.loadMappedFile(context, GENDER_MODEL_PATH)
+                genderInterpreter = Interpreter(modelBuffer, options)
+                isGenderModelReady = true
+                Log.d(TAG, "Gender model loaded successfully from: $GENDER_MODEL_PATH")
+            } catch (e: IOException) {
+                Log.w(TAG, "Gender model file not found at $GENDER_MODEL_PATH, falling back to heuristics", e)
+                isGenderModelReady = false
+            }
+
         } catch (e: Exception) {
-            Log.e(TAG, "Error loading gender model", e)
+            Log.e(TAG, "Error initializing gender model", e)
             isGenderModelReady = false
         }
     }
@@ -234,25 +245,42 @@ class MLModelManager @Inject constructor(
         } else {
             imageProcessor ?: throw IllegalStateException("Image processor not initialized")
         }
-        
+
         // Process the input image
         val tensorImage = TensorImage.fromBitmap(bitmap)
         val processedImage = processor.process(tensorImage)
-        
-        // For now, return a placeholder result with performance considerations
-        // TODO: Run actual inference when model is loaded
-        val confidence = if (useFastMode) {
-            simulateNSFWDetectionFast(bitmap)
+
+        // Perform sliding-window region detection for enhanced full-screen triggering
+        val regionAnalysis = performSlidingWindowRegionDetection(bitmap, useFastMode)
+
+        // Try to use actual ML model first, fall back to heuristics if not available
+        val confidence = if (nsfwInterpreter != null) {
+            try {
+                Log.d(TAG, "Using actual NSFW model for detection")
+                runNSFWInference(processedImage, useFastMode)
+            } catch (e: Exception) {
+                Log.w(TAG, "ML inference failed, falling back to heuristics", e)
+                if (useFastMode) simulateNSFWDetectionFast(bitmap) else simulateNSFWDetection(bitmap)
+            }
         } else {
-            simulateNSFWDetection(bitmap)
+            Log.d(TAG, "NSFW model not loaded, using heuristic detection")
+            if (useFastMode) simulateNSFWDetectionFast(bitmap) else simulateNSFWDetection(bitmap)
         }
-        
+
         val isNSFW = confidence > CONFIDENCE_THRESHOLD
-        
+
         return DetectionResult(
-            isNSFW, 
-            confidence, 
-            if (useFastMode) "Fast simulated detection" else "Standard simulated detection"
+            isNSFW,
+            confidence,
+            if (nsfwInterpreter != null) {
+                if (useFastMode) "Fast ML-based detection" else "Standard ML-based detection"
+            } else {
+                if (useFastMode) "Fast heuristic detection" else "Standard heuristic detection"
+            },
+            regionAnalysis.regionCount,
+            regionAnalysis.regionRects,
+            regionAnalysis.perRegionConfidences,
+            regionAnalysis.maxRegionConfidence
         )
     }
     
@@ -701,20 +729,58 @@ class MLModelManager @Inject constructor(
     }
     
     /**
+     * Run NSFW inference using the loaded TensorFlow Lite model
+     */
+    private fun runNSFWInference(tensorImage: TensorImage, useFastMode: Boolean): Float {
+        return nsfwInterpreter?.let { interpreter ->
+            try {
+                // Prepare input buffer
+                val inputBuffer = ByteBuffer.allocateDirect(4 * INPUT_SIZE * INPUT_SIZE * 3)
+                inputBuffer.order(ByteOrder.nativeOrder())
+
+                // Convert tensor image to input buffer
+                val imageArray = tensorImage.tensorBuffer.floatArray
+                inputBuffer.rewind()
+                for (pixel in imageArray) {
+                    inputBuffer.putFloat(pixel)
+                }
+
+                // Prepare output buffer (assuming single output with NSFW probability)
+                val outputBuffer = ByteBuffer.allocateDirect(4 * 1) // 1 output value
+                outputBuffer.order(ByteOrder.nativeOrder())
+
+                // Run inference
+                interpreter.run(inputBuffer, outputBuffer)
+
+                // Get result
+                outputBuffer.rewind()
+                val nsfwProbability = outputBuffer.getFloat()
+
+                // Ensure result is within valid range
+                nsfwProbability.coerceIn(0.0f, 1.0f)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error running NSFW inference", e)
+                throw e
+            }
+        } ?: throw IllegalStateException("NSFW interpreter not initialized")
+    }
+
+    /**
      * Fast NSFW detection simulation optimized for speed
      */
     private fun simulateNSFWDetectionFast(bitmap: Bitmap): Float {
         // Simplified heuristic for ultra-fast mode
         val width = bitmap.width
         val height = bitmap.height
-        
+
         // Quick skin tone check with reduced sampling
         var confidenceScore = 0.0f
         val sampleStep = 8 // Larger step for faster processing
-        
+
         var skinPixels = 0
         var totalPixels = 0
-        
+
         for (x in 0 until width step sampleStep) {
             for (y in 0 until height step sampleStep) {
                 val pixel = bitmap.getPixel(x, y)
@@ -724,9 +790,9 @@ class MLModelManager @Inject constructor(
                 totalPixels++
             }
         }
-        
+
         val skinRatio = if (totalPixels > 0) skinPixels.toFloat() / totalPixels else 0.0f
-        
+
         // Simplified scoring for speed
         confidenceScore = when {
             skinRatio > 0.4f -> 0.7f
@@ -734,9 +800,185 @@ class MLModelManager @Inject constructor(
             skinRatio > 0.15f -> 0.3f
             else -> 0.1f
         }
-        
+
         return confidenceScore.coerceIn(0.0f, 1.0f)
     }
+
+    /**
+     * Perform sliding-window region detection for enhanced full-screen blur triggering
+     * Divides the bitmap into overlapping tiles and analyzes each for NSFW content
+     */
+    private fun performSlidingWindowRegionDetection(bitmap: Bitmap, useFastMode: Boolean): RegionAnalysisResult {
+        val width = bitmap.width
+        val height = bitmap.height
+
+        // Calculate tile size based on bitmap dimensions and performance mode
+        val tileSize = calculateAdaptiveTileSize(width, height, useFastMode)
+        val overlapPercentage = if (useFastMode) 0.3f else 0.5f // Less overlap for faster processing
+
+        val stepSize = (tileSize * (1.0f - overlapPercentage)).toInt()
+        val highConfidenceRegions = mutableListOf<Rect>()
+        val regionConfidences = mutableListOf<Float>()
+        var maxConfidence = 0.0f
+
+        // Slide window across the bitmap
+        for (x in 0 until width step stepSize) {
+            for (y in 0 until height step stepSize) {
+                val tileRect = Rect(
+                    x,
+                    y,
+                    minOf(x + tileSize, width),
+                    minOf(y + tileSize, height)
+                )
+
+                // Skip if tile is too small (less than 25% of intended size)
+                if (tileRect.width() < tileSize * 0.25f || tileRect.height() < tileSize * 0.25f) {
+                    continue
+                }
+
+                // Extract tile bitmap
+                val tileBitmap = Bitmap.createBitmap(
+                    bitmap,
+                    tileRect.left,
+                    tileRect.top,
+                    tileRect.width(),
+                    tileRect.height()
+                )
+
+                // Analyze tile for NSFW content
+                val confidence = analyzeTileForNSFW(tileBitmap, useFastMode)
+                tileBitmap.recycle()
+
+                // Check if this tile meets high confidence threshold
+                if (confidence >= CONFIDENCE_THRESHOLD) {
+                    highConfidenceRegions.add(tileRect)
+                    regionConfidences.add(confidence)
+                    maxConfidence = maxOf(maxConfidence, confidence)
+                }
+
+                // Early termination for performance - stop if we already have many regions
+                if (highConfidenceRegions.size >= 10) {
+                    break
+                }
+            }
+
+            // Early termination for performance
+            if (highConfidenceRegions.size >= 10) {
+                break
+            }
+        }
+
+        // Merge overlapping regions to avoid double-counting
+        val mergedRegions = mergeOverlappingRegions(highConfidenceRegions, regionConfidences)
+
+        return RegionAnalysisResult(
+            regionCount = mergedRegions.size,
+            regionRects = mergedRegions.map { it.first },
+            perRegionConfidences = mergedRegions.map { it.second },
+            maxRegionConfidence = maxConfidence
+        )
+    }
+
+    /**
+     * Calculate adaptive tile size based on bitmap dimensions and performance mode
+     */
+    private fun calculateAdaptiveTileSize(width: Int, height: Int, useFastMode: Boolean): Int {
+        val minDimension = minOf(width, height)
+
+        return when {
+            useFastMode -> {
+                // Smaller tiles for faster processing in fast mode
+                when {
+                    minDimension >= 1080 -> 96  // Smaller tiles for large screens
+                    minDimension >= 720 -> 80   // Medium tiles for medium screens
+                    else -> 64                  // Small tiles for small screens
+                }
+            }
+            else -> {
+                // Standard mode - larger tiles for better accuracy
+                when {
+                    minDimension >= 1080 -> 160 // Larger tiles for detailed analysis
+                    minDimension >= 720 -> 128  // Medium tiles for balanced analysis
+                    else -> 96                  // Small tiles for small screens
+                }
+            }
+        }
+    }
+
+    /**
+     * Analyze a tile bitmap for NSFW content
+     */
+    private fun analyzeTileForNSFW(tileBitmap: Bitmap, useFastMode: Boolean): Float {
+        return if (useFastMode) {
+            simulateNSFWDetectionFast(tileBitmap)
+        } else {
+            simulateNSFWDetection(tileBitmap)
+        }
+    }
+
+    /**
+     * Merge overlapping regions and consolidate their confidence scores
+     */
+    private fun mergeOverlappingRegions(
+        regions: List<Rect>,
+        confidences: List<Float>
+    ): List<Pair<Rect, Float>> {
+        if (regions.isEmpty()) return emptyList()
+
+        val merged = mutableListOf<Pair<Rect, Float>>()
+
+        regions.forEachIndexed { index, region ->
+            val confidence = confidences[index]
+
+            // Check if this region overlaps significantly with any existing merged region
+            val overlappingIndex = merged.indexOfFirst { (existingRegion, _) ->
+                calculateOverlapRatio(region, existingRegion) > 0.3f // 30% overlap threshold
+            }
+
+            if (overlappingIndex >= 0) {
+                // Merge with existing region, keeping the higher confidence
+                val (existingRegion, existingConfidence) = merged[overlappingIndex]
+                val mergedRect = Rect(
+                    minOf(region.left, existingRegion.left),
+                    minOf(region.top, existingRegion.top),
+                    maxOf(region.right, existingRegion.right),
+                    maxOf(region.bottom, existingRegion.bottom)
+                )
+                val mergedConfidence = maxOf(confidence, existingConfidence)
+                merged[overlappingIndex] = Pair(mergedRect, mergedConfidence)
+            } else {
+                // Add as new region
+                merged.add(Pair(region, confidence))
+            }
+        }
+
+        return merged
+    }
+
+    /**
+     * Calculate overlap ratio between two rectangles
+     */
+    private fun calculateOverlapRatio(rect1: Rect, rect2: Rect): Float {
+        if (!rect1.intersect(rect2)) return 0.0f
+
+        val intersectionArea = (rect1.width() * rect1.height()).toFloat()
+        val smallerArea = minOf(
+            rect1.width() * rect1.height(),
+            rect2.width() * rect2.height()
+        ).toFloat()
+
+        return if (smallerArea > 0) intersectionArea / smallerArea else 0.0f
+    }
+
+    /**
+     * Data class for region analysis results
+     */
+    private data class RegionAnalysisResult(
+        val regionCount: Int,
+        val regionRects: List<Rect>,
+        val perRegionConfidences: List<Float>,
+        val maxRegionConfidence: Float
+    )
     
     private fun isSkinTonePixelFast(pixel: Int): Boolean {
         val red = (pixel shr 16) and 0xFF
@@ -851,7 +1093,12 @@ class MLModelManager @Inject constructor(
     data class DetectionResult(
         val isNSFW: Boolean,
         val confidence: Float,
-        val details: String
+        val details: String,
+        // Enhanced region-based information for full-screen blur triggering
+        val regionCount: Int = 0, // Number of distinct NSFW regions detected
+        val regionRects: List<Rect> = emptyList(), // Bounding boxes of detected regions
+        val perRegionConfidences: List<Float> = emptyList(), // Confidence score for each region
+        val maxRegionConfidence: Float = 0.0f // Highest confidence among all regions
     )
     
     /**

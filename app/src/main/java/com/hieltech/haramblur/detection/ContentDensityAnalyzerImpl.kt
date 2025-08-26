@@ -166,18 +166,18 @@ class ContentDensityAnalyzerImpl @Inject constructor(
         val warningLevel = analysisResult.warningLevel
         val spatialDistribution = analysisResult.spatialDistribution
         val criticalRegions = analysisResult.criticalRegions.size
-        
+
         return when {
             // Critical level - immediate action required
             warningLevel == WarningLevel.CRITICAL || density > 0.8f -> {
                 ContentAction.IMMEDIATE_CLOSE
             }
-            
+
             // High level - full screen blur with warning
             warningLevel == WarningLevel.HIGH || density > settings.contentDensityThreshold -> {
                 ContentAction.FULL_SCREEN_BLUR
             }
-            
+
             // Medium level - check distribution
             warningLevel == WarningLevel.MEDIUM || density > 0.3f -> {
                 if (spatialDistribution.isContentDistributed() || criticalRegions > 4) {
@@ -186,17 +186,171 @@ class ContentDensityAnalyzerImpl @Inject constructor(
                     ContentAction.SELECTIVE_BLUR
                 }
             }
-            
+
             // Low level - selective blur
             warningLevel == WarningLevel.LOW || density > 0.1f -> {
                 ContentAction.SELECTIVE_BLUR
             }
-            
+
             // Minimal or no inappropriate content
             else -> {
                 ContentAction.NO_ACTION
             }
         }
+    }
+
+    override suspend fun analyzeRegionSpatialDistribution(nsfwRegionRects: List<Rect>, bitmap: Bitmap): RegionSpatialDistribution = withContext(Dispatchers.Default) {
+        if (nsfwRegionRects.isEmpty()) {
+            return@withContext RegionSpatialDistribution(
+                totalRegions = 0,
+                clusteredRegions = 0,
+                distributedRegions = 0,
+                centerWeightedRegions = 0,
+                edgeWeightedRegions = 0,
+                clusteringScore = 0.0f,
+                coveragePercentage = 0.0f,
+                dominantLocation = "none"
+            )
+        }
+
+        val bitmapWidth = bitmap.width
+        val bitmapHeight = bitmap.height
+
+        // Calculate region centroids
+        val centroids = nsfwRegionRects.map { rect ->
+            Pair(
+                rect.centerX().toFloat() / bitmapWidth,
+                rect.centerY().toFloat() / bitmapHeight
+            )
+        }
+
+        // Analyze clustering
+        val clusteringScore = calculateClusteringScore(centroids)
+        val totalRegions = nsfwRegionRects.size
+
+        // Determine region distribution
+        var centerWeightedRegions = 0
+        var edgeWeightedRegions = 0
+
+        centroids.forEach { (x, y) ->
+            if (x > 0.25f && x < 0.75f && y > 0.25f && y < 0.75f) {
+                centerWeightedRegions++
+            } else {
+                edgeWeightedRegions++
+            }
+        }
+
+        // Calculate coverage percentage
+        val totalCoverage = nsfwRegionRects.sumOf { it.width() * it.height() }.toFloat()
+        val screenArea = bitmapWidth * bitmapHeight
+        val coveragePercentage = totalCoverage / screenArea
+
+        // Determine dominant location
+        val dominantLocation = when {
+            centerWeightedRegions > edgeWeightedRegions -> "center"
+            edgeWeightedRegions > centerWeightedRegions -> "edges"
+            else -> "distributed"
+        }
+
+        return@withContext RegionSpatialDistribution(
+            totalRegions = totalRegions,
+            clusteredRegions = if (clusteringScore > 0.7f) totalRegions else 0,
+            distributedRegions = if (clusteringScore < 0.3f) totalRegions else 0,
+            centerWeightedRegions = centerWeightedRegions,
+            edgeWeightedRegions = edgeWeightedRegions,
+            clusteringScore = clusteringScore,
+            coveragePercentage = coveragePercentage,
+            dominantLocation = dominantLocation
+        )
+    }
+
+    override fun shouldTriggerByRegionCount(
+        nsfwRegionCount: Int,
+        maxNsfwConfidence: Float,
+        settings: AppSettings
+    ): Boolean {
+        return settings.enableRegionBasedFullScreen &&
+               nsfwRegionCount >= settings.nsfwFullScreenRegionThreshold &&
+               maxNsfwConfidence >= settings.nsfwHighConfidenceThreshold
+    }
+
+    override fun mergeOverlappingRegions(
+        regionRects: List<Rect>,
+        regionConfidences: List<Float>
+    ): List<Pair<Rect, Float>> {
+        if (regionRects.isEmpty()) return emptyList()
+
+        val merged = mutableListOf<Pair<Rect, Float>>()
+
+        regionRects.forEachIndexed { index, region ->
+            val confidence = regionConfidences[index]
+
+            // Check if this region overlaps significantly with any existing merged region
+            val overlappingIndex = merged.indexOfFirst { (existingRegion, _) ->
+                calculateOverlapRatio(region, existingRegion) > 0.3f // 30% overlap threshold
+            }
+
+            if (overlappingIndex >= 0) {
+                // Merge with existing region, keeping the higher confidence
+                val (existingRegion, existingConfidence) = merged[overlappingIndex]
+                val mergedRect = Rect(
+                    minOf(region.left, existingRegion.left),
+                    minOf(region.top, existingRegion.top),
+                    maxOf(region.right, existingRegion.right),
+                    maxOf(region.bottom, existingRegion.bottom)
+                )
+                val mergedConfidence = maxOf(confidence, existingConfidence)
+                merged[overlappingIndex] = Pair(mergedRect, mergedConfidence)
+            } else {
+                // Add as new region
+                merged.add(Pair(region, confidence))
+            }
+        }
+
+        return merged
+    }
+
+    override fun calculateRegionCoverage(regionRects: List<Rect>, screenSize: Size): Float {
+        if (regionRects.isEmpty() || screenSize.width <= 0 || screenSize.height <= 0) {
+            return 0.0f
+        }
+
+        val totalScreenArea = screenSize.width * screenSize.height.toFloat()
+        val totalRegionArea = regionRects.sumOf { it.width() * it.height() }.toFloat()
+
+        return (totalRegionArea / totalScreenArea).coerceIn(0.0f, 1.0f)
+    }
+
+    // Helper methods for region analysis
+
+    private fun calculateClusteringScore(centroids: List<Pair<Float, Float>>): Float {
+        if (centroids.size < 2) return 0.0f
+
+        // Calculate centroid of all points
+        val centerX = centroids.map { it.first }.average().toFloat()
+        val centerY = centroids.map { it.second }.average().toFloat()
+
+        // Calculate average distance from center
+        val avgDistance = centroids.map { (x, y) ->
+            val dx = x - centerX
+            val dy = y - centerY
+            sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+        }.average().toFloat()
+
+        // Lower average distance = more clustered
+        return (1.0f - avgDistance).coerceIn(0.0f, 1.0f)
+    }
+
+    private fun calculateOverlapRatio(rect1: Rect, rect2: Rect): Float {
+        if (!rect1.intersect(rect2)) return 0.0f
+
+        val intersectionArea = (rect1.width() * rect1.height()).toFloat()
+        val smallerArea = minOf(
+            rect1.width() * rect1.height(),
+            rect2.width() * rect2.height()
+        ).toFloat()
+
+        return if (smallerArea > 0) intersectionArea / smallerArea else 0.0f
     }
     
     // Private helper methods
