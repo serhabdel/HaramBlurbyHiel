@@ -1,10 +1,15 @@
 package com.hieltech.haramblur.detection
 
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.os.Build
 import com.hieltech.haramblur.data.AppRegistry
+import com.hieltech.haramblur.data.LogRepository
+import com.hieltech.haramblur.data.LogRepository.LogCategory
 import com.hieltech.haramblur.data.database.*
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
@@ -47,6 +52,8 @@ interface AppBlockingManager {
     suspend fun removeSchedule(scheduleId: Long): Boolean
     suspend fun isCurrentlyBlockedBySchedule(packageName: String): Boolean
     suspend fun getNextScheduledBlock(packageName: String): Long?
+    suspend fun hasSchedules(packageName: String): Boolean
+    suspend fun enforceBlock(packageName: String): Boolean
 
     // Bulk operations
     suspend fun blockMultipleApps(packageNames: List<String>): Boolean
@@ -67,11 +74,18 @@ interface AppBlockingManager {
 class AppBlockingManagerImpl @Inject constructor(
     private val database: SiteBlockingDatabase,
     @ApplicationContext private val context: Context,
-    private val packageManager: PackageManager
+    private val packageManager: PackageManager,
+    private val logRepository: LogRepository
 ) : AppBlockingManager {
 
     private val blockedAppDao = database.blockedAppDao()
     private val scheduleDao = database.blockingScheduleDao()
+
+    @Inject
+    lateinit var systemCapabilities: SystemCapabilities
+
+    @Inject
+    lateinit var foregroundAppMonitor: ForegroundAppMonitor
 
     companion object {
         private const val TAG = "AppBlockingManager"
@@ -417,6 +431,111 @@ class AppBlockingManagerImpl @Inject constructor(
         return@withContext schedules
             .filter { it.isActive && it.nextScheduledAt != null }
             .minOfOrNull { it.nextScheduledAt!! }
+    }
+
+    override suspend fun hasSchedules(packageName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val schedules = scheduleDao.getSchedulesForApp(packageName)
+            return@withContext schedules.isNotEmpty()
+        } catch (e: Exception) {
+            return@withContext false
+        }
+    }
+
+    override suspend fun enforceBlock(packageName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // First check if app is blocked
+            if (!isAppBlocked(packageName)) {
+                return@withContext false
+            }
+
+            // Apply system-level blocking based on capabilities
+            val recommendedMethod = systemCapabilities.getRecommendedBlockingMethod(packageName)
+
+            return@withContext when (recommendedMethod) {
+                com.hieltech.haramblur.detection.BlockingMethod.FORCE_CLOSE_PREFERRED -> {
+                    forceCloseApp(packageName)
+                }
+                com.hieltech.haramblur.detection.BlockingMethod.ADAPTIVE -> {
+                    if (systemCapabilities.canForceCloseApp(packageName)) {
+                        forceCloseApp(packageName)
+                    } else {
+                        // Fall back to accessibility service
+                        true
+                    }
+                }
+                com.hieltech.haramblur.detection.BlockingMethod.ACCESSIBILITY_ONLY -> {
+                    // Accessibility service will handle blocking
+                    true
+                }
+            }
+        } catch (e: Exception) {
+            logRepository.logInfo(
+                tag = "AppBlockingManager",
+                message = "Error enforcing block for $packageName: ${e.message}",
+                category = LogCategory.BLOCKING
+            )
+            false
+        }
+    }
+
+    fun forceCloseApp(packageName: String): Boolean {
+        return try {
+            if (!systemCapabilities.canForceCloseApp(packageName)) {
+                return false
+            }
+
+            val devicePolicyManager = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val componentName = ComponentName(context, HaramBlurDeviceAdminReceiver::class.java)
+
+            val isDeviceOwner = devicePolicyManager.isDeviceOwnerApp(context.packageName)
+            val isProfileOwner = devicePolicyManager.isProfileOwnerApp(context.packageName)
+
+            val success = when {
+                // Use setPackagesSuspended for device/profile owners (API 24+)
+                (isDeviceOwner || isProfileOwner) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N -> {
+                    try {
+                        devicePolicyManager.setPackagesSuspended(componentName, arrayOf(packageName), true)
+                        true
+                    } catch (e: SecurityException) {
+                        false
+                    }
+                }
+                // Use setApplicationHidden for device owners (API 21+)
+                isDeviceOwner && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP -> {
+                    try {
+                        devicePolicyManager.setApplicationHidden(componentName, packageName, true)
+                        true
+                    } catch (e: SecurityException) {
+                        false
+                    }
+                }
+                else -> {
+                    false
+                }
+            }
+
+            if (success) {
+                runBlocking {
+                    logRepository.logInfo(
+                        tag = "AppBlockingManager",
+                        message = "Force closed app: $packageName",
+                        category = LogCategory.BLOCKING
+                    )
+                }
+            }
+
+            success
+        } catch (e: Exception) {
+            runBlocking {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Error force closing app $packageName: ${e.message}",
+                    category = LogCategory.BLOCKING
+                )
+            }
+            false
+        }
     }
 
     override suspend fun blockMultipleApps(packageNames: List<String>): Boolean = withContext(Dispatchers.IO) {

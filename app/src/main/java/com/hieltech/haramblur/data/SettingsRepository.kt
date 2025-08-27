@@ -352,7 +352,24 @@ class SettingsRepository @Inject constructor(
             false
         }
     }
-    
+
+    fun updatePermissionStatus(permissionType: String, granted: Boolean) {
+        val current = _settings.value
+        val updated = when (permissionType) {
+            "USAGE_STATS" -> current.copy(usageStatsPermissionGranted = granted)
+            "DEVICE_ADMIN" -> current.copy(deviceAdminEnabled = granted)
+            else -> current
+        }
+        updateSettings(updated)
+        Log.i(TAG, "Permission status updated: $permissionType = $granted")
+    }
+
+    fun syncPermissionStatus() {
+        // This method would sync permission status with system state
+        // For now, it's a placeholder for future implementation
+        Log.i(TAG, "Permission status sync requested")
+    }
+
     fun resetToDefaults() {
         val defaultSettings = AppSettings()
         updateSettings(defaultSettings)

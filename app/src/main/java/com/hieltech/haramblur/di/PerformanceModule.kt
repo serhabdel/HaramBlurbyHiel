@@ -85,9 +85,10 @@ object PerformanceModule {
     @Singleton
     fun provideAppBlockingManager(
         database: com.hieltech.haramblur.data.database.SiteBlockingDatabase,
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        logRepository: com.hieltech.haramblur.data.LogRepository
     ): AppBlockingManager {
-        return AppBlockingManagerImpl(database, context, context.packageManager)
+        return AppBlockingManagerImpl(database, context, context.packageManager, logRepository)
     }
 
     @Provides

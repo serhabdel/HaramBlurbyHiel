@@ -1,4 +1,115 @@
 <resources>
     <string name="app_name">HaramBlur</string>
     <string name="accessibility_service_description">HaramBlur helps you navigate your device with respect for Islamic values by automatically detecting and blurring inappropriate content across all apps. All processing happens locally on your device for complete privacy.</string>
+
+    <!-- Enhanced App Blocking Strings -->
+
+    <!-- Section titles and descriptions -->
+    <string name="enhanced_blocking_title">🔒 Enhanced App Blocking</string>
+    <string name="enhanced_blocking_description">Faster blocking, more reliable enforcement with optional permissions</string>
+    <string name="enhanced_blocking_benefits">• Faster blocking response time\n• More reliable enforcement\n• Real-time app launch monitoring</string>
+
+    <!-- Permission explanations -->
+    <string name="usage_stats_permission_title">Usage Stats Access</string>
+    <string name="usage_stats_permission_description">Allows real-time detection of app launches for immediate blocking</string>
+    <string name="device_admin_permission_title">Device Admin Access</string>
+    <string name="device_admin_permission_description">Enables force-closing of blocked apps for stronger enforcement</string>
+
+    <!-- Blocking method descriptions -->
+    <string name="blocking_method_accessibility_only">Accessibility Only</string>
+    <string name="blocking_method_accessibility_description">Uses accessibility service for blocking (current method)</string>
+    <string name="blocking_method_force_close_preferred">Force Close Preferred</string>
+    <string name="blocking_method_force_close_description">Immediately closes blocked apps when possible</string>
+    <string name="blocking_method_adaptive">Adaptive</string>
+    <string name="blocking_method_adaptive_description">Automatically uses the strongest available blocking method</string>
+
+    <!-- Permission request strings -->
+    <string name="grant_permission">Grant</string>
+    <string name="permission_granted">✓ Granted</string>
+    <string name="permission_not_granted">⚠ Not granted</string>
+    <string name="permission_required_for_enhanced">Required for enhanced blocking</string>
+
+    <!-- Status messages -->
+    <string name="blocking_strength_basic">Basic</string>
+    <string name="blocking_strength_enhanced">Enhanced</string>
+    <string name="blocking_strength_maximum">Maximum</string>
+    <string name="blocking_strength_basic_description">Accessibility service blocking only</string>
+    <string name="blocking_strength_enhanced_description">Real-time monitoring active</string>
+    <string name="blocking_strength_maximum_description">Force-close + Real-time monitoring active</string>
+
+    <!-- Current blocking strength indicator -->
+    <string name="current_blocking_strength">🛡️ Current Blocking Strength: %s</string>
+    <string name="force_close_monitoring_active">Force-close + Real-time monitoring active</string>
+    <string name="monitoring_active">Real-time monitoring active</string>
+    <string name="accessibility_only_active">Basic accessibility blocking only</string>
+
+    <!-- Device Admin specific strings -->
+    <string name="device_admin_activation_title">Device Admin Permission</string>
+    <string name="device_admin_activation_message">Device Admin access enables stronger app blocking by allowing the app to force-close blocked applications. This permission is optional and enhances blocking capabilities.</string>
+    <string name="device_admin_explanation">Device Admin access allows HaramBlur to force-close blocked apps for stronger enforcement. This is completely optional - the app works perfectly without it.</string>
+    <string name="device_admin_disabled_message">Device Admin permission has been disabled. Blocking will fall back to accessibility service only.</string>
+
+    <!-- Error messages -->
+    <string name="permission_denied_title">Permission Required</string>
+    <string name="permission_denied_message">This permission is required for enhanced app blocking features.</string>
+    <string name="enhanced_blocking_error_title">Enhanced Blocking Error</string>
+    <string name="enhanced_blocking_error_message">An error occurred while applying enhanced blocking. Falling back to accessibility blocking.</string>
+
+    <!-- Success messages -->
+    <string name="permission_granted_success">Permission granted successfully!</string>
+    <string name="enhanced_blocking_enabled">Enhanced blocking enabled</string>
+    <string name="enhanced_blocking_disabled">Enhanced blocking disabled</string>
+
+    <!-- Setup and onboarding -->
+    <string name="setup_enhanced_blocking">Setup Enhanced Blocking</string>
+    <string name="enhanced_blocking_setup_complete">Enhanced blocking setup complete!</string>
+    <string name="enhanced_blocking_onboarding_title">Enhanced App Blocking</string>
+    <string name="enhanced_blocking_onboarding_message">Grant optional permissions for stronger app blocking capabilities. The app works perfectly without them.</string>
+
+    <!-- Troubleshooting -->
+    <string name="troubleshooting_title">Troubleshooting</string>
+    <string name="permission_troubleshooting">If permissions are not working:\n• Go to Settings > Apps > HaramBlur > Permissions\n• Enable the required permissions\n• Restart the app</string>
+    <string name="enhanced_blocking_not_working">Enhanced blocking not working?\n• Check that permissions are granted\n• Ensure accessibility service is enabled\n• Try restarting the device</string>
+
+    <!-- Diagnostics -->
+    <string name="blocking_diagnostics_title">Blocking Diagnostics</string>
+    <string name="enhanced_blocking_enabled_status">Enhanced Blocking Enabled: %s</string>
+    <string name="usage_stats_granted">Usage Stats Permission: %s</string>
+    <string name="device_admin_granted">Device Admin Permission: %s</string>
+    <string name="preferred_method">Preferred Blocking Method: %s</string>
+    <string name="effective_method">Effective Blocking Method: %s</string>
+    <string name="capability_level">Blocking Capability Level: %s</string>
+    <string name="force_close_timeout">Force Close Timeout: %dms</string>
+
+    <!-- Accessibility labels -->
+    <string name="permission_status_icon">Permission status indicator</string>
+    <string name="blocking_strength_indicator">Current blocking strength indicator</string>
+    <string name="grant_permission_button">Grant permission button</string>
+
+    <!-- Why do I need this? explanations -->
+    <string name="why_usage_stats_title">Why Usage Stats Access?</string>
+    <string name="why_usage_stats_explanation">Usage Stats permission allows HaramBlur to:\n\n• Detect when blocked apps are launched\n• Apply blocking immediately\n• Provide faster response times\n• Monitor app usage patterns\n\nThis permission is optional and only enhances blocking speed.</string>
+
+    <string name="why_device_admin_title">Why Device Admin Access?</string>
+    <string name="why_device_admin_explanation">Device Admin permission allows HaramBlur to:\n\n• Force-close blocked applications\n• Provide stronger enforcement\n• Prevent apps from bypassing blocking\n• Offer more reliable blocking\n\nThis permission is completely optional - the app works without it.</string>
+
+    <!-- Privacy assurance -->
+    <string name="privacy_assurance_title">Privacy &amp; Security</string>
+    <string name="privacy_assurance_message">• All permissions are optional\n• Enhanced blocking only activates with your consent\n• No data is sent to external servers\n• All processing happens locally on your device\n• You can revoke permissions anytime</string>
+
+    <!-- Blocking method selection -->
+    <string name="blocking_method_selection_title">Choose Blocking Method</string>
+    <string name="accessibility_only_info">Uses Android\'s accessibility service to overlay content. Works on all devices but may be slower.</string>
+    <string name="force_close_preferred_info">Immediately closes blocked apps when launched. Requires Device Admin permission. Fastest and most reliable method.</string>
+    <string name="adaptive_info">Automatically chooses the best available method based on your device capabilities and granted permissions.</string>
+
+    <!-- Settings validation -->
+    <string name="enhanced_blocking_settings_warning">Enhanced blocking is enabled but required permissions are missing. Blocking will be limited to accessibility service only.</string>
+    <string name="force_close_timeout_warning">Force close timeout is too short (%dms). Recommended minimum is 1000ms.</string>
+
+    <!-- Test blocking -->
+    <string name="test_blocking">Test Blocking</string>
+    <string name="test_blocking_description">Launch a blocked app to test enhanced blocking effectiveness</string>
+    <string name="test_blocking_success">Test completed successfully! Enhanced blocking is working.</string>
+    <string name="test_blocking_failed">Test failed. Check permissions and try again.</string>
 </resources>

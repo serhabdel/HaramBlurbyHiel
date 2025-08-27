@@ -1,6 +1,7 @@
 package com.hieltech.haramblur.data
 
 import com.hieltech.haramblur.detection.Language
+import com.hieltech.haramblur.detection.BlockingMethod
 
 data class AppSettings(
     // Detection Settings - Female-focused
@@ -80,7 +81,14 @@ data class AppSettings(
     val maxLogRetentionDays: Int = 7, // How long to keep logs
     val enablePerformanceLogging: Boolean = true, // Log performance metrics
     val enableErrorReporting: Boolean = true, // Log errors and crashes
-    val enableUserActionLogging: Boolean = true // Log user actions for troubleshooting
+    val enableUserActionLogging: Boolean = true, // Log user actions for troubleshooting
+
+    // Enhanced Blocking Settings
+    val enableEnhancedBlocking: Boolean = false, // Enable enhanced app blocking features
+    val usageStatsPermissionGranted: Boolean = false, // Usage stats permission status
+    val deviceAdminEnabled: Boolean = false, // Device admin permission status
+    val preferredBlockingMethod: BlockingMethod = BlockingMethod.ADAPTIVE, // Preferred blocking method
+    val forceCloseTimeout: Long = 5000L // Timeout for force close operations in milliseconds
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {

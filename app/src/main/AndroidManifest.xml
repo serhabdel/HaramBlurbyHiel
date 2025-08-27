@@ -9,6 +9,11 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Optional permissions for enhanced app blocking capabilities -->
+    <!-- These permissions enhance blocking capabilities but are not required for basic functionality -->
+    <!-- The app remains fully functional without them, providing progressive enhancement -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+
     <application
         android:name=".HaramBlurApplication"
         android:allowBackup="true"
@@ -41,6 +46,23 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+
+        <!-- HaramBlur Device Admin Receiver for enhanced app blocking -->
+        <!-- This enables force-closing of blocked apps for stronger enforcement -->
+        <!-- Device Admin access is optional and enhances blocking capabilities -->
+        <receiver
+            android:name=".detection.HaramBlurDeviceAdminReceiver"
+            android:exported="true"
+            android:enabled="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_config" />
+        </receiver>
 
         <!-- WorkManager initialization provider -->
         <provider

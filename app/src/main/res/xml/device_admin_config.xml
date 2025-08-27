@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <!-- Required for basic device admin functionality -->
+        <force-lock />
+        <!-- Additional policies for enhanced app blocking -->
+        <disable-camera />
+    </uses-policies>
+</device-admin>
