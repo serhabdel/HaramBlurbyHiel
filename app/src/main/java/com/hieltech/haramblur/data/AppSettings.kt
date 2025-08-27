@@ -13,7 +13,7 @@ data class AppSettings(
     
     // Blur Settings
     val blurIntensity: BlurIntensity = BlurIntensity.MEDIUM,
-    val blurStyle: BlurStyle = BlurStyle.PIXELATED,
+    val blurStyle: BlurStyle = BlurStyle.ARTISTIC,
     val expandBlurArea: Int = 30, // pixels to expand around detected areas
     
     // Performance Settings
@@ -102,6 +102,7 @@ enum class BlurStyle(val displayName: String, val description: String) {
     SOLID("Solid", "Simple gray overlay"),
     PIXELATED("Pixelated", "Mosaic-style blur effect"),
     NOISE("Noise", "Random pattern blur"),
+    ARTISTIC("Artistic", "Film grain style blur effect"),
     COMBINED("Combined", "Multiple blur effects layered")
 }
 

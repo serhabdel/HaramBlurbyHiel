@@ -33,6 +33,7 @@ class EnhancedBlurEffects {
             BlurStyle.SOLID -> applySolidBlur(canvas, rect, blurIntensity, contentSensitivity)
             BlurStyle.PIXELATED -> applyPixelatedBlur(canvas, rect, blurIntensity, contentSensitivity)
             BlurStyle.NOISE -> applyNoiseBlur(canvas, rect, blurIntensity, contentSensitivity)
+            BlurStyle.ARTISTIC -> applyArtisticBlur(canvas, rect, blurIntensity, contentSensitivity)
             BlurStyle.COMBINED -> applyCombinedBlur(canvas, rect, blurIntensity, contentSensitivity)
         }
     }
@@ -119,6 +120,185 @@ class EnhancedBlurEffects {
     }
     
     /**
+     * Apply artistic blur with film grain effect
+     */
+    private fun applyArtisticBlur(
+        canvas: Canvas,
+        rect: Rect,
+        intensity: BlurIntensity,
+        sensitivity: Float
+    ) {
+        // Base layer with subtle gradient
+        val baseColor = getSensitivityBasedColor(sensitivity)
+        val basePaint = Paint().apply {
+            isAntiAlias = true
+            color = baseColor
+            alpha = (intensity.alphaValue * 0.85f).toInt()
+        }
+        canvas.drawRect(rect, basePaint)
+        
+        // Apply film grain texture
+        applyFilmGrain(canvas, rect, intensity, sensitivity)
+        
+        // Add subtle organic noise pattern
+        applyOrganicNoise(canvas, rect, sensitivity)
+        
+        // Soft vignette effect for high sensitivity
+        if (sensitivity > 0.6f) {
+            applySoftVignette(canvas, rect, sensitivity)
+        }
+    }
+    
+    /**
+     * Apply film grain texture similar to analog photography
+     */
+    private fun applyFilmGrain(
+        canvas: Canvas,
+        rect: Rect,
+        intensity: BlurIntensity,
+        sensitivity: Float
+    ) {
+        val grainDensity = when (intensity) {
+            BlurIntensity.LIGHT -> 0.15f
+            BlurIntensity.MEDIUM -> 0.25f
+            BlurIntensity.STRONG -> 0.35f
+            BlurIntensity.MAXIMUM -> 0.45f
+        }
+        
+        // Adjust density based on sensitivity
+        val adjustedDensity = grainDensity + (sensitivity * 0.2f)
+        val grainCount = ((rect.width() * rect.height()) * adjustedDensity).toInt()
+        
+        val grainPaint = Paint().apply {
+            isAntiAlias = true
+        }
+        
+        repeat(grainCount) {
+            val x = rect.left + Random.nextFloat() * rect.width()
+            val y = rect.top + Random.nextFloat() * rect.height()
+            
+            // Create grain with varying sizes and intensities
+            val grainSize = Random.nextFloat() * 2.5f + 0.5f
+            val brightness = when {
+                Random.nextFloat() < 0.6f -> Random.nextInt(80, 140) // Most grains are medium
+                Random.nextFloat() < 0.8f -> Random.nextInt(140, 200) // Some brighter grains
+                else -> Random.nextInt(20, 80) // Few darker grains
+            }
+            
+            // Vary opacity based on grain brightness
+            val grainAlpha = ((brightness / 255f) * 180 + 75).toInt()
+            
+            grainPaint.color = Color.rgb(brightness, brightness, brightness)
+            grainPaint.alpha = grainAlpha
+            
+            // Draw organic-shaped grain (not perfect circles)
+            if (Random.nextFloat() < 0.7f) {
+                // Most grains are circular
+                canvas.drawCircle(x, y, grainSize, grainPaint)
+            } else {
+                // Some grains are slightly elongated
+                val rect = android.graphics.RectF(
+                    x - grainSize,
+                    y - grainSize * 0.7f,
+                    x + grainSize,
+                    y + grainSize * 0.7f
+                )
+                canvas.drawOval(rect, grainPaint)
+            }
+        }
+    }
+    
+    /**
+     * Apply organic noise pattern for natural look
+     */
+    private fun applyOrganicNoise(
+        canvas: Canvas,
+        rect: Rect,
+        sensitivity: Float
+    ) {
+        val noisePaint = Paint().apply {
+            isAntiAlias = true
+            alpha = (sensitivity * 60 + 40).toInt()
+        }
+        
+        val clusterCount = (rect.width() * rect.height() * 0.0001f).toInt().coerceAtLeast(5)
+        
+        repeat(clusterCount) {
+            val centerX = rect.left + Random.nextFloat() * rect.width()
+            val centerY = rect.top + Random.nextFloat() * rect.height()
+            val clusterSize = Random.nextFloat() * 15f + 5f
+            val clusterDensity = Random.nextInt(3, 8)
+            
+            // Create small clusters of noise points
+            repeat(clusterDensity) {
+                val offsetX = (Random.nextFloat() - 0.5f) * clusterSize
+                val offsetY = (Random.nextFloat() - 0.5f) * clusterSize
+                val x = centerX + offsetX
+                val y = centerY + offsetY
+                
+                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                    val brightness = Random.nextInt(60, 180)
+                    noisePaint.color = Color.rgb(brightness, brightness, brightness)
+                    
+                    val pointSize = Random.nextFloat() * 1.5f + 0.5f
+                    canvas.drawCircle(x, y, pointSize, noisePaint)
+                }
+            }
+        }
+    }
+    
+    /**
+     * Apply soft vignette effect around edges
+     */
+    private fun applySoftVignette(
+        canvas: Canvas,
+        rect: Rect,
+        sensitivity: Float
+    ) {
+        val vignettePaint = Paint().apply {
+            isAntiAlias = true
+            color = getSensitivityBasedColor(sensitivity)
+            alpha = (sensitivity * 80).toInt()
+        }
+        
+        val vignetteWidth = (rect.width() * 0.1f).coerceAtLeast(10f)
+        val vignetteHeight = (rect.height() * 0.1f).coerceAtLeast(10f)
+        
+        // Draw soft edges
+        val topRect = android.graphics.RectF(
+            rect.left.toFloat(),
+            rect.top.toFloat(),
+            rect.right.toFloat(),
+            rect.top + vignetteHeight
+        )
+        canvas.drawRect(topRect, vignettePaint)
+        
+        val bottomRect = android.graphics.RectF(
+            rect.left.toFloat(),
+            rect.bottom - vignetteHeight,
+            rect.right.toFloat(),
+            rect.bottom.toFloat()
+        )
+        canvas.drawRect(bottomRect, vignettePaint)
+        
+        val leftRect = android.graphics.RectF(
+            rect.left.toFloat(),
+            rect.top.toFloat(),
+            rect.left + vignetteWidth,
+            rect.bottom.toFloat()
+        )
+        canvas.drawRect(leftRect, vignettePaint)
+        
+        val rightRect = android.graphics.RectF(
+            rect.right - vignetteWidth,
+            rect.top.toFloat(),
+            rect.right.toFloat(),
+            rect.bottom.toFloat()
+        )
+        canvas.drawRect(rightRect, vignettePaint)
+    }
+
+    /**
      * Apply combined blur effects with multiple layers
      */
     private fun applyCombinedBlur(
@@ -137,12 +317,17 @@ class EnhancedBlurEffects {
         // Layer 3: Noise overlay
         addNoiseOverlay(canvas, rect, sensitivity * 0.5f)
         
-        // Layer 4: Interference pattern for high sensitivity
+        // Layer 4: Artistic grain for very high sensitivity
+        if (sensitivity > 0.8f) {
+            applyFilmGrain(canvas, rect, intensity, sensitivity * 0.6f)
+        }
+        
+        // Layer 5: Interference pattern for high sensitivity
         if (sensitivity > 0.7f) {
             addInterferencePattern(canvas, rect, sensitivity)
         }
         
-        // Layer 5: Privacy border
+        // Layer 6: Privacy border
         addPrivacyBorder(canvas, rect, intensity, sensitivity)
     }
     
@@ -436,6 +621,7 @@ class EnhancedBlurEffects {
             BlurStyle.SOLID -> 0.7f
             BlurStyle.PIXELATED -> 0.8f
             BlurStyle.NOISE -> 0.85f
+            BlurStyle.ARTISTIC -> 0.9f
             BlurStyle.COMBINED -> 1.0f
         }
         
@@ -449,6 +635,7 @@ class EnhancedBlurEffects {
             BlurStyle.SOLID -> 1.0f
             BlurStyle.PIXELATED -> 0.8f
             BlurStyle.NOISE -> 0.7f
+            BlurStyle.ARTISTIC -> 0.75f
             BlurStyle.COMBINED -> 0.6f
         }
     }

@@ -34,7 +34,8 @@ import javax.inject.Singleton
 
 @Singleton
 class BlurOverlayManager @Inject constructor(
-    private val warningDialogManager: WarningDialogManager
+    private val warningDialogManager: WarningDialogManager,
+    private val settingsRepository: com.hieltech.haramblur.data.SettingsRepository
 ) {
     
     private val enhancedBlurEffects = EnhancedBlurEffects()
@@ -72,8 +73,8 @@ class BlurOverlayManager @Inject constructor(
     
     fun showBlurOverlay(
         blurRegions: List<Rect>,
-        blurIntensity: BlurIntensity = BlurIntensity.MEDIUM,
-        blurStyle: BlurStyle = BlurStyle.PIXELATED,
+        blurIntensity: BlurIntensity? = null,
+        blurStyle: BlurStyle? = null,
         contentSensitivity: Float = 0.5f,
         transparency: Float = 1.0f // Maximum opacity for better coverage
     ) {
@@ -84,8 +85,13 @@ class BlurOverlayManager @Inject constructor(
                     return@launch
                 }
                 
+                // Get current user settings
+                val currentSettings = settingsRepository.settings.value
+                val userBlurIntensity = blurIntensity ?: currentSettings.blurIntensity
+                val userBlurStyle = blurStyle ?: currentSettings.blurStyle
+                
                 if (isOverlayVisible) {
-                    updateBlurOverlay(blurRegions, blurIntensity, blurStyle, contentSensitivity)
+                    updateBlurOverlay(blurRegions, userBlurIntensity, userBlurStyle, contentSensitivity)
                     return@launch
                 }
                 
@@ -117,8 +123,8 @@ class BlurOverlayManager @Inject constructor(
                 overlayView = BlurOverlayView(
                     context!!,
                     scaledRegions,
-                    blurIntensity,
-                    blurStyle,
+                    userBlurIntensity,
+                    userBlurStyle,
                     contentSensitivity,
                     transparency,
                     isFullScreen = false,
@@ -150,12 +156,17 @@ class BlurOverlayManager @Inject constructor(
     
     fun updateBlurOverlay(
         blurRegions: List<Rect>,
-        blurIntensity: BlurIntensity = BlurIntensity.MEDIUM,
-        blurStyle: BlurStyle = BlurStyle.PIXELATED,
+        blurIntensity: BlurIntensity? = null,
+        blurStyle: BlurStyle? = null,
         contentSensitivity: Float = 0.5f,
         transparency: Float = 0.8f
     ) {
-        overlayView?.updateBlurRegions(blurRegions, blurIntensity, blurStyle, contentSensitivity, transparency)
+        // Get current user settings
+        val currentSettings = settingsRepository.settings.value
+        val userBlurIntensity = blurIntensity ?: currentSettings.blurIntensity
+        val userBlurStyle = blurStyle ?: currentSettings.blurStyle
+        
+        overlayView?.updateBlurRegions(blurRegions, userBlurIntensity, userBlurStyle, contentSensitivity, transparency)
         Log.d(TAG, "Blur overlay updated with ${blurRegions.size} regions")
     }
     
@@ -868,13 +879,13 @@ class BlurOverlayManager @Inject constructor(
                     )
                     
                     if (boundedRect.width() > 0 && boundedRect.height() > 0) {
-                        // Apply enhanced precision blur with maximum intensity
+                        // Apply enhanced precision blur with user settings
                         enhancedBlurEffects.applyEnhancedBlur(
                             canvas, 
                             boundedRect, 
-                            BlurIntensity.MAXIMUM, // Force maximum intensity for better coverage
-                            BlurStyle.COMBINED, // Use combined style for best effect
-                            1.0f // Maximum sensitivity
+                            blurIntensity, // Use user's preferred intensity
+                            blurStyle, // Use user's preferred style
+                            contentSensitivity // Use passed sensitivity
                         )
                         
                         // Add precision border for debugging (remove in production)

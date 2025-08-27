@@ -141,6 +141,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 0.0f
             BlurStyle.PIXELATED -> 0.05f
             BlurStyle.NOISE -> 0.1f
+            BlurStyle.ARTISTIC -> 0.12f
             BlurStyle.COMBINED -> 0.15f
         }
         
@@ -155,6 +156,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 0.8f
             BlurStyle.PIXELATED -> 0.9f
             BlurStyle.NOISE -> 0.95f
+            BlurStyle.ARTISTIC -> 0.97f
             BlurStyle.COMBINED -> 1.0f
         }
         
@@ -166,6 +168,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 1.0f
             BlurStyle.PIXELATED -> 0.9f
             BlurStyle.NOISE -> 0.85f
+            BlurStyle.ARTISTIC -> 0.88f
             BlurStyle.COMBINED -> 0.8f
         }
     }
@@ -175,6 +178,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 1.0f
             BlurStyle.PIXELATED -> 0.85f
             BlurStyle.NOISE -> 0.7f
+            BlurStyle.ARTISTIC -> 0.75f
             BlurStyle.COMBINED -> 0.6f
         }
     }
@@ -184,6 +188,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 1.0f
             BlurStyle.PIXELATED -> 0.9f
             BlurStyle.NOISE -> 0.8f
+            BlurStyle.ARTISTIC -> 0.85f
             BlurStyle.COMBINED -> 0.7f
         }
         
@@ -202,6 +207,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 1.0f
             BlurStyle.PIXELATED -> 0.8f
             BlurStyle.NOISE -> 0.7f
+            BlurStyle.ARTISTIC -> 0.75f
             BlurStyle.COMBINED -> 0.6f
         }
     }
@@ -218,6 +224,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 0.0f
             BlurStyle.PIXELATED -> 0.1f
             BlurStyle.NOISE -> 0.15f
+            BlurStyle.ARTISTIC -> 0.17f
             BlurStyle.COMBINED -> 0.2f
         }
         
@@ -240,6 +247,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 0.8f
             BlurStyle.PIXELATED -> 0.9f
             BlurStyle.NOISE -> 0.95f
+            BlurStyle.ARTISTIC -> 0.97f
             BlurStyle.COMBINED -> 1.0f
         }
         
@@ -252,6 +260,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 0.6f
             BlurStyle.PIXELATED -> 0.7f
             BlurStyle.NOISE -> 0.9f
+            BlurStyle.ARTISTIC -> 0.95f
             BlurStyle.COMBINED -> 1.0f
         } * (intensity.alphaValue / 255.0f)
     }
@@ -261,6 +270,7 @@ class BlurEffectivenessValidator @Inject constructor() {
             BlurStyle.SOLID -> 5L
             BlurStyle.PIXELATED -> 15L
             BlurStyle.NOISE -> 25L
+            BlurStyle.ARTISTIC -> 30L
             BlurStyle.COMBINED -> 40L
         }
         

@@ -147,13 +147,65 @@ fun SettingsScreen(
                 RadioButtonGroup(
                     title = "Blur Intensity",
                     options = listOf(
-                        "Strong" to "Maximum privacy with solid blur",
+                        "Light" to "Minimal blur, maintains some visibility",
+                        "Medium" to "Balanced blur for general content",
+                        "Strong" to "Heavy blur for maximum privacy",
                         "Maximum" to "Complete coverage for sensitive content"
                     ),
-                    selectedIndex = if (settings.blurIntensity == BlurIntensity.STRONG) 0 else 1,
+                    selectedIndex = when (settings.blurIntensity) {
+                        BlurIntensity.LIGHT -> 0
+                        BlurIntensity.MEDIUM -> 1
+                        BlurIntensity.STRONG -> 2
+                        BlurIntensity.MAXIMUM -> 3
+                    },
                     onSelectionChange = { index ->
-                        viewModel.updateBlurIntensity(if (index == 0) BlurIntensity.STRONG else BlurIntensity.MAXIMUM)
+                        val intensity = when (index) {
+                            0 -> BlurIntensity.LIGHT
+                            1 -> BlurIntensity.MEDIUM
+                            2 -> BlurIntensity.STRONG
+                            else -> BlurIntensity.MAXIMUM
+                        }
+                        viewModel.updateBlurIntensity(intensity)
                     }
+                )
+                
+                RadioButtonGroup(
+                    title = "Blur Style",
+                    options = listOf(
+                        "Artistic" to "Film grain style blur effect (Recommended)",
+                        "Solid" to "Simple gray overlay",
+                        "Pixelated" to "Mosaic-style blur effect",
+                        "Noise" to "Random pattern blur",
+                        "Combined" to "Multiple blur effects layered"
+                    ),
+                    selectedIndex = when (settings.blurStyle) {
+                        BlurStyle.ARTISTIC -> 0
+                        BlurStyle.SOLID -> 1
+                        BlurStyle.PIXELATED -> 2
+                        BlurStyle.NOISE -> 3
+                        BlurStyle.COMBINED -> 4
+                    },
+                    onSelectionChange = { index ->
+                        val style = when (index) {
+                            0 -> BlurStyle.ARTISTIC
+                            1 -> BlurStyle.SOLID
+                            2 -> BlurStyle.PIXELATED
+                            3 -> BlurStyle.NOISE
+                            else -> BlurStyle.COMBINED
+                        }
+                        viewModel.updateBlurStyle(style)
+                    }
+                )
+                
+                SliderSetting(
+                    title = "Blur Area Expansion",
+                    description = "Pixels to expand around detected areas",
+                    value = settings.expandBlurArea.toFloat(),
+                    range = 10f..100f,
+                    onValueChange = { value -> 
+                        viewModel.updateBlurExpansion(value.toInt()) 
+                    },
+                    valueFormatter = { "${it.toInt()}px" }
                 )
             }
             

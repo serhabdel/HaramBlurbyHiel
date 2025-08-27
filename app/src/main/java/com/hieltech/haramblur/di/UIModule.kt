@@ -38,9 +38,10 @@ object UIModule {
     @Provides
     @Singleton
     fun provideBlurOverlayManager(
-        warningDialogManager: WarningDialogManager
+        warningDialogManager: WarningDialogManager,
+        settingsRepository: com.hieltech.haramblur.data.SettingsRepository
     ): BlurOverlayManager {
-        return BlurOverlayManager(warningDialogManager)
+        return BlurOverlayManager(warningDialogManager, settingsRepository)
     }
     
     @Provides
