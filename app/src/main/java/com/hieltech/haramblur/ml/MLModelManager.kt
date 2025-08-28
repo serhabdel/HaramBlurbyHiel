@@ -764,8 +764,10 @@ class MLModelManager @Inject constructor(
                 nsfwProbability.coerceIn(0.0f, 1.0f)
 
             } catch (e: Exception) {
-                Log.e(TAG, "Error running NSFW inference", e)
-                throw e
+                Log.e(TAG, "Error running NSFW inference: ${e.message}", e)
+                // Return safe default instead of throwing
+                Log.w(TAG, "Falling back to safe default (0.1f) due to inference error")
+                return 0.1f // Safe default - low NSFW probability
             } finally {
                 // Explicit cleanup of buffers
                 inputBuffer?.clear()

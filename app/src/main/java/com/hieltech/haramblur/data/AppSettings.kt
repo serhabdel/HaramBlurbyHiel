@@ -4,52 +4,55 @@ import com.hieltech.haramblur.detection.Language
 import com.hieltech.haramblur.detection.BlockingMethod
 
 data class AppSettings(
-    // Detection Settings - Female-focused
+    // Detection Settings - Female-focused with maximum performance defaults
     val enableFaceDetection: Boolean = true,
-    val enableNSFWDetection: Boolean = true,
+    val enableNSFWDetection: Boolean = true, // Enabled with improved error handling
     val blurMaleFaces: Boolean = false, // Disabled - focus on female content only
     val blurFemaleFaces: Boolean = true,
-    val detectionSensitivity: Float = 0.7f, // Higher sensitivity for better female detection
-    
-    // Blur Settings
-    val blurIntensity: BlurIntensity = BlurIntensity.MEDIUM,
+    val detectionSensitivity: Float = 0.8f, // Higher sensitivity for better female detection
+
+    // Blur Settings - Enhanced privacy by default
+    val blurIntensity: BlurIntensity = BlurIntensity.STRONG,
     val blurStyle: BlurStyle = BlurStyle.ARTISTIC,
     val expandBlurArea: Int = 30, // pixels to expand around detected areas
-    
-    // Performance Settings
+
+    // Performance Settings - Optimized for maximum performance
     val processingSpeed: ProcessingSpeed = ProcessingSpeed.BALANCED,
     val enableRealTimeProcessing: Boolean = true,
     val pauseInApps: Set<String> = emptySet(), // Package names to pause detection
-    
+
     // Privacy Settings
     val enableFullScreenBlurForNSFW: Boolean = true,
     val showBlurBorders: Boolean = true,
     val enableHoverToReveal: Boolean = false, // Tap to temporarily reveal
+
+    // Enhanced Detection Settings - Maximum performance and accuracy
+    val genderDetectionAccuracy: GenderAccuracy = GenderAccuracy.BALANCED,
     
-    // Enhanced Detection Settings
-    val genderDetectionAccuracy: GenderAccuracy = GenderAccuracy.HIGH,
+    // Pause/Resume Control - Global pause for all services
+    val isServicePaused: Boolean = false, // Global pause state for all detection services
     val contentDensityThreshold: Float = 0.4f, // 40% threshold for full-screen blur
     val mandatoryReflectionTime: Int = 15, // seconds
     val enableSiteBlocking: Boolean = true,
     val enableQuranicGuidance: Boolean = true,
     val ultraFastModeEnabled: Boolean = false,
     val fullScreenWarningEnabled: Boolean = true,
-    
-    // Performance Enhancement Settings
+
+    // Performance Enhancement Settings - Maximum performance by default
     val maxProcessingTimeMs: Long = 50L,
     val enableGPUAcceleration: Boolean = true,
     val frameSkipThreshold: Int = 3,
     val imageDownscaleRatio: Float = 0.5f,
-    
+
     // Islamic Guidance Settings
     val preferredLanguage: Language = Language.ENGLISH,
     val verseDisplayDuration: Int = 10, // seconds
     val enableArabicText: Boolean = true,
     val customReflectionTime: Int = 15, // seconds for custom reflection periods
-    
-    // Advanced Detection Settings - Optimized for female detection
-    val genderConfidenceThreshold: Float = 0.5f, // Lower threshold for better female face detection
-    val nsfwConfidenceThreshold: Float = 0.6f, // Lower threshold for better body content detection
+
+    // Advanced Detection Settings - Optimized for female detection with maximum performance
+    val genderConfidenceThreshold: Float = 0.4f, // Lower threshold for more sensitive female detection
+    val nsfwConfidenceThreshold: Float = 0.5f, // Lower threshold for better content detection
     val enableFallbackDetection: Boolean = true,
     val enablePerformanceMonitoring: Boolean = true,
 
@@ -88,7 +91,19 @@ data class AppSettings(
     val usageStatsPermissionGranted: Boolean = false, // Usage stats permission status
     val deviceAdminEnabled: Boolean = false, // Device admin permission status
     val preferredBlockingMethod: BlockingMethod = BlockingMethod.ADAPTIVE, // Preferred blocking method
-    val forceCloseTimeout: Long = 5000L // Timeout for force close operations in milliseconds
+    val forceCloseTimeout: Long = 5000L, // Timeout for force close operations in milliseconds
+
+    // Onboarding and Permission Wizard Settings
+    val onboardingCompleted: Boolean = false, // Track if user has completed initial setup wizard
+    val accessibilityServiceEnabled: Boolean = false, // Accessibility service permission status
+    val permissionWizardLastShown: Long = 0L, // Timestamp when wizard was last displayed
+    val skipOptionalPermissions: Boolean = false, // Remember if user chose to skip optional permissions
+
+    // Preset Management Settings
+    val currentPreset: String = "Custom", // Name of currently active preset
+    val lastPresetUpdate: Long = 0L, // Timestamp of last preset application
+    val presetLockEnabled: Boolean = false, // Whether current preset is locked
+    val settingsVersion: Int = 3 // Configuration version for compatibility tracking
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {

@@ -8,7 +8,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
 import com.hieltech.haramblur.data.LogRepository
+import com.hieltech.haramblur.utils.ExternalLinkHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -18,7 +20,8 @@ import com.hieltech.haramblur.data.LogRepository.LogCategory
 @HiltViewModel
 class SupportViewModel @Inject constructor(
     private val logRepository: LogRepository,
-    private val blurOverlayManager: com.hieltech.haramblur.accessibility.BlurOverlayManager
+    private val blurOverlayManager: com.hieltech.haramblur.accessibility.BlurOverlayManager,
+    private val externalLinkHelper: ExternalLinkHelper
 ) : ViewModel() {
 
     private val _supportState = MutableStateFlow(SupportState())
@@ -204,5 +207,156 @@ class SupportViewModel @Inject constructor(
 
     fun refreshSupportState() {
         updateSupportState()
+    }
+
+    // New methods for GitHub integration and donation support
+
+    /**
+     * Open GitHub repository main page
+     */
+    fun openGitHubRepository(context: Context) {
+        viewModelScope.launch {
+            logRepository.logInfo(
+                "SupportViewModel",
+                "Opening GitHub repository",
+                LogCategory.UI,
+                userAction = "open_github_repository"
+            )
+        }
+        externalLinkHelper.openGitHubRepository(context, viewModelScope)
+    }
+
+    /**
+     * Open GitHub issues page for bug reports
+     */
+    fun openGitHubIssues(context: Context) {
+        viewModelScope.launch {
+            logRepository.logInfo(
+                "SupportViewModel",
+                "Opening GitHub issues page",
+                LogCategory.UI,
+                userAction = "open_github_issues"
+            )
+        }
+        externalLinkHelper.openGitHubIssues(context, viewModelScope)
+    }
+
+    /**
+     * Open GitHub discussions page
+     */
+    fun openGitHubDiscussions(context: Context) {
+        viewModelScope.launch {
+            logRepository.logInfo(
+                "SupportViewModel",
+                "Opening GitHub discussions",
+                LogCategory.UI,
+                userAction = "open_github_discussions"
+            )
+        }
+        externalLinkHelper.openGitHubDiscussions(context, viewModelScope)
+    }
+
+    /**
+     * Open documentation
+     */
+    fun openDocumentation(context: Context) {
+        viewModelScope.launch {
+            logRepository.logInfo(
+                "SupportViewModel",
+                "Opening documentation",
+                LogCategory.UI,
+                userAction = "open_documentation"
+            )
+        }
+        externalLinkHelper.openDocumentation(context, viewModelScope)
+    }
+
+    /**
+     * Open Buy Me a Coffee donation page
+     */
+    fun openBuyMeCoffee(context: Context) {
+        viewModelScope.launch {
+            logRepository.logInfo(
+                "SupportViewModel",
+                "Opening Buy Me a Coffee donation",
+                LogCategory.UI,
+                userAction = "open_buy_me_coffee"
+            )
+        }
+        externalLinkHelper.openBuyMeCoffee(context, "hieltech", viewModelScope)
+    }
+
+    /**
+     * Share the app
+     */
+    fun shareApp(context: Context) {
+        viewModelScope.launch {
+            logRepository.logInfo(
+                "SupportViewModel",
+                "Sharing app",
+                LogCategory.UI,
+                userAction = "share_app"
+            )
+        }
+        externalLinkHelper.shareApp(context, viewModelScope)
+    }
+
+    /**
+     * Send enhanced support email with GitHub information
+     */
+    suspend fun sendEnhancedSupportEmail(context: Context) {
+        try {
+            // Export logs first
+            viewModelScope.launch {
+                logRepository.logInfo("SupportViewModel", "Preparing enhanced support email")
+            }
+            val logsText = logRepository.exportLogsAsText()
+
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("mailto:")
+                putExtra(Intent.EXTRA_EMAIL, arrayOf("support@haramblur.com"))
+                putExtra(Intent.EXTRA_SUBJECT, "HaramBlur Enhanced Support Request")
+                putExtra(Intent.EXTRA_TEXT, """
+                    |Please help me with my HaramBlur issue.
+                    |
+                    |Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}
+                    |Android Version: ${android.os.Build.VERSION.RELEASE}
+                    |App Version: ${supportState.value.appVersion}
+                    |Service Running: ${supportState.value.serviceRunning}
+                    |
+                    |GitHub Repository: https://github.com/hieltech/haramblur
+                    |Report Issues: https://github.com/hieltech/haramblur/issues
+                    |Community Discussions: https://github.com/hieltech/haramblur/discussions
+                    |
+                    |Issue Description:
+                    |[Please describe your issue here]
+                    |
+                    |Steps to reproduce:
+                    |[Please describe what you were doing when the issue occurred]
+                    |
+                    |Expected behavior:
+                    |[What you expected to happen]
+                    |
+                    |Actual behavior:
+                    |[What actually happened]
+                    |
+                    |Troubleshooting attempted:
+                    |[What have you tried to fix the issue?]
+                    |
+                    |Additional context:
+                    |[Any other relevant information]
+                    |
+                    |Logs:
+                    |$logsText
+                """.trimMargin())
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            context.startActivity(intent)
+            logRepository.logInfo("SupportViewModel", "Opened enhanced support email")
+
+        } catch (e: Exception) {
+            logRepository.logError("SupportViewModel", "Failed to send enhanced support email", e)
+        }
     }
 }

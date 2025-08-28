@@ -7,6 +7,8 @@ import android.util.Log
 import com.hieltech.haramblur.ml.MLModelManager
 import com.hieltech.haramblur.ml.FaceDetectionManager
 import com.hieltech.haramblur.data.AppSettings
+import com.hieltech.haramblur.data.LogRepository
+import com.hieltech.haramblur.data.LogRepository.LogCategory
 import kotlinx.coroutines.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,16 +21,106 @@ class ContentDetectionEngine @Inject constructor(
     private val frameOptimizationManager: FrameOptimizationManager,
     private val performanceMonitor: PerformanceMonitor,
     private val contentDensityAnalyzer: ContentDensityAnalyzer,
-    private val fullScreenBlurTrigger: FullScreenBlurTrigger
+    private val fullScreenBlurTrigger: FullScreenBlurTrigger,
+    private val logRepository: LogRepository
 ) {
     
     companion object {
         private const val TAG = "ContentDetectionEngine"
         private const val DETECTION_TIMEOUT_MS = 5000L
+        private const val LOGGING_SAMPLE_RATE = 10 // Log detailed events every 10 detections
+    }
+
+    /**
+     * Log detection event with structured information for analytics
+     * Uses sampling to reduce database overhead
+     */
+    private suspend fun logDetectionEvent(
+        result: ContentAnalysisResult,
+        performanceMode: PerformanceMode? = null,
+        appSettings: AppSettings? = null
+    ) {
+        // Implement sampling to reduce database overhead
+        detectionCounter++
+        val shouldLogDetailed = detectionCounter % LOGGING_SAMPLE_RATE == 0
+        val shouldLogBasic = detectionCounter % (LOGGING_SAMPLE_RATE * 2) == 0 // Log basic stats every 20 detections
+
+        try {
+            // Always log essential detection data (faces/NSFW) for stats - no sampling
+            val essentialLogMessage = buildString {
+                append("DETECTION|")
+                append("faces:${result.faceDetectionResult?.detectedFaces?.size ?: 0}|")
+                append("nsfw:${result.nsfwDetectionResult?.isNSFW ?: false}|")
+                append("processing_time:${result.processingTimeMs}ms|")
+                append("success:${result.success}")
+                append("performance_mode:${performanceMode ?: "unknown"}")
+                if (result.error != null) {
+                    append("|error:${result.error}")
+                }
+            }
+
+            logRepository.logDebug(
+                tag = "ContentDetectionEngine",
+                message = essentialLogMessage,
+                category = LogCategory.DETECTION,
+                userAction = "content_detection"
+            )
+
+            // Log detailed detection event with sampling for additional debugging info
+            if (shouldLogDetailed) {
+                val detailedLogMessage = buildString {
+                    append("DETECTION_DETAILED|")
+                    append("faces:${result.faceDetectionResult?.detectedFaces?.size ?: 0}|")
+                    append("nsfw:${result.nsfwDetectionResult?.isNSFW ?: false}|")
+                    append("nsfw_confidence:${result.nsfwDetectionResult?.confidence ?: 0.0f}|")
+                    append("processing_time:${result.processingTimeMs}ms|")
+                    append("blur_regions:${result.blurRegions.size}|")
+                    append("should_blur:${result.shouldBlur}|")
+                    append("action:${result.recommendedAction}|")
+                    append("regions:${result.nsfwRegionCount}|")
+                    append("max_confidence:${result.maxNsfwConfidence}|")
+                    append("performance_mode:${performanceMode ?: "unknown"}|")
+                    append("success:${result.success}")
+                    if (result.error != null) {
+                        append("|error:${result.error}")
+                    }
+                }
+
+                logRepository.logDebug(
+                    tag = "ContentDetectionEngine",
+                    message = detailedLogMessage,
+                    category = LogCategory.DETECTION,
+                    userAction = "detailed_detection"
+                )
+            }
+
+            // Log performance metrics separately for better analytics (less frequently)
+            if (shouldLogBasic && result.processingTimeMs > 0) {
+                val performanceMessage = buildString {
+                    append("PERFORMANCE|")
+                    append("detection_time:${result.processingTimeMs}ms|")
+                    append("mode:${performanceMode ?: "unknown"}|")
+                    append("success:${result.success}|")
+                    append("faces:${result.faceDetectionResult?.detectedFaces?.size ?: 0}|")
+                    append("regions:${result.nsfwRegionCount}")
+                }
+
+                logRepository.logDebug(
+                    tag = "ContentDetectionEngine",
+                    message = performanceMessage,
+                    category = LogCategory.PERFORMANCE,
+                    userAction = "performance_measurement"
+                )
+            }
+        } catch (e: Exception) {
+            // Don't let logging failures crash the detection process
+            Log.w(TAG, "Failed to log detection event", e)
+        }
     }
     
     private var isInitialized = false
     private val detectionScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var detectionCounter = 0 // Counter for sampling/throttling detection logging
     
     suspend fun initialize(context: Context): Boolean {
         return try {
@@ -137,8 +229,8 @@ class ContentDetectionEngine @Inject constructor(
             val processingTime = System.currentTimeMillis() - startTime
             
             Log.d(TAG, "✅ Content analysis completed in ${processingTime}ms")
-            
-            ContentAnalysisResult(
+
+            val result = ContentAnalysisResult(
                 shouldBlur = blurRegions.isNotEmpty(),
                 blurRegions = blurRegions,
                 faceDetectionResult = faceResult,
@@ -147,13 +239,20 @@ class ContentDetectionEngine @Inject constructor(
                 success = true,
                 error = null
             )
+
+            // Log detection event for analytics
+            detectionScope.launch {
+                logDetectionEvent(result, PerformanceMode.BALANCED, appSettings)
+            }
+
+            return@withContext result
         } catch (e: Exception) {
             val processingTime = System.currentTimeMillis() - startTime
             Log.e(TAG, "❌ Content analysis failed after ${processingTime}ms", e)
             Log.e(TAG, "   • Error type: ${e.javaClass.simpleName}")
             Log.e(TAG, "   • Error message: ${e.message}")
-            
-            ContentAnalysisResult(
+
+            val failedResult = ContentAnalysisResult(
                 shouldBlur = false,
                 blurRegions = emptyList(),
                 faceDetectionResult = null,
@@ -162,6 +261,13 @@ class ContentDetectionEngine @Inject constructor(
                 success = false,
                 error = e.message
             )
+
+            // Log failed detection event for analytics
+            detectionScope.launch {
+                logDetectionEvent(failedResult, PerformanceMode.BALANCED, appSettings)
+            }
+
+            return@withContext failedResult
         }
     }
     
@@ -177,6 +283,16 @@ class ContentDetectionEngine @Inject constructor(
         Log.d(TAG, "🔍 Starting content analysis - Bitmap: ${bitmap.width}x${bitmap.height}")
         Log.d(TAG, "⚙️ Settings - Female faces: ${appSettings.blurFemaleFaces}, Male faces: ${appSettings.blurMaleFaces}, NSFW: ${appSettings.enableNSFWDetection}, GPU: ${appSettings.enableGPUAcceleration}")
         
+        // Enhanced performance mode with GPU acceleration priority
+        val performanceMode = when {
+            appSettings.enableGPUAcceleration && appSettings.ultraFastModeEnabled -> PerformanceMode.ULTRA_FAST
+            appSettings.enableGPUAcceleration -> PerformanceMode.FAST
+            appSettings.ultraFastModeEnabled -> PerformanceMode.ULTRA_FAST
+            appSettings.maxProcessingTimeMs <= 50L -> PerformanceMode.ULTRA_FAST
+            appSettings.maxProcessingTimeMs <= 100L -> PerformanceMode.FAST
+            else -> PerformanceMode.BALANCED
+        }
+        
         try {
             // Check if frame should be processed
             val frameDecision = frameOptimizationManager.shouldProcessFrame()
@@ -191,16 +307,6 @@ class ContentDetectionEngine @Inject constructor(
                     success = true,
                     error = null
                 )
-            }
-            
-            // Enhanced performance mode with GPU acceleration priority
-            val performanceMode = when {
-                appSettings.enableGPUAcceleration && appSettings.ultraFastModeEnabled -> PerformanceMode.ULTRA_FAST
-                appSettings.enableGPUAcceleration -> PerformanceMode.FAST
-                appSettings.ultraFastModeEnabled -> PerformanceMode.ULTRA_FAST
-                appSettings.maxProcessingTimeMs <= 50L -> PerformanceMode.ULTRA_FAST
-                appSettings.maxProcessingTimeMs <= 100L -> PerformanceMode.FAST
-                else -> PerformanceMode.BALANCED
             }
             
             fastContentDetector.setPerformanceMode(performanceMode)
@@ -308,18 +414,31 @@ class ContentDetectionEngine @Inject constructor(
             )
             
             Log.d(TAG, "Fast content analysis completed in ${processingTime}ms: shouldBlur=${fastResult.shouldBlur}")
+
+            // Log detection event for analytics
+            detectionScope.launch {
+                logDetectionEvent(contentAnalysisResult, performanceMode, appSettings)
+            }
+
             return@withContext contentAnalysisResult
             
         } catch (e: Exception) {
             val processingTime = System.currentTimeMillis() - startTime
             Log.e(TAG, "Fast content analysis failed", e)
-            
+
             frameOptimizationManager.updatePerformanceMetrics(
-                processingTime, 
+                processingTime,
                 appSettings.maxProcessingTimeMs
             )
-            
-            return@withContext ContentAnalysisResult.failed("Fast analysis failed: ${e.message}")
+
+            val failedResult = ContentAnalysisResult.failed("Fast analysis failed: ${e.message}")
+
+            // Log failed detection event for analytics
+            detectionScope.launch {
+                logDetectionEvent(failedResult, performanceMode, appSettings)
+            }
+
+            return@withContext failedResult
         }
     }
     

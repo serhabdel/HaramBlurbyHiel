@@ -142,6 +142,16 @@ class ForegroundAppMonitor @Inject constructor(
                 foregroundApp != lastForegroundApp &&
                 currentTime - lastEventTime > MIN_EVENT_INTERVAL_MS) {
 
+                // Always log app launches for debugging
+                scope.launch {
+                    logRepository.logInfo(
+                        tag = "ForegroundAppMonitor",
+                        message = "App launch detected: $foregroundApp",
+                        category = LogCategory.ACCESSIBILITY,
+                        userAction = "APP_LAUNCH_DETECTED"
+                    )
+                }
+
                 handleAppLaunch(foregroundApp, eventTime)
                 lastForegroundApp = foregroundApp
                 lastEventTime = currentTime

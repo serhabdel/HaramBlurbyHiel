@@ -2,28 +2,40 @@ package com.hieltech.haramblur.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlin.math.max
+import kotlin.math.min
 
 /**
- * Smooth enter/exit animations for content
+ * Smooth enter/exit animations for content with performance optimization
  */
 @Composable
 fun AnimatedFadeIn(
     visible: Boolean,
     modifier: Modifier = Modifier,
-    durationMillis: Int = 300,
+    durationMillis: Int = 250,
     content: @Composable () -> Unit
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(animationSpec = tween(durationMillis, easing = EaseOut)),
-        exit = fadeOut(animationSpec = tween(durationMillis, easing = EaseIn)),
+        enter = fadeIn(),
+        exit = fadeOut(),
         modifier = modifier
     ) {
         content()
@@ -31,25 +43,19 @@ fun AnimatedFadeIn(
 }
 
 /**
- * Slide in from bottom with fade
+ * Slide animations for entering/exiting content
  */
 @Composable
-fun AnimatedSlideInFromBottom(
+fun AnimatedSlideIn(
     visible: Boolean,
     modifier: Modifier = Modifier,
-    durationMillis: Int = 400,
+    durationMillis: Int = 250,
     content: @Composable () -> Unit
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = slideInVertically(
-            initialOffsetY = { it },
-            animationSpec = tween(durationMillis, easing = EaseOut)
-        ) + fadeIn(animationSpec = tween(durationMillis, easing = EaseOut)),
-        exit = slideOutVertically(
-            targetOffsetY = { it },
-            animationSpec = tween(durationMillis, easing = EaseIn)
-        ) + fadeOut(animationSpec = tween(durationMillis, easing = EaseIn)),
+        enter = slideInVertically() + fadeIn(),
+        exit = slideOutVertically() + fadeOut(),
         modifier = modifier
     ) {
         content()
@@ -57,7 +63,7 @@ fun AnimatedSlideInFromBottom(
 }
 
 /**
- * Scale and fade animation for interactive elements
+ * Scale animation for interactive elements
  */
 @Composable
 fun AnimatedScaleOnClick(
@@ -69,163 +75,43 @@ fun AnimatedScaleOnClick(
 
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "scale"
+        animationSpec = spring()
     )
 
     Box(
-        modifier = modifier
-            .scale(scale)
-            .animateContentSize()
+        modifier = modifier.scale(scale)
     ) {
         content()
     }
 }
 
 /**
- * Staggered animation for lists
+ * Simple loading shimmer effect
  */
 @Composable
-fun <T> AnimatedList(
-    items: List<T>,
-    modifier: Modifier = Modifier,
-    itemContent: @Composable (T, Int) -> Unit
+fun LoadingShimmer(
+    modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        items.forEachIndexed { index, item ->
-            val delay = index * 100L // 100ms delay between items
-
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn(
-                    animationSpec = tween(
-                        durationMillis = 400,
-                        delayMillis = delay.toInt(),
-                        easing = EaseOut
-                    )
-                ) + slideInVertically(
-                    initialOffsetY = { it / 2 },
-                    animationSpec = tween(
-                        durationMillis = 400,
-                        delayMillis = delay.toInt(),
-                        easing = EaseOut
-                    )
-                )
-            ) {
-                itemContent(item, index)
-            }
-        }
-    }
-}
-
-/**
- * Pulse animation for status indicators
- */
-@Composable
-fun AnimatedPulse(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val infiniteTransition = rememberInfiniteTransition()
     val alpha by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.6f,
+        initialValue = 0.2f,
+        targetValue = 0.8f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = EaseInOut),
+            animation = tween(1000),
             repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
-
-    Box(modifier = modifier.alpha(alpha)) {
-        content()
-    }
-}
-
-/**
- * Shimmer loading effect
- */
-@Composable
-fun AnimatedShimmer(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
-    val shimmerX by infiniteTransition.animateFloat(
-        initialValue = -200f,
-        targetValue = 200f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmerX"
-    )
-
-    Box(modifier = modifier) {
-        content()
-        // Add shimmer overlay effect
-    }
-}
-
-/**
- * Bounce animation for success states
- */
-@Composable
-fun AnimatedBounceIn(
-    visible: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val scale by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "bounce"
+        )
     )
 
     Box(
         modifier = modifier
-            .scale(scale)
-            .alpha(if (visible) 1f else 0f)
-    ) {
-        content()
-    }
-}
-
-/**
- * Rotation animation for loading states
- */
-@Composable
-fun AnimatedRotation(
-    isLoading: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val rotation by animateFloatAsState(
-        targetValue = if (isLoading) 360f else 0f,
-        animationSpec = if (isLoading) {
-            infiniteRepeatable(
-                animation = tween(1000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
             )
-        } else {
-            tween(300, easing = EaseOut)
-        },
-        label = "rotation"
     )
-
-    Box(modifier = modifier.animateContentSize()) {
-        content()
-    }
 }
 
 /**
- * Expandable content animation
+ * Animated expandable content
  */
 @Composable
 fun AnimatedExpandableContent(
@@ -235,14 +121,28 @@ fun AnimatedExpandableContent(
 ) {
     AnimatedVisibility(
         visible = expanded,
-        enter = expandVertically(
-            animationSpec = tween(300, easing = EaseOut),
-            expandFrom = Alignment.Top
-        ) + fadeIn(animationSpec = tween(300, easing = EaseOut)),
-        exit = shrinkVertically(
-            animationSpec = tween(200, easing = EaseIn),
-            shrinkTowards = Alignment.Top
-        ) + fadeOut(animationSpec = tween(200, easing = EaseIn)),
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+        modifier = modifier
+    ) {
+        content()
+    }
+}
+
+/**
+ * Staggered list animation
+ */
+@Composable
+fun AnimatedListItem(
+    visible: Boolean,
+    index: Int,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically() + fadeIn(),
+        exit = slideOutVertically() + fadeOut(),
         modifier = modifier
     ) {
         content()

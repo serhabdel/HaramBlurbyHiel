@@ -15,6 +15,7 @@ import com.hieltech.haramblur.detection.ContentDetectionEngine
 import com.hieltech.haramblur.detection.SiteBlockingManager
 import com.hieltech.haramblur.detection.BlockingCategory
 import com.hieltech.haramblur.detection.ContentAction
+import com.hieltech.haramblur.detection.ForegroundAppMonitor
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.data.ProcessingSpeed
@@ -78,6 +79,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
     @Inject
     lateinit var serviceLifecycleManager: com.hieltech.haramblur.di.ServiceLifecycleManager
+
+    @Inject
+    lateinit var foregroundAppMonitor: ForegroundAppMonitor
 
     // TODO: Behavioral action components temporarily disabled
     
@@ -159,6 +163,14 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             Log.w(TAG, "Error unregistering emergency reset receiver", e)
         }
 
+        // Stop app blocking monitor
+        try {
+            foregroundAppMonitor.stopMonitoring()
+            Log.d(TAG, "ForegroundAppMonitor stopped")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping ForegroundAppMonitor: ${e.message}")
+        }
+
         // Clean up all components
         cleanupComponents()
 
@@ -173,6 +185,14 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         
         serviceScope.launch {
             startContentMonitoring()
+            
+            // Start app blocking monitor
+            try {
+                foregroundAppMonitor.startMonitoring()
+                Log.d(TAG, "ForegroundAppMonitor started successfully")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to start ForegroundAppMonitor: ${e.message}")
+            }
         }
     }
     
@@ -270,10 +290,17 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             currentTime - value.first > cacheExpirationMs
         }
         
-        // Check if real-time processing is enabled
+        // Check if real-time processing is enabled and service is not paused
         val currentSettings = settingsRepository.getCurrentSettings()
         if (!currentSettings.enableRealTimeProcessing) {
             Log.d(TAG, "⏸️ Real-time processing disabled in settings")
+            return
+        }
+        
+        if (currentSettings.isServicePaused) {
+            Log.d(TAG, "⏸️ Service is paused - skipping all processing")
+            // Hide any existing blur overlay when paused
+            blurOverlayManager.hideBlurOverlay()
             return
         }
         

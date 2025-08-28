@@ -1,15 +1,20 @@
 package com.hieltech.haramblur.di
 
+import android.app.usage.UsageStatsManager
+import android.app.admin.DevicePolicyManager
+import android.content.Context
 import com.hieltech.haramblur.detection.*
 import com.hieltech.haramblur.ml.FaceDetectionManager
 import com.hieltech.haramblur.ml.MLModelManager
 import com.hieltech.haramblur.data.SettingsRepository
+import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.data.database.SiteBlockingDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.Binds
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Singleton
 
 /**
@@ -129,7 +134,8 @@ abstract class EnhancedDetectionModule {
             frameOptimizationManager: FrameOptimizationManager,
             performanceMonitor: PerformanceMonitor,
             contentDensityAnalyzer: ContentDensityAnalyzer,
-            fullScreenBlurTrigger: FullScreenBlurTrigger
+            fullScreenBlurTrigger: FullScreenBlurTrigger,
+            logRepository: LogRepository
         ): ContentDetectionEngine {
             return ContentDetectionEngine(
                 mlModelManager,
@@ -138,8 +144,26 @@ abstract class EnhancedDetectionModule {
                 frameOptimizationManager,
                 performanceMonitor,
                 contentDensityAnalyzer,
-                fullScreenBlurTrigger
+                fullScreenBlurTrigger,
+                logRepository
             )
+        }
+        
+        // System service providers
+        @Provides
+        @Singleton
+        fun provideUsageStatsManager(
+            @ApplicationContext context: Context
+        ): UsageStatsManager {
+            return context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        }
+        
+        @Provides
+        @Singleton
+        fun provideDevicePolicyManager(
+            @ApplicationContext context: Context
+        ): DevicePolicyManager {
+            return context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.hieltech.haramblur.ui
 
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.app.AppOpsManager
 import android.app.admin.DevicePolicyManager
@@ -10,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.annotation.RequiresApi
+import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
 import com.hieltech.haramblur.detection.HaramBlurDeviceAdminReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,6 +66,41 @@ class PermissionHelper @Inject constructor(
     }
 
     /**
+     * Check Accessibility Service permission status
+     */
+    fun checkAccessibilityServiceEnabled(): PermissionResult {
+        val accessibilityManager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+        val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+
+        val componentName = ComponentName(context, HaramBlurAccessibilityService::class.java)
+        val isEnabled = enabledServices.any { service ->
+            service.resolveInfo.serviceInfo.packageName == componentName.packageName &&
+            service.resolveInfo.serviceInfo.name == componentName.className
+        }
+
+        return if (isEnabled) {
+            PermissionResult.Granted("ACCESSIBILITY_SERVICE")
+        } else {
+            PermissionResult.Denied("ACCESSIBILITY_SERVICE")
+        }
+    }
+
+    /**
+     * Request Accessibility Service permission
+     */
+    fun requestAccessibilityService(activity: Activity) {
+        try {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            activity.startActivity(intent)
+        } catch (e: Exception) {
+            // Fallback to general settings
+            val intent = Intent(Settings.ACTION_SETTINGS)
+            activity.startActivity(intent)
+        }
+    }
+
+    /**
      * Check Usage Stats permission status
      */
     fun checkUsageStatsPermission(): PermissionResult {
@@ -108,7 +146,8 @@ class PermissionHelper @Inject constructor(
     fun updatePermissionStatuses() {
         val statuses = mapOf(
             "PACKAGE_USAGE_STATS" to checkUsageStatsPermission(),
-            "DEVICE_ADMIN" to checkDeviceAdminPermission()
+            "DEVICE_ADMIN" to checkDeviceAdminPermission(),
+            "ACCESSIBILITY_SERVICE" to checkAccessibilityServiceEnabled()
         )
         _permissionStatusFlow.value = statuses
     }
@@ -126,6 +165,10 @@ class PermissionHelper @Inject constructor(
             "DEVICE_ADMIN" -> {
                 // Device Admin permission also doesn't have "don't ask again"
                 checkDeviceAdminPermission() is PermissionResult.Denied
+            }
+            "ACCESSIBILITY_SERVICE" -> {
+                // Accessibility Service doesn't have "don't ask again" state
+                checkAccessibilityServiceEnabled() is PermissionResult.Denied
             }
             else -> false
         }
@@ -162,12 +205,14 @@ class PermissionHelper @Inject constructor(
     fun getEnhancedBlockingPermissionStatus(): EnhancedBlockingPermissionStatus {
         val usageStatsGranted = checkUsageStatsPermission() is PermissionResult.Granted
         val deviceAdminGranted = checkDeviceAdminPermission() is PermissionResult.Granted
+        val accessibilityGranted = checkAccessibilityServiceEnabled() is PermissionResult.Granted
 
         return EnhancedBlockingPermissionStatus(
             usageStatsGranted = usageStatsGranted,
             deviceAdminGranted = deviceAdminGranted,
-            isComplete = usageStatsGranted, // Device Admin is optional
-            canUseEnhancedBlocking = usageStatsGranted,
+            accessibilityServiceGranted = accessibilityGranted,
+            isComplete = usageStatsGranted && accessibilityGranted, // Usage Stats and Accessibility are required
+            canUseEnhancedBlocking = usageStatsGranted && accessibilityGranted,
             canUseForceClose = usageStatsGranted && deviceAdminGranted
         )
     }
@@ -202,6 +247,16 @@ class PermissionHelper @Inject constructor(
                     "Force-close blocked applications",
                     "Stronger blocking enforcement",
                     "More effective app restriction"
+                )
+            )
+            "ACCESSIBILITY_SERVICE" -> PermissionExplanation(
+                title = "Accessibility Service",
+                description = "Enables real-time content detection across all apps for comprehensive protection",
+                benefits = listOf(
+                    "Real-time content monitoring",
+                    "Automatic blur application",
+                    "Cross-app protection coverage",
+                    "Enhanced content detection capabilities"
                 )
             )
             else -> PermissionExplanation(
@@ -248,6 +303,7 @@ enum class PermissionRequestStep {
 data class EnhancedBlockingPermissionStatus(
     val usageStatsGranted: Boolean = false,
     val deviceAdminGranted: Boolean = false,
+    val accessibilityServiceGranted: Boolean = false,
     val isComplete: Boolean = false,
     val canUseEnhancedBlocking: Boolean = false,
     val canUseForceClose: Boolean = false

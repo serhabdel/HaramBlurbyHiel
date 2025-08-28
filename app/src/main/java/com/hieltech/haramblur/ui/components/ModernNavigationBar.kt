@@ -1,6 +1,7 @@
 package com.hieltech.haramblur.ui.components
 
 import androidx.compose.animation.core.*
+import com.hieltech.haramblur.ui.NavRoutes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -27,56 +28,41 @@ import androidx.compose.animation.animateColorAsState
 fun ModernNavigationBar(
     currentRoute: String? = null,
     onNavigateToHome: () -> Unit = {},
-    onNavigateToBlockApps: () -> Unit = {},
-    onNavigateToBlockSites: () -> Unit = {},
-    onNavigateToSupport: () -> Unit = {},
-    onNavigateToLogs: () -> Unit = {},
+    onNavigateToBlockAppsSites: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val navigationItems = listOf(
         NavigationItem(
-            route = "home",
+            route = NavRoutes.HOME,
             label = "Home",
             icon = Icons.Default.CheckCircle,
             selectedIcon = Icons.Default.CheckCircle,
             description = "Home screen"
         ),
         NavigationItem(
-            route = "block_apps",
-            label = "Block Apps",
+            route = NavRoutes.BLOCK_APPS_SITES,
+            label = "Blocking",
             icon = Icons.Default.Lock,
             selectedIcon = Icons.Default.Lock,
-            description = "Block applications"
+            description = "Block apps and sites"
         ),
         NavigationItem(
-            route = "block_sites",
-            label = "Block Sites",
-            icon = Icons.Default.Warning,
-            selectedIcon = Icons.Default.Warning,
-            description = "Block websites"
-        ),
-        NavigationItem(
-            route = "support",
-            label = "Support",
-            icon = Icons.Default.Info,
-            selectedIcon = Icons.Default.Info,
-            description = "Get help and support"
-        ),
-        NavigationItem(
-            route = "logs",
-            label = "Logs",
-            icon = Icons.Default.Search,
-            selectedIcon = Icons.Default.Search,
-            description = "View activity logs"
+            route = NavRoutes.SETTINGS,
+            label = "Settings",
+            icon = Icons.Default.Settings,
+            selectedIcon = Icons.Default.Settings,
+            description = "App settings"
         )
     )
 
     NavigationBar(
         modifier = modifier
             .fillMaxWidth()
+            .height(64.dp)
             .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                elevation = 4.dp,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                 spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             )
             .background(
@@ -88,7 +74,8 @@ fun ModernNavigationBar(
                 )
             ),
         containerColor = Color.Transparent,
-        tonalElevation = 0.dp
+        tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0.dp)
     ) {
         navigationItems.forEach { item ->
             val isSelected = currentRoute == item.route
@@ -99,10 +86,8 @@ fun ModernNavigationBar(
                 onClick = {
                     when (item.route) {
                         "home" -> onNavigateToHome()
-                        "block_apps" -> onNavigateToBlockApps()
-                        "block_sites" -> onNavigateToBlockSites()
-                        "support" -> onNavigateToSupport()
-                        "logs" -> onNavigateToLogs()
+                        "block_apps_sites" -> onNavigateToBlockAppsSites()
+                        "settings" -> onNavigateToSettings()
                     }
                 }
             )
@@ -154,7 +139,7 @@ private fun RowScope.ModernNavigationBarItem(
         icon = {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(28.dp)
                     .graphicsLayer(scaleX = scale, scaleY = scale)
                     .clip(CircleShape)
                     .background(backgroundColor),
@@ -164,7 +149,7 @@ private fun RowScope.ModernNavigationBarItem(
                     imageVector = if (isSelected) item.selectedIcon else item.icon,
                     contentDescription = item.description,
                     tint = iconColor,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         },
@@ -198,55 +183,39 @@ private fun RowScope.ModernNavigationBarItem(
 fun FloatingNavigationBar(
     currentRoute: String? = null,
     onNavigateToHome: () -> Unit = {},
-    onNavigateToBlockApps: () -> Unit = {},
-    onNavigateToBlockSites: () -> Unit = {},
-    onNavigateToSupport: () -> Unit = {},
-    onNavigateToLogs: () -> Unit = {},
+    onNavigateToBlockAppsSites: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val navigationItems = listOf(
         NavigationItem(
-            route = "home",
+            route = NavRoutes.HOME,
             label = "Home",
             icon = Icons.Default.CheckCircle,
             selectedIcon = Icons.Default.CheckCircle,
             description = "Home screen"
         ),
         NavigationItem(
-            route = "block_apps",
-            label = "Block Apps",
+            route = NavRoutes.BLOCK_APPS_SITES,
+            label = "Blocking",
             icon = Icons.Default.Lock,
             selectedIcon = Icons.Default.Lock,
-            description = "Block applications"
+            description = "Block apps and sites"
         ),
         NavigationItem(
-            route = "block_sites",
-            label = "Block Sites",
-            icon = Icons.Default.Warning,
-            selectedIcon = Icons.Default.Warning,
-            description = "Block websites"
-        ),
-        NavigationItem(
-            route = "support",
-            label = "Support",
-            icon = Icons.Default.Info,
-            selectedIcon = Icons.Default.Info,
-            description = "Get help and support"
-        ),
-        NavigationItem(
-            route = "logs",
-            label = "Logs",
-            icon = Icons.Default.Search,
-            selectedIcon = Icons.Default.Search,
-            description = "View activity logs"
+            route = NavRoutes.SETTINGS,
+            label = "Settings",
+            icon = Icons.Default.Settings,
+            selectedIcon = Icons.Default.Settings,
+            description = "App settings"
         )
     )
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         navigationItems.forEach { item ->
@@ -258,10 +227,8 @@ fun FloatingNavigationBar(
                 onClick = {
                     when (item.route) {
                         "home" -> onNavigateToHome()
-                        "block_apps" -> onNavigateToBlockApps()
-                        "block_sites" -> onNavigateToBlockSites()
-                        "support" -> onNavigateToSupport()
-                        "logs" -> onNavigateToLogs()
+                        "block_apps_sites" -> onNavigateToBlockAppsSites()
+                        "settings" -> onNavigateToSettings()
                     }
                 },
                 modifier = Modifier.weight(1f)
@@ -292,11 +259,11 @@ private fun FloatingNavigationItem(
     OutlinedButton(
         onClick = onClick,
         modifier = modifier
-            .height(48.dp)
+            .height(40.dp)
             .graphicsLayer(scaleX = scale, scaleY = scale)
             .shadow(
-                elevation = if (isSelected) 6.dp else 2.dp,
-                shape = RoundedCornerShape(12.dp)
+                elevation = if (isSelected) 4.dp else 1.dp,
+                shape = RoundedCornerShape(10.dp)
             ),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = if (isSelected) {
@@ -310,16 +277,16 @@ private fun FloatingNavigationItem(
                 MaterialTheme.colorScheme.onSurface
             }
         ),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             Icon(
                 imageVector = if (isSelected) item.selectedIcon else item.icon,
                 contentDescription = item.description,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(14.dp)
             )
             Text(
                 text = item.label,

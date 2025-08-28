@@ -8,11 +8,62 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Optional permissions for enhanced app blocking capabilities -->
     <!-- These permissions enhance blocking capabilities but are not required for basic functionality -->
     <!-- The app remains fully functional without them, providing progressive enhancement -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+    
+    <!-- Android 11+ Package Visibility Permissions -->
+    <!-- Required to detect installed apps on Android 11 (API 30) and higher -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+    
+    <!-- Alternative: Specific package queries for major social media apps -->
+    <!-- More restrictive approach if QUERY_ALL_PACKAGES is not accepted -->
+    <queries>
+        <!-- Messaging Apps -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <package android:name="org.telegram.messenger" />
+        <package android:name="com.discord" />
+        <package android:name="com.viber.voip" />
+        <package android:name="org.thoughtcrime.securesms" />
+        <package android:name="com.tencent.mm" />
+        <package android:name="jp.naver.line.android" />
+        <package android:name="com.kakao.talk" />
+        <package android:name="com.facebook.orca" />
+        
+        <!-- Social Media Apps -->
+        <package android:name="com.instagram.android" />
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.twitter.android" />
+        <package android:name="com.snapchat.android" />
+        <package android:name="com.zhiliaoapp.musically" />
+        <package android:name="com.ss.android.ugc.tiktok" />
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.linkedin.android" />
+        <package android:name="com.reddit.frontpage" />
+        <package android:name="com.tumblr" />
+        <package android:name="com.pinterest" />
+        
+        <!-- Dating Apps -->
+        <package android:name="com.tinder" />
+        <package android:name="com.bumble.app" />
+        <package android:name="com.okcupid.okcupid" />
+        <package android:name="com.hinge.app" />
+        
+        <!-- Video Platforms -->
+        <package android:name="tv.twitch.android.app" />
+        <package android:name="tv.danmaku.bili" />
+        
+        <!-- Regional Social Media -->
+        <package android:name="com.vkontakte.android" />
+        <package android:name="ru.ok.android" />
+        <package android:name="org.bluesky.bsky" />
+        <package android:name="org.joinmastodon.android" />
+        <package android:name="com.bereal.ft" />
+    </queries>
 
     <application
         android:name=".HaramBlurApplication"

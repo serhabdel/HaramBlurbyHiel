@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
+import com.hieltech.haramblur.ui.components.*
 import kotlinx.coroutines.launch
 import android.content.Intent
 import android.net.Uri
@@ -63,13 +64,19 @@ fun SupportScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Quick Help Section
-            QuickHelpSection(supportState, onNavigateToLogs, onNavigateToSettings)
+            // Quick Help Section (without logs button - now in drawer)
+            QuickHelpSection(supportState, onNavigateToSettings)
+
+            // Developer & Community Section
+            DeveloperCommunitySection(viewModel, context, scope)
+
+            // Support the Project Section
+            SupportTheProjectSection(viewModel, context, scope)
 
             // Troubleshooting Section
             TroubleshootingSection(supportState, viewModel, context)
 
-            // Contact Support Section
+            // Contact Support Section (enhanced)
             ContactSupportSection(viewModel, context, scope)
 
             // App Information Section
@@ -86,7 +93,6 @@ fun SupportScreen(
 @Composable
 fun QuickHelpSection(
     supportState: SupportState,
-    onNavigateToLogs: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
     Card(
@@ -107,24 +113,13 @@ fun QuickHelpSection(
             // Service Status
             ServiceStatusIndicator(supportState.serviceRunning)
 
-            // Quick Actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                QuickActionButton(
-                    icon = Icons.Default.Settings,
-                    title = "Settings",
-                    onClick = onNavigateToSettings,
-                    modifier = Modifier.weight(1f)
-                )
-                QuickActionButton(
-                    icon = Icons.Default.Search,
-                    title = "View Logs",
-                    onClick = onNavigateToLogs,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            // Quick Actions (Settings only - logs moved to drawer)
+            QuickActionButton(
+                icon = Icons.Default.Settings,
+                title = "Settings",
+                onClick = onNavigateToSettings,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -332,7 +327,7 @@ fun ContactSupportSection(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
                 text = "📞 Contact Support",
@@ -341,37 +336,40 @@ fun ContactSupportSection(
             )
 
             Text(
-                text = "Need help? Contact our support team with your logs for faster assistance.",
+                text = "Need help? Choose your preferred support channel. GitHub issues are recommended for bug reports and feature requests.",
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            viewModel.sendSupportEmail(context)
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Email, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Email Support")
+            // Support Options
+            SupportOptionCard(
+                icon = Icons.Default.Email,
+                title = "Email Support",
+                description = "Send detailed support request with logs",
+                onClick = {
+                    scope.launch {
+                        viewModel.sendEnhancedSupportEmail(context)
+                    }
                 }
+            )
 
-                OutlinedButton(
-                    onClick = {
-                        viewModel.openPrivacyPolicy(context)
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Privacy Policy")
-                }
+            SupportOptionCard(
+                icon = Icons.Default.Warning,
+                title = "Report Bug on GitHub",
+                description = "Create issue with bug report template",
+                onClick = { viewModel.openGitHubIssues(context) },
+                isExternalLink = true
+            )
+
+            // Privacy Policy (kept for easy access)
+            OutlinedButton(
+                onClick = {
+                    viewModel.openPrivacyPolicy(context)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Info, contentDescription = null)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Privacy Policy")
             }
         }
     }
@@ -546,6 +544,41 @@ fun PrivacyDataSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun DeveloperCommunitySection(
+    viewModel: SupportViewModel,
+    context: android.content.Context,
+    scope: kotlinx.coroutines.CoroutineScope
+) {
+    GitHubLinkCard(
+        onRepositoryClick = { viewModel.openGitHubRepository(context) },
+        onIssuesClick = { viewModel.openGitHubIssues(context) },
+        onDiscussionsClick = { viewModel.openGitHubDiscussions(context) }
+    )
+}
+
+@Composable
+fun SupportTheProjectSection(
+    viewModel: SupportViewModel,
+    context: android.content.Context,
+    scope: kotlinx.coroutines.CoroutineScope
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Donation Card
+        DonationCard(
+            onDonationClick = { viewModel.openBuyMeCoffee(context) }
+        )
+
+        // Community Section
+        CommunitySection(
+            onDocumentationClick = { viewModel.openDocumentation(context) },
+            onShareAppClick = { viewModel.shareApp(context) }
+        )
     }
 }
 

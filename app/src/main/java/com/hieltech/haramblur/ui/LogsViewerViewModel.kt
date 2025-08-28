@@ -70,19 +70,19 @@ class LogsViewerViewModel @Inject constructor(
 
                 if (query.isNotEmpty()) {
                     // Search mode
-                    logRepository.searchLogs(query).collect { searchResults ->
+                    logRepository.searchLogs(query).take(1).collect { searchResults ->
                         _logs.value = searchResults.filter { log ->
                             levels.contains(log.level)
                         }
                     }
                 } else if (levels.isNotEmpty()) {
                     // Filter by levels
-                    logRepository.getLogsWithLevels(levels, limit = 500).collect { filteredLogs ->
+                    logRepository.getLogsWithLevels(levels, limit = 500).take(1).collect { filteredLogs ->
                         _logs.value = filteredLogs
                     }
                 } else {
                     // Get recent logs
-                    logRepository.getRecentLogs(500).collect { recentLogs ->
+                    logRepository.getRecentLogs(500).take(1).collect { recentLogs ->
                         _logs.value = recentLogs
                     }
                 }

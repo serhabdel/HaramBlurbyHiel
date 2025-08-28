@@ -1,87 +1,242 @@
 package com.hieltech.haramblur.ui
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
-
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.hieltech.haramblur.data.AppSettings
-import com.hieltech.haramblur.data.LogLevel
-import com.hieltech.haramblur.data.LogCategory
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.FileProvider
-import android.content.Intent
-import android.net.Uri
+import com.hieltech.haramblur.data.*
+import com.hieltech.haramblur.ui.components.*
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import com.hieltech.haramblur.data.BlurIntensity
-import com.hieltech.haramblur.data.BlurStyle
-import com.hieltech.haramblur.data.ProcessingSpeed
-import com.hieltech.haramblur.data.GenderAccuracy
-import com.hieltech.haramblur.detection.Language
-import com.hieltech.haramblur.llm.OpenRouterLLMService
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ServiceControlCard(
+    isServicePaused: Boolean,
+    onTogglePause: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isServicePaused) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.primaryContainer
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = if (isServicePaused) "🛑" else "🛡️",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        text = "Service Control",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Text(
+                    text = if (isServicePaused) {
+                        "⚠️ All HaramBlur services are currently PAUSED"
+                    } else {
+                        "✅ All services are active and protecting your screen"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = if (isServicePaused) {
+                        "Tap to RESUME all detection and blocking services"
+                    } else {
+                        "Tap to PAUSE all detection and blocking services"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                )
+            }
+            
+            Switch(
+                checked = !isServicePaused,
+                onCheckedChange = { onTogglePause() },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                    uncheckedThumbColor = MaterialTheme.colorScheme.error,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                ),
+                modifier = Modifier.scale(1.2f)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLogs: () -> Unit = {},
     onNavigateToSupport: () -> Unit = {},
+    onOpenDrawer: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("HaramBlur Settings") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+    // State management
+    var currentMode by remember { mutableStateOf(SettingsMode.SIMPLE) }
+    var searchQuery by remember { mutableStateOf("") }
+    var showPresetConfirmation by remember { mutableStateOf<PresetData?>(null) }
+    var expandedSections by remember {
+        mutableStateOf(
+            mapOf(
+                SettingsCategory.ESSENTIAL to true,
+                SettingsCategory.DETECTION to true,
+                SettingsCategory.PERFORMANCE to true,
+                SettingsCategory.ISLAMIC to true,
+                SettingsCategory.AI to true,
+                SettingsCategory.DEVELOPER to true
             )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            
-            // Detection Settings Section
-            SettingsSection(title = "👁️ Detection Settings") {
+        )
+    }
+
+    // Get available presets - memoized to prevent expensive recomputation
+    val availablePresets = remember { viewModel.getAvailablePresets() }
+    val currentPreset = remember(settings.currentPreset) { 
+        availablePresets.find { it.name == settings.currentPreset } ?: availablePresets[1]
+    }
+    
+    // Remember scroll state to prevent memory issues during scrolling
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+            // Preset Selection Section
+            Text(
+                text = "Quick Presets",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+
+            // Maximum Protection Preset
+            PresetButton(
+                name = "Maximum Protection",
+                description = "Ultimate privacy with maximum content blocking",
+                icon = "🛡️",
+                gradientColors = listOf(
+                    Color(0xFFD32F2F),
+                    Color(0xFFB71C1C)
+                ),
+                isSelected = settings.currentPreset == "Maximum Protection",
+                onClick = {
+                    val preset = PresetManager.createMaximumProtectionPreset()
+                    showPresetConfirmation = preset
+                }
+            )
+
+            // Optimal Performance Preset
+            PresetButton(
+                name = "Optimal Performance",
+                description = "Balanced settings for best speed and protection",
+                icon = "⚡",
+                gradientColors = listOf(
+                    Color(0xFF2E7D32),
+                    Color(0xFF1B5E20)
+                ),
+                isSelected = settings.currentPreset == "Optimal Performance",
+                onClick = {
+                    val preset = PresetManager.createOptimalPerformancePreset()
+                    showPresetConfirmation = preset
+                }
+            )
+
+            // Custom Preset
+            PresetButton(
+                name = "Custom Settings",
+                description = "Your personalized configuration",
+                icon = "⚙️",
+                gradientColors = listOf(
+                    Color(0xFF1976D2),
+                    Color(0xFF0D47A1)
+                ),
+                isSelected = settings.currentPreset == "Custom",
+                onClick = {
+                    // Custom preset - no action needed, just show it's selected
+                }
+            )
+
+            // Service Control Section
+            ServiceControlCard(
+                isServicePaused = settings.isServicePaused,
+                onTogglePause = { viewModel.toggleServicePause() }
+            )
+
+            // Search bar for advanced mode
+            AnimatedVisibility(
+                visible = currentMode == SettingsMode.ADVANCED,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                SettingsSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it }
+                )
+            }
+
+            // Essential Settings (always visible)
+            ExpandableSettingsSection(
+                title = "Essential Settings",
+                description = "Core functionality that everyone needs",
+                icon = "⚙️",
+                isExpanded = expandedSections[SettingsCategory.ESSENTIAL] ?: true,
+                onToggle = {
+                    expandedSections = expandedSections.toMutableMap().apply {
+                        this[SettingsCategory.ESSENTIAL] = !(this[SettingsCategory.ESSENTIAL] ?: true)
+                    }
+                }
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SwitchSetting(
                     title = "Face Detection",
                     description = "Detect and blur faces in images",
@@ -95,55 +250,16 @@ fun SettingsScreen(
                     checked = settings.enableNSFWDetection,
                     onCheckedChange = { viewModel.updateNSFWDetection(it) }
                 )
-            }
             
-            // Female Content Detection Settings
             if (settings.enableFaceDetection) {
-                SettingsSection(title = "👩 Female Content Detection") {
                     SwitchSetting(
                         title = "Detect Female Faces",
                         description = "Automatically detect and blur female faces",
                         checked = settings.blurFemaleFaces,
                         onCheckedChange = { viewModel.updateFemaleBlur(it) }
-                    )
-                    
-                    SwitchSetting(
-                        title = "Detect Female Body",
-                        description = "Detect and blur female body parts and inappropriate content",
-                        checked = settings.enableNSFWDetection,
-                        onCheckedChange = { viewModel.updateNSFWDetection(it) }
-                    )
-                }
-            }
-            
-            // Core Settings
-            SettingsSection(title = "⚙️ Core Settings") {
-                SliderSetting(
-                    title = "Detection Accuracy",
-                    description = "Higher values detect more content but may blur normal images",
-                    value = settings.detectionSensitivity,
-                    range = 0.3f..0.9f,
-                    onValueChange = { viewModel.updateSensitivity(it) },
-                    valueFormatter = { "${(it * 100).toInt()}%" }
-                )
-                
-                SwitchSetting(
-                    title = "GPU Acceleration",
-                    description = "Use GPU for 3x faster detection (recommended)",
-                    checked = settings.enableGPUAcceleration,
-                    onCheckedChange = { viewModel.updateGPUAcceleration(it) }
-                )
-                
-                SwitchSetting(
-                    title = "Real-time Processing",
-                    description = "Process content instantly as it appears",
-                    checked = settings.enableRealTimeProcessing,
-                    onCheckedChange = { viewModel.updateRealTimeProcessing(it) }
-                )
-            }
-            
-            // Visual Settings
-            SettingsSection(title = "🎨 Visual Settings") {
+                        )
+                    }
+
                 RadioButtonGroup(
                     title = "Blur Intensity",
                     options = listOf(
@@ -167,6 +283,53 @@ fun SettingsScreen(
                         }
                         viewModel.updateBlurIntensity(intensity)
                     }
+                    )
+                }
+            }
+
+            // Detection & Privacy Settings (Simple mode)
+            AnimatedVisibility(
+                visible = currentMode == SettingsMode.SIMPLE || currentMode == SettingsMode.ADVANCED,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                ExpandableSettingsSection(
+                    title = "Detection & Privacy",
+                    description = "Face and content detection settings",
+                    icon = "👁️",
+                    isExpanded = expandedSections[SettingsCategory.DETECTION] ?: false,
+                    onToggle = {
+                        expandedSections = expandedSections.toMutableMap().apply {
+                            this[SettingsCategory.DETECTION] = !(this[SettingsCategory.DETECTION] ?: false)
+                        }
+                    }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SliderSetting(
+                            title = "Detection Sensitivity",
+                            description = "Higher values detect more content but may blur normal images",
+                            value = settings.detectionSensitivity,
+                            range = 0.3f..0.9f,
+                            onValueChange = { viewModel.updateSensitivity(it) },
+                            valueFormatter = { "${(it * 100).toInt()}%" }
+                        )
+
+                        SliderSetting(
+                            title = "Gender Confidence Threshold",
+                            description = "Lower values detect more faces but may have false positives",
+                            value = settings.genderConfidenceThreshold,
+                            range = 0.3f..0.8f,
+                            onValueChange = { viewModel.updateGenderConfidenceThreshold(it) },
+                            valueFormatter = { "${(it * 100).toInt()}%" }
+                        )
+
+                        SliderSetting(
+                            title = "NSFW Confidence Threshold",
+                            description = "Lower values detect more content but may have false positives",
+                            value = settings.nsfwConfidenceThreshold,
+                            range = 0.4f..0.7f,
+                            onValueChange = { viewModel.updateNSFWConfidenceThreshold(it) },
+                            valueFormatter = { "${(it * 100).toInt()}%" }
                 )
                 
                 RadioButtonGroup(
@@ -202,37 +365,103 @@ fun SettingsScreen(
                     description = "Pixels to expand around detected areas",
                     value = settings.expandBlurArea.toFloat(),
                     range = 10f..100f,
-                    onValueChange = { value -> 
-                        viewModel.updateBlurExpansion(value.toInt()) 
-                    },
+                            onValueChange = { viewModel.updateBlurExpansion(it.toInt()) },
                     valueFormatter = { "${it.toInt()}px" }
                 )
+                    }
+                }
             }
-            
-            // Advanced Settings (Collapsed by default)
-            SettingsSection(title = "⚙️ Advanced Settings") {
+
+            // Performance & Advanced Settings (Advanced mode only)
+            AnimatedVisibility(
+                visible = currentMode == SettingsMode.ADVANCED,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                ExpandableSettingsSection(
+                    title = "Performance & Advanced",
+                    description = "Speed and resource optimization",
+                    icon = "⚡",
+                    isExpanded = expandedSections[SettingsCategory.PERFORMANCE] ?: false,
+                    onToggle = {
+                        expandedSections = expandedSections.toMutableMap().apply {
+                            this[SettingsCategory.PERFORMANCE] = !(this[SettingsCategory.PERFORMANCE] ?: false)
+                        }
+                    }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SwitchSetting(
+                            title = "GPU Acceleration",
+                            description = "Use GPU for faster detection (recommended)",
+                            checked = settings.enableGPUAcceleration,
+                            onCheckedChange = { viewModel.updateGPUAcceleration(it) }
+                        )
+
                 SwitchSetting(
-                    title = "Full Screen Blur for High Content",
-                    description = "Blur entire screen when too much inappropriate content is detected",
-                    checked = settings.fullScreenWarningEnabled,
-                    onCheckedChange = { viewModel.updateFullScreenWarning(it) }
+                            title = "Real-time Processing",
+                            description = "Process content instantly as it appears",
+                            checked = settings.enableRealTimeProcessing,
+                            onCheckedChange = { viewModel.updateRealTimeProcessing(it) }
+                        )
+
+                        RadioButtonGroup(
+                            title = "Processing Speed",
+                            options = ProcessingSpeed.values().map { it.name to it.description },
+                            selectedIndex = ProcessingSpeed.values().indexOf(settings.processingSpeed),
+                            onSelectionChange = { index ->
+                                viewModel.updateProcessingSpeed(ProcessingSpeed.values()[index])
+                            }
+                        )
+
+                        RadioButtonGroup(
+                            title = "Gender Detection Accuracy",
+                            options = GenderAccuracy.values().map { it.name to it.description },
+                            selectedIndex = GenderAccuracy.values().indexOf(settings.genderDetectionAccuracy),
+                            onSelectionChange = { index ->
+                                viewModel.updateGenderDetectionAccuracy(GenderAccuracy.values()[index])
+                            }
                 )
                 
                 SliderSetting(
-                    title = "Detection Confidence",
-                    description = "Lower values detect more content but may have false positives",
-                    value = settings.genderConfidenceThreshold,
-                    range = 0.4f..0.8f,
-                    onValueChange = { viewModel.updateGenderConfidenceThreshold(it) },
-                    valueFormatter = { "${(it * 100).toInt()}%" }
-                )
+                            title = "Max Processing Time",
+                            description = "Maximum time allowed for detection per frame",
+                            value = settings.maxProcessingTimeMs.toFloat(),
+                            range = 25f..200f,
+                            onValueChange = { viewModel.updateMaxProcessingTime(it.toLong()) },
+                            valueFormatter = { "${it.toInt()}ms" }
+                        )
+
+                        SwitchSetting(
+                            title = "Performance Monitoring",
+                            description = "Log performance metrics and timing information",
+                            checked = settings.enablePerformanceMonitoring,
+                            onCheckedChange = { viewModel.updatePerformanceMonitoring(it) }
+                        )
+                    }
+                }
             }
-            
-            // Islamic Guidance Settings
-            SettingsSection(title = "🕌 Islamic Guidance") {
+
+            // Islamic Guidance Settings (Simple mode)
+            AnimatedVisibility(
+                visible = currentMode == SettingsMode.SIMPLE || currentMode == SettingsMode.ADVANCED,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                ExpandableSettingsSection(
+                    title = "Islamic Guidance",
+                    description = "Quranic verses and spiritual guidance",
+                    icon = "🕌",
+                    isExpanded = expandedSections[SettingsCategory.ISLAMIC] ?: false,
+                    onToggle = {
+                        expandedSections = expandedSections.toMutableMap().apply {
+                            this[SettingsCategory.ISLAMIC] = !(this[SettingsCategory.ISLAMIC] ?: false)
+                        }
+                    }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SwitchSetting(
                     title = "Quranic Guidance",
-                    description = "Show Quranic verses and Islamic guidance when blocking content",
+                            description = "Show Quranic verses when blocking content",
                     checked = settings.enableQuranicGuidance,
                     onCheckedChange = { viewModel.updateQuranicGuidance(it) }
                 )
@@ -240,10 +469,12 @@ fun SettingsScreen(
                 if (settings.enableQuranicGuidance) {
                     RadioButtonGroup(
                         title = "Preferred Language",
-                        options = Language.values().map { it.displayName to "Language for Islamic guidance and Quranic verses" },
-                        selectedIndex = Language.values().indexOf(settings.preferredLanguage),
+                                options = com.hieltech.haramblur.detection.Language.values().map {
+                                    it.displayName to "Language for Islamic guidance"
+                                },
+                                selectedIndex = com.hieltech.haramblur.detection.Language.values().indexOf(settings.preferredLanguage),
                         onSelectionChange = { index ->
-                            viewModel.updatePreferredLanguage(Language.values()[index])
+                                    viewModel.updatePreferredLanguage(com.hieltech.haramblur.detection.Language.values()[index])
                         }
                     )
                     
@@ -253,7 +484,7 @@ fun SettingsScreen(
                         value = settings.verseDisplayDuration.toFloat(),
                         range = 5f..30f,
                         onValueChange = { viewModel.updateVerseDisplayDuration(it.toInt()) },
-                        valueFormatter = { "${it.toInt()} seconds" }
+                                valueFormatter = { "${it.toInt()}s" }
                     )
                     
                     SwitchSetting(
@@ -269,265 +500,81 @@ fun SettingsScreen(
                         value = settings.customReflectionTime.toFloat(),
                         range = 5f..60f,
                         onValueChange = { viewModel.updateCustomReflectionTime(it.toInt()) },
-                        valueFormatter = { "${it.toInt()} seconds" }
-                    )
+                                valueFormatter = { "${it.toInt()}s" }
+                            )
+                        }
+                    }
                 }
             }
-            
-            // LLM Decision Making Settings
-            SettingsSection(title = "🤖 AI Decision Making") {
+
+            // AI & Automation Settings (Advanced mode only)
+            AnimatedVisibility(
+                visible = currentMode == SettingsMode.ADVANCED,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                ExpandableSettingsSection(
+                    title = "AI & Automation",
+                    description = "OpenRouter LLM and intelligent decisions",
+                    icon = "🤖",
+                    isExpanded = expandedSections[SettingsCategory.AI] ?: false,
+                    onToggle = {
+                        expandedSections = expandedSections.toMutableMap().apply {
+                            this[SettingsCategory.AI] = !(this[SettingsCategory.AI] ?: false)
+                        }
+                    }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SwitchSetting(
                     title = "Enable LLM Decisions",
-                    description = "Use OpenRouter AI for faster, smarter content actions (requires API key)",
+                            description = "Use AI for faster, smarter content actions",
                     checked = settings.enableLLMDecisionMaking,
                     onCheckedChange = { viewModel.updateLLMDecisionMaking(it) }
                 )
                 
                 if (settings.enableLLMDecisionMaking) {
-                    // API Key Input
-                    var showApiKey by remember { mutableStateOf(false) }
-                    
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "OpenRouter API Key",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                        
-                        OutlinedTextField(
-                            value = settings.openRouterApiKey,
-                            onValueChange = { viewModel.updateOpenRouterApiKey(it) },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Enter your OpenRouter API key") },
-                            visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { showApiKey = !showApiKey }) {
-                                    Icon(
-                                        imageVector = if (showApiKey) Icons.Filled.Lock else Icons.Filled.Star,
-                                        contentDescription = if (showApiKey) "Hide API key" else "Show API key"
-                                    )
-                                }
-                            },
-                            supportingText = {
-                                if (settings.openRouterApiKey.isBlank()) {
-                                    Text(
-                                        text = "Get your free API key at openrouter.ai",
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                } else {
-                                    Text(
-                                        text = "✓ API key configured",
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        )
-                    }
-                    
-                    // Model Selection
-                    var showModelDialog by remember { mutableStateOf(false) }
-                    val selectedModel = OpenRouterLLMService.AVAILABLE_MODELS.find { it.id == settings.llmModel }
-                        ?: OpenRouterLLMService.AVAILABLE_MODELS.first()
-                    
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "AI Model",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                        
-                        OutlinedCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = { showModelDialog = true }
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp)
-                            ) {
-                                Text(
-                                    text = selectedModel.displayName,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = selectedModel.description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                    
-                    // Model Selection Dialog
-                    if (showModelDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showModelDialog = false },
-                            title = { Text("Select AI Model") },
-                            text = {
-                                LazyColumn {
-                                    items(OpenRouterLLMService.AVAILABLE_MODELS) { model ->
-                                        Card(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 4.dp),
-                                            onClick = {
-                                                viewModel.updateLLMModel(model.id)
-                                                showModelDialog = false
-                                            },
-                                            colors = if (model.id == settings.llmModel) {
-                                                CardDefaults.cardColors(
-                                                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                                                )
-                                            } else {
-                                                CardDefaults.cardColors()
-                                            }
-                                        ) {
-                                            Column(
-                                                modifier = Modifier.padding(16.dp)
-                                            ) {
-                                                Text(
-                                                    text = model.displayName,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                                Text(
-                                                    text = model.description,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                                if (model.id.contains("free", ignoreCase = true)) {
-                                                    Text(
-                                                        text = "🆓 Free to use",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.primary
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            confirmButton = {
-                                TextButton(onClick = { showModelDialog = false }) {
-                                    Text("Cancel")
-                                }
-                            }
-                        )
-                    }
-                    
-                    // Response Timeout Setting
+                            // API Key input would go here
                     SliderSetting(
                         title = "Response Timeout",
-                        description = "Maximum time to wait for AI response (faster = quicker fallback)",
+                                description = "Maximum time to wait for AI response",
                         value = settings.llmTimeoutMs.toFloat() / 1000f,
                         range = 1f..10f,
                         onValueChange = { viewModel.updateLLMTimeout((it * 1000).toLong()) },
-                        valueFormatter = { "${it.toInt()} seconds" }
+                                valueFormatter = { "${it.toInt()}s" }
                     )
                     
-                    // Fallback Setting
                     SwitchSetting(
                         title = "Fallback to Rules",
-                        description = "Use rule-based decisions if AI fails (recommended)",
+                                description = "Use rule-based decisions if AI fails",
                         checked = settings.llmFallbackToRules,
                         onCheckedChange = { viewModel.updateLLMFallbackToRules(it) }
-                    )
-                    
-                    // Info Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "How AI Decisions Work",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Text(
-                                text = "• AI analyzes content severity and app context\n" +
-                                      "• Makes intelligent decisions in under 3 seconds\n" +
-                                      "• Chooses optimal actions: scroll, navigate, or close\n" +
-                                      "• Free models available with OpenRouter account\n" +
-                                      "• Falls back to rule-based logic if AI fails",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            
-                            TextButton(
-                                onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://openrouter.ai"))
-                                    context.startActivity(intent)
-                                }
-                            ) {
-                                Text("Get Free API Key at OpenRouter.ai")
-                            }
                         }
                     }
                 }
             }
-            
-            // Site Blocking Settings (Note: Site blocking is always enabled for user protection)
-            SettingsSection(title = "🚫 Content Protection") {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                    )
+
+            // Developer & Logging Settings (Advanced mode only)
+            AnimatedVisibility(
+                visible = currentMode == SettingsMode.ADVANCED,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                ExpandableSettingsSection(
+                    title = "Developer & Logging",
+                    description = "Debugging and troubleshooting tools",
+                    icon = "📊",
+                    isExpanded = expandedSections[SettingsCategory.DEVELOPER] ?: false,
+                    onToggle = {
+                        expandedSections = expandedSections.toMutableMap().apply {
+                            this[SettingsCategory.DEVELOPER] = !(this[SettingsCategory.DEVELOPER] ?: false)
+                        }
+                    }
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Site Blocking Protection",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Automatic blocking of inappropriate websites is always enabled to provide comprehensive protection. This feature works silently in the background to keep you safe.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-            
-            // Logging and Support Settings - Enterprise/SaaS style
-            SettingsSection(title = "📊 Logging & Support") {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SwitchSetting(
                     title = "Detailed Logging",
-                    description = "Enable detailed logging for troubleshooting and support",
+                            description = "Enable detailed logging for troubleshooting",
                     checked = settings.enableDetailedLogging,
                     onCheckedChange = { viewModel.updateDetailedLogging(it) }
                 )
@@ -542,24 +589,6 @@ fun SettingsScreen(
                         }
                     )
 
-                    Text(
-                        text = "Log Categories",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    LogCategory.values().forEach { category ->
-                        SwitchSetting(
-                            title = category.displayName,
-                            description = category.description,
-                            checked = settings.enableLogCategories.contains(category),
-                            onCheckedChange = { enabled ->
-                                viewModel.updateLogCategory(category, enabled)
-                            }
-                        )
-                    }
-
                     SliderSetting(
                         title = "Log Retention",
                         description = "Days to keep logs before automatic cleanup",
@@ -568,351 +597,70 @@ fun SettingsScreen(
                         onValueChange = { viewModel.updateLogRetentionDays(it.toInt()) },
                         valueFormatter = { "${it.toInt()} days" }
                     )
-
-                    SwitchSetting(
-                        title = "Performance Logging",
-                        description = "Log performance metrics and timing information",
-                        checked = settings.enablePerformanceLogging,
-                        onCheckedChange = { viewModel.updatePerformanceLogging(it) }
-                    )
-
-                    SwitchSetting(
-                        title = "Error Reporting",
-                        description = "Log errors and crashes for troubleshooting",
-                        checked = settings.enableErrorReporting,
-                        onCheckedChange = { viewModel.updateErrorReporting(it) }
-                    )
-
-                    SwitchSetting(
-                        title = "User Action Logging",
-                        description = "Log user actions for better support",
-                        checked = settings.enableUserActionLogging,
-                        onCheckedChange = { viewModel.updateUserActionLogging(it) }
-                    )
-                }
-
-                // Log Management Actions
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "📋 Log Management",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = onNavigateToLogs,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Search, contentDescription = null)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("View Logs")
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    scope.launch {
-                                        val logsText = viewModel.exportLogs()
-                                        if (logsText != null) {
-                                            shareTextContent(context, logsText, "HaramBlur Logs")
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Share, contentDescription = null)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Export Logs")
-                            }
-                        }
-
-                        Text(
-                            text = "Logs are stored locally and help with troubleshooting. Export them when contacting support.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
                 }
             }
 
-            // Support Section - Enterprise/SaaS style support access
-            SettingsSection(title = "🆘 Support & Help") {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "Need Help?",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Get assistance with setup, troubleshooting, and support. Access detailed logs for faster resolution.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = onNavigateToSupport,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Info, contentDescription = null)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Get Support")
+            // Import/Export Section
+            ImportExportCard(
+                onExportClick = {
+                    scope.launch {
+                        val exportData = viewModel.exportSettingsWithPresetInfo()
+                        try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, "HaramBlur Settings")
+                                putExtra(android.content.Intent.EXTRA_TEXT, exportData)
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
-
-                            OutlinedButton(
-                                onClick = onNavigateToLogs,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Search, contentDescription = null)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("View Logs")
-                            }
+                            val shareIntent = android.content.Intent.createChooser(intent, "Share HaramBlur Settings")
+                            shareIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(shareIntent)
+                        } catch (e: Exception) {
+                            android.util.Log.e("SettingsScreen", "Failed to share content", e)
                         }
                     }
+                },
+                onImportClick = {
+                    // TODO: Implement file picker for import
                 }
-            }
-
-            // Quick Actions
-            SettingsSection(title = "🚀 Quick Actions") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { viewModel.resetToDefaults() },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Reset")
-                    }
-                    
-                    Button(
-                        onClick = { viewModel.applyOptimalSettings() },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Star, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Optimal")
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            val exportData = viewModel.exportSettings()
-                            shareTextContent(context, exportData, "HaramBlur Settings")
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Share, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Export")
-                    }
-                    
-                    OutlinedButton(
-                        onClick = { 
-                            // TODO: Implement import functionality with file picker
-                            // For now, this would need to be handled by the calling activity
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Import")
-                    }
-                }
-            }
+            )
             
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
-}
 
-@Composable
-fun SettingsSection(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            content()
-        }
-    }
-}
-
-@Composable
-fun SwitchSetting(
-    title: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
+    // Preset Confirmation Dialog
+    showPresetConfirmation?.let { preset ->
+        val settingsDiff = viewModel.getSettingsDiff(preset.settings)
+        PresetConfirmationDialog(
+            preset = preset,
+            settingsDiff = settingsDiff,
+            onConfirm = {
+                viewModel.applyPresetWithBackup(preset)
+                showPresetConfirmation = null
+            },
+            onCancel = { showPresetConfirmation = null }
         )
     }
 }
 
-@Composable
-fun RadioButtonGroup(
-    title: String,
-    options: List<Pair<String, String>>,
-    selectedIndex: Int,
-    onSelectionChange: (Int) -> Unit
-) {
-    Column(
-        modifier = Modifier.selectableGroup()
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
-        
-        options.forEachIndexed { index, (name, description) ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .selectable(
-                        selected = (selectedIndex == index),
-                        onClick = { onSelectionChange(index) },
-                        role = Role.RadioButton
-                    )
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = (selectedIndex == index),
-                    onClick = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(text = name)
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SliderSetting(
-    title: String,
-    description: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    onValueChange: (Float) -> Unit,
-    valueFormatter: (Float) -> String
-) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = valueFormatter(value),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = range,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-// Helper function to share text content
-private fun shareTextContent(context: android.content.Context, content: String, subject: String) {
+// Helper function to share text content  
+fun shareTextContent(context: android.content.Context, content: String, subject: String) {
     try {
-        val intent = Intent(Intent.ACTION_SEND).apply {
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, subject)
-            putExtra(Intent.EXTRA_TEXT, content)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            putExtra(android.content.Intent.EXTRA_SUBJECT, subject)
+            putExtra(android.content.Intent.EXTRA_TEXT, content)
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-
-        val shareIntent = Intent.createChooser(intent, "Share $subject")
-        shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val shareIntent = android.content.Intent.createChooser(intent, "Share $subject")
+        shareIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(shareIntent)
 
     } catch (e: Exception) {
         // Handle error silently - user will see no action
         android.util.Log.e("SettingsScreen", "Failed to share content", e)
     }
+}
+
 }

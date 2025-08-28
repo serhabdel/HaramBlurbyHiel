@@ -21,9 +21,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModernTopAppBar(
-    onNavigateToSupport: () -> Unit,
-    onNavigateToLogs: () -> Unit,
-    onNavigateToDebug: () -> Unit,
+    onOpenDrawer: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -42,6 +40,18 @@ fun ModernTopAppBar(
                     )
                 )
             ),
+        navigationIcon = {
+            IconButton(
+                onClick = onOpenDrawer,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    Icons.Default.Menu,
+                    contentDescription = "Open navigation drawer",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -84,53 +94,15 @@ fun ModernTopAppBar(
             }
         },
         actions = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            IconButton(
+                onClick = onNavigateToSettings,
+                modifier = Modifier.size(40.dp)
             ) {
-                IconButton(
-                    onClick = onNavigateToSupport,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = "Support",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                IconButton(
-                    onClick = onNavigateToLogs,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Logs",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                IconButton(
-                    onClick = onNavigateToDebug,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Build,
-                        contentDescription = "Debug",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                IconButton(
-                    onClick = onNavigateToSettings,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

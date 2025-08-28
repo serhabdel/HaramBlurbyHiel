@@ -86,9 +86,7 @@ class LogRepository @Inject constructor(
                 LogLevel.DEBUG -> Log.d(tag, message)
             }
 
-            // Clean up old logs (keep last 7 days)
-            val sevenDaysAgo = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L)
-            logDao.cleanupOldLogs(sevenDaysAgo)
+            // Note: Cleanup is now scheduled separately to reduce per-insert overhead
 
         } catch (e: Exception) {
             // Fallback to Android logging if database fails
@@ -325,6 +323,22 @@ class LogRepository @Inject constructor(
     }
 
     /**
+     * Scheduled cleanup method - call this periodically (e.g., once per day)
+     * Cleans up old logs to prevent database bloat
+     */
+    suspend fun scheduledCleanup(retainDays: Int = 7) {
+        try {
+            val cutoffTimestamp = System.currentTimeMillis() - (retainDays * 24 * 60 * 60 * 1000L)
+            val deletedCount = logDao.cleanupOldLogs(cutoffTimestamp)
+            if (deletedCount > 0) {
+                logInfo("LogRepository", "Scheduled cleanup: deleted $deletedCount old log entries (older than $retainDays days)")
+            }
+        } catch (e: Exception) {
+            logError("LogRepository", "Failed to perform scheduled cleanup", e)
+        }
+    }
+
+    /**
      * Get log count
      */
     fun getLogCount(): Flow<Int> = logDao.getLogCount()
@@ -335,6 +349,265 @@ class LogRepository @Inject constructor(
     fun generateSessionId(): String {
         return UUID.randomUUID().toString().substring(0, 8)
     }
+
+    // Detection Analytics Methods
+
+    /**
+     * Get detection events since a specific timestamp
+     */
+    fun getDetectionEventsSince(timestamp: Long): Flow<List<LogEntity>> {
+        return logDao.getLogsInRange(timestamp, System.currentTimeMillis())
+            .map { logs -> logs.filter { it.category == LogCategory.DETECTION.name } }
+    }
+
+    /**
+     * Get daily detection summary for a specific date
+     */
+    fun getDailyDetectionSummary(date: Long): Flow<DetectionSummary> {
+        val startOfDay = getStartOfDay(date)
+        val endOfDay = startOfDay + (24 * 60 * 60 * 1000L) - 1
+
+        return logDao.getLogsInRange(startOfDay, endOfDay)
+            .map { logs ->
+                val detectionLogs = logs.filter { it.category == LogCategory.DETECTION.name }
+                processDetectionLogs(detectionLogs)
+            }
+    }
+
+    /**
+     * Get weekly detection summary starting from a specific date
+     */
+    fun getWeeklyDetectionSummary(weekStart: Long): Flow<DetectionSummary> {
+        val startOfWeek = getStartOfWeek(weekStart)
+        val endOfWeek = startOfWeek + (7 * 24 * 60 * 60 * 1000L) - 1
+
+        return logDao.getLogsInRange(startOfWeek, endOfWeek)
+            .map { logs ->
+                val detectionLogs = logs.filter { it.category == LogCategory.DETECTION.name }
+                processDetectionLogs(detectionLogs)
+            }
+    }
+
+    /**
+     * Get detection timeline data for chart visualization
+     */
+    fun getDetectionTimeline(hours: Int): Flow<List<TimelinePoint>> {
+        val sinceTimestamp = System.currentTimeMillis() - (hours.toLong() * 60 * 60 * 1000)
+
+        return logDao.getLogsSince(sinceTimestamp)
+            .map { logs ->
+                val detectionLogs = logs.filter { it.category == LogCategory.DETECTION.name }
+                groupLogsByHour(detectionLogs)
+            }
+    }
+
+    /**
+     * Get blocked content timeline data for chart visualization
+     * Filters events where content was actually blocked (should_blur=true or action contains blur/redirect)
+     */
+    fun getBlockedTimeline(hours: Int): Flow<List<TimelinePoint>> {
+        val sinceTimestamp = System.currentTimeMillis() - (hours.toLong() * 60 * 60 * 1000)
+
+        return logDao.getLogsSince(sinceTimestamp)
+            .map { logs ->
+                val blockedLogs = logs.filter { log ->
+                    log.category == LogCategory.DETECTION.name &&
+                    isBlockedEvent(log.message)
+                }
+                groupLogsByHour(blockedLogs)
+            }
+    }
+
+    /**
+     * Check if a log message represents a blocked content event
+     */
+    private fun isBlockedEvent(message: String): Boolean {
+        // Check for should_blur=true
+        if (message.contains("should_blur:true")) {
+            return true
+        }
+
+        // Check for blur/redirect actions
+        val actionsToCheck = listOf("blur", "redirect", "scroll_away", "navigate_back", "auto_close_app")
+        return actionsToCheck.any { action ->
+            message.contains("action:$action", ignoreCase = true)
+        }
+    }
+
+    // Helper data classes for analytics
+
+    /**
+     * Detection summary data class
+     */
+    data class DetectionSummary(
+        val totalDetections: Int = 0,
+        val averageProcessingTime: Double = 0.0,
+        val faceDetections: Int = 0,
+        val nsfwDetections: Int = 0,
+        val violationRate: Float = 0f,
+        val performanceScore: Float = 100f,
+        val successfulDetections: Int = 0,
+        val failedDetections: Int = 0,
+        val uniqueProcessingModes: Set<String> = emptySet(),
+        val averageNsfwConfidence: Float = 0.0f,
+        val maxProcessingTime: Long = 0L,
+        val minProcessingTime: Long = Long.MAX_VALUE
+    ) {
+        companion object {
+            fun empty() = DetectionSummary()
+        }
+    }
+
+    /**
+     * Timeline point for chart visualization
+     */
+    data class TimelinePoint(
+        val timestamp: Long,
+        val detectionCount: Int,
+        val averageProcessingTime: Double,
+        val successRate: Float
+    )
+
+    // Private helper methods
+
+    private fun getStartOfDay(date: Long): Long {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = date
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
+    private fun getStartOfWeek(date: Long): Long {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = date
+        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
+    private fun processDetectionLogs(logs: List<LogEntity>): DetectionSummary {
+        if (logs.isEmpty()) return DetectionSummary.empty()
+
+        var totalDetections = 0
+        var totalProcessingTime = 0.0
+        var faceDetections = 0
+        var nsfwDetections = 0
+        var successfulDetections = 0
+        var failedDetections = 0
+        val processingModes = mutableSetOf<String>()
+        var totalNsfwConfidence = 0.0f
+        var nsfwConfidenceCount = 0
+        var maxProcessingTime = 0L
+        var minProcessingTime = Long.MAX_VALUE
+
+        logs.forEach { log ->
+            totalDetections++
+            val metrics = parseDetectionMetrics(log.message)
+
+            totalProcessingTime += metrics.processingTime
+            faceDetections += metrics.faceCount
+            if (metrics.isNsfw) {
+                nsfwDetections++
+                totalNsfwConfidence += metrics.nsfwConfidence
+                nsfwConfidenceCount++
+            }
+            if (metrics.success) successfulDetections++ else failedDetections++
+            processingModes.add(metrics.performanceMode)
+
+            maxProcessingTime = maxOf(maxProcessingTime, metrics.processingTime.toLong())
+            minProcessingTime = minOf(minProcessingTime, metrics.processingTime.toLong())
+        }
+
+        val averageProcessingTime = if (totalDetections > 0) totalProcessingTime / totalDetections else 0.0
+        val violationRate = if (totalDetections > 0) failedDetections.toFloat() / totalDetections else 0f
+        val performanceScore = (100f - violationRate * 100f).coerceIn(0f, 100f)
+        val averageNsfwConfidence = if (nsfwConfidenceCount > 0) totalNsfwConfidence / nsfwConfidenceCount else 0.0f
+
+        return DetectionSummary(
+            totalDetections = totalDetections,
+            averageProcessingTime = averageProcessingTime,
+            faceDetections = faceDetections,
+            nsfwDetections = nsfwDetections,
+            violationRate = violationRate,
+            performanceScore = performanceScore,
+            successfulDetections = successfulDetections,
+            failedDetections = failedDetections,
+            uniqueProcessingModes = processingModes,
+            averageNsfwConfidence = averageNsfwConfidence,
+            maxProcessingTime = maxProcessingTime,
+            minProcessingTime = if (minProcessingTime == Long.MAX_VALUE) 0L else minProcessingTime
+        )
+    }
+
+    private fun groupLogsByHour(logs: List<LogEntity>): List<TimelinePoint> {
+        val hourlyData = logs.groupBy { log ->
+            val timestamp = log.timestamp
+            timestamp / (60 * 60 * 1000) // Group by hour
+        }
+
+        return hourlyData.map { (hourTimestamp, hourLogs) ->
+            val detectionCount = hourLogs.size
+            val metricsList = hourLogs.map { parseDetectionMetrics(it.message) }
+            val averageProcessingTime = metricsList.map { it.processingTime }.average()
+            val successRate = metricsList.count { it.success }.toFloat() / detectionCount
+
+            TimelinePoint(
+                timestamp = hourTimestamp * 60 * 60 * 1000,
+                detectionCount = detectionCount,
+                averageProcessingTime = averageProcessingTime,
+                successRate = successRate
+            )
+        }.sortedBy { it.timestamp }
+    }
+
+    private fun parseDetectionMetrics(message: String): DetectionMetrics {
+        // Parse structured detection log message
+        // Format: DETECTION|faces:X|nsfw:true|false|nsfw_confidence:X.X|processing_time:Xms|...
+
+        val parts = message.split("|")
+        var faceCount = 0
+        var isNsfw = false
+        var nsfwConfidence = 0.0f
+        var processingTime = 0.0
+        var success = true
+        var performanceMode = "unknown"
+
+        parts.forEach { part ->
+            when {
+                part.startsWith("faces:") -> faceCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("nsfw:") -> isNsfw = part.substringAfter(":").toBoolean()
+                part.startsWith("nsfw_confidence:") -> nsfwConfidence = part.substringAfter(":").toFloatOrNull() ?: 0.0f
+                part.startsWith("processing_time:") -> processingTime = part.substringAfter(":").removeSuffix("ms").toDoubleOrNull() ?: 0.0
+                part.startsWith("success:") -> success = part.substringAfter(":").toBoolean()
+                part.startsWith("performance_mode:") -> performanceMode = part.substringAfter(":")
+                part.startsWith("error:") -> success = false
+            }
+        }
+
+        return DetectionMetrics(
+            faceCount = faceCount,
+            isNsfw = isNsfw,
+            nsfwConfidence = nsfwConfidence,
+            processingTime = processingTime,
+            success = success,
+            performanceMode = performanceMode
+        )
+    }
+
+    private data class DetectionMetrics(
+        val faceCount: Int,
+        val isNsfw: Boolean,
+        val nsfwConfidence: Float,
+        val processingTime: Double,
+        val success: Boolean,
+        val performanceMode: String
+    )
 
     private operator fun String.times(count: Int): String {
         return this.repeat(count)

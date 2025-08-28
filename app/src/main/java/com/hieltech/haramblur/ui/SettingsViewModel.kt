@@ -1,6 +1,7 @@
 package com.hieltech.haramblur.ui
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieltech.haramblur.data.*
@@ -8,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import javax.inject.Inject
 
 @HiltViewModel
@@ -30,6 +32,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val current = settings.value
             settingsRepository.updateSettings(current.copy(enableNSFWDetection = enabled))
+        }
+    }
+    
+    fun toggleServicePause() {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(isServicePaused = !current.isServicePaused))
         }
     }
     
@@ -404,5 +413,308 @@ class SettingsViewModel @Inject constructor(
             val current = settings.value
             settingsRepository.updateSettings(current.copy(llmFallbackToRules = enabled))
         }
+    }
+
+    // Enhanced Preset Management Methods
+
+    /**
+     * Apply Maximum Protection preset with highest security settings
+     */
+    fun applyMaximumProtectionPreset() {
+        viewModelScope.launch {
+            val preset = PresetManager.createMaximumProtectionPreset()
+            settingsRepository.updateSettings(preset.settings)
+            Log.i("SettingsViewModel", "Applied Maximum Protection preset")
+        }
+    }
+
+    /**
+     * Apply Optimal Performance preset balancing performance and protection
+     */
+    fun applyOptimalPerformancePreset() {
+        viewModelScope.launch {
+            val preset = PresetManager.createOptimalPerformancePreset()
+            settingsRepository.updateSettings(preset.settings)
+            Log.i("SettingsViewModel", "Applied Optimal Performance preset")
+        }
+    }
+
+    /**
+     * Apply custom preset with user-defined settings
+     */
+    fun applyCustomPreset(presetData: PresetData) {
+        viewModelScope.launch {
+            settingsRepository.updateSettings(presetData.settings)
+            Log.i("SettingsViewModel", "Applied custom preset: ${presetData.name}")
+        }
+    }
+
+    /**
+     * Get available preset templates
+     */
+    fun getAvailablePresets(): List<PresetData> {
+        return listOf(
+            PresetManager.createMaximumProtectionPreset(),
+            PresetManager.createOptimalPerformancePreset()
+        )
+    }
+
+    /**
+     * Export settings with enhanced preset metadata
+     */
+    fun exportSettingsWithPresetInfo(): String {
+        return settingsRepository.exportSettingsToJsonWithMetadata()
+    }
+
+    /**
+     * Export custom preset for sharing
+     */
+    fun exportPreset(name: String, description: String): String {
+        val currentSettings = settings.value
+        val presetData = PresetData(
+            name = name,
+            description = description,
+            settings = currentSettings,
+            metadata = PresetMetadata(
+                category = PresetCategory.CUSTOM,
+                difficulty = PresetDifficulty.INTERMEDIATE,
+                useCase = "Custom user configuration",
+                isBuiltIn = false
+            )
+        )
+
+        return PresetManager.exportPresetToJson(presetData)
+    }
+
+    /**
+     * Import preset with validation and conflict resolution
+     */
+    fun importPreset(presetJson: String): PresetImportResult {
+        val validation = settingsRepository.validatePresetData(presetJson)
+        if (!validation.isValid) {
+            return PresetImportResult.Error(
+                validation.errors.joinToString("\n"),
+                ImportErrorType.INVALID_JSON
+            )
+        }
+
+        return try {
+            val jsonObject = org.json.JSONObject(presetJson)
+            val settingsJson = jsonObject.getJSONObject("settings")
+
+            val importedSettings = com.hieltech.haramblur.data.AppSettings(
+                enableFaceDetection = settingsJson.optBoolean("enableFaceDetection", true),
+                enableNSFWDetection = settingsJson.optBoolean("enableNSFWDetection", true),
+                blurMaleFaces = settingsJson.optBoolean("blurMaleFaces", false),
+                blurFemaleFaces = settingsJson.optBoolean("blurFemaleFaces", true),
+                detectionSensitivity = settingsJson.optDouble("detectionSensitivity", 0.8).toFloat(),
+                blurIntensity = try {
+                    com.hieltech.haramblur.data.BlurIntensity.valueOf(settingsJson.optString("blurIntensity", BlurIntensity.STRONG.name))
+                } catch (e: IllegalArgumentException) { BlurIntensity.STRONG },
+                blurStyle = try {
+                    com.hieltech.haramblur.data.BlurStyle.valueOf(settingsJson.optString("blurStyle", BlurStyle.ARTISTIC.name))
+                } catch (e: IllegalArgumentException) { BlurStyle.ARTISTIC },
+                expandBlurArea = settingsJson.optInt("expandBlurArea", 30),
+                processingSpeed = try {
+                    com.hieltech.haramblur.data.ProcessingSpeed.valueOf(settingsJson.optString("processingSpeed", ProcessingSpeed.BALANCED.name))
+                } catch (e: IllegalArgumentException) { ProcessingSpeed.BALANCED },
+                enableRealTimeProcessing = settingsJson.optBoolean("enableRealTimeProcessing", true),
+                enableFullScreenBlurForNSFW = settingsJson.optBoolean("enableFullScreenBlurForNSFW", true),
+                showBlurBorders = settingsJson.optBoolean("showBlurBorders", true),
+                enableHoverToReveal = settingsJson.optBoolean("enableHoverToReveal", false),
+                genderDetectionAccuracy = try {
+                    com.hieltech.haramblur.data.GenderAccuracy.valueOf(settingsJson.optString("genderDetectionAccuracy", GenderAccuracy.BALANCED.name))
+                } catch (e: IllegalArgumentException) { GenderAccuracy.BALANCED },
+                contentDensityThreshold = settingsJson.optDouble("contentDensityThreshold", 0.4).toFloat(),
+                mandatoryReflectionTime = settingsJson.optInt("mandatoryReflectionTime", 15),
+                enableSiteBlocking = settingsJson.optBoolean("enableSiteBlocking", true),
+                enableQuranicGuidance = settingsJson.optBoolean("enableQuranicGuidance", true),
+                ultraFastModeEnabled = settingsJson.optBoolean("ultraFastModeEnabled", false),
+                fullScreenWarningEnabled = settingsJson.optBoolean("fullScreenWarningEnabled", true),
+                maxProcessingTimeMs = settingsJson.optLong("maxProcessingTimeMs", 50L),
+                enableGPUAcceleration = settingsJson.optBoolean("enableGPUAcceleration", true),
+                frameSkipThreshold = settingsJson.optInt("frameSkipThreshold", 3),
+                imageDownscaleRatio = settingsJson.optDouble("imageDownscaleRatio", 0.5).toFloat(),
+                preferredLanguage = try {
+                    com.hieltech.haramblur.detection.Language.valueOf(
+                        settingsJson.optString("preferredLanguage", com.hieltech.haramblur.detection.Language.ENGLISH.name)
+                    )
+                } catch (e: IllegalArgumentException) { com.hieltech.haramblur.detection.Language.ENGLISH },
+                verseDisplayDuration = settingsJson.optInt("verseDisplayDuration", 10),
+                enableArabicText = settingsJson.optBoolean("enableArabicText", true),
+                customReflectionTime = settingsJson.optInt("customReflectionTime", 15),
+                genderConfidenceThreshold = settingsJson.optDouble("genderConfidenceThreshold", 0.4).toFloat(),
+                nsfwConfidenceThreshold = settingsJson.optDouble("nsfwConfidenceThreshold", 0.5).toFloat(),
+                enableFallbackDetection = settingsJson.optBoolean("enableFallbackDetection", true),
+                enablePerformanceMonitoring = settingsJson.optBoolean("enablePerformanceMonitoring", true),
+                enableLLMDecisionMaking = settingsJson.optBoolean("enableLLMDecisionMaking", false),
+                openRouterApiKey = settingsJson.optString("openRouterApiKey", ""),
+                llmModel = settingsJson.optString("llmModel", "google/gemma-2-9b-it:free"),
+                llmTimeoutMs = settingsJson.optLong("llmTimeoutMs", 3000L),
+                llmFallbackToRules = settingsJson.optBoolean("llmFallbackToRules", true),
+                enableDetailedLogging = settingsJson.optBoolean("enableDetailedLogging", true),
+                logLevel = try {
+                    com.hieltech.haramblur.data.LogLevel.valueOf(settingsJson.optString("logLevel", LogLevel.INFO.name))
+                } catch (e: IllegalArgumentException) { LogLevel.INFO },
+                enablePerformanceLogging = settingsJson.optBoolean("enablePerformanceLogging", true),
+                enableErrorReporting = settingsJson.optBoolean("enableErrorReporting", true),
+                enableUserActionLogging = settingsJson.optBoolean("enableUserActionLogging", true),
+                maxLogRetentionDays = settingsJson.optInt("maxLogRetentionDays", 7),
+                enableEnhancedBlocking = settingsJson.optBoolean("enableEnhancedBlocking", false),
+                preferredBlockingMethod = try {
+                    com.hieltech.haramblur.detection.BlockingMethod.valueOf(
+                        settingsJson.optString("preferredBlockingMethod", com.hieltech.haramblur.detection.BlockingMethod.ADAPTIVE.name)
+                    )
+                } catch (e: IllegalArgumentException) { com.hieltech.haramblur.detection.BlockingMethod.ADAPTIVE },
+                forceCloseTimeout = settingsJson.optLong("forceCloseTimeout", 5000L),
+                settingsVersion = settingsJson.optInt("settingsVersion", 3)
+            )
+
+            val preset = PresetData(
+                name = jsonObject.getString("name"),
+                description = jsonObject.optString("description", ""),
+                version = jsonObject.optInt("version", 3),
+                settings = importedSettings,
+                metadata = PresetMetadata(
+                    category = try {
+                        PresetCategory.valueOf(jsonObject.getJSONObject("metadata").optString("category", PresetCategory.CUSTOM.name))
+                    } catch (e: Exception) { PresetCategory.CUSTOM },
+                    difficulty = try {
+                        PresetDifficulty.valueOf(jsonObject.getJSONObject("metadata").optString("difficulty", PresetDifficulty.INTERMEDIATE.name))
+                    } catch (e: Exception) { PresetDifficulty.INTERMEDIATE },
+                    useCase = jsonObject.getJSONObject("metadata").optString("useCase", "Custom configuration"),
+                    author = jsonObject.getJSONObject("metadata").optString("author", "Unknown"),
+                    isBuiltIn = jsonObject.getJSONObject("metadata").optBoolean("isBuiltIn", false),
+                    tags = jsonObject.getJSONObject("metadata").optString("tags", "").split(",").filter { it.isNotBlank() }.toSet()
+                ),
+                creationTimestamp = jsonObject.optLong("creationTimestamp", System.currentTimeMillis())
+            )
+
+            PresetImportResult.Success(preset)
+        } catch (e: Exception) {
+            Log.e("SettingsViewModel", "Failed to import preset", e)
+            PresetImportResult.Error("Failed to parse preset: ${e.message}", ImportErrorType.INVALID_JSON)
+        }
+    }
+
+    /**
+     * Validate preset compatibility
+     */
+    fun validatePresetCompatibility(preset: PresetData): ValidationResult {
+        val errors = mutableListOf<String>()
+        val warnings = mutableListOf<String>()
+
+        // Version compatibility check
+        if (preset.version > 3) {
+            errors.add("Preset version (${preset.version}) is newer than current app version (3)")
+        } else if (preset.version < 2) {
+            warnings.add("Preset version (${preset.version}) is older and may have compatibility issues")
+        }
+
+        // Settings bounds validation
+        val settings = preset.settings
+        if (settings.detectionSensitivity !in 0.3f..0.9f) {
+            errors.add("Detection sensitivity (${settings.detectionSensitivity}) is outside valid range (0.3-0.9)")
+        }
+
+        if (settings.genderConfidenceThreshold !in 0.3f..0.8f) {
+            errors.add("Gender confidence threshold (${settings.genderConfidenceThreshold}) is outside valid range (0.3-0.8)")
+        }
+
+        if (settings.nsfwConfidenceThreshold !in 0.4f..0.7f) {
+            errors.add("NSFW confidence threshold (${settings.nsfwConfidenceThreshold}) is outside valid range (0.4-0.7)")
+        }
+
+        // Dependency checks
+        if (settings.enableLLMDecisionMaking && settings.openRouterApiKey.isBlank()) {
+            warnings.add("LLM decision making is enabled but no API key is configured")
+        }
+
+        return ValidationResult(
+            isValid = errors.isEmpty(),
+            errors = errors,
+            warnings = warnings,
+            compatibility = if (preset.version > 3) CompatibilityStatus.INCOMPATIBLE else CompatibilityStatus.COMPATIBLE
+        )
+    }
+
+    /**
+     * Get settings organized by category for dynamic UI generation
+     */
+    fun getSettingsCategories(): Map<SettingsCategory, List<SettingItem>> {
+        return PresetManager.getSettingsCategories()
+    }
+
+    /**
+     * Search settings by query
+     */
+    fun searchSettings(query: String): List<SettingItem> {
+        return PresetManager.searchSettings(query)
+    }
+
+    /**
+     * Create preset from current settings
+     */
+    fun createPresetFromCurrent(name: String, description: String): PresetData {
+        val currentSettings = settings.value
+        return PresetData(
+            name = name,
+            description = description,
+            settings = currentSettings,
+            metadata = PresetMetadata(
+                category = PresetCategory.CUSTOM,
+                difficulty = PresetDifficulty.INTERMEDIATE,
+                useCase = "Custom user configuration",
+                isBuiltIn = false
+            )
+        )
+    }
+
+    /**
+     * Get preset templates for UI display
+     */
+    fun getPresetTemplates(): List<PresetTemplate> {
+        return settingsRepository.getPresetTemplates()
+    }
+
+    /**
+     * Apply preset with backup and validation
+     */
+    fun applyPresetWithBackup(preset: PresetData) {
+        viewModelScope.launch {
+            try {
+                // Backup current settings
+                val backup = settingsRepository.backupCurrentSettings()
+
+                // Validate preset
+                val validation = validatePresetCompatibility(preset)
+                if (!validation.isValid) {
+                    Log.e("SettingsViewModel", "Preset validation failed: ${validation.errors.joinToString()}")
+                    return@launch
+                }
+
+                // Apply preset
+                settingsRepository.updateSettings(preset.settings)
+
+                // Update preset tracking
+                val current = settings.value
+                settingsRepository.updateSettings(current.copy(
+                    currentPreset = preset.name,
+                    lastPresetUpdate = System.currentTimeMillis()
+                ))
+
+                Log.i("SettingsViewModel", "Successfully applied preset: ${preset.name}")
+            } catch (e: Exception) {
+                Log.e("SettingsViewModel", "Failed to apply preset", e)
+            }
+        }
+    }
+
+    /**
+     * Get settings difference for UI display
+     */
+    fun getSettingsDiff(imported: AppSettings): SettingsDiff {
+        val current = settings.value
+        return settingsRepository.getSettingsDiff(current, imported)
     }
 }

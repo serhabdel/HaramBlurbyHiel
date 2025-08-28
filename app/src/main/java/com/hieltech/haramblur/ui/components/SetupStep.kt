@@ -22,13 +22,13 @@ fun SetupStep(
 ) {
     Row(
         verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(responsiveSpacing()),
         modifier = modifier.fillMaxWidth()
     ) {
         // Number indicator
         Box(
             modifier = Modifier
-                .size(24.dp)
+                .size(responsiveIconSize() * 0.75f)
                 .clip(CircleShape)
                 .background(
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)

@@ -11,6 +11,7 @@ import com.hieltech.haramblur.data.AppRegistry
 import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.data.LogRepository.LogCategory
 import com.hieltech.haramblur.data.database.*
+import com.hieltech.haramblur.utils.SocialMediaDetector
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
@@ -65,6 +66,20 @@ interface AppBlockingManager {
     suspend fun getSuggestedAppsToBlock(): List<String>
     suspend fun blockDefaultApps(): Int
     suspend fun getAppsByCategory(category: String): List<BlockedAppEntity>
+
+    // Social media specific methods
+    suspend fun getInstalledSocialMediaApps(): List<AppInfo>
+    suspend fun getSocialMediaAppsBySubcategory(subcategory: String): List<BlockedAppEntity>
+    suspend fun blockAllSocialMediaApps(): Int
+    suspend fun unblockAllSocialMediaApps(): Int
+    suspend fun suggestSocialMediaAppsToBlock(): List<String>
+    data class SocialMediaStats(
+        val totalSocialMediaApps: Int,
+        val blockedSocialMediaApps: Int,
+        val mostUsedCategory: String,
+        val totalBlockedTime: Long
+    )
+    suspend fun getSocialMediaBlockingStats(): SocialMediaStats
 }
 
 /**
@@ -200,63 +215,107 @@ class AppBlockingManagerImpl @Inject constructor(
 
     override suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
         try {
-            val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-            android.util.Log.d(TAG, "Total installed applications: ${installedApps.size}")
             val appInfos = mutableListOf<AppInfo>()
+            
+            // Android 11+ enhanced detection approach
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                // Method 1: Try to get all installed applications (requires QUERY_ALL_PACKAGES)
+                try {
+                    val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+                    android.util.Log.d(TAG, "Android 11+ full detection: Found ${installedApps.size} apps")
+                    
+                    for (app in installedApps) {
+                        // Skip system apps that are not user-facing or popular
+                        if (isSystemApp(app.packageName) &&
+                            !AppRegistry.ALL_POPULAR_APPS.containsKey(app.packageName) &&
+                            !isUserFacingSystemApp(app.packageName) &&
+                            !isCommonlyUsedSystemApp(app.packageName)) {
+                            continue
+                        }
 
-            for (app in installedApps) {
-                // Debug logging for specific apps
-                val isTargetApp = app.packageName?.contains("instagram") == true ||
-                    app.packageName?.contains("whatsapp") == true ||
-                    app.packageName?.contains("chrome") == true
+                        // Skip the app itself
+                        if (app.packageName == "com.hieltech.haramblur") {
+                            continue
+                        }
 
-                if (isTargetApp) {
-                    android.util.Log.d(TAG, "Checking app: ${app.packageName}, isSystemApp: ${isSystemApp(app.packageName)}, inPopularApps: ${AppRegistry.ALL_POPULAR_APPS.containsKey(app.packageName)}")
+                        val appInfo = packageManager.getApplicationInfo(app.packageName, 0)
+                        val appName = packageManager.getApplicationLabel(appInfo).toString()
+                        val category = getAppCategory(app.packageName)
+
+                        appInfos.add(AppInfo(
+                            packageName = app.packageName,
+                            appName = appName,
+                            category = category,
+                            isSystemApp = isSystemApp(app.packageName),
+                            icon = null
+                        ))
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Full app detection failed, falling back to targeted detection: ${e.message}")
+                    
+                    // Method 2: Fallback - Check specific known packages (uses queries in manifest)
+                    val knownPackages = AppRegistry.ALL_POPULAR_APPS.keys + 
+                                      SocialMediaDetector.getAllSocialMediaPackageNames()
+                    
+                    for (packageName in knownPackages) {
+                        try {
+                            // Skip the app itself
+                            if (packageName == "com.hieltech.haramblur") {
+                                continue
+                            }
+                            
+                            val appInfo = packageManager.getApplicationInfo(packageName, 0)
+                            val appName = packageManager.getApplicationLabel(appInfo).toString()
+                            val category = getAppCategory(packageName)
+                            
+                            appInfos.add(AppInfo(
+                                packageName = packageName,
+                                appName = appName,
+                                category = category,
+                                isSystemApp = isSystemApp(packageName),
+                                icon = null
+                            ))
+                            android.util.Log.d(TAG, "Found installed app: $appName ($packageName)")
+                        } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                            // App not installed, continue
+                        } catch (e: Exception) {
+                            android.util.Log.w(TAG, "Error checking package $packageName: ${e.message}")
+                        }
+                    }
                 }
+            } else {
+                // Pre-Android 11 approach
+                val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+                
+                for (app in installedApps) {
+                    if (isSystemApp(app.packageName) &&
+                        !AppRegistry.ALL_POPULAR_APPS.containsKey(app.packageName) &&
+                        !isUserFacingSystemApp(app.packageName) &&
+                        !isCommonlyUsedSystemApp(app.packageName)) {
+                        continue
+                    }
 
-                // Debug first 10 apps to see the pattern
-                if (appInfos.size < 10) {
-                    android.util.Log.d(TAG, "Processing app: ${app.packageName}, isSystemApp: ${isSystemApp(app.packageName)}")
+                    // Skip the app itself
+                    if (app.packageName == "com.hieltech.haramblur") {
+                        continue
+                    }
+
+                    val appInfo = packageManager.getApplicationInfo(app.packageName, 0)
+                    val appName = packageManager.getApplicationLabel(appInfo).toString()
+                    val category = getAppCategory(app.packageName)
+
+                    appInfos.add(AppInfo(
+                        packageName = app.packageName,
+                        appName = appName,
+                        category = category,
+                        isSystemApp = isSystemApp(app.packageName),
+                        icon = null
+                    ))
                 }
-
-                // TEMPORARILY DISABLE FILTERING TO SEE ALL APPS
-                // Skip only core system components that are definitely not user apps
-                if (isSystemApp(app.packageName) &&
-                    !AppRegistry.ALL_POPULAR_APPS.containsKey(app.packageName) &&
-                    !isUserFacingSystemApp(app.packageName) &&
-                    !isCommonlyUsedSystemApp(app.packageName) &&
-                    (app.packageName?.startsWith("com.android.") == true) &&
-                    (app.packageName?.contains("vending") != true)) { // Allow Google Play Store
-                    continue
-                }
-
-                // Skip the app itself
-                if (app.packageName == "com.hieltech.haramblur") {
-                    continue
-                }
-
-                val appInfo = packageManager.getApplicationInfo(app.packageName, 0)
-                val appName = packageManager.getApplicationLabel(appInfo).toString()
-                val category = getAppCategory(app.packageName)
-
-                // Debug logging for popular apps
-                if (app.packageName?.contains("instagram") == true ||
-                    app.packageName?.contains("whatsapp") == true ||
-                    app.packageName?.contains("chrome") == true) {
-                    android.util.Log.d(TAG, "Adding app: $appName (${app.packageName}) - Category: $category")
-                }
-
-                appInfos.add(AppInfo(
-                    packageName = app.packageName,
-                    appName = appName,
-                    category = category,
-                    isSystemApp = isSystemApp(app.packageName),
-                    icon = null // Will be loaded when needed
-                ))
             }
 
             val sortedApps = appInfos.sortedBy { it.appName }
-            android.util.Log.d(TAG, "Returning ${sortedApps.size} user-facing apps")
+            android.util.Log.d(TAG, "Retrieved ${sortedApps.size} installed apps")
             return@withContext sortedApps
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error getting installed apps", e)
@@ -461,12 +520,12 @@ class AppBlockingManagerImpl @Inject constructor(
                         forceCloseApp(packageName)
                     } else {
                         // Fall back to accessibility service
-                        true
+                        blockAppWithAccessibilityService(packageName)
                     }
                 }
                 com.hieltech.haramblur.detection.BlockingMethod.ACCESSIBILITY_ONLY -> {
-                    // Accessibility service will handle blocking
-                    true
+                    // Use accessibility service to go back to home screen
+                    blockAppWithAccessibilityService(packageName)
                 }
             }
         } catch (e: Exception) {
@@ -665,6 +724,138 @@ class AppBlockingManagerImpl @Inject constructor(
         }
     }
 
+    // Social media specific method implementations
+
+    override suspend fun getInstalledSocialMediaApps(): List<AppInfo> = withContext(Dispatchers.IO) {
+        try {
+            val allApps = getInstalledApps()
+            return@withContext SocialMediaDetector.getInstalledSocialMediaApps(allApps)
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error getting installed social media apps", e)
+            return@withContext emptyList()
+        }
+    }
+
+    override suspend fun getSocialMediaAppsBySubcategory(subcategory: String): List<BlockedAppEntity> = withContext(Dispatchers.IO) {
+        try {
+            val allApps = blockedAppDao.getAllApps()
+            return@withContext allApps.filter { app ->
+                val appSubcategory = AppRegistry.getSocialMediaSubcategory(app.packageName)
+                appSubcategory == subcategory
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error getting social media apps by subcategory", e)
+            return@withContext emptyList()
+        }
+    }
+
+    override suspend fun blockAllSocialMediaApps(): Int = withContext(Dispatchers.IO) {
+        try {
+            // Get installed apps and filter to social media apps only
+            val installedApps = getInstalledApps()
+            val installedSocialMediaApps = SocialMediaDetector.getInstalledSocialMediaApps(installedApps)
+            val socialMediaPackageNames = installedSocialMediaApps.map { it.packageName }
+            var blockedCount = 0
+
+            socialMediaPackageNames.forEach { packageName ->
+                val success = blockApp(packageName, "bulk_social_media")
+                if (success) blockedCount++
+            }
+
+            android.util.Log.d(TAG, "Blocked $blockedCount social media apps")
+            return@withContext blockedCount
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error blocking all social media apps", e)
+            return@withContext 0
+        }
+    }
+
+    override suspend fun unblockAllSocialMediaApps(): Int = withContext(Dispatchers.IO) {
+        try {
+            // Get installed apps and filter to social media apps only
+            val installedApps = getInstalledApps()
+            val installedSocialMediaApps = SocialMediaDetector.getInstalledSocialMediaApps(installedApps)
+            val socialMediaPackageNames = installedSocialMediaApps.map { it.packageName }
+            var unblockedCount = 0
+
+            socialMediaPackageNames.forEach { packageName ->
+                val success = unblockApp(packageName)
+                if (success) unblockedCount++
+            }
+
+            android.util.Log.d(TAG, "Unblocked $unblockedCount social media apps")
+            return@withContext unblockedCount
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error unblocking all social media apps", e)
+            return@withContext 0
+        }
+    }
+
+    override suspend fun suggestSocialMediaAppsToBlock(): List<String> = withContext(Dispatchers.IO) {
+        try {
+            val installedApps = getInstalledApps()
+            val installedPackageNames = installedApps.map { it.packageName }.toSet()
+
+            // Get apps that are commonly suggested for blocking but not already blocked
+            val suggestedPackages = AppRegistry.SUGGESTED_BLOCKED_APPS.filter { packageName ->
+                installedPackageNames.contains(packageName) &&
+                blockedAppDao.getAppByPackageName(packageName)?.isBlocked != true
+            }.toMutableList()
+
+            // Add additional social media apps that might be worth blocking
+            val additionalSuggestions = listOf(
+                "com.instagram.android",
+                "com.snapchat.android",
+                "com.zhiliaoapp.musically",
+                "com.google.android.youtube"
+            ).filter { packageName ->
+                installedPackageNames.contains(packageName) &&
+                blockedAppDao.getAppByPackageName(packageName)?.isBlocked != true &&
+                !suggestedPackages.contains(packageName)
+            }
+
+            suggestedPackages.addAll(additionalSuggestions)
+
+            android.util.Log.d(TAG, "Suggested ${suggestedPackages.size} social media apps to block")
+            return@withContext suggestedPackages
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error getting social media app suggestions", e)
+            return@withContext emptyList()
+        }
+    }
+
+    override suspend fun getSocialMediaBlockingStats(): AppBlockingManager.SocialMediaStats = withContext(Dispatchers.IO) {
+        try {
+            val allApps = blockedAppDao.getAllApps()
+            val socialMediaApps = allApps.filter { app ->
+                AppRegistry.isSocialMediaRelated(app.packageName)
+            }
+
+            val blockedSocialMediaApps = socialMediaApps.filter { it.isBlocked }
+
+            // Calculate most used category
+            val categoryCount = socialMediaApps.groupBy { app ->
+                AppRegistry.getSocialMediaSubcategory(app.packageName) ?: "other"
+            }.maxByOrNull { it.value.size }?.key ?: "other"
+
+            // Calculate total blocked time (simplified - would need more complex logic for real implementation)
+            val totalBlockedTime = blockedSocialMediaApps.sumOf { app ->
+                // Simplified calculation - in reality you'd track actual usage time
+                app.blockCount?.toLong() ?: 0L
+            } * 60000L // Assume 1 minute per block
+
+            return@withContext AppBlockingManager.SocialMediaStats(
+                totalSocialMediaApps = socialMediaApps.size,
+                blockedSocialMediaApps = blockedSocialMediaApps.size,
+                mostUsedCategory = categoryCount,
+                totalBlockedTime = totalBlockedTime
+            )
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error getting social media blocking stats", e)
+            return@withContext AppBlockingManager.SocialMediaStats(0, 0, "unknown", 0L)
+        }
+    }
+
     // Private helper methods
 
     private fun isUserFacingSystemApp(packageName: String): Boolean {
@@ -809,6 +1000,40 @@ class AppBlockingManagerImpl @Inject constructor(
             )
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /**
+     * Block app using accessibility service by returning to home screen
+     */
+    private fun blockAppWithAccessibilityService(packageName: String): Boolean {
+        return try {
+            // Create intent to go to home screen
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            
+            // Start home activity to effectively "close" the blocked app
+            context.startActivity(homeIntent)
+            
+            runBlocking {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Blocked app $packageName by returning to home screen",
+                    category = LogCategory.BLOCKING
+                )
+            }
+            true
+        } catch (e: Exception) {
+            runBlocking {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Error blocking app $packageName with accessibility service: ${e.message}",
+                    category = LogCategory.BLOCKING
+                )
+            }
+            false
         }
     }
 

@@ -73,16 +73,6 @@ fun responsiveGridColumns(): Int {
     }
 }
 
-/**
- * Get responsive card width
- */
-@Composable
-fun responsiveCardWidth(): Modifier {
-    return when (getScreenSize()) {
-        ScreenSize.COMPACT -> Modifier.fillMaxWidth()
-        else -> Modifier.fillMaxWidth(0.8f)
-    }
-}
 
 /**
  * Get responsive text sizes
@@ -161,5 +151,53 @@ fun ResponsiveActionGrid(
                 }
             }
         }
+    }
+}
+
+/**
+ * Get responsive emoji text size
+ */
+@Composable
+fun responsiveEmojiSize(): TextUnit {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> 32.sp
+        ScreenSize.MEDIUM -> 36.sp
+        ScreenSize.EXPANDED -> 40.sp
+    }
+}
+
+/**
+ * Get responsive card padding
+ */
+@Composable
+fun responsiveCardPadding(): PaddingValues {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> PaddingValues(16.dp)
+        ScreenSize.MEDIUM -> PaddingValues(20.dp)
+        ScreenSize.EXPANDED -> PaddingValues(24.dp)
+    }
+}
+
+/**
+ * Get responsive icon size
+ */
+@Composable
+fun responsiveIconSize(): Dp {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> 32.dp
+        ScreenSize.MEDIUM -> 36.dp
+        ScreenSize.EXPANDED -> 40.dp
+    }
+}
+
+/**
+ * Get responsive max content width
+ */
+@Composable
+fun responsiveMaxContentWidth(maxExpanded: Dp = 840.dp): Modifier {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> Modifier.fillMaxWidth()
+        ScreenSize.MEDIUM -> Modifier.fillMaxWidth(0.9f).widthIn(max = maxExpanded)
+        ScreenSize.EXPANDED -> Modifier.fillMaxWidth(0.7f).widthIn(max = maxExpanded)
     }
 }
