@@ -103,6 +103,24 @@ data class AppSettings(
     val currentPreset: String = "Custom", // Name of currently active preset
     val lastPresetUpdate: Long = 0L, // Timestamp of last preset application
     val presetLockEnabled: Boolean = false, // Whether current preset is locked
+    
+    // Dhikr Settings - Islamic Remembrance Display
+    val dhikrEnabled: Boolean = true, // Enable/disable dhikr feature
+    val dhikrMorningEnabled: Boolean = true, // Show morning dhikr
+    val dhikrEveningEnabled: Boolean = true, // Show evening dhikr
+    val dhikrAnytimeEnabled: Boolean = true, // Show anytime dhikr
+    val dhikrMorningStart: Int = 5, // Morning dhikr start time (24-hour format)
+    val dhikrMorningEnd: Int = 10, // Morning dhikr end time
+    val dhikrEveningStart: Int = 17, // Evening dhikr start time
+    val dhikrEveningEnd: Int = 22, // Evening dhikr end time
+    val dhikrIntervalMinutes: Int = 60, // Interval between dhikr displays
+    val dhikrDisplayDuration: Int = 10, // How long to display each dhikr (seconds)
+    val dhikrShowTransliteration: Boolean = true, // Show transliteration
+    val dhikrShowTranslation: Boolean = true, // Show English translation
+    val dhikrPosition: String = "TOP_RIGHT", // Display position on screen
+    val dhikrAnimationEnabled: Boolean = true, // Enable slide-in animation
+    val dhikrSoundEnabled: Boolean = false, // Enable notification sound
+    
     val settingsVersion: Int = 3 // Configuration version for compatibility tracking
 )
 

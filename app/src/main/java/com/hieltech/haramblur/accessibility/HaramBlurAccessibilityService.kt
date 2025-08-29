@@ -82,6 +82,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
     @Inject
     lateinit var foregroundAppMonitor: ForegroundAppMonitor
+    
+    @Inject
+    lateinit var dhikrManager: com.hieltech.haramblur.services.DhikrManager
 
     // TODO: Behavioral action components temporarily disabled
     
@@ -173,6 +176,14 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
         // Clean up all components
         cleanupComponents()
+        
+        // Clean up dhikr manager
+        try {
+            dhikrManager.cleanup()
+            Log.d(TAG, "DhikrManager cleaned up")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error cleaning up DhikrManager: ${e.message}")
+        }
 
         serviceScope.cancel()
         instance = null
@@ -211,6 +222,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
             // Initialize overlay manager
             blurOverlayManager.initialize(this@HaramBlurAccessibilityService)
+            
+            // Initialize dhikr manager
+            dhikrManager.initialize(this@HaramBlurAccessibilityService)
 
             // Behavioral action components temporarily disabled for build
 

@@ -503,6 +503,111 @@ fun SettingsScreen(
                                 valueFormatter = { "${it.toInt()}s" }
                             )
                         }
+                        
+                        // Dhikr Settings
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(
+                                    "Dhikr (Remembrance)",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                
+                                SwitchSetting(
+                                    title = "Enable Dhikr",
+                                    description = "Show Islamic remembrances throughout the day",
+                                    checked = settings.dhikrEnabled,
+                                    onCheckedChange = { viewModel.updateDhikrEnabled(it) }
+                                )
+                                
+                                if (settings.dhikrEnabled) {
+                                    SwitchSetting(
+                                        title = "Morning Dhikr",
+                                        description = "Display morning remembrances (5 AM - 10 AM)",
+                                        checked = settings.dhikrMorningEnabled,
+                                        onCheckedChange = { viewModel.updateDhikrMorningEnabled(it) }
+                                    )
+                                    
+                                    SwitchSetting(
+                                        title = "Evening Dhikr",
+                                        description = "Display evening remembrances (5 PM - 10 PM)",
+                                        checked = settings.dhikrEveningEnabled,
+                                        onCheckedChange = { viewModel.updateDhikrEveningEnabled(it) }
+                                    )
+                                    
+                                    SwitchSetting(
+                                        title = "Anytime Dhikr",
+                                        description = "Display general remembrances throughout the day",
+                                        checked = settings.dhikrAnytimeEnabled,
+                                        onCheckedChange = { viewModel.updateDhikrAnytimeEnabled(it) }
+                                    )
+                                    
+                                    SliderSetting(
+                                        title = "Display Interval",
+                                        description = "Minutes between dhikr displays",
+                                        value = settings.dhikrIntervalMinutes.toFloat(),
+                                        range = 15f..240f,
+                                        onValueChange = { viewModel.updateDhikrInterval(it.toInt()) },
+                                        valueFormatter = { "${it.toInt()} min" }
+                                    )
+                                    
+                                    SliderSetting(
+                                        title = "Display Duration",
+                                        description = "How long to display each dhikr",
+                                        value = settings.dhikrDisplayDuration.toFloat(),
+                                        range = 5f..30f,
+                                        onValueChange = { viewModel.updateDhikrDisplayDuration(it.toInt()) },
+                                        valueFormatter = { "${it.toInt()}s" }
+                                    )
+                                    
+                                    RadioButtonGroup(
+                                        title = "Display Position",
+                                        options = listOf(
+                                            "TOP_RIGHT" to "Top Right",
+                                            "TOP_LEFT" to "Top Left",
+                                            "BOTTOM_RIGHT" to "Bottom Right",
+                                            "BOTTOM_LEFT" to "Bottom Left",
+                                            "CENTER" to "Center"
+                                        ),
+                                        selectedIndex = listOf("TOP_RIGHT", "TOP_LEFT", "BOTTOM_RIGHT", "BOTTOM_LEFT", "CENTER")
+                                            .indexOf(settings.dhikrPosition),
+                                        onSelectionChange = { index ->
+                                            val positions = listOf("TOP_RIGHT", "TOP_LEFT", "BOTTOM_RIGHT", "BOTTOM_LEFT", "CENTER")
+                                            viewModel.updateDhikrPosition(positions[index])
+                                        }
+                                    )
+                                    
+                                    SwitchSetting(
+                                        title = "Show Transliteration",
+                                        description = "Display romanized pronunciation",
+                                        checked = settings.dhikrShowTransliteration,
+                                        onCheckedChange = { viewModel.updateDhikrShowTransliteration(it) }
+                                    )
+                                    
+                                    SwitchSetting(
+                                        title = "Show Translation",
+                                        description = "Display English translation",
+                                        checked = settings.dhikrShowTranslation,
+                                        onCheckedChange = { viewModel.updateDhikrShowTranslation(it) }
+                                    )
+                                    
+                                    SwitchSetting(
+                                        title = "Animation",
+                                        description = "Enable slide-in animation",
+                                        checked = settings.dhikrAnimationEnabled,
+                                        onCheckedChange = { viewModel.updateDhikrAnimationEnabled(it) }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

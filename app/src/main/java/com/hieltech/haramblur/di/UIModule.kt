@@ -6,6 +6,8 @@ import com.hieltech.haramblur.ui.components.WarningDialogManager
 import com.hieltech.haramblur.ui.effects.BlurEffectivenessValidator
 import com.hieltech.haramblur.data.QuranicRepository
 import com.hieltech.haramblur.data.SettingsRepository
+import com.hieltech.haramblur.services.DhikrManager
+import com.hieltech.haramblur.data.DhikrRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -48,5 +50,13 @@ object UIModule {
     @Singleton
     fun provideBlurEffectivenessValidator(): BlurEffectivenessValidator {
         return BlurEffectivenessValidator()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideDhikrManager(
+        dhikrRepository: DhikrRepository
+    ): DhikrManager {
+        return DhikrManager(dhikrRepository)
     }
 }

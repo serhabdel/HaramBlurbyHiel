@@ -717,4 +717,75 @@ class SettingsViewModel @Inject constructor(
         val current = settings.value
         return settingsRepository.getSettingsDiff(current, imported)
     }
+    
+    // Dhikr Settings Methods
+    fun updateDhikrEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrEnabled = enabled))
+        }
+    }
+    
+    fun updateDhikrMorningEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrMorningEnabled = enabled))
+        }
+    }
+    
+    fun updateDhikrEveningEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrEveningEnabled = enabled))
+        }
+    }
+    
+    fun updateDhikrAnytimeEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrAnytimeEnabled = enabled))
+        }
+    }
+    
+    fun updateDhikrInterval(intervalMinutes: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrIntervalMinutes = intervalMinutes))
+        }
+    }
+    
+    fun updateDhikrDisplayDuration(durationSeconds: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrDisplayDuration = durationSeconds))
+        }
+    }
+    
+    fun updateDhikrPosition(position: String) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrPosition = position))
+        }
+    }
+    
+    fun updateDhikrShowTransliteration(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrShowTransliteration = enabled))
+        }
+    }
+    
+    fun updateDhikrShowTranslation(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrShowTranslation = enabled))
+        }
+    }
+    
+    fun updateDhikrAnimationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(dhikrAnimationEnabled = enabled))
+        }
+    }
 }

@@ -87,7 +87,24 @@ class SettingsRepository @Inject constructor(
             genderConfidenceThreshold = prefs.getFloat("gender_confidence_threshold", 0.8f),
             nsfwConfidenceThreshold = prefs.getFloat("nsfw_confidence_threshold", 0.7f),
             enableFallbackDetection = prefs.getBoolean("enable_fallback_detection", true),
-            enablePerformanceMonitoring = prefs.getBoolean("enable_performance_monitoring", true)
+            enablePerformanceMonitoring = prefs.getBoolean("enable_performance_monitoring", true),
+            
+            // Dhikr Settings
+            dhikrEnabled = prefs.getBoolean("dhikr_enabled", true),
+            dhikrMorningEnabled = prefs.getBoolean("dhikr_morning_enabled", true),
+            dhikrEveningEnabled = prefs.getBoolean("dhikr_evening_enabled", true),
+            dhikrAnytimeEnabled = prefs.getBoolean("dhikr_anytime_enabled", true),
+            dhikrMorningStart = prefs.getInt("dhikr_morning_start", 5),
+            dhikrMorningEnd = prefs.getInt("dhikr_morning_end", 10),
+            dhikrEveningStart = prefs.getInt("dhikr_evening_start", 17),
+            dhikrEveningEnd = prefs.getInt("dhikr_evening_end", 22),
+            dhikrIntervalMinutes = prefs.getInt("dhikr_interval_minutes", 60),
+            dhikrDisplayDuration = prefs.getInt("dhikr_display_duration", 10),
+            dhikrShowTransliteration = prefs.getBoolean("dhikr_show_transliteration", true),
+            dhikrShowTranslation = prefs.getBoolean("dhikr_show_translation", true),
+            dhikrPosition = prefs.getString("dhikr_position", "TOP_RIGHT") ?: "TOP_RIGHT",
+            dhikrAnimationEnabled = prefs.getBoolean("dhikr_animation_enabled", true),
+            dhikrSoundEnabled = prefs.getBoolean("dhikr_sound_enabled", false)
         )
     }
     
@@ -148,6 +165,23 @@ class SettingsRepository @Inject constructor(
             putFloat("nsfw_confidence_threshold", settings.nsfwConfidenceThreshold)
             putBoolean("enable_fallback_detection", settings.enableFallbackDetection)
             putBoolean("enable_performance_monitoring", settings.enablePerformanceMonitoring)
+            
+            // Dhikr Settings
+            putBoolean("dhikr_enabled", settings.dhikrEnabled)
+            putBoolean("dhikr_morning_enabled", settings.dhikrMorningEnabled)
+            putBoolean("dhikr_evening_enabled", settings.dhikrEveningEnabled)
+            putBoolean("dhikr_anytime_enabled", settings.dhikrAnytimeEnabled)
+            putInt("dhikr_morning_start", settings.dhikrMorningStart)
+            putInt("dhikr_morning_end", settings.dhikrMorningEnd)
+            putInt("dhikr_evening_start", settings.dhikrEveningStart)
+            putInt("dhikr_evening_end", settings.dhikrEveningEnd)
+            putInt("dhikr_interval_minutes", settings.dhikrIntervalMinutes)
+            putInt("dhikr_display_duration", settings.dhikrDisplayDuration)
+            putBoolean("dhikr_show_transliteration", settings.dhikrShowTransliteration)
+            putBoolean("dhikr_show_translation", settings.dhikrShowTranslation)
+            putString("dhikr_position", settings.dhikrPosition)
+            putBoolean("dhikr_animation_enabled", settings.dhikrAnimationEnabled)
+            putBoolean("dhikr_sound_enabled", settings.dhikrSoundEnabled)
             
             apply()
         }
