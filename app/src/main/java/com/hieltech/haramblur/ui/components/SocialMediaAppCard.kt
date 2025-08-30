@@ -1,6 +1,7 @@
 package com.hieltech.haramblur.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -8,9 +9,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import com.hieltech.haramblur.detection.AppInfo
 import com.hieltech.haramblur.utils.SocialMediaDetector
 
@@ -43,11 +48,19 @@ fun SocialMediaAppCard(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // App icon placeholder with category emoji
-                Text(
-                    text = getCategoryEmoji(subcategory),
-                    style = MaterialTheme.typography.headlineMedium
-                )
+                // App icon - use actual icon if available, fallback to emoji
+                if (appInfo.icon != null) {
+                    Image(
+                        painter = BitmapPainter(appInfo.icon.toBitmap().asImageBitmap()),
+                        contentDescription = "${appInfo.appName} icon",
+                        modifier = Modifier.size(48.dp)
+                    )
+                } else {
+                    Text(
+                        text = getCategoryEmoji(subcategory),
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(12.dp))
 

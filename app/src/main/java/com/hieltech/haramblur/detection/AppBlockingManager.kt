@@ -247,7 +247,7 @@ class AppBlockingManagerImpl @Inject constructor(
                             appName = appName,
                             category = category,
                             isSystemApp = isSystemApp(app.packageName),
-                            icon = null
+                            icon = packageManager.getApplicationIcon(appInfo)
                         ))
                     }
                 } catch (e: Exception) {
@@ -273,7 +273,7 @@ class AppBlockingManagerImpl @Inject constructor(
                                 appName = appName,
                                 category = category,
                                 isSystemApp = isSystemApp(packageName),
-                                icon = null
+                                icon = packageManager.getApplicationIcon(appInfo)
                             ))
                             android.util.Log.d(TAG, "Found installed app: $appName ($packageName)")
                         } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
@@ -309,7 +309,7 @@ class AppBlockingManagerImpl @Inject constructor(
                         appName = appName,
                         category = category,
                         isSystemApp = isSystemApp(app.packageName),
-                        icon = null
+                        icon = packageManager.getApplicationIcon(appInfo)
                     ))
                 }
             }
