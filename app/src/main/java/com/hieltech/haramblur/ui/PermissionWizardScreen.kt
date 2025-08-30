@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.DisposableEffect
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.components.IslamicOnboardingStep
+import com.hieltech.haramblur.ui.components.LocationPermissionHandler
 import kotlinx.coroutines.launch
 
 /**
@@ -302,8 +303,19 @@ private fun StepPage(
                 DeviceAdminInstructions(step.status)
             }
             "LOCATION_PERMISSION" -> {
-                // Location permission step
-                LocationPermissionInstructions(step.status)
+                // Location permission step with integrated handler
+                LocationPermissionHandler(
+                    onPermissionGranted = {
+                        // Permission granted - mark as completed and proceed
+                        viewModel.proceedToNextStep()
+                    },
+                    onPermissionDenied = {
+                        // Permission denied - still proceed but mark as skipped
+                        viewModel.proceedToNextStep()
+                    }
+                ) {
+                    LocationPermissionInstructions(step.status)
+                }
             }
             "ISLAMIC_FEATURES" -> {
                 // Islamic features onboarding step
@@ -547,6 +559,52 @@ private fun DeviceAdminInstructions(status: PermissionWizardViewModel.Permission
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
             )
+        }
+    }
+}
+
+/**
+ * Location permission specific instructions
+ */
+@Composable
+private fun LocationPermissionInstructions(status: PermissionWizardViewModel.PermissionStatus) {
+    ModernCard(
+        modifier = responsiveMaxContentWidth(),
+        gradientColors = listOf(
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        contentPadding = responsiveCardPadding()
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 10.dp, medium = 11.dp, expanded = 12.dp))
+        ) {
+            Text(
+                text = "📍 Why location access?",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = "Location permission enables accurate Islamic prayer times, Qibla direction, and Islamic calendar calculations for your specific location. Without it, the app will use default settings.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = "You can also manually select your city in the Islamic settings if you prefer not to share your location.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
+            )
+
+            if (status == PermissionWizardViewModel.PermissionStatus.REQUESTING) {
+                Text(
+                    text = "⚠️ Please grant location permission in Settings to continue",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFFF9800)
+                )
+            }
         }
     }
 }

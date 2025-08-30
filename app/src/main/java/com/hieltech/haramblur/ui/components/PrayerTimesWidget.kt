@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +26,7 @@ import com.hieltech.haramblur.data.prayer.*
 fun PrayerTimesWidget(
     prayerData: PrayerData?,
     nextPrayer: NextPrayerInfo?,
+    onLocationSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     ModernCard(modifier = modifier) {
@@ -43,14 +46,34 @@ fun PrayerTimesWidget(
                     fontWeight = FontWeight.Bold
                 )
 
-                // Hijri date
-                prayerData?.date?.hijri?.let { hijri ->
-                    AnimatedFadeIn(visible = true) {
-                        Text(
-                            text = "${hijri.day} ${hijri.month.en} ${hijri.year}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Location settings button
+                    onLocationSettingsClick?.let { onClick ->
+                        IconButton(
+                            onClick = onClick,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = "Location Settings",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Hijri date
+                    prayerData?.date?.hijri?.let { hijri ->
+                        AnimatedFadeIn(visible = true) {
+                            Text(
+                                text = "${hijri.day} ${hijri.month.en} ${hijri.year}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }

@@ -15,12 +15,17 @@ import com.hieltech.haramblur.data.*
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.components.CitySelector
 import com.hieltech.haramblur.ui.SettingsViewModel
+import com.hieltech.haramblur.services.DhikrManager
+import com.hieltech.haramblur.utils.DhikrPermissionHelper
+import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IslamicSettingsScreen(
     onNavigateBack: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel(),
+    dhikrManager: DhikrManager = hiltViewModel(),
+    permissionHelper: DhikrPermissionHelper = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
 
@@ -428,6 +433,15 @@ fun IslamicSettingsScreen(
                         onCheckedChange = { viewModel.updateQiblaDirectionEnabled(it) }
                     )
                 }
+            }
+
+            // Dhikr Debug Panel (only show if dhikr is enabled)
+            if (settings.dhikrEnabled) {
+                DhikrDebugPanel(
+                    dhikrManager = dhikrManager,
+                    permissionHelper = permissionHelper,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))

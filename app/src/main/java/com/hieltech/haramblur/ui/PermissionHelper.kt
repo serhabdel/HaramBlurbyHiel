@@ -1,5 +1,6 @@
 package com.hieltech.haramblur.ui
 
+import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
@@ -8,10 +9,12 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
 import com.hieltech.haramblur.detection.HaramBlurDeviceAdminReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -63,6 +66,21 @@ class PermissionHelper @Inject constructor(
         intent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
             "Device Admin access enables stronger app blocking by allowing the app to force-close blocked applications.")
         activity.startActivity(intent)
+    }
+
+    /**
+     * Request Location permission
+     */
+    fun requestLocationPermission(activity: Activity) {
+        try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            intent.data = Uri.parse("package:${context.packageName}")
+            activity.startActivity(intent)
+        } catch (e: Exception) {
+            // Fallback to general settings
+            val intent = Intent(Settings.ACTION_SETTINGS)
+            activity.startActivity(intent)
+        }
     }
 
     /**
@@ -141,13 +159,35 @@ class PermissionHelper @Inject constructor(
     }
 
     /**
+     * Check Location permission status
+     */
+    fun checkLocationPermission(): PermissionResult {
+        val fineLocationGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val coarseLocationGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        return if (fineLocationGranted || coarseLocationGranted) {
+            PermissionResult.Granted("LOCATION_PERMISSION")
+        } else {
+            PermissionResult.Denied("LOCATION_PERMISSION")
+        }
+    }
+
+    /**
      * Update all permission statuses
      */
     fun updatePermissionStatuses() {
         val statuses = mapOf(
             "PACKAGE_USAGE_STATS" to checkUsageStatsPermission(),
             "DEVICE_ADMIN" to checkDeviceAdminPermission(),
-            "ACCESSIBILITY_SERVICE" to checkAccessibilityServiceEnabled()
+            "ACCESSIBILITY_SERVICE" to checkAccessibilityServiceEnabled(),
+            "LOCATION_PERMISSION" to checkLocationPermission()
         )
         _permissionStatusFlow.value = statuses
     }
@@ -169,6 +209,10 @@ class PermissionHelper @Inject constructor(
             "ACCESSIBILITY_SERVICE" -> {
                 // Accessibility Service doesn't have "don't ask again" state
                 checkAccessibilityServiceEnabled() is PermissionResult.Denied
+            }
+            "LOCATION_PERMISSION" -> {
+                // Location permission can be permanently denied
+                checkLocationPermission() is PermissionResult.Denied
             }
             else -> false
         }
@@ -206,11 +250,13 @@ class PermissionHelper @Inject constructor(
         val usageStatsGranted = checkUsageStatsPermission() is PermissionResult.Granted
         val deviceAdminGranted = checkDeviceAdminPermission() is PermissionResult.Granted
         val accessibilityGranted = checkAccessibilityServiceEnabled() is PermissionResult.Granted
+        val locationGranted = checkLocationPermission() is PermissionResult.Granted
 
         return EnhancedBlockingPermissionStatus(
             usageStatsGranted = usageStatsGranted,
             deviceAdminGranted = deviceAdminGranted,
             accessibilityServiceGranted = accessibilityGranted,
+            locationGranted = locationGranted,
             isComplete = usageStatsGranted && accessibilityGranted, // Usage Stats and Accessibility are required
             canUseEnhancedBlocking = usageStatsGranted && accessibilityGranted,
             canUseForceClose = usageStatsGranted && deviceAdminGranted
@@ -259,6 +305,16 @@ class PermissionHelper @Inject constructor(
                     "Enhanced content detection capabilities"
                 )
             )
+            "LOCATION_PERMISSION" -> PermissionExplanation(
+                title = "Location Access",
+                description = "Enables accurate prayer times and Islamic calendar for your location",
+                benefits = listOf(
+                    "Accurate prayer times for your city",
+                    "Precise Qibla direction",
+                    "Location-based Islamic calendar",
+                    "Personalized Islamic features"
+                )
+            )
             else -> PermissionExplanation(
                 title = "Enhanced Permission",
                 description = "Enhances app blocking capabilities",
@@ -304,6 +360,7 @@ data class EnhancedBlockingPermissionStatus(
     val usageStatsGranted: Boolean = false,
     val deviceAdminGranted: Boolean = false,
     val accessibilityServiceGranted: Boolean = false,
+    val locationGranted: Boolean = false,
     val isComplete: Boolean = false,
     val canUseEnhancedBlocking: Boolean = false,
     val canUseForceClose: Boolean = false

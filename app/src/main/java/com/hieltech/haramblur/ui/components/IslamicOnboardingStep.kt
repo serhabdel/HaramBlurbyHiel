@@ -30,6 +30,7 @@ fun IslamicOnboardingStep(
 ) {
     val settings by settingsViewModel.settings.collectAsState()
     var enableIslamicFeatures by remember { mutableStateOf(true) }
+    var autoDetectLocation by remember { mutableStateOf(true) }
     var selectedCity by remember { mutableStateOf<String?>(null) }
     var selectedCountry by remember { mutableStateOf<String?>(null) }
     var showCitySelector by remember { mutableStateOf(false) }
@@ -151,6 +152,35 @@ fun IslamicOnboardingStep(
                 }
             }
 
+            // Qibla Direction Feature
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("🧭", style = MaterialTheme.typography.titleLarge)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Qibla Direction",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "Find direction to Mecca for prayer",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Enabled",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
             // Location Setup
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -164,21 +194,65 @@ fun IslamicOnboardingStep(
                     )
 
                     Text(
-                        text = "Choose your city for accurate prayer times",
+                        text = "Configure how prayer times are calculated for your location",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // City Selector
-                    CitySelector(
-                        selectedCity = selectedCity,
-                        selectedCountry = selectedCountry,
-                        onCitySelected = { city, country ->
-                            selectedCity = city
-                            selectedCountry = country
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    // Auto-detect Location Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Auto-detect Location",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "Use device GPS for automatic location detection",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Switch(
+                            checked = autoDetectLocation,
+                            onCheckedChange = { autoDetectLocation = it }
+                        )
+                    }
+
+                    // Manual City Selection (when auto-detect is disabled)
+                    if (!autoDetectLocation) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Select Your City",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Text(
+                            text = "Choose your city for accurate prayer times",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // City Selector
+                        CitySelector(
+                            selectedCity = selectedCity,
+                            selectedCountry = selectedCountry,
+                            onCitySelected = { city, country ->
+                                selectedCity = city
+                                selectedCountry = country
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
 
@@ -243,15 +317,19 @@ fun IslamicOnboardingStep(
                     if (enableIslamicFeatures) {
                         settingsViewModel.updatePrayerTimesEnabled(true)
                         settingsViewModel.updateIslamicCalendarEnabled(true)
+                        settingsViewModel.updateQiblaDirectionEnabled(true)
 
-                        // Save location if selected
-                        if (selectedCity != null && selectedCountry != null) {
+                        // Save location settings
+                        settingsViewModel.updateAutoDetectLocation(autoDetectLocation)
+
+                        if (!autoDetectLocation && selectedCity != null && selectedCountry != null) {
                             settingsViewModel.updatePreferredCity(selectedCity!!)
                             settingsViewModel.updatePreferredCountry(selectedCountry!!)
                         }
                     } else {
                         settingsViewModel.updatePrayerTimesEnabled(false)
                         settingsViewModel.updateIslamicCalendarEnabled(false)
+                        settingsViewModel.updateQiblaDirectionEnabled(false)
                     }
 
                     onNext()

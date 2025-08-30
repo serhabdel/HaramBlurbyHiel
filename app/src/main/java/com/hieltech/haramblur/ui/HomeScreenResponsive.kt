@@ -44,94 +44,6 @@ data class Quadruple<A, B, C, D>(
  * Responsive HomeScreen that adapts to different screen sizes using Window Size Classes
  */
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeScreenResponsive(
-    onNavigateToSettings: () -> Unit = {},
-    onNavigateToDebug: () -> Unit = {},
-    onNavigateToBlockApps: () -> Unit = {},
-    onNavigateToBlockSites: () -> Unit = {},
-    onNavigateToSupport: () -> Unit = {},
-    onNavigateToLogs: () -> Unit = {},
-    onOpenDrawer: () -> Unit = {},
-    onNavigateToPermissionWizard: (() -> Unit)? = null,
-    viewModel: MainViewModel = hiltViewModel(),
-    statsViewModel: StatsViewModel = hiltViewModel(),
-    settingsViewModel: SettingsViewModel = hiltViewModel(),
-    permissionHelper: PermissionHelper,
-    appBlockingManager: AppBlockingManager? = null,
-    siteBlockingManager: EnhancedSiteBlockingManager? = null
-) {
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp
-    val isLandscape = screenWidth > configuration.screenHeightDp
-
-    // Adaptive layout based on screen width
-    when {
-        screenWidth < 600 -> { // Compact: phones
-            CompactHomeScreen(
-                isLandscape = isLandscape,
-                onNavigateToSettings = onNavigateToSettings,
-                onNavigateToDebug = onNavigateToDebug,
-                onNavigateToBlockApps = onNavigateToBlockApps,
-                onNavigateToBlockSites = onNavigateToBlockSites,
-                onNavigateToSupport = onNavigateToSupport,
-                onNavigateToLogs = onNavigateToLogs,
-                onOpenDrawer = onOpenDrawer,
-                onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-                viewModel = viewModel,
-                statsViewModel = statsViewModel,
-                settingsViewModel = settingsViewModel,
-                permissionHelper = permissionHelper,
-                appBlockingManager = appBlockingManager,
-                siteBlockingManager = siteBlockingManager
-            )
-        }
-        screenWidth < 840 -> { // Medium: tablets
-            MediumHomeScreen(
-                isLandscape = isLandscape,
-                onNavigateToSettings = onNavigateToSettings,
-                onNavigateToDebug = onNavigateToDebug,
-                onNavigateToBlockApps = onNavigateToBlockApps,
-                onNavigateToBlockSites = onNavigateToBlockSites,
-                onNavigateToSupport = onNavigateToSupport,
-                onNavigateToLogs = onNavigateToLogs,
-                onOpenDrawer = onOpenDrawer,
-                onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-                viewModel = viewModel,
-                statsViewModel = statsViewModel,
-                settingsViewModel = settingsViewModel,
-                permissionHelper = permissionHelper,
-                appBlockingManager = appBlockingManager,
-                siteBlockingManager = siteBlockingManager
-            )
-        }
-        else -> { // Expanded: large tablets
-            ExpandedHomeScreen(
-                isLandscape = isLandscape,
-                onNavigateToSettings = onNavigateToSettings,
-                onNavigateToDebug = onNavigateToDebug,
-                onNavigateToBlockApps = onNavigateToBlockApps,
-                onNavigateToBlockSites = onNavigateToBlockSites,
-                onNavigateToSupport = onNavigateToSupport,
-                onNavigateToLogs = onNavigateToLogs,
-                onOpenDrawer = onOpenDrawer,
-                onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-                viewModel = viewModel,
-                statsViewModel = statsViewModel,
-                settingsViewModel = settingsViewModel,
-                permissionHelper = permissionHelper,
-                appBlockingManager = appBlockingManager,
-                siteBlockingManager = siteBlockingManager
-            )
-        }
-    }
-}
-
-/**
- * Compact layout for phones and small screens
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 private fun CompactHomeScreen(
     isLandscape: Boolean,
     onNavigateToSettings: () -> Unit,
@@ -142,6 +54,7 @@ private fun CompactHomeScreen(
     onNavigateToLogs: () -> Unit,
     onOpenDrawer: () -> Unit,
     onNavigateToPermissionWizard: (() -> Unit)?,
+    onTriggerDhikr: (() -> Unit)? = null,
     viewModel: MainViewModel,
     statsViewModel: StatsViewModel,
     settingsViewModel: SettingsViewModel,
@@ -303,6 +216,10 @@ private fun CompactHomeScreen(
                     PrayerTimesWidget(
                         prayerData = dashboardState.prayerTimes,
                         nextPrayer = dashboardState.nextPrayer,
+                        onLocationSettingsClick = {
+                            // Navigate to Islamic settings
+                            onNavigateToSettings()
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -342,6 +259,14 @@ private fun CompactHomeScreen(
             )
         }
 
+        // Dhikr Status (if enabled)
+        if (settings.dhikrEnabled && hasRequiredPermissions && serviceRunning && !showWelcome) {
+            DhikrStatusCard(
+                settings = settings,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         // Quick Actions (2 per row for compact)
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             AnimatedVisibility(visible = showFeatures) {
@@ -366,8 +291,22 @@ private fun CompactHomeScreen(
                         Quadruple("Support", "Get help", "🆘", onNavigateToSupport)
                     )
 
+                    // Add Dhikr trigger if enabled
+                    val dhikrActions = if (settings.dhikrEnabled && onTriggerDhikr != null) {
+                        listOf(
+                            Quadruple(
+                                "Show Dhikr",
+                                "Islamic remembrance",
+                                "🕌",
+                                onTriggerDhikr
+                            )
+                        )
+                    } else emptyList()
+
+                    val allActions = quickActions + dhikrActions
+
                     // Group actions in pairs
-                    quickActions.chunked(2).forEach { row ->
+                    allActions.chunked(2).forEach { row ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -702,6 +641,10 @@ private fun MediumHomeScreen(
                 ) {
                     // Prayer Times Widget
                     PrayerTimesWidget(
+                        onLocationSettingsClick = {
+                            // Navigate to Islamic settings
+                            onNavigateToSettings()
+                        },
                         prayerData = dashboardState.prayerTimes,
                         nextPrayer = dashboardState.nextPrayer,
                         modifier = Modifier.weight(1f)
@@ -1076,6 +1019,10 @@ private fun ExpandedHomeScreen(
                     PrayerTimesWidget(
                         prayerData = dashboardState.prayerTimes,
                         nextPrayer = dashboardState.nextPrayer,
+                        onLocationSettingsClick = {
+                            // Navigate to Islamic settings
+                            onNavigateToSettings()
+                        },
                         modifier = Modifier.weight(1f)
                     )
 

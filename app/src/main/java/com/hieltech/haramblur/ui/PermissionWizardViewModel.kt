@@ -243,9 +243,8 @@ class PermissionWizardViewModel @Inject constructor(
                 permissionHelper.requestDeviceAdminPermission(activity)
             }
             "LOCATION_PERMISSION" -> {
-                // Open location settings
-                val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                activity.startActivity(intent)
+                // Request location permission using PermissionHelper
+                permissionHelper.requestLocationPermission(activity)
             }
         }
     }
