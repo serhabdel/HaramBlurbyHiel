@@ -508,6 +508,16 @@ class AppBlockingManagerImpl @Inject constructor(
                 return@withContext false
             }
 
+            // Check if systemCapabilities is initialized
+            if (!::systemCapabilities.isInitialized) {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "systemCapabilities not initialized, falling back to accessibility service for $packageName",
+                    category = LogCategory.BLOCKING
+                )
+                return@withContext blockAppWithAccessibilityService(packageName)
+            }
+
             // Apply system-level blocking based on capabilities
             val recommendedMethod = systemCapabilities.getRecommendedBlockingMethod(packageName)
 
@@ -540,6 +550,18 @@ class AppBlockingManagerImpl @Inject constructor(
 
     fun forceCloseApp(packageName: String): Boolean {
         return try {
+            // Check if systemCapabilities is initialized
+            if (!::systemCapabilities.isInitialized) {
+                runBlocking {
+                    logRepository.logInfo(
+                        tag = "AppBlockingManager",
+                        message = "systemCapabilities not initialized, cannot force close $packageName",
+                        category = LogCategory.BLOCKING
+                    )
+                }
+                return false
+            }
+
             if (!systemCapabilities.canForceCloseApp(packageName)) {
                 return false
             }

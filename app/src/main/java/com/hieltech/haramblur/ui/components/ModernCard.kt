@@ -29,6 +29,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
+ * Status types for status cards
+ */
+enum class StatusType {
+    SUCCESS, WARNING, ERROR, INFO, NORMAL
+}
+
+/**
  * Modern Islamic-inspired card with gradient backgrounds and smooth animations
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -331,9 +338,7 @@ fun CompactFeatureCard(
     }
 }
 
-enum class StatusType {
-    SUCCESS, WARNING, ERROR, INFO, NORMAL
-}
+
 
 /**
  * AnimatedCard variant with entrance animations using optimized timing

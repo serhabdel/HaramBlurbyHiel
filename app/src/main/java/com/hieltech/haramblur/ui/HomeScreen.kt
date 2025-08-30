@@ -647,7 +647,8 @@ fun DashboardSection(
             // Timeline Chart
             TimelineChart(
                 data = dashboardState.timelineData,
-                timeRange = "${selectedTimelineType.displayName} - ${selectedTimeRange.displayName}"
+                timeRange = "${selectedTimelineType.displayName} - ${selectedTimeRange.displayName}",
+                modifier = Modifier
             )
         }
 

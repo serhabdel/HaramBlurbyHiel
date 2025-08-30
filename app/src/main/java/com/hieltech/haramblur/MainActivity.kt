@@ -17,8 +17,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
-import com.hieltech.haramblur.ui.HomeScreen
-import com.hieltech.haramblur.ui.UnifiedBlockingScreen
+import com.hieltech.haramblur.ui.HomeScreenResponsive
+import com.hieltech.haramblur.ui.UnifiedBlockingScreenResponsive
 import com.hieltech.haramblur.ui.SettingsScreen
 import com.hieltech.haramblur.ui.DebugScreen
 import com.hieltech.haramblur.ui.LogsViewerScreen
@@ -221,7 +221,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                                                 composable(NavRoutes.HOME) {
-                                                                    HomeScreen(
+                                                                    HomeScreenResponsive(
                                                                         onNavigateToSettings = {
                                                                             if (currentRoute != NavRoutes.SETTINGS) {
                                                                                 navController.navigate(NavRoutes.SETTINGS)
@@ -249,7 +249,7 @@ class MainActivity : ComponentActivity() {
                                                                     )
                                                                 }
                                 composable(NavRoutes.BLOCK_APPS_SITES) {
-                                UnifiedBlockingScreen(
+                                UnifiedBlockingScreenResponsive(
                                     onNavigateBack = { navController.popBackStack() },
                                     appBlockingManager = appBlockingManager,
                                     siteBlockingManager = siteBlockingManager
