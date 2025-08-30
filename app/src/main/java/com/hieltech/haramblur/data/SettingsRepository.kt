@@ -570,11 +570,7 @@ class SettingsRepository @Inject constructor(
                         put("nsfwConfidenceThreshold", settings.nsfwConfidenceThreshold)
                         put("enableFallbackDetection", settings.enableFallbackDetection)
                         put("enablePerformanceMonitoring", settings.enablePerformanceMonitoring)
-                        put("enableLLMDecisionMaking", settings.enableLLMDecisionMaking)
-                        put("openRouterApiKey", settings.openRouterApiKey)
-                        put("llmModel", settings.llmModel)
-                        put("llmTimeoutMs", settings.llmTimeoutMs)
-                        put("llmFallbackToRules", settings.llmFallbackToRules)
+
                         put("enableDetailedLogging", settings.enableDetailedLogging)
                         put("logLevel", settings.logLevel.name)
                         put("enablePerformanceLogging", settings.enablePerformanceLogging)
@@ -664,11 +660,7 @@ class SettingsRepository @Inject constructor(
                 nsfwConfidenceThreshold = settingsJson.optDouble("nsfwConfidenceThreshold", 0.5).toFloat(),
                 enableFallbackDetection = settingsJson.optBoolean("enableFallbackDetection", true),
                 enablePerformanceMonitoring = settingsJson.optBoolean("enablePerformanceMonitoring", true),
-                enableLLMDecisionMaking = settingsJson.optBoolean("enableLLMDecisionMaking", false),
-                openRouterApiKey = settingsJson.optString("openRouterApiKey", ""),
-                llmModel = settingsJson.optString("llmModel", "google/gemma-2-9b-it:free"),
-                llmTimeoutMs = settingsJson.optLong("llmTimeoutMs", 3000L),
-                llmFallbackToRules = settingsJson.optBoolean("llmFallbackToRules", true),
+
                 enableDetailedLogging = settingsJson.optBoolean("enableDetailedLogging", true),
                 logLevel = try {
                     LogLevel.valueOf(settingsJson.optString("logLevel", LogLevel.INFO.name))
@@ -739,7 +731,6 @@ class SettingsRepository @Inject constructor(
             MergeStrategy.MERGE_COMPATIBLE -> {
                 // Keep current values for certain sensitive settings
                 preset.settings.copy(
-                    openRouterApiKey = current.openRouterApiKey, // Preserve API key
                     enableDetailedLogging = current.enableDetailedLogging, // Keep logging preference
                     logLevel = current.logLevel
                 )
@@ -797,10 +788,7 @@ class SettingsRepository @Inject constructor(
             put("nsfwConfidenceThreshold", settings.nsfwConfidenceThreshold)
             put("enableFallbackDetection", settings.enableFallbackDetection)
             put("enablePerformanceMonitoring", settings.enablePerformanceMonitoring)
-            put("enableLLMDecisionMaking", settings.enableLLMDecisionMaking)
-            put("llmModel", settings.llmModel)
-            put("llmTimeoutMs", settings.llmTimeoutMs)
-            put("llmFallbackToRules", settings.llmFallbackToRules)
+
             put("enableDetailedLogging", settings.enableDetailedLogging)
             put("logLevel", settings.logLevel.name)
             put("enablePerformanceLogging", settings.enablePerformanceLogging)

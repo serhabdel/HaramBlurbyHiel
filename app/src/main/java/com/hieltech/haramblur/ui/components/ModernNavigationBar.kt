@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.animateColorAsState
 
@@ -32,50 +33,46 @@ fun ModernNavigationBar(
     onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val configuration = LocalConfiguration.current
+    val showLabels = configuration.screenWidthDp > 400 // Show labels on most phones too
+
     val navigationItems = listOf(
         NavigationItem(
             route = NavRoutes.HOME,
-            label = "Home",
-            icon = Icons.Default.CheckCircle,
-            selectedIcon = Icons.Default.CheckCircle,
-            description = "Home screen"
+            label = "Overview",
+            icon = Icons.Default.Menu,
+            selectedIcon = Icons.Default.Menu,
+            description = "Protection overview and stats"
         ),
         NavigationItem(
             route = NavRoutes.BLOCK_APPS_SITES,
-            label = "Blocking",
+            label = "Protect",
             icon = Icons.Default.Lock,
             selectedIcon = Icons.Default.Lock,
-            description = "Block apps and sites"
+            description = "Block harmful content"
         ),
         NavigationItem(
             route = NavRoutes.SETTINGS,
             label = "Settings",
             icon = Icons.Default.Settings,
             selectedIcon = Icons.Default.Settings,
-            description = "App settings"
+            description = "App settings and preferences"
         )
     )
 
     NavigationBar(
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .navigationBarsPadding()
+            .height(80.dp) // Consistent height for better centering
             .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-            )
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                )
+                elevation = 8.dp,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
             ),
-        containerColor = Color.Transparent,
-        tonalElevation = 0.dp,
-        windowInsets = WindowInsets(0.dp)
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp,
+        windowInsets = WindowInsets.systemBars
     ) {
         navigationItems.forEach { item ->
             val isSelected = currentRoute == item.route
@@ -83,11 +80,12 @@ fun ModernNavigationBar(
             ModernNavigationBarItem(
                 item = item,
                 isSelected = isSelected,
+                showLabel = showLabels,
                 onClick = {
                     when (item.route) {
-                        "home" -> onNavigateToHome()
-                        "block_apps_sites" -> onNavigateToBlockAppsSites()
-                        "settings" -> onNavigateToSettings()
+                        NavRoutes.HOME -> onNavigateToHome()
+                        NavRoutes.BLOCK_APPS_SITES -> onNavigateToBlockAppsSites()
+                        NavRoutes.SETTINGS -> onNavigateToSettings()
                     }
                 }
             )
@@ -102,6 +100,7 @@ fun ModernNavigationBar(
 private fun RowScope.ModernNavigationBarItem(
     item: NavigationItem,
     isSelected: Boolean,
+    showLabel: Boolean = true,
     onClick: () -> Unit
 ) {
     val scale by animateFloatAsState(
@@ -137,34 +136,42 @@ private fun RowScope.ModernNavigationBarItem(
         selected = isSelected,
         onClick = onClick,
         icon = {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .graphicsLayer(scaleX = scale, scaleY = scale)
-                    .clip(CircleShape)
-                    .background(backgroundColor),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Icon(
-                    imageVector = if (isSelected) item.selectedIcon else item.icon,
-                    contentDescription = item.description,
-                    tint = iconColor,
-                    modifier = Modifier.size(18.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp) // Proper Material Design 3 icon container size
+                        .graphicsLayer(scaleX = scale, scaleY = scale)
+                        .clip(CircleShape)
+                        .background(backgroundColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isSelected) item.selectedIcon else item.icon,
+                        contentDescription = item.description,
+                        tint = iconColor,
+                        modifier = Modifier.size(24.dp) // Standard Material Design 3 icon size
+                    )
+                }
             }
         },
         label = {
-            AnimatedFadeIn(visible = isSelected) {
-                Text(
-                    text = item.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-            }
+            if (showLabel) {
+                AnimatedFadeIn(visible = isSelected) {
+                    Text(
+                        text = item.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            } else null
         },
         colors = NavigationBarItemDefaults.colors(
             selectedIconColor = Color.Transparent, // Handled by our custom icon
@@ -190,30 +197,31 @@ fun FloatingNavigationBar(
     val navigationItems = listOf(
         NavigationItem(
             route = NavRoutes.HOME,
-            label = "Home",
-            icon = Icons.Default.CheckCircle,
-            selectedIcon = Icons.Default.CheckCircle,
-            description = "Home screen"
+            label = "Overview",
+            icon = Icons.Default.Menu,
+            selectedIcon = Icons.Default.Menu,
+            description = "Protection overview and stats"
         ),
         NavigationItem(
             route = NavRoutes.BLOCK_APPS_SITES,
-            label = "Blocking",
+            label = "Protect",
             icon = Icons.Default.Lock,
             selectedIcon = Icons.Default.Lock,
-            description = "Block apps and sites"
+            description = "Block harmful content"
         ),
         NavigationItem(
             route = NavRoutes.SETTINGS,
             label = "Settings",
             icon = Icons.Default.Settings,
             selectedIcon = Icons.Default.Settings,
-            description = "App settings"
+            description = "App settings and preferences"
         )
     )
 
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -226,9 +234,9 @@ fun FloatingNavigationBar(
                 isSelected = isSelected,
                 onClick = {
                     when (item.route) {
-                        "home" -> onNavigateToHome()
-                        "block_apps_sites" -> onNavigateToBlockAppsSites()
-                        "settings" -> onNavigateToSettings()
+                        NavRoutes.HOME -> onNavigateToHome()
+                        NavRoutes.BLOCK_APPS_SITES -> onNavigateToBlockAppsSites()
+                        NavRoutes.SETTINGS -> onNavigateToSettings()
                     }
                 },
                 modifier = Modifier.weight(1f)
@@ -259,11 +267,11 @@ private fun FloatingNavigationItem(
     OutlinedButton(
         onClick = onClick,
         modifier = modifier
-            .height(40.dp)
+            .height(48.dp) // Better height for floating navigation
             .graphicsLayer(scaleX = scale, scaleY = scale)
             .shadow(
                 elevation = if (isSelected) 4.dp else 1.dp,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             ),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = if (isSelected) {
@@ -286,7 +294,7 @@ private fun FloatingNavigationItem(
             Icon(
                 imageVector = if (isSelected) item.selectedIcon else item.icon,
                 contentDescription = item.description,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(20.dp) // Better size for floating navigation
             )
             Text(
                 text = item.label,

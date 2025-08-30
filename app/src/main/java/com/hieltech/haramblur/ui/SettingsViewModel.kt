@@ -379,41 +379,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
     
-    // LLM Decision Making Settings
-    fun updateLLMDecisionMaking(enabled: Boolean) {
-        viewModelScope.launch {
-            val current = settings.value
-            settingsRepository.updateSettings(current.copy(enableLLMDecisionMaking = enabled))
-        }
-    }
-    
-    fun updateOpenRouterApiKey(apiKey: String) {
-        viewModelScope.launch {
-            val current = settings.value
-            settingsRepository.updateSettings(current.copy(openRouterApiKey = apiKey))
-        }
-    }
-    
-    fun updateLLMModel(model: String) {
-        viewModelScope.launch {
-            val current = settings.value
-            settingsRepository.updateSettings(current.copy(llmModel = model))
-        }
-    }
-    
-    fun updateLLMTimeout(timeoutMs: Long) {
-        viewModelScope.launch {
-            val current = settings.value
-            settingsRepository.updateSettings(current.copy(llmTimeoutMs = timeoutMs))
-        }
-    }
-    
-    fun updateLLMFallbackToRules(enabled: Boolean) {
-        viewModelScope.launch {
-            val current = settings.value
-            settingsRepository.updateSettings(current.copy(llmFallbackToRules = enabled))
-        }
-    }
+
 
     // Enhanced Preset Management Methods
 
@@ -547,11 +513,7 @@ class SettingsViewModel @Inject constructor(
                 nsfwConfidenceThreshold = settingsJson.optDouble("nsfwConfidenceThreshold", 0.5).toFloat(),
                 enableFallbackDetection = settingsJson.optBoolean("enableFallbackDetection", true),
                 enablePerformanceMonitoring = settingsJson.optBoolean("enablePerformanceMonitoring", true),
-                enableLLMDecisionMaking = settingsJson.optBoolean("enableLLMDecisionMaking", false),
-                openRouterApiKey = settingsJson.optString("openRouterApiKey", ""),
-                llmModel = settingsJson.optString("llmModel", "google/gemma-2-9b-it:free"),
-                llmTimeoutMs = settingsJson.optLong("llmTimeoutMs", 3000L),
-                llmFallbackToRules = settingsJson.optBoolean("llmFallbackToRules", true),
+
                 enableDetailedLogging = settingsJson.optBoolean("enableDetailedLogging", true),
                 logLevel = try {
                     com.hieltech.haramblur.data.LogLevel.valueOf(settingsJson.optString("logLevel", LogLevel.INFO.name))
@@ -626,9 +588,7 @@ class SettingsViewModel @Inject constructor(
         }
 
         // Dependency checks
-        if (settings.enableLLMDecisionMaking && settings.openRouterApiKey.isBlank()) {
-            warnings.add("LLM decision making is enabled but no API key is configured")
-        }
+
 
         return ValidationResult(
             isValid = errors.isEmpty(),

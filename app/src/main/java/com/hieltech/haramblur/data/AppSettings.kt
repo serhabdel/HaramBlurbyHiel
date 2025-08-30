@@ -64,13 +64,7 @@ data class AppSettings(
     val regionOverlapPercentage: Float = 0.5f, // Overlap percentage for sliding window region detection
     val maxRegionDetectionTime: Long = 100L, // Maximum time allowed for region detection in milliseconds
 
-    // NEW: LLM Decision Making Settings
-    val enableLLMDecisionMaking: Boolean = false, // Enable/disable OpenRouter LLM for faster decisions
-    val openRouterApiKey: String = "", // OpenRouter API key for LLM access
-    val llmModel: String = "google/gemma-2-9b-it:free", // LLM model to use for decisions
-    val llmTimeoutMs: Long = 3000L, // Maximum time to wait for LLM response
-    val llmFallbackToRules: Boolean = true, // Fall back to rule-based decisions if LLM fails
-    val llmDecisionConfidenceThreshold: Float = 0.7f, // Minimum confidence to trust LLM decision
+
 
     // Logging Settings - Enterprise/SaaS-style logging
     val enableDetailedLogging: Boolean = true, // Enable detailed logging for troubleshooting

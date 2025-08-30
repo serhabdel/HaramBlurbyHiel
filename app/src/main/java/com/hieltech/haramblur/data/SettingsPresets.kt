@@ -271,7 +271,6 @@ object PresetManager {
             enableUserActionLogging = true,
 
             // Advanced features
-            enableLLMDecisionMaking = true,
             enableFallbackDetection = true,
             enablePerformanceMonitoring = true,
             ultraFastModeEnabled = false,
@@ -341,7 +340,6 @@ object PresetManager {
             enableUserActionLogging = false,
 
             // Balanced advanced features
-            enableLLMDecisionMaking = false,
             enableFallbackDetection = true,
             enablePerformanceMonitoring = true,
             ultraFastModeEnabled = false,
@@ -608,10 +606,7 @@ object PresetManager {
                 put("nsfwConfidenceThreshold", settings.nsfwConfidenceThreshold)
                 put("enableFallbackDetection", settings.enableFallbackDetection)
                 put("enablePerformanceMonitoring", settings.enablePerformanceMonitoring)
-                put("enableLLMDecisionMaking", settings.enableLLMDecisionMaking)
-                put("llmModel", settings.llmModel)
-                put("llmTimeoutMs", settings.llmTimeoutMs)
-                put("llmFallbackToRules", settings.llmFallbackToRules)
+
                 put("enableDetailedLogging", settings.enableDetailedLogging)
                 put("logLevel", settings.logLevel.name)
                 put("enablePerformanceLogging", settings.enablePerformanceLogging)

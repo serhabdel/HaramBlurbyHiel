@@ -503,49 +503,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             else -> false
         }
         
-        // Handle LLM-ENHANCED DECISIONS (NEW APPROACH)
-        if (result.fullScreenBlurDecision?.useLLMDecision == true) {
-            Log.d(TAG, "🤖 LLM decision required for ${result.nsfwRegionCount} regions")
-            
-            // Make LLM decision asynchronously for faster response
-            serviceScope.launch {
-                try {
-                    val currentSettings = settingsRepository.getCurrentSettings()
-                    val llmDecision = contentDetectionEngine.makeLLMEnhancedDecision(
-                        nsfwRegionCount = result.nsfwRegionCount,
-                        maxNsfwConfidence = result.maxNsfwConfidence,
-                        settings = currentSettings,
-                        currentApp = getCurrentAppPackage()
-                    )
-                    
-                    Log.d(TAG, "🎯 LLM decision: ${llmDecision.action} - ${llmDecision.reasoning} (${llmDecision.responseTimeMs}ms)")
-                    
-                    // Execute the LLM-recommended action
-                    when (llmDecision.action) {
-                        ContentAction.SCROLL_AWAY -> performScrollAwayAction()
-                        ContentAction.NAVIGATE_BACK -> performNavigateBackAction()
-                        ContentAction.AUTO_CLOSE_APP -> performAutoCloseAppAction()
-                        ContentAction.GENTLE_REDIRECT -> performGentleRedirectAction()
-                        ContentAction.SELECTIVE_BLUR -> {
-                            // Apply selective blur instead of actions
-                            if (result.blurRegions.isNotEmpty()) {
-                                blurOverlayManager.showBlurOverlay(result.blurRegions, currentSettings.blurIntensity)
-                            }
-                        }
-                        else -> {
-                            Log.d(TAG, "⚠️ LLM recommended ${llmDecision.action}, using fallback action")
-                            performScrollAwayAction() // Safe fallback
-                        }
-                    }
-                    
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ LLM decision failed, using fallback action", e)
-                    performScrollAwayAction() // Safe fallback
-                }
-            }
-            
-            return false // Don't show blur overlay - LLM will decide action
-        }
+
 
         // Handle AUTOMATIC ACTIONS for 6+ NSFW regions (RULE-BASED APPROACH)
         if (result.fullScreenBlurDecision?.recommendedAction != null) {

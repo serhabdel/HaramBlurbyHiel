@@ -662,20 +662,7 @@ class ContentDetectionEngine @Inject constructor(
         return clusterCount >= 3
     }
     
-    /**
-     * Make LLM-enhanced decision for content actions
-     * Delegates to the FullScreenBlurTrigger's LLM capabilities
-     */
-    suspend fun makeLLMEnhancedDecision(
-        nsfwRegionCount: Int,
-        maxNsfwConfidence: Float,
-        settings: AppSettings,
-        currentApp: String = "browser"
-    ): com.hieltech.haramblur.llm.LLMDecisionResult {
-        return fullScreenBlurTrigger.makeLLMEnhancedDecision(
-            nsfwRegionCount, maxNsfwConfidence, settings, currentApp
-        )
-    }
+
     
     data class ContentAnalysisResult(
         val shouldBlur: Boolean,
