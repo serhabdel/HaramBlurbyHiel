@@ -13,47 +13,45 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-enum class SettingsCategory(
+// Import the SettingsCategory from the data package
+import com.hieltech.haramblur.data.SettingsCategory
+
+// Define navigation categories that map to the data enum
+enum class NavigationCategory(
     val title: String,
     val description: String,
     val icon: ImageVector,
-    val route: String
+    val settingsCategory: SettingsCategory
 ) {
     GENERAL(
         "General",
         "Service control and basic settings",
         Icons.Default.Settings,
-        "general"
+        SettingsCategory.ESSENTIAL
     ),
     DETECTION(
         "Detection",
         "Face and content detection settings",
         Icons.Default.Search,
-        "detection"
-    ),
-    PRIVACY(
-        "Privacy",
-        "Blur styles and privacy controls",
-        Icons.Default.Lock,
-        "privacy"
+        SettingsCategory.DETECTION
     ),
     PERFORMANCE(
         "Performance",
         "Speed and resource optimization",
         Icons.Default.Build,
-        "performance"
+        SettingsCategory.PERFORMANCE
     ),
     ISLAMIC(
         "Islamic",
         "Quranic guidance and Dhikr",
         Icons.Default.Star,
-        "islamic"
+        SettingsCategory.ISLAMIC
     ),
     ADVANCED(
         "Advanced",
         "AI and developer options",
         Icons.Default.Build,
-        "advanced"
+        SettingsCategory.AI
     )
 }
 
@@ -84,11 +82,11 @@ fun SettingsNavigationScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            items(SettingsCategory.values().size) { index ->
-                val category = SettingsCategory.values()[index]
+            items(NavigationCategory.values().size) { index ->
+                val navCategory = NavigationCategory.values()[index]
                 SettingsCategoryCard(
-                    category = category,
-                    onClick = { onNavigateToCategory(category) }
+                    category = navCategory,
+                    onClick = { onNavigateToCategory(navCategory.settingsCategory) }
                 )
             }
         }
@@ -98,7 +96,7 @@ fun SettingsNavigationScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsCategoryCard(
-    category: SettingsCategory,
+    category: NavigationCategory,
     onClick: () -> Unit
 ) {
     Card(

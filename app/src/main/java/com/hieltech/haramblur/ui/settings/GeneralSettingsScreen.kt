@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.data.*
 import com.hieltech.haramblur.ui.components.*
-import com.hieltech.haramblur.ui.ServiceControlCard
+import com.hieltech.haramblur.ui.components.ServiceControlCard
 import com.hieltech.haramblur.ui.SettingsViewModel
 import kotlinx.coroutines.launch
 
