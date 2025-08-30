@@ -31,6 +31,16 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
+ * Data class for holding quadruple values
+ */
+data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)
+
+/**
  * Responsive HomeScreen that adapts to different screen sizes using Window Size Classes
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -280,6 +290,36 @@ private fun CompactHomeScreen(
 
                     features.forEach { (title, description, icon) ->
                         CompactFeatureCard(title, description, icon)
+                    }
+                }
+            }
+        }
+
+        // Islamic Features Section
+        if (settings.enablePrayerTimes && !showWelcome) {
+            AnimatedVisibility(visible = showFeatures) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Prayer Times Widget
+                    PrayerTimesWidget(
+                        prayerData = dashboardState.prayerTimes,
+                        nextPrayer = dashboardState.nextPrayer,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Islamic Calendar Widget
+                    if (settings.enableIslamicCalendar) {
+                        IslamicCalendarWidget(
+                            hijriDate = dashboardState.hijriDate,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // Qibla Direction Widget
+                    if (settings.enableQiblaDirection) {
+                        QiblaDirectionWidget(
+                            qiblaDirection = dashboardState.qiblaDirection,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }
@@ -653,6 +693,39 @@ private fun MediumHomeScreen(
             }
         }
 
+        // Islamic Features Section
+        if (settings.enablePrayerTimes && !showWelcome) {
+            AnimatedVisibility(visible = showFeatures) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Prayer Times Widget
+                    PrayerTimesWidget(
+                        prayerData = dashboardState.prayerTimes,
+                        nextPrayer = dashboardState.nextPrayer,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Islamic Calendar Widget
+                    if (settings.enableIslamicCalendar) {
+                        IslamicCalendarWidget(
+                            hijriDate = dashboardState.hijriDate,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                // Qibla Direction Widget (full width)
+                if (settings.enableQiblaDirection) {
+                    QiblaDirectionWidget(
+                        qiblaDirection = dashboardState.qiblaDirection,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
         // Protection Status
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             StatusCard(
@@ -986,6 +1059,40 @@ private fun ExpandedHomeScreen(
                         MetricCard("Detection Rate", "${dashboardState.dailySummary.totalDetections}/hour", "🎯")
                         MetricCard("Success Rate", "${(dashboardState.dailySummary.performanceScore).toInt()}%", "✅")
                         MetricCard("Trend", "Improving", "📈")
+                    }
+                }
+            }
+        }
+
+        // Islamic Features Section
+        if (settings.enablePrayerTimes && !showWelcome) {
+            AnimatedVisibility(visible = showFeatures) {
+                // Islamic widgets in a row layout for expanded screens
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Prayer Times Widget
+                    PrayerTimesWidget(
+                        prayerData = dashboardState.prayerTimes,
+                        nextPrayer = dashboardState.nextPrayer,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Islamic Calendar Widget
+                    if (settings.enableIslamicCalendar) {
+                        IslamicCalendarWidget(
+                            hijriDate = dashboardState.hijriDate,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Qibla Direction Widget
+                    if (settings.enableQiblaDirection) {
+                        QiblaDirectionWidget(
+                            qiblaDirection = dashboardState.qiblaDirection,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }

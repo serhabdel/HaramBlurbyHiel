@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.DisposableEffect
 import com.hieltech.haramblur.ui.components.*
+import com.hieltech.haramblur.ui.components.IslamicOnboardingStep
 import kotlinx.coroutines.launch
 
 /**
@@ -299,6 +300,17 @@ private fun StepPage(
             }
             "DEVICE_ADMIN" -> {
                 DeviceAdminInstructions(step.status)
+            }
+            "LOCATION_PERMISSION" -> {
+                // Location permission step
+                LocationPermissionInstructions(step.status)
+            }
+            "ISLAMIC_FEATURES" -> {
+                // Islamic features onboarding step
+                IslamicOnboardingStep(
+                    onNext = { viewModel.proceedToNextStep() },
+                    onSkip = { viewModel.proceedToNextStep() }
+                )
             }
         }
     }

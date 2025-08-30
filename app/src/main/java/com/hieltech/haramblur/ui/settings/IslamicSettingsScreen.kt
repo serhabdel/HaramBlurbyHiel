@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.data.*
 import com.hieltech.haramblur.ui.components.*
+import com.hieltech.haramblur.ui.components.CitySelector
 import com.hieltech.haramblur.ui.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -217,6 +218,215 @@ fun IslamicSettingsScreen(
                             onCheckedChange = { viewModel.updateDhikrAnimationEnabled(it) }
                         )
                     }
+                }
+            }
+
+            // Prayer Times & Islamic Calendar Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Prayer Times & Islamic Calendar",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        text = "Islamic prayer times and calendar features",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    SwitchSetting(
+                        title = "Enable Prayer Times",
+                        description = "Show prayer times and Islamic calendar",
+                        checked = settings.enablePrayerTimes,
+                        onCheckedChange = { viewModel.updatePrayerTimesEnabled(it) }
+                    )
+
+                    // Location Settings Section
+                    if (settings.enablePrayerTimes) {
+                        Text(
+                            text = "Location Settings",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+
+                        Text(
+                            text = "Accurate prayer times depend on your location",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        SwitchSetting(
+                            title = "Auto-detect Location",
+                            description = "Use device GPS for automatic location detection",
+                            checked = settings.autoDetectLocation,
+                            onCheckedChange = { viewModel.updateAutoDetectLocation(it) }
+                        )
+
+                        // Current location display
+                        if (settings.locationLatitude != null && settings.locationLongitude != null) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "Current Location",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${settings.locationCity ?: "Unknown"}, ${settings.locationCountry ?: "Unknown"}",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = "Lat: ${String.format("%.4f", settings.locationLatitude)}, Lng: ${String.format("%.4f", settings.locationLongitude)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        // Manual location entry (when auto-detect is disabled)
+                        if (!settings.autoDetectLocation) {
+                            CitySelector(
+                                selectedCity = settings.preferredCity,
+                                selectedCountry = settings.preferredCountry,
+                                onCitySelected = { city, country ->
+                                    viewModel.updatePreferredCity(city)
+                                    viewModel.updatePreferredCountry(country)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    if (settings.enablePrayerTimes) {
+                        SwitchSetting(
+                            title = "Prayer Notifications",
+                            description = "Get notified before prayer times",
+                            checked = settings.enablePrayerNotifications,
+                            onCheckedChange = { viewModel.updatePrayerNotifications(it) }
+                        )
+
+                        if (settings.enablePrayerNotifications) {
+                            SliderSetting(
+                                title = "Advance Notice",
+                                description = "Minutes before prayer to notify",
+                                value = settings.prayerNotificationAdvanceTime.toFloat(),
+                                range = 5f..60f,
+                                onValueChange = { viewModel.updateNotificationAdvanceTime(it.toInt()) },
+                                valueFormatter = { "${it.toInt()} min" }
+                            )
+                        }
+
+                        // Location Settings
+                        Text(
+                            text = "Location Settings",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Text(
+                            text = "Prayer times are calculated based on your location",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        // Location display
+                        if (settings.locationLatitude != null && settings.locationLongitude != null) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "Current Location",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${settings.locationCity ?: "Unknown"}, ${settings.locationCountry ?: "Unknown"}",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = "Lat: ${String.format("%.4f", settings.locationLatitude)}, Lng: ${String.format("%.4f", settings.locationLongitude)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        // Calculation Method
+                        RadioButtonGroup(
+                            title = "Calculation Method",
+                            options = listOf(
+                                "1" to "University of Islamic Sciences, Karachi",
+                                "2" to "Islamic Society of North America (ISNA)",
+                                "3" to "Muslim World League",
+                                "4" to "Umm Al-Qura University, Makkah",
+                                "5" to "Egyptian General Authority of Survey"
+                            ),
+                            selectedIndex = (settings.prayerCalculationMethod - 1).coerceIn(0, 4),
+                            onSelectionChange = { index ->
+                                viewModel.updateCalculationMethod(index + 1)
+                            }
+                        )
+
+                        SliderSetting(
+                            title = "Update Interval",
+                            description = "Minutes between prayer times updates",
+                            value = settings.prayerTimesUpdateInterval.toFloat(),
+                            range = 15f..120f,
+                            onValueChange = { viewModel.updatePrayerTimesUpdateInterval(it.toInt()) },
+                            valueFormatter = { "${it.toInt()} min" }
+                        )
+                    }
+
+                    SwitchSetting(
+                        title = "Enable Islamic Calendar",
+                        description = "Show Islamic calendar and Hijri dates",
+                        checked = settings.enableIslamicCalendar,
+                        onCheckedChange = { viewModel.updateIslamicCalendarEnabled(it) }
+                    )
+
+                    if (settings.enableIslamicCalendar) {
+                        SliderSetting(
+                            title = "Calendar Update Interval",
+                            description = "Minutes between calendar updates",
+                            value = settings.islamicCalendarUpdateInterval.toFloat(),
+                            range = 30f..240f,
+                            onValueChange = { viewModel.updateIslamicCalendarUpdateInterval(it.toInt()) },
+                            valueFormatter = { "${it.toInt()} min" }
+                        )
+                    }
+
+                    SwitchSetting(
+                        title = "Enable Qibla Direction",
+                        description = "Show Qibla direction from your location",
+                        checked = settings.enableQiblaDirection,
+                        onCheckedChange = { viewModel.updateQiblaDirectionEnabled(it) }
+                    )
                 }
             }
 

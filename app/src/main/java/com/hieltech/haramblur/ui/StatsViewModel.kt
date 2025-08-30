@@ -10,6 +10,7 @@ import com.hieltech.haramblur.detection.PerformanceMonitor
 import com.hieltech.haramblur.detection.PerformanceMetrics
 import com.hieltech.haramblur.detection.PerformanceState
 import com.hieltech.haramblur.data.StatsRepository
+import com.hieltech.haramblur.data.PrayerTimesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -27,7 +28,8 @@ class StatsViewModel @Inject constructor(
     private val logRepository: LogRepository,
     private val appBlockingManager: AppBlockingManager,
     private val siteBlockingManager: EnhancedSiteBlockingManager,
-    private val statsRepository: StatsRepository
+    private val statsRepository: StatsRepository,
+    private val prayerTimesRepository: PrayerTimesRepository
 ) : ViewModel() {
 
     companion object {
@@ -50,7 +52,13 @@ class StatsViewModel @Inject constructor(
         val timelineData: List<LogRepository.TimelinePoint> = emptyList(),
         val blockedAppsCount: Int = 0,
         val blockedSitesCount: Int = 0,
-        val performanceTrends: PerformanceTrends = PerformanceTrends.empty()
+        val performanceTrends: PerformanceTrends = PerformanceTrends.empty(),
+        // Islamic features
+        val prayerTimes: com.hieltech.haramblur.data.prayer.PrayerData? = null,
+        val hijriDate: com.hieltech.haramblur.data.prayer.HijriCalendar? = null,
+        val nextPrayer: com.hieltech.haramblur.data.prayer.NextPrayerInfo? = null,
+        val qiblaDirection: Double? = null,
+        val isIslamicFeaturesEnabled: Boolean = true
     )
 
     // Using LogRepository data classes to avoid duplication
@@ -106,6 +114,11 @@ class StatsViewModel @Inject constructor(
         loadDashboardData()
         setupRealTimeUpdates()
         setupTimelineUpdates()
+        // Load Islamic data after a short delay to avoid blocking UI
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(1000)
+            loadIslamicData()
+        }
     }
 
     /**
@@ -288,6 +301,55 @@ class StatsViewModel @Inject constructor(
 
 
     /**
+     * Load Islamic prayer times and calendar data
+     */
+    private fun loadIslamicData() {
+        viewModelScope.launch {
+            try {
+                // Load prayer times
+                prayerTimesRepository.getPrayerTimes().onSuccess { prayerData ->
+                    _dashboardState.value = _dashboardState.value.copy(
+                        prayerTimes = prayerData,
+                        hijriDate = prayerData.date.hijri
+                    )
+                }.onFailure { error ->
+                    // Log error but don't show to user unless critical
+                    println("Error loading prayer times: ${error.message}")
+                }
+
+                // Load next prayer
+                prayerTimesRepository.getNextPrayer().onSuccess { nextPrayer ->
+                    _dashboardState.value = _dashboardState.value.copy(
+                        nextPrayer = nextPrayer
+                    )
+                }.onFailure { error ->
+                    println("Error loading next prayer: ${error.message}")
+                }
+
+                // Load Qibla direction
+                prayerTimesRepository.getQiblaDirection().onSuccess { direction ->
+                    _dashboardState.value = _dashboardState.value.copy(
+                        qiblaDirection = direction
+                    )
+                }.onFailure { error ->
+                    println("Error loading Qibla direction: ${error.message}")
+                }
+            } catch (e: Exception) {
+                println("Error in loadIslamicData: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Refresh Islamic data
+     */
+    fun refreshIslamicData() {
+        viewModelScope.launch {
+            loadIslamicData()
+        }
+    }
+
+    /**
      * Refresh all dashboard data
      */
     fun refreshData() {
@@ -295,6 +357,7 @@ class StatsViewModel @Inject constructor(
             try {
                 statsRepository.refreshStats()
                 loadDashboardData()
+                loadIslamicData()
             } catch (e: Exception) {
                 _dashboardState.value = _dashboardState.value.copy(
                     error = "Failed to refresh data: ${e.message}"

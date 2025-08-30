@@ -114,8 +114,27 @@ data class AppSettings(
     val dhikrPosition: String = "TOP_RIGHT", // Display position on screen
     val dhikrAnimationEnabled: Boolean = true, // Enable slide-in animation
     val dhikrSoundEnabled: Boolean = false, // Enable notification sound
-    
-    val settingsVersion: Int = 3 // Configuration version for compatibility tracking
+
+    // Islamic Calendar & Prayer Times Settings
+    val enableIslamicCalendar: Boolean = true, // Enable Islamic calendar display
+    val enablePrayerTimes: Boolean = true, // Enable prayer times display
+    val enablePrayerNotifications: Boolean = true, // Enable prayer time notifications
+    val prayerCalculationMethod: Int = 2, // Calculation method (2 = ISNA)
+    val prayerNotificationAdvanceTime: Int = 15, // Minutes before prayer to notify
+    val locationLatitude: Double? = null, // Cached location latitude
+    val locationLongitude: Double? = null, // Cached location longitude
+    val locationCity: String? = null, // Cached city name
+    val locationCountry: String? = null, // Cached country name
+    val locationCountryCode: String? = null, // ISO country code for better accuracy
+    val enableQiblaDirection: Boolean = true, // Enable Qibla direction feature
+    val prayerTimesUpdateInterval: Int = 30, // Minutes between prayer times updates
+    val islamicCalendarUpdateInterval: Int = 60, // Minutes between calendar updates
+    val autoDetectLocation: Boolean = true, // Auto-detect location vs manual entry
+    val preferredCity: String? = null, // User preferred city
+    val preferredCountry: String? = null, // User preferred country
+    val hijriCalendarMethod: String = "MOON_SIGHTING", // Hijri calendar method
+
+    val settingsVersion: Int = 4 // Configuration version for compatibility tracking
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {

@@ -19,6 +19,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
+ * Callback interface for handling blocked app launches
+ */
+interface BlockedAppLaunchCallback {
+    suspend fun onBlockedAppLaunched(packageName: String): Boolean
+}
+
+/**
  * Real-time app monitoring service using UsageStatsManager.
  *
  * This service monitors foreground app changes to detect blocked app launches
@@ -28,9 +35,9 @@ import javax.inject.Singleton
 class ForegroundAppMonitor @Inject constructor(
     @ApplicationContext private val context: Context,
     private val usageStatsManager: UsageStatsManager,
-    private val appBlockingManager: AppBlockingManager,
     private val systemCapabilities: SystemCapabilities,
-    private val logRepository: LogRepository
+    private val logRepository: LogRepository,
+    private val blockedAppLaunchCallback: BlockedAppLaunchCallback
 ) {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -172,63 +179,92 @@ class ForegroundAppMonitor @Inject constructor(
     }
 
     /**
-     * Handle detected app launch
+     * Handle detected app launch with aggressive blocking
      */
     private suspend fun handleAppLaunch(packageName: String, eventTime: Long) {
         try {
-            // Check if app is blocked
-            val isBlocked = appBlockingManager.isAppBlocked(packageName)
-            if (!isBlocked) {
-                return // Not a blocked app
-            }
+            // Notify callback about the app launch - it will handle blocking logic
+            val blockEnforced = blockedAppLaunchCallback.onBlockedAppLaunched(packageName)
 
-            // Check schedule-based blocking
-            // If app has schedules, check if currently blocked by schedule
-            // If app has no schedules, it's always blocked when added to blocked list
-            val hasSchedules = appBlockingManager.hasSchedules(packageName)
-            val shouldBlock = if (hasSchedules) {
-                appBlockingManager.isCurrentlyBlockedBySchedule(packageName)
-            } else {
-                true // No schedules means always blocked
+            if (blockEnforced) {
+                // If blocking was successful, set up additional monitoring for this app
+                // to ensure it stays blocked if it tries to relaunch
+                setupAggressiveMonitoring(packageName)
             }
-
-            if (!shouldBlock) {
-                scope.launch {
-                    logRepository.logInfo(
-                        tag = "AppBlockingManager",
-                        message = "App launch not blocked due to schedule: $packageName",
-                        category = LogCategory.ACCESSIBILITY,
-                        userAction = "APP_LAUNCH_NOT_BLOCKED"
-                    )
-                }
-                return // Not currently blocked by schedule or no schedules but shouldn't block
-            }
-
-            // Get recommended blocking method
-            val blockingMethod = systemCapabilities.getRecommendedBlockingMethod(packageName)
 
             scope.launch {
                 logRepository.logInfo(
-                    tag = "AppBlockingManager",
-                    message = "Blocked app launch detected: $packageName (method: ${blockingMethod.name})",
+                    tag = "ForegroundAppMonitor",
+                    message = "App launch detected: $packageName (block enforced: $blockEnforced)",
                     category = LogCategory.ACCESSIBILITY,
-                    userAction = "BLOCKED_APP_LAUNCH_DETECTED"
+                    userAction = if (blockEnforced) "BLOCKED_APP_LAUNCH_HANDLED" else "NON_BLOCKED_APP_LAUNCH"
                 )
             }
-
-            // Trigger blocking
-            appBlockingManager.enforceBlock(packageName)
-            appBlockingManager.incrementBlockCount(packageName)
 
         } catch (e: Exception) {
             scope.launch {
                 logRepository.logInfo(
-                    tag = "AppBlockingManager",
+                    tag = "ForegroundAppMonitor",
                     message = "Error handling app launch for $packageName: ${e.message}",
                     category = LogCategory.ACCESSIBILITY,
                     userAction = "APP_LAUNCH_HANDLING_ERROR"
                 )
             }
+        }
+    }
+
+    /**
+     * Setup aggressive monitoring for persistently blocked apps
+     */
+    private fun setupAggressiveMonitoring(packageName: String) {
+        // Add this package to a watchlist for extra monitoring
+        // This ensures that if the app tries to relaunch, we catch it immediately
+        scope.launch {
+            try {
+                // Monitor for a short period to catch any relaunch attempts
+                val monitorDuration = 10000L // 10 seconds of aggressive monitoring
+                val startTime = System.currentTimeMillis()
+
+                while (System.currentTimeMillis() - startTime < monitorDuration && isActive) {
+                    // Check if the app is still running and block it if needed
+                    if (isAppRunning(packageName)) {
+                        blockedAppLaunchCallback.onBlockedAppLaunched(packageName)
+                        logRepository.logInfo(
+                            tag = "ForegroundAppMonitor",
+                            message = "Re-blocking persistent app: $packageName",
+                            category = LogCategory.ACCESSIBILITY,
+                            userAction = "PERSISTENT_APP_REBLOCKED"
+                        )
+                    }
+                    delay(1000L) // Check every second
+                }
+            } catch (e: Exception) {
+                logRepository.logInfo(
+                    tag = "ForegroundAppMonitor",
+                    message = "Error in aggressive monitoring for $packageName: ${e.message}",
+                    category = LogCategory.ACCESSIBILITY,
+                    userAction = "AGGRESSIVE_MONITORING_ERROR"
+                )
+            }
+        }
+    }
+
+    /**
+     * Check if an app is currently running
+     */
+    private fun isAppRunning(packageName: String): Boolean {
+        return try {
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val runningProcesses = activityManager.runningAppProcesses ?: return false
+
+            for (process in runningProcesses) {
+                if (process.processName == packageName || process.processName.startsWith("$packageName:")) {
+                    return true
+                }
+            }
+            false
+        } catch (e: Exception) {
+            false
         }
     }
 

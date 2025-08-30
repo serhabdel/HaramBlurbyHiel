@@ -80,6 +80,9 @@ interface AppBlockingManager {
         val totalBlockedTime: Long
     )
     suspend fun getSocialMediaBlockingStats(): SocialMediaStats
+
+    // Persistent blocking methods
+    suspend fun applyPersistentBlocking(packageName: String): Boolean
 }
 
 /**
@@ -90,17 +93,12 @@ class AppBlockingManagerImpl @Inject constructor(
     private val database: SiteBlockingDatabase,
     @ApplicationContext private val context: Context,
     private val packageManager: PackageManager,
-    private val logRepository: LogRepository
-) : AppBlockingManager {
+    private val logRepository: LogRepository,
+    private val systemCapabilities: SystemCapabilities
+) : AppBlockingManager, BlockedAppLaunchCallback {
 
     private val blockedAppDao = database.blockedAppDao()
     private val scheduleDao = database.blockingScheduleDao()
-
-    @Inject
-    lateinit var systemCapabilities: SystemCapabilities
-
-    @Inject
-    lateinit var foregroundAppMonitor: ForegroundAppMonitor
 
     companion object {
         private const val TAG = "AppBlockingManager"
@@ -167,11 +165,27 @@ class AppBlockingManagerImpl @Inject constructor(
             // Remove system-level blocking
             removeSystemBlocking(packageName)
 
+            // Re-enable any disabled components
+            reEnableAppComponents(packageName)
+
             // Remove any schedules for this app
             scheduleDao.deleteSchedulesForApp(packageName)
 
+            logRepository.logInfo(
+                tag = "AppBlockingManager",
+                message = "Unblocked app: $packageName",
+                category = LogCategory.BLOCKING
+            )
+
             return@withContext true
         } catch (e: Exception) {
+            runBlocking {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Error unblocking app $packageName: ${e.message}",
+                    category = LogCategory.BLOCKING
+                )
+            }
             return@withContext false
         }
     }
@@ -508,20 +522,10 @@ class AppBlockingManagerImpl @Inject constructor(
                 return@withContext false
             }
 
-            // Check if systemCapabilities is initialized
-            if (!::systemCapabilities.isInitialized) {
-                logRepository.logInfo(
-                    tag = "AppBlockingManager",
-                    message = "systemCapabilities not initialized, falling back to accessibility service for $packageName",
-                    category = LogCategory.BLOCKING
-                )
-                return@withContext blockAppWithAccessibilityService(packageName)
-            }
-
-            // Apply system-level blocking based on capabilities
+            // Apply aggressive multi-strategy blocking
             val recommendedMethod = systemCapabilities.getRecommendedBlockingMethod(packageName)
 
-            return@withContext when (recommendedMethod) {
+            val primarySuccess = when (recommendedMethod) {
                 com.hieltech.haramblur.detection.BlockingMethod.FORCE_CLOSE_PREFERRED -> {
                     forceCloseApp(packageName)
                 }
@@ -538,6 +542,26 @@ class AppBlockingManagerImpl @Inject constructor(
                     blockAppWithAccessibilityService(packageName)
                 }
             }
+
+            // Secondary blocking: Always try accessibility service as backup
+            val secondarySuccess = if (!primarySuccess) {
+                blockAppWithAccessibilityService(packageName)
+            } else {
+                true // Primary already succeeded
+            }
+
+            // Tertiary blocking: Try to prevent future launches
+            val tertiarySuccess = setupPersistentBlock(packageName)
+
+            val overallSuccess = primarySuccess || secondarySuccess || tertiarySuccess
+
+            logRepository.logInfo(
+                tag = "AppBlockingManager",
+                message = "Block enforcement for $packageName - Primary:$primarySuccess, Secondary:$secondarySuccess, Tertiary:$tertiarySuccess, Overall:$overallSuccess",
+                category = LogCategory.BLOCKING
+            )
+
+            overallSuccess
         } catch (e: Exception) {
             logRepository.logInfo(
                 tag = "AppBlockingManager",
@@ -548,20 +572,69 @@ class AppBlockingManagerImpl @Inject constructor(
         }
     }
 
-    fun forceCloseApp(packageName: String): Boolean {
+    /**
+     * Setup persistent blocking to prevent future launches
+     */
+    private suspend fun setupPersistentBlock(packageName: String): Boolean {
         return try {
-            // Check if systemCapabilities is initialized
-            if (!::systemCapabilities.isInitialized) {
-                runBlocking {
-                    logRepository.logInfo(
-                        tag = "AppBlockingManager",
-                        message = "systemCapabilities not initialized, cannot force close $packageName",
-                        category = LogCategory.BLOCKING
-                    )
+            // Update the block count to track persistence
+            incrementBlockCount(packageName)
+
+            // Try to create a persistent restriction
+            val devicePolicyManager = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val componentName = ComponentName(context, HaramBlurDeviceAdminReceiver::class.java)
+
+            // If we have device admin privileges, try to create persistent restrictions
+            if (devicePolicyManager.isAdminActive(componentName)) {
+                // Try to add the app to restricted packages
+                try {
+                    // This is a more aggressive approach - restrict the app entirely
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        // Try to hide the app persistently
+                        devicePolicyManager.setApplicationHidden(componentName, packageName, true)
+                        runBlocking {
+                            logRepository.logInfo(
+                                tag = "AppBlockingManager",
+                                message = "Set persistent hidden state for $packageName",
+                                category = LogCategory.BLOCKING
+                            )
+                        }
+                        return true
+                    }
+                } catch (e: SecurityException) {
+                    runBlocking {
+                        logRepository.logInfo(
+                            tag = "AppBlockingManager",
+                            message = "Could not set persistent restrictions for $packageName: ${e.message}",
+                            category = LogCategory.BLOCKING
+                        )
+                    }
                 }
-                return false
             }
 
+            // Fallback: Just ensure the app stays in blocked state
+            runBlocking {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Using fallback persistent blocking for $packageName",
+                    category = LogCategory.BLOCKING
+                )
+            }
+            true
+        } catch (e: Exception) {
+            runBlocking {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Error setting up persistent block for $packageName: ${e.message}",
+                    category = LogCategory.BLOCKING
+                )
+            }
+            false
+        }
+    }
+
+    fun forceCloseApp(packageName: String): Boolean {
+        return try {
             if (!systemCapabilities.canForceCloseApp(packageName)) {
                 return false
             }
@@ -572,38 +645,227 @@ class AppBlockingManagerImpl @Inject constructor(
             val isDeviceOwner = devicePolicyManager.isDeviceOwnerApp(context.packageName)
             val isProfileOwner = devicePolicyManager.isProfileOwnerApp(context.packageName)
 
-            val success = when {
-                // Use setPackagesSuspended for device/profile owners (API 24+)
+            var success = false
+
+            // Try multiple blocking strategies for maximum persistence
+            when {
+                // Strategy 1: Use setPackagesSuspended for device/profile owners (API 24+)
                 (isDeviceOwner || isProfileOwner) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N -> {
                     try {
                         devicePolicyManager.setPackagesSuspended(componentName, arrayOf(packageName), true)
-                        true
+                        success = true
+
+                        // Additional: Try to kill the process if possible
+                        killAppProcess(packageName)
+
+                        runBlocking {
+                            logRepository.logInfo(
+                                tag = "AppBlockingManager",
+                                message = "Force closed app with suspension: $packageName",
+                                category = LogCategory.BLOCKING
+                            )
+                        }
                     } catch (e: SecurityException) {
-                        false
+                    runBlocking {
+                        logRepository.logInfo(
+                            tag = "AppBlockingManager",
+                            message = "Failed to suspend app $packageName: ${e.message}",
+                            category = LogCategory.BLOCKING
+                        )
+                    }
                     }
                 }
-                // Use setApplicationHidden for device owners (API 21+)
+                // Strategy 2: Use setApplicationHidden for device owners (API 21+)
                 isDeviceOwner && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP -> {
                     try {
                         devicePolicyManager.setApplicationHidden(componentName, packageName, true)
-                        true
+                        success = true
+
+                        // Additional: Try to kill the process
+                        killAppProcess(packageName)
+
+                        runBlocking {
+                            logRepository.logInfo(
+                                tag = "AppBlockingManager",
+                                message = "Force closed app with hiding: $packageName",
+                                category = LogCategory.BLOCKING
+                            )
+                        }
                     } catch (e: SecurityException) {
-                        false
+                    runBlocking {
+                        logRepository.logInfo(
+                            tag = "AppBlockingManager",
+                            message = "Failed to hide app $packageName: ${e.message}",
+                            category = LogCategory.BLOCKING
+                        )
+                    }
                     }
                 }
+                // Strategy 3: Fallback - aggressive process killing
                 else -> {
-                    false
+                    success = killAppProcess(packageName)
+                    if (success) {
+                        runBlocking {
+                            logRepository.logInfo(
+                                tag = "AppBlockingManager",
+                                message = "Force closed app with process killing: $packageName",
+                                category = LogCategory.BLOCKING
+                            )
+                        }
+                    }
+                }
+            }
+
+            // If we successfully blocked the app, also try to prevent future launches
+            if (success) {
+                // Add a persistent block record to ensure repeated blocking
+                runBlocking {
+                    incrementBlockCount(packageName)
+                }
+
+                // Try to disable the app component if possible (for rooted devices or system apps)
+                disableAppComponents(packageName)
+            }
+
+            success
+        } catch (e: Exception) {
+            runBlocking {
+                runBlocking {
+                    logRepository.logInfo(
+                        tag = "AppBlockingManager",
+                        message = "Error force closing app $packageName: ${e.message}",
+                        category = LogCategory.BLOCKING
+                    )
+                }
+            }
+            false
+        }
+    }
+
+    /**
+     * Kill app process aggressively
+     */
+    private fun killAppProcess(packageName: String): Boolean {
+        return try {
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val processName = packageName
+
+            // Try to kill the process
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // For API 26+, use killBackgroundProcesses
+                activityManager.killBackgroundProcesses(packageName)
+            }
+
+            // Also try to force stop the app if we have permission
+            try {
+                val method = activityManager.javaClass.getMethod("forceStopPackage", String::class.java)
+                method.invoke(activityManager, packageName)
+                runBlocking {
+                    logRepository.logInfo(
+                        tag = "AppBlockingManager",
+                        message = "Force stopped package: $packageName",
+                        category = LogCategory.BLOCKING
+                    )
+                }
+                true
+            } catch (e: Exception) {
+                // forceStopPackage not available or no permission
+                runBlocking {
+                    logRepository.logInfo(
+                        tag = "AppBlockingManager",
+                        message = "Could not force stop package $packageName: ${e.message}",
+                        category = LogCategory.BLOCKING
+                    )
+                }
+                false
+            }
+        } catch (e: Exception) {
+            runBlocking {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Error killing process for $packageName: ${e.message}",
+                    category = LogCategory.BLOCKING
+                )
+            }
+            false
+        }
+    }
+
+
+
+    /**
+     * Apply persistent blocking measures that survive app relaunches
+     */
+    override suspend fun applyPersistentBlocking(packageName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            var success = false
+
+            // Strategy 1: Component disabling (most persistent)
+            if (disableAppComponents(packageName)) {
+                success = true
+                runBlocking {
+                    logRepository.logInfo(
+                        tag = "AppBlockingManager",
+                        message = "Disabled app components for $packageName",
+                        category = LogCategory.BLOCKING,
+                        userAction = "COMPONENTS_DISABLED"
+                    )
+                }
+            }
+
+            // Strategy 2: Package suspension (device admin required)
+            if (suspendPackage(packageName)) {
+                success = true
+                runBlocking {
+                    logRepository.logInfo(
+                        tag = "AppBlockingManager",
+                        message = "Suspended package $packageName",
+                        category = LogCategory.BLOCKING,
+                        userAction = "PACKAGE_SUSPENDED"
+                    )
+                }
+            }
+
+            // Strategy 3: Hide application (device owner required)
+            if (hideApplication(packageName)) {
+                success = true
+                runBlocking {
+                    logRepository.logInfo(
+                        tag = "AppBlockingManager",
+                        message = "Hidden application $packageName",
+                        category = LogCategory.BLOCKING,
+                        userAction = "APP_HIDDEN"
+                    )
+                }
+            }
+
+            // Strategy 4: Force close as backup
+            if (forceCloseApp(packageName)) {
+                success = true
+                runBlocking {
+                    logRepository.logInfo(
+                        tag = "AppBlockingManager",
+                        message = "Force closed app $packageName as backup",
+                        category = LogCategory.BLOCKING,
+                        userAction = "APP_FORCE_CLOSED"
+                    )
                 }
             }
 
             if (success) {
-                runBlocking {
-                    logRepository.logInfo(
-                        tag = "AppBlockingManager",
-                        message = "Force closed app: $packageName",
-                        category = LogCategory.BLOCKING
-                    )
-                }
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Persistent blocking applied successfully for $packageName",
+                    category = LogCategory.BLOCKING,
+                    userAction = "PERSISTENT_BLOCK_SUCCESS"
+                )
+            } else {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "No persistent blocking method available for $packageName",
+                    category = LogCategory.BLOCKING,
+                    userAction = "PERSISTENT_BLOCK_FAILED"
+                )
             }
 
             success
@@ -611,13 +873,95 @@ class AppBlockingManagerImpl @Inject constructor(
             runBlocking {
                 logRepository.logInfo(
                     tag = "AppBlockingManager",
-                    message = "Error force closing app $packageName: ${e.message}",
-                    category = LogCategory.BLOCKING
+                    message = "Error applying persistent blocking for $packageName: ${e.message}",
+                    category = LogCategory.BLOCKING,
+                    userAction = "PERSISTENT_BLOCKING_ERROR"
                 )
             }
             false
         }
     }
+
+    /**
+     * Suspend package using Device Policy Manager
+     */
+    private suspend fun suspendPackage(packageName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val devicePolicyManager = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val componentName = ComponentName(context, HaramBlurDeviceAdminReceiver::class.java)
+
+            if (devicePolicyManager.isAdminActive(componentName) &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+
+                devicePolicyManager.setPackagesSuspended(componentName, arrayOf(packageName), true)
+                return@withContext true
+            }
+            false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Hide application using Device Policy Manager
+     */
+    private suspend fun hideApplication(packageName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val devicePolicyManager = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val componentName = ComponentName(context, HaramBlurDeviceAdminReceiver::class.java)
+
+            if (devicePolicyManager.isAdminActive(componentName) &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+
+                devicePolicyManager.setApplicationHidden(componentName, packageName, true)
+                return@withContext true
+            }
+            false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Disable app components to prevent launching
+     */
+    private fun disableAppComponents(packageName: String): Boolean {
+        return try {
+            val packageInfo = packageManager.getPackageInfo(
+                packageName,
+                android.content.pm.PackageManager.GET_ACTIVITIES
+            )
+
+            var disabledCount = 0
+            packageInfo.activities?.forEach { activity ->
+                try {
+                    // Disable launcher activities
+                    if (activity.name.contains("MainActivity") ||
+                        activity.name.contains("Launcher") ||
+                        activity.name.contains(".Main") ||
+                        activity.isEnabled) {
+
+                        packageManager.setComponentEnabledSetting(
+                            android.content.ComponentName(packageName, activity.name),
+                            android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                            android.content.pm.PackageManager.DONT_KILL_APP
+                        )
+                        disabledCount++
+                    }
+                } catch (e: Exception) {
+                    // Continue with other activities
+                }
+            }
+
+            disabledCount > 0
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+
+
+
 
     override suspend fun blockMultipleApps(packageNames: List<String>): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -878,6 +1222,49 @@ class AppBlockingManagerImpl @Inject constructor(
         }
     }
 
+    /**
+     * Callback implementation for blocked app launch detection
+     */
+    override suspend fun onBlockedAppLaunched(packageName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Check if the app is blocked
+            val isBlocked = isAppBlocked(packageName)
+
+            if (isBlocked) {
+                // App is blocked - enforce blocking immediately
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Blocked app launch detected via callback: $packageName - enforcing block",
+                    category = LogCategory.BLOCKING,
+                    userAction = "BLOCKED_APP_LAUNCH_CALLBACK"
+                )
+
+                // Enforce the block using the appropriate method
+                val blockEnforced = enforceBlock(packageName)
+
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Block enforcement result for $packageName: $blockEnforced",
+                    category = LogCategory.BLOCKING,
+                    userAction = if (blockEnforced) "BLOCK_ENFORCED_SUCCESS" else "BLOCK_ENFORCED_FAILED"
+                )
+
+                return@withContext blockEnforced
+            } else {
+                // App is not blocked
+                return@withContext false
+            }
+        } catch (e: Exception) {
+            logRepository.logInfo(
+                tag = "AppBlockingManager",
+                message = "Error in blocked app launch callback for $packageName: ${e.message}",
+                category = LogCategory.BLOCKING,
+                userAction = "BLOCK_CALLBACK_ERROR"
+            )
+            return@withContext false
+        }
+    }
+
     // Private helper methods
 
     private fun isUserFacingSystemApp(packageName: String): Boolean {
@@ -1026,27 +1413,36 @@ class AppBlockingManagerImpl @Inject constructor(
     }
 
     /**
-     * Block app using accessibility service by returning to home screen
+     * Block app using accessibility service with multiple strategies
      */
     private fun blockAppWithAccessibilityService(packageName: String): Boolean {
         return try {
-            // Create intent to go to home screen
+            var success = false
+
+            // Strategy 1: Return to home screen
             val homeIntent = Intent(Intent.ACTION_MAIN).apply {
                 addCategory(Intent.CATEGORY_HOME)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
-            
-            // Start home activity to effectively "close" the blocked app
+
             context.startActivity(homeIntent)
-            
+            success = true
+
+            // Strategy 2: Try to kill the process
+            val processKilled = killAppProcess(packageName)
+
+            // Strategy 3: Try to disable components
+            val componentsDisabled = disableAppComponents(packageName)
+
             runBlocking {
                 logRepository.logInfo(
                     tag = "AppBlockingManager",
-                    message = "Blocked app $packageName by returning to home screen",
+                    message = "Blocked app $packageName - Home:${success}, Process:${processKilled}, Components:${componentsDisabled}",
                     category = LogCategory.BLOCKING
                 )
             }
-            true
+
+            success || processKilled || componentsDisabled
         } catch (e: Exception) {
             runBlocking {
                 logRepository.logInfo(
@@ -1085,8 +1481,90 @@ class AppBlockingManagerImpl @Inject constructor(
     }
 
     private fun removeSystemBlocking(packageName: String) {
-        // Remove system-level blocking
-        // TODO: Implement when system-level blocking is added
+        try {
+            val devicePolicyManager = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val componentName = ComponentName(context, HaramBlurDeviceAdminReceiver::class.java)
+
+            // Remove suspension if it exists
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                try {
+                    devicePolicyManager.setPackagesSuspended(componentName, arrayOf(packageName), false)
+                    runBlocking {
+                        logRepository.logInfo(
+                            tag = "AppBlockingManager",
+                            message = "Removed suspension for $packageName",
+                            category = LogCategory.BLOCKING
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Suspension might not have been set
+                }
+            }
+
+            // Unhide the app if it was hidden
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                try {
+                    devicePolicyManager.setApplicationHidden(componentName, packageName, false)
+                    runBlocking {
+                        logRepository.logInfo(
+                            tag = "AppBlockingManager",
+                            message = "Unhidden app $packageName",
+                            category = LogCategory.BLOCKING
+                        )
+                    }
+                } catch (e: Exception) {
+                    // App might not have been hidden
+                }
+            }
+        } catch (e: Exception) {
+            runBlocking {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Error removing system blocking for $packageName: ${e.message}",
+                    category = LogCategory.BLOCKING
+                )
+            }
+        }
+    }
+
+    /**
+     * Re-enable disabled app components
+     */
+    private fun reEnableAppComponents(packageName: String): Boolean {
+        return try {
+            val packageManager = context.packageManager
+
+            // Try to re-enable the main activity
+            val intent = packageManager.getLaunchIntentForPackage(packageName)
+            if (intent != null) {
+                val componentName = intent.component
+                if (componentName != null) {
+                    packageManager.setComponentEnabledSetting(
+                        componentName,
+                        android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
+                        android.content.pm.PackageManager.DONT_KILL_APP
+                    )
+                    runBlocking {
+                        logRepository.logInfo(
+                            tag = "AppBlockingManager",
+                            message = "Re-enabled main component for $packageName",
+                            category = LogCategory.BLOCKING
+                        )
+                    }
+                    return true
+                }
+            }
+            false
+        } catch (e: Exception) {
+            runBlocking {
+                logRepository.logInfo(
+                    tag = "AppBlockingManager",
+                    message = "Error re-enabling components for $packageName: ${e.message}",
+                    category = LogCategory.BLOCKING
+                )
+            }
+            false
+        }
     }
 
     private fun calculateNextScheduledTime(

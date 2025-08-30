@@ -86,6 +86,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     @Inject
     lateinit var dhikrManager: com.hieltech.haramblur.services.DhikrManager
 
+
+
     // TODO: Behavioral action components temporarily disabled
     
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -149,6 +151,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
         Log.d(TAG, "Emergency reset broadcast receiver registered")
 
+        // App launch interceptor is registered in manifest
+        Log.d(TAG, "App launch interceptor ready")
+
         // Initialize components
         serviceScope.launch {
             initializeComponents()
@@ -165,6 +170,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         } catch (e: Exception) {
             Log.w(TAG, "Error unregistering emergency reset receiver", e)
         }
+
+        // App launch interceptor is managed by system
+        Log.d(TAG, "App launch interceptor cleanup complete")
 
         // Stop app blocking monitor
         try {

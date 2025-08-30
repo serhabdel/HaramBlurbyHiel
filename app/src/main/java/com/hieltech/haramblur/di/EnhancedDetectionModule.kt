@@ -3,6 +3,8 @@ package com.hieltech.haramblur.di
 import android.app.usage.UsageStatsManager
 import android.app.admin.DevicePolicyManager
 import android.content.Context
+import android.content.pm.PackageManager
+import com.hieltech.haramblur.accessibility.AppLaunchInterceptor
 import com.hieltech.haramblur.detection.*
 import com.hieltech.haramblur.ml.FaceDetectionManager
 import com.hieltech.haramblur.ml.MLModelManager
@@ -44,6 +46,18 @@ abstract class EnhancedDetectionModule {
         contentDensityAnalyzerImpl: ContentDensityAnalyzerImpl
     ): ContentDensityAnalyzer
     
+    @Binds
+    @Singleton
+    abstract fun bindAppBlockingManager(
+        appBlockingManagerImpl: AppBlockingManagerImpl
+    ): AppBlockingManager
+
+    @Binds
+    @Singleton
+    abstract fun bindBlockedAppLaunchCallback(
+        appBlockingManagerImpl: AppBlockingManagerImpl
+    ): BlockedAppLaunchCallback
+
     @Binds
     @Singleton
     abstract fun bindSiteBlockingManager(
@@ -156,6 +170,14 @@ abstract class EnhancedDetectionModule {
             @ApplicationContext context: Context
         ): DevicePolicyManager {
             return context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        }
+
+        @Provides
+        @Singleton
+        fun providePackageManager(
+            @ApplicationContext context: Context
+        ): PackageManager {
+            return context.packageManager
         }
     }
 }

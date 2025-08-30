@@ -75,6 +75,21 @@ class PermissionWizardViewModel @Inject constructor(
             description = "Force-close blocked apps for stronger enforcement",
             permissionType = "DEVICE_ADMIN",
             isRequired = false
+        ),
+        WizardStep(
+            stepNumber = 4,
+            title = "Location Permission",
+            description = "Enable accurate prayer times and Islamic calendar",
+            permissionType = "LOCATION_PERMISSION",
+            isRequired = false
+        ),
+        WizardStep(
+            stepNumber = 5,
+            title = "Islamic Features",
+            description = "Set up prayer times, Islamic calendar, and spiritual features",
+            permissionType = "ISLAMIC_FEATURES",
+            isRequired = false,
+            isCompleted = true
         )
     )
 
@@ -227,6 +242,11 @@ class PermissionWizardViewModel @Inject constructor(
             "DEVICE_ADMIN" -> {
                 permissionHelper.requestDeviceAdminPermission(activity)
             }
+            "LOCATION_PERMISSION" -> {
+                // Open location settings
+                val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                activity.startActivity(intent)
+            }
         }
     }
 
@@ -272,12 +292,7 @@ class PermissionWizardViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Refresh permission statuses (call this when returning from settings)
-     */
-    fun refreshPermissions() {
-        permissionHelper.updatePermissionStatuses()
-    }
+
 
     /**
      * Update step status
@@ -300,6 +315,20 @@ class PermissionWizardViewModel @Inject constructor(
         return settingsRepository.settings.map { settings ->
             !settings.onboardingCompleted ||
             !permissionHelper.getEnhancedBlockingPermissionStatus().isComplete
+        }
+    }
+
+    /**
+     * Refresh permission statuses
+     */
+    fun refreshPermissions() {
+        viewModelScope.launch {
+            try {
+                permissionHelper.updatePermissionStatuses()
+                initializeWizardState()
+            } catch (e: Exception) {
+                // Handle error silently
+            }
         }
     }
 

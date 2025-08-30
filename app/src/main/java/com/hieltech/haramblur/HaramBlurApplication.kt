@@ -2,15 +2,24 @@ package com.hieltech.haramblur
 
 import android.app.Application
 import android.util.Log
+import com.hieltech.haramblur.data.LogRepository
+import com.hieltech.haramblur.detection.AppBlockingManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @HiltAndroidApp
 class HaramBlurApplication : Application() {
 
     private val TAG = "HaramBlurApplication"
+
+    @Inject
+    lateinit var appBlockingManager: AppBlockingManager
+
+    @Inject
+    lateinit var logRepository: LogRepository
 
     override fun onCreate() {
         super.onCreate()

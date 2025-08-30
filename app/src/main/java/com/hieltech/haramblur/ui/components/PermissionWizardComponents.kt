@@ -589,3 +589,67 @@ fun PermissionExplanationSection(
         }
     }
 }
+
+/**
+ * Location permission instructions
+ */
+@Composable
+fun LocationPermissionInstructions(status: PermissionWizardViewModel.PermissionStatus) {
+    when (status) {
+        PermissionWizardViewModel.PermissionStatus.PENDING -> {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Location access enables accurate prayer times and Islamic calendar for your specific city.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = "🕌 Prayer times vary by longitude - different cities have different prayer times",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "📅 Islamic calendar dates may differ by country due to moon sighting methods",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "🔒 Your location data stays on your device and is never shared",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
+        PermissionWizardViewModel.PermissionStatus.GRANTED -> {
+            Text(
+                text = "✅ Location access granted. Prayer times and Islamic calendar will be accurate for your location.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF4CAF50)
+            )
+        }
+        PermissionWizardViewModel.PermissionStatus.DENIED -> {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "❌ Location access denied. Using default location (Mecca) for prayer times.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFF44336)
+                )
+                Text(
+                    text = "You can grant location permission later in Settings > Islamic for accurate local prayer times.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        PermissionWizardViewModel.PermissionStatus.REQUESTING -> {
+            Text(
+                text = "Requesting location permission...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}

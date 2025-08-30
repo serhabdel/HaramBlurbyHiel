@@ -748,4 +748,95 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.updateSettings(current.copy(dhikrAnimationEnabled = enabled))
         }
     }
+
+    // Islamic Calendar & Prayer Times Settings Methods
+    fun updateIslamicCalendarEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableIslamicCalendar = enabled))
+        }
+    }
+
+    fun updatePrayerTimesEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enablePrayerTimes = enabled))
+        }
+    }
+
+    fun updatePrayerNotifications(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enablePrayerNotifications = enabled))
+        }
+    }
+
+    fun updateCalculationMethod(method: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(prayerCalculationMethod = method))
+        }
+    }
+
+    fun updateNotificationAdvanceTime(minutes: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(prayerNotificationAdvanceTime = minutes))
+        }
+    }
+
+    // Location Settings Methods
+    fun updateAutoDetectLocation(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(autoDetectLocation = enabled))
+        }
+    }
+
+    fun updatePreferredCity(city: String) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(preferredCity = city))
+        }
+    }
+
+    fun updatePreferredCountry(country: String) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(preferredCountry = country))
+        }
+    }
+
+    fun updateLocation(latitude: Double?, longitude: Double?, city: String?, country: String?) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(
+                locationLatitude = latitude,
+                locationLongitude = longitude,
+                locationCity = city,
+                locationCountry = country
+            ))
+        }
+    }
+
+    fun updatePrayerTimesUpdateInterval(minutes: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(prayerTimesUpdateInterval = minutes))
+        }
+    }
+
+    fun updateIslamicCalendarUpdateInterval(minutes: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(islamicCalendarUpdateInterval = minutes))
+        }
+    }
+
+    fun updateQiblaDirectionEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableQiblaDirection = enabled))
+        }
+    }
 }
