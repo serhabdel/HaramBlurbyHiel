@@ -20,6 +20,7 @@ import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.data.ProcessingSpeed
 import com.hieltech.haramblur.data.QuranicRepository
+import com.hieltech.haramblur.utils.UrlUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import javax.inject.Inject
@@ -848,22 +849,22 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     }
     
     /**
-     * Check for URL changes in accessibility events
+     * Check for URL changes in accessibility events with enhanced porn detection
      */
     private suspend fun checkForUrlChanges(event: AccessibilityEvent?) {
         if (event == null) return
-        
+
         val currentTime = System.currentTimeMillis()
-        
+
         // Throttle URL checking to avoid excessive processing
-        if (currentTime - lastUrlCheckTime < 1000) {
+        if (currentTime - lastUrlCheckTime < 500) { // Reduced from 1000ms for faster detection
             return
         }
         lastUrlCheckTime = currentTime
-        
+
         try {
             val packageName = event.packageName?.toString()
-            
+
             // Only check URLs for browser apps and web-based apps
             if (isBrowserApp(packageName)) {
                 val extractedUrl = extractUrlFromAccessibilityEvent(event)
@@ -876,12 +877,82 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
                     Log.d(TAG, "$modeIndicator URL detected: $currentUrl (Browser: $packageName)")
 
-                    // Check if the URL should be blocked
-                    checkAndBlockUrl(extractedUrl)
+                    // Enhanced porn detection before full blocking check
+                    if (isLikelyPornUrl(extractedUrl)) {
+                        Log.w(TAG, "🚨 LIKELY PORN URL DETECTED: $extractedUrl")
+                        handleLikelyPornUrl(extractedUrl, packageName)
+                    } else {
+                        // Check if the URL should be blocked
+                        checkAndBlockUrl(extractedUrl)
+                    }
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking URL changes", e)
+        }
+    }
+
+    /**
+     * Quick check if URL is likely porn content
+     */
+    private fun isLikelyPornUrl(url: String): Boolean {
+        val lowercaseUrl = url.lowercase()
+
+        // Quick porn keywords for immediate detection
+        val quickPornKeywords = listOf(
+            "porn", "sex", "xxx", "nude", "naked", "fuck", "pussy", "dick",
+            "boobs", "tits", "ass", "cum", "blowjob", "handjob", "anal",
+            "milf", "teen", "gay", "lesbian", "hentai", "onlyfans"
+        )
+
+        // Check for porn TLDs
+        val pornTlds = listOf(".porn", ".sex", ".xxx", ".cam", ".tube", ".video")
+        for (tld in pornTlds) {
+            if (lowercaseUrl.contains(tld)) {
+                return true
+            }
+        }
+
+        // Check for porn keywords
+        for (keyword in quickPornKeywords) {
+            if (lowercaseUrl.contains(keyword)) {
+                return true
+            }
+        }
+
+        // Check for suspicious patterns
+        if (lowercaseUrl.contains("%") && lowercaseUrl.length > 50) {
+            return true // Likely encoded porn content
+        }
+
+        return false
+    }
+
+    /**
+     * Handle likely porn URL with immediate action
+     */
+    private suspend fun handleLikelyPornUrl(url: String, packageName: String?) {
+        try {
+            Log.w(TAG, "🚨 Handling likely porn URL: $url")
+
+            // Create immediate blocking result
+            val immediateBlockingResult = com.hieltech.haramblur.detection.SiteBlockingResult(
+                isBlocked = true,
+                category = BlockingCategory.EXPLICIT_CONTENT,
+                confidence = 0.95f,
+                quranicVerse = null,
+                reflectionTimeSeconds = 30,
+                matchedPattern = "immediate_porn_detection",
+                blockingReason = "Immediate porn content detection"
+            )
+
+            // Immediate action for porn URLs
+            handlePornSiteBlocking(url, immediateBlockingResult)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling likely porn URL", e)
+            // Fallback to standard blocking
+            checkAndBlockUrl(url)
         }
     }
     
@@ -1041,20 +1112,26 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     
     /**
      * Check URL against site blocking manager and block if necessary
+     * Enhanced with immediate porn site blocking
      */
     private suspend fun checkAndBlockUrl(url: String) {
         try {
             val blockingResult = siteBlockingManager.checkUrl(url)
-            
+
             if (blockingResult.isBlocked) {
                 Log.d(TAG, "Blocking URL: $url (Category: ${blockingResult.category})")
-                
-                // Show blocked site overlay
-                showBlockedSiteOverlay(blockingResult)
-                
-                // Optionally navigate away from the blocked site
-                if (shouldNavigateAwayFromBlockedSite(blockingResult)) {
-                    navigateAwayFromBlockedSite()
+
+                // Enhanced blocking for porn sites
+                if (isPornCategory(blockingResult.category)) {
+                    handlePornSiteBlocking(url, blockingResult)
+                } else {
+                    // Standard blocking for other categories
+                    showBlockedSiteOverlay(blockingResult)
+
+                    // Optionally navigate away from the blocked site
+                    if (shouldNavigateAwayFromBlockedSite(blockingResult)) {
+                        navigateAwayFromBlockedSite()
+                    }
                 }
             } else {
                 // Hide any existing blocked site overlay
@@ -1062,6 +1139,320 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking URL for blocking", e)
+        }
+    }
+
+    /**
+     * Check if the blocking category is related to porn/adult content
+     */
+    private fun isPornCategory(category: BlockingCategory?): Boolean {
+        return category in listOf(
+            BlockingCategory.EXPLICIT_CONTENT,
+            BlockingCategory.ADULT_ENTERTAINMENT,
+            BlockingCategory.INAPPROPRIATE_IMAGERY
+        )
+    }
+
+    /**
+     * Handle porn site blocking with enhanced measures and automatic actions
+     */
+    private suspend fun handlePornSiteBlocking(url: String, blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
+        val startTime = System.currentTimeMillis()
+        Log.w(TAG, "🚫 PORN SITE DETECTED: $url (Category: ${blockingResult.category})")
+
+        try {
+            // Log blocking event for analytics
+            logPornBlockingEvent(url, blockingResult, "detection_started")
+
+            // Check if this is a high-confidence porn detection
+            val isHighConfidencePorn = blockingResult.confidence >= 0.8f &&
+                                      blockingResult.category == BlockingCategory.EXPLICIT_CONTENT
+
+            if (isHighConfidencePorn) {
+                // Immediate automatic closure for high-confidence explicit content
+                Log.w(TAG, "🚨 HIGH-CONFIDENCE PORN DETECTED - IMMEDIATE AUTO-CLOSURE")
+                logPornBlockingEvent(url, blockingResult, "immediate_closure_initiated")
+                performImmediatePornSiteClosure(url, blockingResult)
+                logPornBlockingEvent(url, blockingResult, "immediate_closure_completed",
+                    System.currentTimeMillis() - startTime)
+            } else {
+                // Show overlay for medium-confidence detections
+                showPornBlockingOverlay(blockingResult)
+                logPornBlockingEvent(url, blockingResult, "overlay_displayed")
+
+                // Schedule automatic closure based on severity
+                when (blockingResult.category) {
+                    BlockingCategory.EXPLICIT_CONTENT -> {
+                        // High-risk: Auto-close after Quranic display
+                        serviceScope.launch {
+                            delay(8000) // 8 seconds to see the verse and reflect
+                            if (isShowingBlockedSiteOverlay) {
+                                Log.w(TAG, "Auto-closing explicit content after reflection period")
+                                logPornBlockingEvent(url, blockingResult, "auto_closure_explicit")
+                                performAggressivePornSiteClosure()
+                                logPornBlockingEvent(url, blockingResult, "auto_closure_completed",
+                                    System.currentTimeMillis() - startTime)
+                            }
+                        }
+                    }
+                    BlockingCategory.ADULT_ENTERTAINMENT -> {
+                        // Medium-risk: Auto-close after longer delay
+                        serviceScope.launch {
+                            delay(15000) // 15 seconds for adult entertainment
+                            if (isShowingBlockedSiteOverlay) {
+                                Log.w(TAG, "Auto-closing adult entertainment after extended period")
+                                logPornBlockingEvent(url, blockingResult, "auto_closure_adult")
+                                performAggressivePornSiteClosure()
+                                logPornBlockingEvent(url, blockingResult, "auto_closure_completed",
+                                    System.currentTimeMillis() - startTime)
+                            }
+                        }
+                    }
+                    else -> {
+                        // Standard blocking for other inappropriate content
+                        showBlockedSiteOverlay(blockingResult)
+                        logPornBlockingEvent(url, blockingResult, "standard_blocking_applied")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling porn site blocking", e)
+            logPornBlockingEvent(url, blockingResult, "error_occurred", error = e.message)
+            // Fallback to standard blocking
+            showBlockedSiteOverlay(blockingResult)
+        }
+    }
+
+    /**
+     * Log porn blocking events for analytics and accountability
+     */
+    private fun logPornBlockingEvent(
+        url: String,
+        blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult,
+        eventType: String,
+        duration: Long = 0,
+        error: String? = null
+    ) {
+        try {
+            val timestamp = System.currentTimeMillis()
+            val domain = UrlUtils.extractDomain(url)
+
+            // Create analytics log entry
+            val analyticsEntry = PornBlockingAnalytics(
+                timestamp = timestamp,
+                url = url,
+                domain = domain,
+                category = blockingResult.category?.name ?: "UNKNOWN",
+                confidence = blockingResult.confidence,
+                matchedPattern = blockingResult.matchedPattern ?: "",
+                eventType = eventType,
+                duration = duration,
+                error = error
+            )
+
+            // Log to system log for now (could be enhanced to save to database)
+            Log.i(TAG, "📊 PORN_BLOCKING_ANALYTICS: ${analyticsEntry.toLogString()}")
+
+            // TODO: Save to analytics database for long-term tracking
+            // savePornBlockingAnalytics(analyticsEntry)
+
+        } catch (e: Exception) {
+            Log.w(TAG, "Error logging porn blocking event", e)
+        }
+    }
+
+    /**
+     * Data class for porn blocking analytics
+     */
+    data class PornBlockingAnalytics(
+        val timestamp: Long,
+        val url: String,
+        val domain: String,
+        val category: String,
+        val confidence: Float,
+        val matchedPattern: String,
+        val eventType: String,
+        val duration: Long = 0,
+        val error: String? = null
+    ) {
+        fun toLogString(): String {
+            return "ts=$timestamp,domain=$domain,cat=$category,conf=$confidence,pattern=$matchedPattern,event=$eventType,duration=${duration}ms${error?.let { ",error=$it" } ?: ""}"
+        }
+    }
+
+    /**
+     * Perform immediate closure for high-confidence porn sites
+     */
+    private suspend fun performImmediatePornSiteClosure(url: String, blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
+        try {
+            Log.w(TAG, "🚨 IMMEDIATE PORN SITE CLOSURE: $url")
+
+            // Quick Quranic flash (1 second)
+            showQuickQuranicWarning(blockingResult)
+
+            // Immediate closure
+            delay(1000) // Brief pause for warning visibility
+            performAggressivePornSiteClosure()
+
+            // Log for accountability
+            Log.w(TAG, "✅ Immediate porn site closure completed for: $url")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in immediate porn site closure", e)
+            // Fallback to aggressive closure
+            performAggressivePornSiteClosure()
+        }
+    }
+
+    /**
+     * Show quick Quranic warning for immediate closures
+     */
+    private suspend fun showQuickQuranicWarning(blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
+        try {
+            // Show a brief full-screen warning with Quranic verse
+            blurOverlayManager.showFullScreenWarning(
+                category = blockingResult.category ?: BlockingCategory.EXPLICIT_CONTENT,
+                customMessage = "Haram content blocked immediately. Allah protects the believers.",
+                reflectionTimeSeconds = 1, // Very brief
+                nsfwRegionCount = 1,
+                maxNsfwConfidence = blockingResult.confidence
+            )
+
+            Log.d(TAG, "Quick Quranic warning displayed")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error showing quick Quranic warning", e)
+        }
+    }
+
+    /**
+     * Show enhanced porn blocking overlay with full-screen Quranic verse
+     */
+    private suspend fun showPornBlockingOverlay(blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
+        if (isShowingBlockedSiteOverlay) {
+            Log.d(TAG, "Porn blocking overlay already showing")
+            return
+        }
+
+        try {
+            isShowingBlockedSiteOverlay = true
+            Log.d(TAG, "🎯 Showing enhanced porn blocking overlay for category: ${blockingResult.category}")
+
+            // Get Islamic guidance for porn blocking
+            val guidance = blockingResult.category?.let { category ->
+                quranicRepository.getGuidanceForCategory(category)
+            }
+
+            // Show enhanced porn blocking overlay
+            blurOverlayManager.showPornBlockingOverlay(
+                blockingResult = blockingResult,
+                guidance = guidance,
+                onAction = { action ->
+                    serviceScope.launch {
+                        try {
+                            handlePornBlockingAction(action, blockingResult)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "❌ Error in porn blocking action handler", e)
+                            hideBlockedSiteOverlay()
+                        }
+                    }
+                }
+            )
+
+            Log.d(TAG, "✅ Enhanced porn blocking overlay shown")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error showing porn blocking overlay", e)
+            isShowingBlockedSiteOverlay = false
+        }
+    }
+
+    /**
+     * Handle user actions from porn blocking overlay
+     */
+    private suspend fun handlePornBlockingAction(
+        action: com.hieltech.haramblur.data.WarningDialogAction,
+        blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult
+    ) {
+        try {
+            when (action) {
+                is com.hieltech.haramblur.data.WarningDialogAction.Close -> {
+                    Log.d(TAG, "🚫 User chose to close from porn blocking overlay")
+                    performAggressivePornSiteClosure()
+                }
+                is com.hieltech.haramblur.data.WarningDialogAction.Continue -> {
+                    Log.w(TAG, "⚠️ User chose to continue despite porn blocking warning")
+                    // For porn sites, add extra delay and warning
+                    delay(2000)
+                    hideBlockedSiteOverlay()
+                    // Could add logging for accountability
+                }
+                is com.hieltech.haramblur.data.WarningDialogAction.Dismiss -> {
+                    Log.d(TAG, "👋 User dismissed porn blocking overlay")
+                    hideBlockedSiteOverlay()
+                }
+                else -> {
+                    Log.d(TAG, "❓ Unknown action from porn blocking overlay: $action")
+                    hideBlockedSiteOverlay()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling porn blocking action", e)
+            try {
+                hideBlockedSiteOverlay()
+            } catch (hideError: Exception) {
+                Log.e(TAG, "❌ Error hiding overlay after action error", hideError)
+            }
+        }
+    }
+
+    /**
+     * Perform aggressive porn site closure with multiple strategies
+     */
+    private fun performAggressivePornSiteClosure() {
+        serviceScope.launch {
+            try {
+                Log.w(TAG, "🚫 Performing aggressive porn site closure")
+
+                // Strategy 1: Close current tab
+                val closeSuccess = closeCurrentBrowserTab()
+                if (closeSuccess) {
+                    Log.d(TAG, "✅ Successfully closed porn tab")
+                    delay(1000)
+                    openSafePageAfterBlocking()
+                    return@launch
+                }
+
+                // Strategy 2: Force back navigation multiple times
+                Log.d(TAG, "🔄 Porn tab close failed, trying back navigation")
+                repeat(3) {
+                    performGlobalAction(GLOBAL_ACTION_BACK)
+                    delay(500)
+                }
+
+                // Strategy 3: Go to home screen
+                delay(1000)
+                val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
+                if (homeSuccess) {
+                    Log.d(TAG, "✅ Forced home screen from porn site")
+                }
+
+                // Clear URL to prevent re-blocking
+                currentUrl = null
+
+                // Hide overlay
+                delay(1000)
+                hideBlockedSiteOverlay()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error in aggressive porn site closure", e)
+                // Emergency fallback
+                try {
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    hideBlockedSiteOverlay()
+                } catch (fallbackError: Exception) {
+                    Log.e(TAG, "❌ Emergency fallback also failed", fallbackError)
+                }
+            }
         }
     }
     
@@ -1382,60 +1773,52 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Attempt to close the current browser tab
+     * Attempt to close the current browser tab with enhanced multi-browser support
      */
     private fun closeCurrentBrowserTab(): Boolean {
         return try {
             Log.d(TAG, "🔍 Attempting to close current browser tab")
 
-            // For Firefox mobile, try to find and click the close tab button
-            val packageName = "org.mozilla.firefox"
-
-            // Method 1: Try to find close button in Firefox UI
             val rootNode = rootInActiveWindow
-            if (rootNode != null) {
-                try {
-                    // Look for tab close buttons
-                    val closeButtons = rootNode.findAccessibilityNodeInfosByViewId("org.mozilla.firefox:id/tab_close_button")
-                    if (closeButtons.isNotEmpty()) {
-                        val closeButton = closeButtons[0]
-                        if (closeButton.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                            Log.d(TAG, "✅ Successfully clicked Firefox tab close button")
-                            closeButtons.forEach { it.recycle() }
-                            rootNode.recycle()
-                            return true
-                        }
-                        closeButtons.forEach { it.recycle() }
-                    }
+            if (rootNode == null) {
+                Log.w(TAG, "No root node available for tab closing")
+                return false
+            }
 
-                    // Method 2: Try alternative close button IDs
-                    val altCloseButtons = rootNode.findAccessibilityNodeInfosByViewId("org.mozilla.firefox:id/close_tab_button")
-                    if (altCloseButtons.isNotEmpty()) {
-                        val closeButton = altCloseButtons[0]
-                        if (closeButton.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                            Log.d(TAG, "✅ Successfully clicked alternative Firefox close button")
-                            altCloseButtons.forEach { it.recycle() }
-                            rootNode.recycle()
-                            return true
-                        }
-                        altCloseButtons.forEach { it.recycle() }
-                    }
-                } finally {
-                    rootNode.recycle()
+            val packageName = rootNode.packageName?.toString()
+            Log.d(TAG, "Detected browser package: $packageName")
+
+            try {
+                val closeSuccess = when {
+                    packageName?.contains("firefox", ignoreCase = true) == true ->
+                        closeFirefoxTab(rootNode)
+                    packageName?.contains("chrome", ignoreCase = true) == true ->
+                        closeChromeTab(rootNode)
+                    packageName?.contains("edge", ignoreCase = true) == true ->
+                        closeEdgeTab(rootNode)
+                    packageName?.contains("samsung", ignoreCase = true) == true ->
+                        closeSamsungBrowserTab(rootNode)
+                    packageName?.contains("opera", ignoreCase = true) == true ->
+                        closeOperaTab(rootNode)
+                    packageName?.contains("brave", ignoreCase = true) == true ->
+                        closeBraveTab(rootNode)
+                    packageName?.contains("duckduckgo", ignoreCase = true) == true ->
+                        closeDuckDuckGoTab(rootNode)
+                    else -> closeGenericBrowserTab(rootNode)
                 }
+
+                if (closeSuccess) {
+                    Log.d(TAG, "✅ Successfully closed tab in $packageName")
+                    return true
+                }
+            } finally {
+                rootNode.recycle()
             }
 
-            Log.d(TAG, "⚠️ Firefox close button not found, using fallback method")
+            Log.d(TAG, "⚠️ Browser-specific close failed, using fallback method")
 
-            // Method 3: Fallback - Use back action (less reliable)
-            val backSuccess = performGlobalAction(GLOBAL_ACTION_BACK)
-            if (backSuccess) {
-                Log.d(TAG, "✅ Successfully performed global back action")
-                return true
-            }
-
-            Log.w(TAG, "❌ All tab closing methods failed")
-            return false
+            // Enhanced fallback methods
+            return closeTabFallback()
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error closing browser tab", e)
@@ -1444,26 +1827,310 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Open a safe Islamic page after blocking
+     * Close Firefox tab with multiple strategies
+     */
+    private fun closeFirefoxTab(rootNode: AccessibilityNodeInfo): Boolean {
+        // Firefox resource IDs for different versions
+        val firefoxCloseIds = listOf(
+            "org.mozilla.firefox:id/tab_close_button",
+            "org.mozilla.firefox:id/close_tab_button",
+            "org.mozilla.firefox:id/tab_close",
+            "mozac_browser_tab_close_button"
+        )
+
+        return tryCloseWithIds(rootNode, firefoxCloseIds, "Firefox")
+    }
+
+    /**
+     * Close Chrome tab
+     */
+    private fun closeChromeTab(rootNode: AccessibilityNodeInfo): Boolean {
+        val chromeCloseIds = listOf(
+            "com.android.chrome:id/tab_close_button",
+            "com.android.chrome:id/close_button",
+            "com.chrome.beta:id/tab_close_button",
+            "com.chrome.canary:id/tab_close_button"
+        )
+
+        return tryCloseWithIds(rootNode, chromeCloseIds, "Chrome")
+    }
+
+    /**
+     * Close Edge tab
+     */
+    private fun closeEdgeTab(rootNode: AccessibilityNodeInfo): Boolean {
+        val edgeCloseIds = listOf(
+            "com.microsoft.emmx:id/tab_close_button",
+            "com.microsoft.emmx:id/close_tab_button"
+        )
+
+        return tryCloseWithIds(rootNode, edgeCloseIds, "Edge")
+    }
+
+    /**
+     * Close Samsung Browser tab
+     */
+    private fun closeSamsungBrowserTab(rootNode: AccessibilityNodeInfo): Boolean {
+        val samsungCloseIds = listOf(
+            "com.sec.android.app.sbrowser:id/tab_close_button",
+            "com.sec.android.app.sbrowser:id/close_tab_btn"
+        )
+
+        return tryCloseWithIds(rootNode, samsungCloseIds, "Samsung Browser")
+    }
+
+    /**
+     * Close Opera tab
+     */
+    private fun closeOperaTab(rootNode: AccessibilityNodeInfo): Boolean {
+        val operaCloseIds = listOf(
+            "com.opera.browser:id/tab_close_button",
+            "com.opera.browser:id/close_button"
+        )
+
+        return tryCloseWithIds(rootNode, operaCloseIds, "Opera")
+    }
+
+    /**
+     * Close Brave tab
+     */
+    private fun closeBraveTab(rootNode: AccessibilityNodeInfo): Boolean {
+        val braveCloseIds = listOf(
+            "com.brave.browser:id/tab_close_button",
+            "com.brave.browser:id/close_tab_button"
+        )
+
+        return tryCloseWithIds(rootNode, braveCloseIds, "Brave")
+    }
+
+    /**
+     * Close DuckDuckGo tab
+     */
+    private fun closeDuckDuckGoTab(rootNode: AccessibilityNodeInfo): Boolean {
+        val ddGoCloseIds = listOf(
+            "com.duckduckgo.mobile.android:id/tab_close_button",
+            "com.duckduckgo.mobile.android:id/close_button"
+        )
+
+        return tryCloseWithIds(rootNode, ddGoCloseIds, "DuckDuckGo")
+    }
+
+    /**
+     * Generic browser tab closing using common patterns
+     */
+    private fun closeGenericBrowserTab(rootNode: AccessibilityNodeInfo): Boolean {
+        // Try common close button patterns
+        val genericCloseIds = listOf(
+            "tab_close_button",
+            "close_tab_button",
+            "close_button",
+            "tab_close"
+        )
+
+        return tryCloseWithIds(rootNode, genericCloseIds, "Generic Browser")
+    }
+
+    /**
+     * Try to close tab using a list of resource IDs
+     */
+    private fun tryCloseWithIds(rootNode: AccessibilityNodeInfo, ids: List<String>, browserName: String): Boolean {
+        for (id in ids) {
+            try {
+                val closeButtons = rootNode.findAccessibilityNodeInfosByViewId(id)
+                if (closeButtons.isNotEmpty()) {
+                    val closeButton = closeButtons[0]
+                    if (closeButton.isClickable && closeButton.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                        Log.d(TAG, "✅ Successfully clicked $browserName close button: $id")
+                        closeButtons.forEach { it.recycle() }
+                        return true
+                    }
+                    closeButtons.forEach { it.recycle() }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error trying $browserName ID $id: ${e.message}")
+            }
+        }
+        return false
+    }
+
+    /**
+     * Enhanced fallback methods for closing tabs
+     */
+    private fun closeTabFallback(): Boolean {
+        try {
+            // Method 1: Try to find close button by text/description
+            val rootNode = rootInActiveWindow
+            if (rootNode != null) {
+                try {
+                    val closeSuccess = findAndClickCloseButton(rootNode)
+                    if (closeSuccess) {
+                        Log.d(TAG, "✅ Found and clicked close button by text")
+                        return true
+                    }
+                } finally {
+                    rootNode.recycle()
+                }
+            }
+
+            // Method 2: Enhanced back navigation with multiple attempts
+            Log.d(TAG, "🔄 Using enhanced back navigation fallback")
+            repeat(2) {
+                val backSuccess = performGlobalAction(GLOBAL_ACTION_BACK)
+                if (backSuccess) {
+                    Log.d(TAG, "✅ Successfully performed back action (attempt ${it + 1})")
+                    Thread.sleep(500) // Brief pause between actions
+                } else {
+                    Log.w(TAG, "Back action failed (attempt ${it + 1})")
+                }
+            }
+
+            // Method 3: Try to close app entirely (last resort)
+            Log.d(TAG, "🔄 Attempting to close entire browser app")
+            val recentAppsSuccess = performGlobalAction(GLOBAL_ACTION_RECENTS)
+            if (recentAppsSuccess) {
+                Thread.sleep(1000)
+                // Try to swipe away the browser app
+                // Note: This is difficult to implement reliably across devices
+                Log.d(TAG, "✅ Opened recent apps, attempting swipe to close")
+            }
+
+            return false
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error in tab closing fallback", e)
+            return false
+        }
+    }
+
+    /**
+     * Find and click close button by searching for text or content description
+     */
+    private fun findAndClickCloseButton(rootNode: AccessibilityNodeInfo): Boolean {
+        val closeKeywords = listOf(
+            "close", "tab", "x", "×", "✕",
+            "close tab", "tab close", "dismiss"
+        )
+
+        fun searchNode(node: AccessibilityNodeInfo, depth: Int = 0): Boolean {
+            if (depth > 8) return false // Limit search depth
+
+            try {
+                // Check current node
+                val text = node.text?.toString()?.lowercase()
+                val description = node.contentDescription?.toString()?.lowercase()
+
+                for (keyword in closeKeywords) {
+                    if ((text?.contains(keyword) == true || description?.contains(keyword) == true) &&
+                        node.isClickable) {
+                        if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                            Log.d(TAG, "Found close button by text: '$text' or '$description'")
+                            return true
+                        }
+                    }
+                }
+
+                // Search child nodes
+                for (i in 0 until node.childCount) {
+                    val child = node.getChild(i)
+                    if (child != null) {
+                        val found = searchNode(child, depth + 1)
+                        child.recycle()
+                        if (found) return true
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.w(TAG, "Error searching node at depth $depth: ${e.message}")
+            }
+
+            return false
+        }
+
+        return searchNode(rootNode)
+    }
+
+    /**
+     * Open a safe Islamic page after blocking with multiple options
      */
     private suspend fun openSafePageAfterBlocking() {
         try {
             Log.d(TAG, "🕌 Opening safe Islamic page after blocking")
 
-            // Wait a bit for the navigation to complete
-            delay(1500)
+            // Wait for navigation to complete
+            delay(2000)
 
-            // Open a safe Islamic website
-            val safeUrl = "https://quran.com"
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(safeUrl)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // List of safe Islamic websites to choose from
+            val safeUrls = listOf(
+                "https://quran.com" to "Quran.com - Read and listen to the Quran",
+                "https://muslimpro.com" to "Muslim Pro - Prayer times and Quran",
+                "https://islamicfinder.org" to "Islamic Finder - Prayer times and Qibla",
+                "https://sunnah.com" to "Sunnah.com - Hadith collection",
+                "https://bayyinah.com" to "Bayyinah Institute - Islamic education",
+                "https://yaqeeninstitute.org" to "Yaqeen Institute - Islamic research",
+                "https://productivemuslim.com" to "Productive Muslim - Islamic lifestyle",
+                "https://muslim.sg" to "Muslim.sg - Islamic articles and resources"
+            )
+
+            // Select a random safe URL to prevent predictability
+            val (selectedUrl, description) = safeUrls.random()
+
+            Log.d(TAG, "Selected safe page: $description")
+
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(selectedUrl)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
             startActivity(intent)
-            Log.d(TAG, "✅ Successfully opened safe Islamic page: $safeUrl")
+            Log.d(TAG, "✅ Successfully opened safe Islamic page: $selectedUrl")
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error opening safe page", e)
+            // Fallback: Try to open Islamic content in available apps
+            openFallbackIslamicContent()
+        }
+    }
+
+    /**
+     * Fallback method to open Islamic content if web browsing fails
+     */
+    private suspend fun openFallbackIslamicContent() {
+        try {
+            Log.d(TAG, "🔄 Attempting fallback Islamic content")
+
+            // Try to open Islamic apps if available
+            val islamicApps = listOf(
+                "com.andi.alquran.en", // Al Quran Indonesia
+                "com.quran.labs.androidquran", // Quran Android
+                "com.metinkale.prayer", // Prayer Times
+                "com.duosecurity.duomobile", // Muslim Pro (if available)
+                "com.juvodroid.app" // Islamic apps
+            )
+
+            for (packageName in islamicApps) {
+                try {
+                    val intent = packageManager.getLaunchIntentForPackage(packageName)
+                    if (intent != null) {
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        Log.d(TAG, "✅ Opened Islamic app: $packageName")
+                        return
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Islamic app not available: $packageName")
+                }
+            }
+
+            // If no Islamic apps available, try to open general browser with Islamic search
+            val searchIntent = Intent(Intent.ACTION_WEB_SEARCH).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra("query", "Islamic guidance and Quran")
+            }
+
+            startActivity(searchIntent)
+            Log.d(TAG, "✅ Opened web search for Islamic content")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error in fallback Islamic content", e)
         }
     }
     

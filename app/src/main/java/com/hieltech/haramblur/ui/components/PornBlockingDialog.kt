@@ -1,0 +1,761 @@
+package com.hieltech.haramblur.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.hieltech.haramblur.data.IslamicGuidance
+import com.hieltech.haramblur.data.QuranicVerse
+import com.hieltech.haramblur.data.WarningDialogAction
+import com.hieltech.haramblur.detection.BlockingCategory
+import com.hieltech.haramblur.detection.Language
+import com.hieltech.haramblur.detection.SiteBlockingResult
+import kotlinx.coroutines.delay
+
+/**
+ * Enhanced dialog for porn site blocking with prominent Quranic verse display
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PornBlockingDialog(
+    blockingResult: SiteBlockingResult,
+    guidance: IslamicGuidance? = null,
+    selectedLanguage: Language = Language.ENGLISH,
+    enableArabicText: Boolean = true,
+    onLanguageChange: (Language) -> Unit = {},
+    onAction: (WarningDialogAction) -> Unit,
+    onDismiss: () -> Unit = {}
+) {
+    var remainingTime by remember { mutableStateOf(30) } // Extended time for porn sites
+    var canContinue by remember { mutableStateOf(false) }
+    var showLanguageMenu by remember { mutableStateOf(false) }
+
+    // Extended countdown timer for porn sites
+    LaunchedEffect(Unit) {
+        remainingTime = 30
+        canContinue = false
+
+        while (remainingTime > 0) {
+            delay(1000)
+            remainingTime--
+        }
+        canContinue = true
+    }
+
+    Dialog(
+        onDismissRequest = {
+            if (canContinue) {
+                onDismiss()
+            }
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = false, // Prevent dismissal for porn sites
+            dismissOnClickOutside = false, // Must interact with dialog
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.98f)
+                .fillMaxHeight(0.95f)
+                .clip(RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF1A1A1A) // Dark background for serious tone
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF2A2A2A),
+                                Color(0xFF1A1A1A),
+                                Color(0xFF0D0D0D)
+                            )
+                        )
+                    )
+            ) {
+                // Enhanced header with warning
+                PornBlockingHeader(
+                    category = blockingResult.category ?: BlockingCategory.EXPLICIT_CONTENT,
+                    confidence = blockingResult.confidence,
+                    onLanguageMenuToggle = { showLanguageMenu = !showLanguageMenu }
+                )
+
+                // Language selector
+                if (showLanguageMenu) {
+                    PornLanguageDropdown(
+                        selectedLanguage = selectedLanguage,
+                        availableLanguages = guidance?.verse?.translations?.keys?.toList()
+                            ?: listOf(Language.ENGLISH, Language.ARABIC),
+                        onLanguageChange = { language ->
+                            onLanguageChange(language)
+                            showLanguageMenu = false
+                        },
+                        onDismiss = { showLanguageMenu = false }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Scrollable content with enhanced Quranic display
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp)
+                ) {
+                    // Urgent warning message
+                    UrgentWarningCard()
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Enhanced Quranic verse display
+                    guidance?.verse?.let { verse ->
+                        EnhancedQuranicVerseCard(
+                            verse = verse,
+                            selectedLanguage = selectedLanguage,
+                            enableArabicText = enableArabicText
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    // Islamic guidance with porn-specific advice
+                    guidance?.let { islamicGuidance ->
+                        PornSpecificGuidanceCard(
+                            guidance = islamicGuidance,
+                            selectedLanguage = selectedLanguage
+                        )
+                    }
+
+                    // Blocking details
+                    PornBlockingDetailsCard(blockingResult)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Extended reflection timer
+                if (!canContinue) {
+                    ExtendedReflectionTimerCard(remainingTime = remainingTime)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Enhanced action buttons for porn sites
+                PornBlockingActionButtons(
+                    canContinue = canContinue,
+                    category = blockingResult.category,
+                    onAction = onAction
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PornBlockingHeader(
+    category: BlockingCategory,
+    confidence: Float,
+    onLanguageMenuToggle: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.horizontalGradient(
+                    colors = listOf(
+                        Color(0xFFD32F2F), // Red
+                        Color(0xFFB71C1C)  // Dark red
+                    )
+                )
+            )
+            .padding(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Critical Warning",
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+
+                Column {
+                    Text(
+                        text = "PROTECTED FROM HARAM",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = category.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                    Text(
+                        text = "Confidence: ${(confidence * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            IconButton(onClick = onLanguageMenuToggle) {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = "Language Settings",
+                    tint = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UrgentWarningCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFEBEE) // Light red background
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "⚠️ URGENT PROTECTION ACTIVATED ⚠️",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFD32F2F),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "This content violates Islamic principles of modesty and chastity. Allah commands us to lower our gaze and guard our chastity.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color(0xFFB71C1C),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun EnhancedQuranicVerseCard(
+    verse: QuranicVerse,
+    selectedLanguage: Language,
+    enableArabicText: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF2E7D32).copy(alpha = 0.1f) // Green tint
+        ),
+        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF4CAF50))
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Surah reference with enhanced styling
+            Text(
+                text = "${verse.surahName} (${verse.surahNumber}:${verse.verseNumber})",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF2E7D32),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Arabic text with enhanced display
+            if (enableArabicText) {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Color(0xFFF5F5F5),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = verse.arabicText,
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontSize = 24.sp,
+                                lineHeight = 36.sp
+                            ),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF2E7D32)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Transliteration
+            if (verse.transliteration.isNotBlank()) {
+                Text(
+                    text = verse.transliteration,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    ),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color(0xFF424242)
+                )
+            }
+
+            // Translation with enhanced styling
+            verse.translations[selectedLanguage]?.let { translation ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Color(0xFFE8F5E8),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "\"$translation\"",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            lineHeight = 28.sp
+                        ),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color(0xFF2E7D32)
+                    )
+                }
+            }
+
+            // Context with enhanced display
+            if (verse.context.isNotBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFF9C4) // Light yellow
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Context:",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF424242)
+                        )
+                        Text(
+                            text = verse.context,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF424242)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PornSpecificGuidanceCard(
+    guidance: IslamicGuidance,
+    selectedLanguage: Language
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFE3F2FD) // Light blue
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "🛡️ Protection & Guidance",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1976D2)
+            )
+
+            Text(
+                text = guidance.guidance,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color(0xFF424242)
+            )
+
+            // Action recommendations with enhanced styling
+            if (guidance.actionRecommendations.isNotEmpty()) {
+                Text(
+                    text = "Immediate Actions:",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1976D2)
+                )
+
+                guidance.actionRecommendations.forEach { recommendation ->
+                    Row(
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "• ",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color(0xFF1976D2)
+                        )
+                        Text(
+                            text = recommendation,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color(0xFF424242),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            // Dua text with enhanced display
+            guidance.duaText?.let { dua ->
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "🤲 Du'a for Protection:",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1976D2)
+                )
+
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Color(0xFFF5F5F5),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = dua,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = 18.sp,
+                                lineHeight = 26.sp
+                            ),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF2E7D32)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PornBlockingDetailsCard(blockingResult: SiteBlockingResult) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFF3E0) // Light orange
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Blocking Details",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF424242)
+            )
+
+            blockingResult.blockingReason?.let { reason ->
+                Text(
+                    text = "Reason: $reason",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF424242)
+                )
+            }
+
+            blockingResult.matchedPattern?.let { pattern ->
+                Text(
+                    text = "Detected Pattern: $pattern",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF757575),
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                )
+            }
+
+            Text(
+                text = "Severity: ${blockingResult.category?.severity ?: 5}/5",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF757575)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExtendedReflectionTimerCard(remainingTime: Int) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Extended reflection period timer: $remainingTime seconds remaining. Take this time to reflect on Allah's guidance and seek protection from temptation."
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFE0B2) // Light orange
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Extended Reflection Period",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF424242)
+            )
+
+            Text(
+                text = "${remainingTime}s",
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFD32F2F),
+                modifier = Modifier.semantics {
+                    contentDescription = "$remainingTime seconds remaining in extended reflection period"
+                }
+            )
+
+            LinearProgressIndicator(
+                progress = { (30 - remainingTime) / 30f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Extended reflection timer progress: ${((30 - remainingTime) * 100 / 30).toInt()}% complete"
+                    },
+                color = Color(0xFFD32F2F),
+                trackColor = Color(0xFFFFE0B2)
+            )
+
+            Text(
+                text = "Take this extended time to reflect on Allah's guidance, seek forgiveness, and strengthen your resolve against temptation.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = Color(0xFF424242)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PornBlockingActionButtons(
+    canContinue: Boolean,
+    category: BlockingCategory?,
+    onAction: (WarningDialogAction) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Primary action: Close and protect
+        Button(
+            onClick = { onAction(WarningDialogAction.Close) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "Close this harmful content and seek Allah's protection"
+                },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF4CAF50) // Green
+            )
+        ) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "Close & Seek Protection",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Secondary action: Continue (only for lower severity)
+        if (category?.severity ?: 5 < 4 && canContinue) {
+            OutlinedButton(
+                onClick = { onAction(WarningDialogAction.Continue) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Continue to content after extended reflection period"
+                    },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFFFF9800) // Orange
+                ),
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFFF9800))
+            ) {
+                Text(
+                    "Continue (After Reflection)",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+
+        // For high-severity porn sites, add additional warning
+        if (category == BlockingCategory.EXPLICIT_CONTENT && canContinue) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFFFEBEE) // Light red
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "⚠️ HIGH-RISK CONTENT WARNING",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD32F2F)
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "This content is classified as explicit and harmful to your faith. Continuing may damage your relationship with Allah.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFB71C1C),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Additional confirmation button for explicit content
+                    Button(
+                        onClick = { onAction(WarningDialogAction.Continue) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD32F2F)
+                        )
+                    ) {
+                        Text(
+                            "I Understand the Risk - Continue Anyway",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // Show remaining time if cannot continue
+        if (!canContinue) {
+            Text(
+                text = "Please complete the reflection period to proceed",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF757575),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun PornLanguageDropdown(
+    selectedLanguage: Language,
+    availableLanguages: List<Language>,
+    onLanguageChange: (Language) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF2A2A2A)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Select Language",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            availableLanguages.forEach { language ->
+                TextButton(
+                    onClick = { onLanguageChange(language) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(language.displayName, color = Color.White)
+                        if (language == selectedLanguage) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = "Selected",
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

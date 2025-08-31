@@ -259,38 +259,100 @@ class SiteBlockingManagerImpl @Inject constructor(
     
     /**
      * Check for suspicious patterns in URL that might indicate inappropriate content
+     * Enhanced with comprehensive porn site detection patterns
      */
     private fun checkSuspiciousPatterns(url: String): SiteBlockingResult {
-        val suspiciousKeywords = listOf(
-            "porn", "sex", "xxx", "adult", "nude", "naked", "cam", "live",
-            "casino", "bet", "gambling", "poker", "slots", "jackpot",
-            "escort", "hookup", "dating", "singles", "meet"
-        )
-        
         val lowercaseUrl = url.lowercase()
-        
-        for (keyword in suspiciousKeywords) {
+
+        // High-confidence porn keywords (immediate block)
+        val highConfidencePornKeywords = listOf(
+            "porn", "sex", "xxx", "nude", "naked", "fuck", "pornography",
+            "erotica", "nsfw", "adultcontent", "sexvideo", "pornstar",
+            "milf", "teenporn", "gayporn", "lesbian", "bdsm", "fetish",
+            "hentai", "animeporn", "cartoonporn", "rule34", "onlyfans",
+            "manyvids", "camgirl", "webcamsex", "liveporn", "sexchat",
+            "adultwebcam", "pornchat", "sextoy", "vibrator", "dildo"
+        )
+
+        // Medium-confidence adult keywords
+        val mediumConfidenceAdultKeywords = listOf(
+            "adult", "escort", "stripper", "massage", "sensual",
+            "erotic", "intimate", "seductive", "provocative",
+            "lingerie", "bikini", "thong", "panties", "bra",
+            "playboy", "penthouse", "maxim", "fhm"
+        )
+
+        // Gambling keywords
+        val gamblingKeywords = listOf(
+            "casino", "bet", "gambling", "poker", "slots", "jackpot",
+            "blackjack", "roulette", "lottery", "sportsbet", "betting",
+            "odds", "wager", "bookmaker", "lotto"
+        )
+
+        // Dating/hookup keywords
+        val datingKeywords = listOf(
+            "hookup", "dating", "singles", "meet", "tinder", "bumble",
+            "match", "okcupid", "plentyoffish", "eharmony", "zoosk",
+            "christiancupid", "jdate", "muslimdating", "halaldate"
+        )
+
+        // Check high-confidence porn patterns first
+        for (keyword in highConfidencePornKeywords) {
             if (lowercaseUrl.contains(keyword)) {
-                val category = when (keyword) {
-                    "porn", "sex", "xxx", "nude", "naked" -> BlockingCategory.EXPLICIT_CONTENT
-                    "adult", "cam", "live", "escort" -> BlockingCategory.ADULT_ENTERTAINMENT
-                    "casino", "bet", "gambling", "poker", "slots", "jackpot" -> BlockingCategory.GAMBLING
-                    "hookup", "dating", "singles", "meet" -> BlockingCategory.DATING_SITES
-                    else -> BlockingCategory.SUSPICIOUS_CONTENT
-                }
-                
+                return createPornBlockingResult(keyword, 0.9f, "High-confidence porn keyword detected")
+            }
+        }
+
+        // Check medium-confidence adult patterns
+        for (keyword in mediumConfidenceAdultKeywords) {
+            if (lowercaseUrl.contains(keyword)) {
+                return createPornBlockingResult(keyword, 0.7f, "Adult entertainment keyword detected")
+            }
+        }
+
+        // Check gambling patterns
+        for (keyword in gamblingKeywords) {
+            if (lowercaseUrl.contains(keyword)) {
                 return SiteBlockingResult(
                     isBlocked = true,
-                    category = category,
-                    confidence = 0.6f, // Lower confidence for heuristic matching
-                    quranicVerse = null, // Will be fetched if needed
-                    reflectionTimeSeconds = category.defaultReflectionTime,
+                    category = BlockingCategory.GAMBLING,
+                    confidence = 0.8f,
+                    quranicVerse = null,
+                    reflectionTimeSeconds = BlockingCategory.GAMBLING.defaultReflectionTime,
                     matchedPattern = keyword,
-                    blockingReason = "Suspicious keyword detected: $keyword"
+                    blockingReason = "Gambling site detected: $keyword"
                 )
             }
         }
-        
+
+        // Check dating patterns
+        for (keyword in datingKeywords) {
+            if (lowercaseUrl.contains(keyword)) {
+                return SiteBlockingResult(
+                    isBlocked = true,
+                    category = BlockingCategory.DATING_SITES,
+                    confidence = 0.6f,
+                    quranicVerse = null,
+                    reflectionTimeSeconds = BlockingCategory.DATING_SITES.defaultReflectionTime,
+                    matchedPattern = keyword,
+                    blockingReason = "Dating/hookup site detected: $keyword"
+                )
+            }
+        }
+
+        // Check for porn site TLD patterns
+        val pornTlds = listOf(".porn", ".sex", ".xxx", ".adult", ".cam", ".tube", ".video")
+        for (tld in pornTlds) {
+            if (lowercaseUrl.contains(tld)) {
+                return createPornBlockingResult(tld, 0.95f, "Pornographic TLD detected")
+            }
+        }
+
+        // Check for suspicious URL structures
+        if (isSuspiciousUrlStructure(lowercaseUrl)) {
+            return createPornBlockingResult("suspicious_structure", 0.5f, "Suspicious URL structure detected")
+        }
+
         return SiteBlockingResult(
             isBlocked = false,
             category = null,
@@ -298,6 +360,57 @@ class SiteBlockingManagerImpl @Inject constructor(
             quranicVerse = null,
             reflectionTimeSeconds = 0
         )
+    }
+
+    /**
+     * Create a standardized porn blocking result
+     */
+    private fun createPornBlockingResult(pattern: String, confidence: Float, reason: String): SiteBlockingResult {
+        val category = when {
+            confidence >= 0.8f -> BlockingCategory.EXPLICIT_CONTENT
+            confidence >= 0.6f -> BlockingCategory.ADULT_ENTERTAINMENT
+            else -> BlockingCategory.SUSPICIOUS_CONTENT
+        }
+
+        return SiteBlockingResult(
+            isBlocked = true,
+            category = category,
+            confidence = confidence,
+            quranicVerse = null, // Will be fetched by QuranicRepository
+            reflectionTimeSeconds = category.defaultReflectionTime,
+            matchedPattern = pattern,
+            blockingReason = reason
+        )
+    }
+
+    /**
+     * Check for suspicious URL structures that might indicate porn sites
+     */
+    private fun isSuspiciousUrlStructure(url: String): Boolean {
+        // Check for encoded characters that might hide porn content
+        if (url.contains("%") && url.length > 100) {
+            return true
+        }
+
+        // Check for suspicious subdomains
+        val domain = UrlUtils.extractDomain(url)
+        val suspiciousSubdomains = listOf("sex", "porn", "xxx", "adult", "hot", "sexy", "nude", "naked", "fuck")
+        for (subdomain in suspiciousSubdomains) {
+            if (domain.startsWith("$subdomain.") || domain.contains(".$subdomain.")) {
+                return true
+            }
+        }
+
+        // Check for numbers in domain that might indicate random porn sites
+        val domainParts = domain.split(".")
+        if (domainParts.size >= 2) {
+            val mainDomain = domainParts[domainParts.size - 2]
+            if (mainDomain.length > 10 && mainDomain.any { it.isDigit() }) {
+                return true
+            }
+        }
+
+        return false
     }
     
     /**

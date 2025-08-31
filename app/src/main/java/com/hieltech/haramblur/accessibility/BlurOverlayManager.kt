@@ -21,6 +21,7 @@ import com.hieltech.haramblur.data.WarningDialogState
 import com.hieltech.haramblur.detection.BlockingCategory
 import com.hieltech.haramblur.detection.SiteBlockingResult
 import com.hieltech.haramblur.ui.components.BlockedSiteDialog
+import com.hieltech.haramblur.ui.components.PornBlockingDialog
 import com.hieltech.haramblur.ui.components.WarningDialog
 import com.hieltech.haramblur.ui.components.WarningDialogManager
 import com.hieltech.haramblur.ui.effects.EnhancedBlurEffects
@@ -769,6 +770,100 @@ class BlurOverlayManager @Inject constructor(
      * Check if blocked site overlay is currently visible
      */
     fun isBlockedSiteOverlayVisible(): Boolean = isBlockedSiteOverlayVisible
+
+    /**
+     * Show enhanced porn blocking overlay with full-screen Quranic verse
+     */
+    fun showPornBlockingOverlay(
+        blockingResult: SiteBlockingResult,
+        guidance: IslamicGuidance? = null,
+        onAction: (WarningDialogAction) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                if (windowManager == null || context == null) {
+                    Log.w(TAG, "WindowManager or Context not initialized")
+                    return@launch
+                }
+
+                if (isBlockedSiteOverlayVisible) {
+                    hideBlockedSiteOverlay()
+                }
+
+                Log.d(TAG, "🚫 Showing enhanced porn blocking overlay")
+
+                // First show full-screen blur with enhanced warning
+                showFullScreenBlur(triggeredByRegionCount = true, regionCount = 1, maxConfidence = blockingResult.confidence)
+
+                // Then show enhanced porn blocking dialog
+                showPornBlockingDialog(blockingResult, guidance, onAction)
+
+                Log.d(TAG, "✅ Enhanced porn blocking overlay shown")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error showing porn blocking overlay", e)
+            }
+        }
+    }
+
+    /**
+     * Show enhanced porn blocking dialog with prominent Quranic display
+     */
+    private fun showPornBlockingDialog(
+        blockingResult: SiteBlockingResult,
+        guidance: IslamicGuidance?,
+        onAction: (WarningDialogAction) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                blockedSiteOverlayView = ComposeView(context!!).apply {
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                    setContent {
+                        HaramBlurTheme {
+                            var selectedLanguage by remember {
+                                mutableStateOf(com.hieltech.haramblur.detection.Language.ENGLISH)
+                            }
+
+                            PornBlockingDialog(
+                                blockingResult = blockingResult,
+                                guidance = guidance,
+                                selectedLanguage = selectedLanguage,
+                                enableArabicText = true,
+                                onLanguageChange = { language ->
+                                    selectedLanguage = language
+                                },
+                                onAction = { action ->
+                                    Log.d(TAG, "Porn blocking dialog action triggered: $action")
+                                    onAction(action)
+                                },
+                                onDismiss = {
+                                    hideBlockedSiteOverlay()
+                                    onAction(WarningDialogAction.Dismiss)
+                                }
+                            )
+                        }
+                    }
+                }
+
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    PixelFormat.TRANSLUCENT
+                )
+
+                params.gravity = Gravity.TOP or Gravity.START
+
+                windowManager!!.addView(blockedSiteOverlayView, params)
+                isBlockedSiteOverlayVisible = true
+
+                Log.d(TAG, "Enhanced porn blocking dialog overlay shown")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error showing porn blocking dialog", e)
+            }
+        }
+    }
     
     /**
      * Force close current app/page (for "Close" action)

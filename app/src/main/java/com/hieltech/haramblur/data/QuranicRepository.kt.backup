@@ -62,18 +62,11 @@ class QuranicRepository @Inject constructor(
             ensureInitialized()
 
             // Try to get verses specifically about guarding chastity and lowering gaze
-            val chastityVerses = listOf(
-                Pair(24, 30), // 24:30
-                Pair(24, 31), // 24:31
-                Pair(17, 32), // 17:32
-                Pair(23, 5),  // 23:5
-                Pair(23, 6),  // 23:6
-                Pair(23, 7)   // 23:7
-            )
+            val chastityVerses = listOf("24:30", "24:31", "17:32", "23:5-7")
 
-            for ((surahNumber, verseNumber) in chastityVerses) {
+            for (verseRef in chastityVerses) {
                 try {
-                    val verseEntity = database.quranicVerseDao().getVerseByReference(surahNumber, verseNumber)
+                    val verseEntity = database.quranicVerseDao().getVerseByReference(verseRef)
                     if (verseEntity != null) {
                         return@withContext convertEntityToVerse(verseEntity)
                     }
@@ -448,18 +441,7 @@ class QuranicRepository @Inject constructor(
             )
         }
     }
-
-    private fun getGuidanceText(category: BlockingCategory): String {
-        return when (category) {
-            BlockingCategory.EXPLICIT_CONTENT -> "Allah commands the believers to lower their gaze and guard their chastity. This is purification for them. Indeed Allah is Acquainted with what they do. (Quran 24:30)"
-            BlockingCategory.ADULT_ENTERTAINMENT -> "O Prophet! Tell the believing men to lower their gaze and guard their chastity. That is purer for them. Surely Allah is All-Aware of what they do. (Quran 24:30)"
-            BlockingCategory.GAMBLING -> "O believers! Intoxicants, gambling, idols, and drawing lots for decisions are all evil of Satan's handiwork. So shun them so that you may be successful. (Quran 5:90)"
-            BlockingCategory.INAPPROPRIATE_IMAGERY -> "Guard your eyes as you would guard your prayers - both are acts of worship."
-            BlockingCategory.DATING_SITES -> "And do not approach fornication. Indeed, it is ever an immorality and is evil as a way. (Quran 17:32)"
-            else -> "When in doubt, choose the path that brings you closer to Allah."
-        }
-    }
-
+    
     private fun buildContextualGuidance(
         category: BlockingCategory,
         timeOfDay: String?,
@@ -521,13 +503,14 @@ class QuranicRepository @Inject constructor(
         
         return suggestions
     }
+}
 
-    /**
-     * Result of Islamic content validation
-     */
-    data class ContentValidationResult(
-        val isValid: Boolean,
-        val errors: List<String>,
-        val warnings: List<String>,
-        val suggestions: List<String>
-    )
+/**
+ * Result of Islamic content validation
+ */
+data class ContentValidationResult(
+    val isValid: Boolean,
+    val errors: List<String>,
+    val warnings: List<String>,
+    val suggestions: List<String>
+)
