@@ -87,10 +87,19 @@ class DhikrPermissionHelper @Inject constructor(
      * Get recommended display method based on permissions
      */
     fun getRecommendedDisplayMethod(): DhikrDisplayMethod {
+        val overlay = canShowOverlay()
+        val notification = canShowNotification()
+        val accessibility = isAccessibilityServiceRunning()
+
+        android.util.Log.d("DhikrPermissionHelper", "Display method check - Overlay: $overlay, Notification: $notification, Accessibility: $accessibility")
+
         return when {
-            canShowOverlay() -> DhikrDisplayMethod.OVERLAY
-            canShowNotification() -> DhikrDisplayMethod.NOTIFICATION
-            else -> DhikrDisplayMethod.NONE
+            overlay -> DhikrDisplayMethod.OVERLAY
+            notification -> DhikrDisplayMethod.NOTIFICATION
+            else -> {
+                android.util.Log.w("DhikrPermissionHelper", "No display method available - Overlay: $overlay, Notification: $notification, Accessibility: $accessibility")
+                DhikrDisplayMethod.NONE
+            }
         }
     }
 }

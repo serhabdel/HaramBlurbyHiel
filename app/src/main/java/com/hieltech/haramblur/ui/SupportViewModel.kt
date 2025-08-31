@@ -283,7 +283,7 @@ class SupportViewModel @Inject constructor(
                 userAction = "open_buy_me_coffee"
             )
         }
-        externalLinkHelper.openBuyMeCoffee(context, "hieltech", viewModelScope)
+        externalLinkHelper.openBuyMeCoffee(context, "serhabdel", viewModelScope)
     }
 
     /**
@@ -324,9 +324,9 @@ class SupportViewModel @Inject constructor(
                     |App Version: ${supportState.value.appVersion}
                     |Service Running: ${supportState.value.serviceRunning}
                     |
-                    |GitHub Repository: https://github.com/hieltech/haramblur
-                    |Report Issues: https://github.com/hieltech/haramblur/issues
-                    |Community Discussions: https://github.com/hieltech/haramblur/discussions
+                    |GitHub Repository: https://github.com/serhabdel/HaramBlurbyHiel
+                    |Report Issues: https://github.com/serhabdel/HaramBlurbyHiel/issues
+                    |Community Discussions: https://github.com/serhabdel/HaramBlurbyHiel/discussions
                     |
                     |Issue Description:
                     |[Please describe your issue here]

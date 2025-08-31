@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.ui.HomeScreenResponsive
 import com.hieltech.haramblur.ui.UnifiedBlockingScreenResponsive
 import com.hieltech.haramblur.ui.SettingsScreen
@@ -70,7 +71,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            HaramBlurTheme {
+            val settings by settingsRepository.settings.collectAsState()
+            HaramBlurTheme(appTheme = settings.appTheme) {
                 val navController = rememberNavController()
                 val drawerState = rememberDrawerState(DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
@@ -85,21 +87,32 @@ class MainActivity : ComponentActivity() {
                 var startDestination by remember { mutableStateOf<String?>("loading") }
                 var isInitializing by remember { mutableStateOf(true) }
 
-                // Check onboarding and permissions status
+                // Check onboarding and permissions status with enhanced logic
                 LaunchedEffect(Unit) {
                     try {
                         val settings = settingsRepository.getCurrentSettings()
+
+                        // Force refresh permissions before checking
+                        permissionHelper.updatePermissionStatuses()
+                        kotlinx.coroutines.delay(300) // Allow time for permission updates
+
                         val permissionStatus = permissionHelper.getEnhancedBlockingPermissionStatus()
 
-                        // Show wizard if onboarding not completed OR required permissions missing
+                        // Enhanced wizard logic: show if onboarding incomplete OR critical permissions missing
                         val shouldShowWizard = !settings.onboardingCompleted ||
-                                             !permissionStatus.isComplete
+                                              !permissionStatus.isComplete ||
+                                              !permissionStatus.accessibilityServiceGranted // Always require accessibility
+
+                        android.util.Log.d("MainActivity", "Setup check - Onboarding: ${settings.onboardingCompleted}, " +
+                            "Permissions complete: ${permissionStatus.isComplete}, " +
+                            "Accessibility: ${permissionStatus.accessibilityServiceGranted}, " +
+                            "Show wizard: $shouldShowWizard")
 
                         startDestination = if (shouldShowWizard) NavRoutes.PERMISSION_WIZARD else NavRoutes.HOME
                         isInitializing = false
                     } catch (e: Exception) {
                         android.util.Log.e("MainActivity", "Error checking setup status", e)
-                        startDestination = NavRoutes.HOME // Fallback to home on error
+                        startDestination = NavRoutes.PERMISSION_WIZARD // Safer fallback - show wizard on error
                         isInitializing = false
                     }
                 }
@@ -116,8 +129,15 @@ class MainActivity : ComponentActivity() {
                         ) {
                             CircularProgressIndicator()
                             Text(
-                                text = "Initializing HaramBlur...",
-                                style = MaterialTheme.typography.bodyLarge
+                                text = "Checking permissions and setup...",
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Text(
+                                text = "This may take a moment",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
                     }
@@ -220,34 +240,47 @@ class MainActivity : ComponentActivity() {
                                         }
                                     )
                                 }
-                                                                composable(NavRoutes.HOME) {
-                                                                    HomeScreenResponsive(
-                                                                        onNavigateToSettings = {
-                                                                            if (currentRoute != NavRoutes.SETTINGS) {
-                                                                                navController.navigate(NavRoutes.SETTINGS)
-                                                                            }
-                                                                        },
-                                                                        onNavigateToBlockApps = {
-                                                                            if (currentRoute != NavRoutes.BLOCK_APPS_SITES) {
-                                                                                navController.navigate(NavRoutes.BLOCK_APPS_SITES)
-                                                                            }
-                                                                        },
-                                                                        onNavigateToBlockSites = {
-                                                                            if (currentRoute != NavRoutes.BLOCK_APPS_SITES) {
-                                                                                navController.navigate(NavRoutes.BLOCK_APPS_SITES)
-                                                                            }
-                                                                        },
-                                                                        onNavigateToSupport = {
-                                                                            if (currentRoute != NavRoutes.SUPPORT) {
-                                                                                navController.navigate(NavRoutes.SUPPORT)
-                                                                            }
-                                                                        },
-                                                                        onOpenDrawer = { scope.launch { drawerState.open() } },
-                                                                        permissionHelper = permissionHelper,
-                                                                        appBlockingManager = appBlockingManager,
-                                                                        siteBlockingManager = siteBlockingManager
-                                                                    )
-                                                                }
+                                                                 composable(NavRoutes.HOME) {
+                                                                     HomeScreenResponsive(
+                                                                         onNavigateToSettings = {
+                                                                             if (currentRoute != NavRoutes.SETTINGS) {
+                                                                                 navController.navigate(NavRoutes.SETTINGS)
+                                                                             }
+                                                                         },
+                                                                         onNavigateToDebug = {
+                                                                             if (currentRoute != NavRoutes.DEBUG) {
+                                                                                 navController.navigate(NavRoutes.DEBUG)
+                                                                             }
+                                                                         },
+                                                                         onNavigateToBlockApps = {
+                                                                             if (currentRoute != NavRoutes.BLOCK_APPS_SITES) {
+                                                                                 navController.navigate(NavRoutes.BLOCK_APPS_SITES)
+                                                                             }
+                                                                         },
+                                                                         onNavigateToBlockSites = {
+                                                                             if (currentRoute != NavRoutes.BLOCK_APPS_SITES) {
+                                                                                 navController.navigate(NavRoutes.BLOCK_APPS_SITES)
+                                                                             }
+                                                                         },
+                                                                         onNavigateToSupport = {
+                                                                             if (currentRoute != NavRoutes.SUPPORT) {
+                                                                                 navController.navigate(NavRoutes.SUPPORT)
+                                                                             }
+                                                                         },
+                                                                         onNavigateToLogs = {
+                                                                             if (currentRoute != NavRoutes.LOGS) {
+                                                                                 navController.navigate(NavRoutes.LOGS)
+                                                                             }
+                                                                         },
+                                                                         onOpenDrawer = { scope.launch { drawerState.open() } },
+                                                                         viewModel = hiltViewModel(),
+                                                                         statsViewModel = hiltViewModel(),
+                                                                         settingsViewModel = hiltViewModel(),
+                                                                         permissionHelper = permissionHelper,
+                                                                         appBlockingManager = appBlockingManager,
+                                                                         siteBlockingManager = siteBlockingManager
+                                                                     )
+                                                                 }
                                 composable(NavRoutes.BLOCK_APPS_SITES) {
                                 UnifiedBlockingScreenResponsive(
                                     onNavigateBack = { navController.popBackStack() },
@@ -312,7 +345,24 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh permission status when returning from settings
-        permissionHelper.updatePermissionStatuses()
+        // Refresh permission status when returning from settings with retry logic
+        lifecycleScope.launch {
+            try {
+                // Add a small delay to allow system to update permission status
+                kotlinx.coroutines.delay(500)
+                permissionHelper.updatePermissionStatuses()
+
+                // Extra retry for accessibility service which can be tricky to detect
+                val accessibilityResult = permissionHelper.retryPermissionCheck(
+                    "ACCESSIBILITY_SERVICE",
+                    maxRetries = 2,
+                    delayMs = 1000
+                )
+
+                android.util.Log.d("MainActivity", "Accessibility service check result: $accessibilityResult")
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Error refreshing permissions on resume", e)
+            }
+        }
     }
 }

@@ -749,6 +749,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // Theme Settings Methods
+    fun updateAppTheme(theme: AppTheme) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(appTheme = theme))
+        }
+    }
+
     // Islamic Calendar & Prayer Times Settings Methods
     fun updateIslamicCalendarEnabled(enabled: Boolean) {
         viewModelScope.launch {

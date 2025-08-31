@@ -14,6 +14,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+    <!-- Notification permission for Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Optional permissions for enhanced app blocking capabilities -->
     <!-- These permissions enhance blocking capabilities but are not required for basic functionality -->
     <!-- The app remains fully functional without them, providing progressive enhancement -->
@@ -141,6 +144,17 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_provider_paths" />
         </provider>
+
+        <!-- Dhikr Notification Receiver -->
+        <receiver
+            android:name=".services.DhikrNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.hieltech.haramblur.DHIKR_DISMISS" />
+                <action android:name="com.hieltech.haramblur.DHIKR_NEXT" />
+                <action android:name="com.hieltech.haramblur.DHIKR_SHOW_NOW" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

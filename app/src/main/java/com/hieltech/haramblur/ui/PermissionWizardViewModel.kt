@@ -105,15 +105,24 @@ class PermissionWizardViewModel @Inject constructor(
     }
 
     /**
-     * Initialize wizard state by checking current permission statuses
+     * Initialize wizard state by checking current permission statuses with retry logic
      */
     private fun initializeWizardState() {
         viewModelScope.launch {
             try {
+                _wizardState.value = _wizardState.value.copy(isLoading = true, error = null)
+
+                // Update permissions with retry for critical permissions
                 permissionHelper.updatePermissionStatuses()
 
                 val updatedSteps = initialSteps.map { step ->
-                    val permissionResult = permissionHelper.permissionStatusFlow.value[step.permissionType]
+                    // Use retry logic for critical permissions
+                    val permissionResult = if (step.isRequired && step.permissionType == "ACCESSIBILITY_SERVICE") {
+                        permissionHelper.retryPermissionCheck(step.permissionType, maxRetries = 3, delayMs = 1500)
+                    } else {
+                        permissionHelper.permissionStatusFlow.value[step.permissionType] ?: PermissionResult.Denied(step.permissionType)
+                    }
+
                     step.copy(
                         status = when (permissionResult) {
                             is PermissionResult.Granted -> PermissionStatus.GRANTED
@@ -133,7 +142,7 @@ class PermissionWizardViewModel @Inject constructor(
                     isLoading = false,
                     isComplete = isComplete,
                     canProceed = updatedSteps.getOrNull(currentStepIndex)?.isCompleted == true ||
-                               !(updatedSteps.getOrNull(currentStepIndex)?.isRequired ?: true)
+                                !(updatedSteps.getOrNull(currentStepIndex)?.isRequired ?: true)
                 )
             } catch (e: Exception) {
                 _wizardState.value = _wizardState.value.copy(
@@ -246,6 +255,10 @@ class PermissionWizardViewModel @Inject constructor(
                 // Request location permission using PermissionHelper
                 permissionHelper.requestLocationPermission(activity)
             }
+            "NOTIFICATION_PERMISSION" -> {
+                // Request notification permission using PermissionHelper
+                permissionHelper.requestNotificationPermission(activity)
+            }
         }
     }
 
@@ -318,15 +331,95 @@ class PermissionWizardViewModel @Inject constructor(
     }
 
     /**
-     * Refresh permission statuses
+     * Refresh permission statuses with enhanced error handling
      */
     fun refreshPermissions() {
         viewModelScope.launch {
             try {
+                _wizardState.value = _wizardState.value.copy(isLoading = true, error = null)
+
+                // Force update all permissions
                 permissionHelper.updatePermissionStatuses()
-                initializeWizardState()
+
+                // Re-initialize wizard state with fresh data
+                val updatedSteps = _wizardState.value.steps.map { step ->
+                    val permissionResult = if (step.isRequired && step.permissionType == "ACCESSIBILITY_SERVICE") {
+                        // Extra retry for accessibility service
+                        permissionHelper.retryPermissionCheck(step.permissionType, maxRetries = 2, delayMs = 1000)
+                    } else {
+                        permissionHelper.permissionStatusFlow.value[step.permissionType] ?: PermissionResult.Denied(step.permissionType)
+                    }
+
+                    step.copy(
+                        status = when (permissionResult) {
+                            is PermissionResult.Granted -> PermissionStatus.GRANTED
+                            is PermissionResult.Denied -> PermissionStatus.DENIED
+                            else -> PermissionStatus.PENDING
+                        },
+                        isCompleted = permissionResult is PermissionResult.Granted
+                    )
+                }
+
+                val currentStepIndex = _wizardState.value.currentStepIndex
+                val currentStep = updatedSteps.getOrNull(currentStepIndex)
+                val isComplete = updatedSteps.all { !it.isRequired || it.isCompleted }
+                val canProceed = currentStep?.isCompleted == true || !(currentStep?.isRequired ?: true)
+
+                _wizardState.value = _wizardState.value.copy(
+                    steps = updatedSteps,
+                    isLoading = false,
+                    isComplete = isComplete,
+                    canProceed = canProceed,
+                    error = null
+                )
             } catch (e: Exception) {
-                // Handle error silently
+                _wizardState.value = _wizardState.value.copy(
+                    isLoading = false,
+                    error = "Failed to refresh permissions: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Force refresh current step permission status
+     */
+    fun refreshCurrentStep() {
+        val currentStep = getCurrentStep() ?: return
+
+        viewModelScope.launch {
+            try {
+                val permissionResult = permissionHelper.retryPermissionCheck(
+                    currentStep.permissionType,
+                    maxRetries = 3,
+                    delayMs = 1500
+                )
+
+                val updatedStatus = when (permissionResult) {
+                    is PermissionResult.Granted -> PermissionStatus.GRANTED
+                    is PermissionResult.Denied -> PermissionStatus.DENIED
+                    else -> PermissionStatus.PENDING
+                }
+
+                updateStepStatus(currentStep.permissionType, updatedStatus)
+
+                // Update completion status
+                val updatedSteps = _wizardState.value.steps.map { step ->
+                    if (step.permissionType == currentStep.permissionType) {
+                        step.copy(
+                            status = updatedStatus,
+                            isCompleted = permissionResult is PermissionResult.Granted
+                        )
+                    } else {
+                        step
+                    }
+                }
+
+                _wizardState.value = _wizardState.value.copy(steps = updatedSteps)
+            } catch (e: Exception) {
+                _wizardState.value = _wizardState.value.copy(
+                    error = "Failed to refresh current step: ${e.message}"
+                )
             }
         }
     }

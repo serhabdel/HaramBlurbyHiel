@@ -529,7 +529,8 @@ class BlurOverlayManager @Inject constructor(
                 val actualReflectionTime = reflectionTimeSeconds ?: warningDialogManager.getReflectionTimeForCategory(category)
                 
                 warningOverlayView = ComposeView(context!!).apply {
-                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                    // Use DisposeOnDetachedFromWindow for overlay views since they don't have a proper lifecycle owner
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                     setContent {
                         HaramBlurTheme {
                             var dialogState by remember {
@@ -691,7 +692,8 @@ class BlurOverlayManager @Inject constructor(
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 blockedSiteOverlayView = ComposeView(context!!).apply {
-                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                    // Use DisposeOnDetachedFromWindow for overlay views since they don't have a proper lifecycle owner
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                     setContent {
                         HaramBlurTheme {
                             var selectedLanguage by remember { 

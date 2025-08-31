@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.detection.AppBlockingManager
+import com.hieltech.haramblur.services.DhikrManager
+import com.hieltech.haramblur.services.DhikrNotificationManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +22,12 @@ class HaramBlurApplication : Application() {
 
     @Inject
     lateinit var logRepository: LogRepository
+
+    @Inject
+    lateinit var dhikrManager: DhikrManager
+
+    @Inject
+    lateinit var notificationManager: DhikrNotificationManager
 
     override fun onCreate() {
         super.onCreate()

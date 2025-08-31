@@ -4,6 +4,9 @@ import com.hieltech.haramblur.detection.Language
 import com.hieltech.haramblur.detection.BlockingMethod
 
 data class AppSettings(
+    // Theme Settings
+    val appTheme: AppTheme = AppTheme.ISLAMIC_LIGHT, // Default to Islamic Light theme
+
     // Detection Settings - Female-focused with maximum performance defaults
     val enableFaceDetection: Boolean = true,
     val enableNSFWDetection: Boolean = true, // Enabled with improved error handling
@@ -181,4 +184,16 @@ enum class LogCategory(val displayName: String, val description: String) {
     DATABASE("Database", "Database operations and queries"),
     ACCESSIBILITY("Accessibility", "Accessibility service logs"),
     PERFORMANCE("Performance", "Performance metrics and timing logs")
+}
+
+/**
+ * App theme options with dark and light variants
+ */
+enum class AppTheme(val displayName: String, val description: String) {
+    ISLAMIC_LIGHT("Islamic Light", "Traditional Islamic colors with light background"),
+    ISLAMIC_DARK("Islamic Dark", "Traditional Islamic colors with dark background"),
+    MODERN_LIGHT("Modern Light", "Clean modern design with light background"),
+    MODERN_DARK("Modern Dark", "Clean modern design with dark background"),
+    MINIMAL_LIGHT("Minimal Light", "Minimalist design with light background"),
+    MINIMAL_DARK("Minimal Dark", "Minimalist design with dark background")
 }

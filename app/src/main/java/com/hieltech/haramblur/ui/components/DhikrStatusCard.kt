@@ -12,6 +12,17 @@ import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.services.DhikrManager
 import com.hieltech.haramblur.services.DhikrSystemStatus
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.lifecycle.ViewModel
+import javax.inject.Inject
+
+/**
+ * ViewModel for DhikrStatusCard to properly handle DhikrManager injection
+ */
+@HiltViewModel
+class DhikrStatusCardViewModel @Inject constructor(
+    val dhikrManager: DhikrManager
+) : ViewModel()
 
 /**
  * Status card showing dhikr system information and quick actions
@@ -21,7 +32,7 @@ import kotlinx.coroutines.launch
 fun DhikrStatusCard(
     settings: AppSettings,
     modifier: Modifier = Modifier,
-    dhikrManager: DhikrManager = hiltViewModel()
+    viewModel: DhikrStatusCardViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
     var systemStatus by remember { mutableStateOf<DhikrSystemStatus?>(null) }
@@ -30,7 +41,7 @@ fun DhikrStatusCard(
     // Load status when card is shown
     LaunchedEffect(Unit) {
         isLoading = true
-        systemStatus = dhikrManager.getSystemStatus()
+        systemStatus = viewModel.dhikrManager.getSystemStatus()
         isLoading = false
     }
 
@@ -146,7 +157,7 @@ fun DhikrStatusCard(
                 OutlinedButton(
                     onClick = {
                         scope.launch {
-                            dhikrManager.forceShowDhikrNow()
+                            viewModel.dhikrManager.forceShowDhikrNow()
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

@@ -16,6 +16,9 @@ import com.hieltech.haramblur.data.DhikrTime
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.hieltech.haramblur.services.DhikrNotificationReceiver.Companion.ACTION_DISMISS
+import com.hieltech.haramblur.services.DhikrNotificationReceiver.Companion.ACTION_NEXT
+import com.hieltech.haramblur.services.DhikrNotificationReceiver.Companion.ACTION_SHOW_NOW
 
 /**
  * Manages dhikr notifications as fallback when overlay is not available
@@ -30,11 +33,6 @@ class DhikrNotificationManager @Inject constructor(
         private const val DHIKR_CHANNEL_ID = "dhikr_channel"
         private const val DHIKR_NOTIFICATION_ID = 1001
         private const val STATUS_NOTIFICATION_ID = 1002
-
-        // Action constants
-        private const val ACTION_DISMISS = "com.hieltech.haramblur.DHIKR_DISMISS"
-        private const val ACTION_NEXT = "com.hieltech.haramblur.DHIKR_NEXT"
-        private const val ACTION_SHOW_NOW = "com.hieltech.haramblur.DHIKR_SHOW_NOW"
     }
 
     private val notificationManager = NotificationManagerCompat.from(context)
@@ -44,7 +42,7 @@ class DhikrNotificationManager @Inject constructor(
     }
 
     /**
-     * Create notification channel for Android 8.0+
+     * Create notification channel for Android 8.0+ with heads-up support
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -55,8 +53,12 @@ class DhikrNotificationManager @Inject constructor(
             ).apply {
                 description = "Islamic remembrance notifications"
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 300, 200, 300, 200, 300) // Islamic-inspired pattern
                 enableLights(true)
+                lightColor = 0xFF4CAF50.toInt() // Islamic green color
                 setShowBadge(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC // Show on lockscreen
+                setBypassDnd(true) // Bypass Do Not Disturb for important dhikrs
             }
 
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -65,11 +67,32 @@ class DhikrNotificationManager @Inject constructor(
     }
 
     /**
-     * Show dhikr as notification with expandable content
+     * Show dhikr as notification with expandable content and smart heads-up
      */
     fun showDhikrNotification(dhikr: Dhikr, settings: DhikrSettings) {
         val notification = createDhikrNotification(dhikr, settings)
-        notificationManager.notify(DHIKR_NOTIFICATION_ID, notification)
+
+        // Use heads-up for important dhikrs at appropriate times
+        if (shouldUseHeadsUp(dhikr, settings)) {
+            // Force heads-up by using a higher priority notification
+            val headsUpNotification = NotificationCompat.Builder(context, DHIKR_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_shield_islamic)
+                .setContentTitle("🔔 ${dhikr.time.displayName} Dhikr")
+                .setContentText(dhikr.arabicText)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setAutoCancel(true)
+                .setTimeoutAfter(settings.displayDurationSeconds * 1000L)
+                .setContentIntent(notification.contentIntent)
+                .setStyle(NotificationCompat.BigTextStyle()
+                    .setBigContentTitle("🔔 ${dhikr.time.displayName} Dhikr")
+                    .bigText("${dhikr.arabicText}\n\n${if (settings.showTranslation) dhikr.englishTranslation else ""}"))
+                .build()
+
+            notificationManager.notify(DHIKR_NOTIFICATION_ID, headsUpNotification)
+        } else {
+            notificationManager.notify(DHIKR_NOTIFICATION_ID, notification)
+        }
     }
 
     /**
@@ -111,8 +134,10 @@ class DhikrNotificationManager @Inject constructor(
             .setSmallIcon(R.drawable.ic_shield_islamic)
             .setContentTitle("${dhikr.time.displayName} Dhikr")
             .setContentText(dhikr.arabicText)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX) // MAX priority for guaranteed heads-up
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
+            .setTimeoutAfter(settings.displayDurationSeconds * 1000L) // Auto-dismiss after duration
             .setContentIntent(pendingIntent)
             .addAction(R.drawable.ic_launcher_background, "Dismiss", dismissPendingIntent)
             .addAction(R.drawable.ic_launcher_background, "Next", nextPendingIntent)
@@ -140,6 +165,27 @@ class DhikrNotificationManager @Inject constructor(
         builder.setStyle(bigTextStyle)
 
         return builder.build()
+    }
+
+    /**
+     * Determine if notification should use heads-up style
+     */
+    private fun shouldUseHeadsUp(dhikr: Dhikr, settings: DhikrSettings): Boolean {
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+
+        return when {
+            // Always heads-up for morning dhikrs during morning hours (5-10 AM)
+            dhikr.time == DhikrTime.MORNING && currentHour in 5..10 -> true
+
+            // Always heads-up for evening dhikrs during evening hours (5-10 PM)
+            dhikr.time == DhikrTime.EVENING && currentHour in 17..22 -> true
+
+            // Heads-up for anytime dhikrs if user has been inactive
+            dhikr.time == DhikrTime.ANYTIME && currentHour in 9..21 -> true
+
+            // Default: use standard notification
+            else -> false
+        }
     }
 
     /**

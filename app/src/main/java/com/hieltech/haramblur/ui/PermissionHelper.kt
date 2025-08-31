@@ -13,6 +13,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
@@ -84,38 +85,74 @@ class PermissionHelper @Inject constructor(
     }
 
     /**
-     * Check Accessibility Service permission status
+     * Check Accessibility Service permission status with multiple verification methods
      */
     fun checkAccessibilityServiceEnabled(): PermissionResult {
-        val accessibilityManager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
-        val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+        try {
+            val accessibilityManager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+            val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
 
-        val componentName = ComponentName(context, HaramBlurAccessibilityService::class.java)
-        val isEnabled = enabledServices.any { service ->
-            service.resolveInfo.serviceInfo.packageName == componentName.packageName &&
-            service.resolveInfo.serviceInfo.name == componentName.className
-        }
+            val componentName = ComponentName(context, HaramBlurAccessibilityService::class.java)
 
-        return if (isEnabled) {
-            PermissionResult.Granted("ACCESSIBILITY_SERVICE")
-        } else {
-            PermissionResult.Denied("ACCESSIBILITY_SERVICE")
+            // Method 1: Check if service is in enabled services list
+            val isInEnabledList = enabledServices.any { service ->
+                service.resolveInfo.serviceInfo.packageName == componentName.packageName &&
+                service.resolveInfo.serviceInfo.name == componentName.className
+            }
+
+            // Method 2: Check if service instance exists and is running
+            val isServiceRunning = HaramBlurAccessibilityService.isServiceRunning()
+
+            // Method 3: Check if accessibility is enabled globally
+            val isAccessibilityEnabled = accessibilityManager.isEnabled
+
+            // Consider service enabled if any method confirms it
+            val isEnabled = isInEnabledList && isServiceRunning && isAccessibilityEnabled
+
+            Log.d("PermissionHelper", "Accessibility check - InList: $isInEnabledList, Running: $isServiceRunning, Enabled: $isAccessibilityEnabled, Final: $isEnabled")
+
+            return if (isEnabled) {
+                PermissionResult.Granted("ACCESSIBILITY_SERVICE")
+            } else {
+                PermissionResult.Denied("ACCESSIBILITY_SERVICE")
+            }
+        } catch (e: Exception) {
+            Log.e("PermissionHelper", "Error checking accessibility service", e)
+            return PermissionResult.Denied("ACCESSIBILITY_SERVICE")
         }
     }
 
     /**
-     * Request Accessibility Service permission
+     * Request Accessibility Service permission with error handling
      */
     fun requestAccessibilityService(activity: Activity) {
         try {
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // Add package to help system navigate to our service
+            intent.data = Uri.parse("package:${activity.packageName}")
             activity.startActivity(intent)
         } catch (e: Exception) {
-            // Fallback to general settings
-            val intent = Intent(Settings.ACTION_SETTINGS)
-            activity.startActivity(intent)
+            Log.e("PermissionHelper", "Failed to open accessibility settings", e)
+            try {
+                // Fallback to general settings
+                val intent = Intent(Settings.ACTION_SETTINGS)
+                activity.startActivity(intent)
+            } catch (fallbackException: Exception) {
+                Log.e("PermissionHelper", "Failed to open fallback settings", fallbackException)
+                // Last resort - show error message
+                showPermissionError(activity, "Unable to open settings. Please manually enable Accessibility Service in Android Settings > Accessibility > HaramBlur.")
+            }
         }
+    }
+
+    /**
+     * Show permission error message to user
+     */
+    private fun showPermissionError(activity: Activity, message: String) {
+        // This would typically show a Toast or Snackbar
+        // For now, we'll log it and could be enhanced to show UI feedback
+        Log.w("PermissionHelper", "Permission error: $message")
     }
 
     /**
@@ -180,6 +217,44 @@ class PermissionHelper @Inject constructor(
     }
 
     /**
+     * Check Notification permission status
+     */
+    fun checkNotificationPermission(): PermissionResult {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (granted) {
+                PermissionResult.Granted("NOTIFICATION_PERMISSION")
+            } else {
+                PermissionResult.Denied("NOTIFICATION_PERMISSION")
+            }
+        } else {
+            // For older Android versions, notifications are enabled by default
+            PermissionResult.Granted("NOTIFICATION_PERMISSION")
+        }
+    }
+
+    /**
+     * Request Notification permission
+     */
+    fun requestNotificationPermission(activity: Activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            try {
+                val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                activity.startActivity(intent)
+            } catch (e: Exception) {
+                // Fallback to general settings
+                val intent = Intent(Settings.ACTION_SETTINGS)
+                activity.startActivity(intent)
+            }
+        }
+    }
+
+    /**
      * Update all permission statuses
      */
     fun updatePermissionStatuses() {
@@ -187,9 +262,42 @@ class PermissionHelper @Inject constructor(
             "PACKAGE_USAGE_STATS" to checkUsageStatsPermission(),
             "DEVICE_ADMIN" to checkDeviceAdminPermission(),
             "ACCESSIBILITY_SERVICE" to checkAccessibilityServiceEnabled(),
-            "LOCATION_PERMISSION" to checkLocationPermission()
+            "LOCATION_PERMISSION" to checkLocationPermission(),
+            "NOTIFICATION_PERMISSION" to checkNotificationPermission()
         )
         _permissionStatusFlow.value = statuses
+    }
+
+    /**
+     * Retry permission check with delay for better reliability
+     */
+    suspend fun retryPermissionCheck(permissionType: String, maxRetries: Int = 3, delayMs: Long = 1000): PermissionResult {
+        repeat(maxRetries) { attempt ->
+            val result = when (permissionType) {
+                "ACCESSIBILITY_SERVICE" -> checkAccessibilityServiceEnabled()
+                "PACKAGE_USAGE_STATS" -> checkUsageStatsPermission()
+                "DEVICE_ADMIN" -> checkDeviceAdminPermission()
+                "LOCATION_PERMISSION" -> checkLocationPermission()
+                else -> PermissionResult.Denied(permissionType)
+            }
+
+            if (result is PermissionResult.Granted) {
+                return result
+            }
+
+            if (attempt < maxRetries - 1) {
+                kotlinx.coroutines.delay(delayMs)
+            }
+        }
+
+        // Return the last check result
+        return when (permissionType) {
+            "ACCESSIBILITY_SERVICE" -> checkAccessibilityServiceEnabled()
+            "PACKAGE_USAGE_STATS" -> checkUsageStatsPermission()
+            "DEVICE_ADMIN" -> checkDeviceAdminPermission()
+            "LOCATION_PERMISSION" -> checkLocationPermission()
+            else -> PermissionResult.Denied(permissionType)
+        }
     }
 
     /**
@@ -251,12 +359,14 @@ class PermissionHelper @Inject constructor(
         val deviceAdminGranted = checkDeviceAdminPermission() is PermissionResult.Granted
         val accessibilityGranted = checkAccessibilityServiceEnabled() is PermissionResult.Granted
         val locationGranted = checkLocationPermission() is PermissionResult.Granted
+        val notificationGranted = checkNotificationPermission() is PermissionResult.Granted
 
         return EnhancedBlockingPermissionStatus(
             usageStatsGranted = usageStatsGranted,
             deviceAdminGranted = deviceAdminGranted,
             accessibilityServiceGranted = accessibilityGranted,
             locationGranted = locationGranted,
+            notificationGranted = notificationGranted,
             isComplete = usageStatsGranted && accessibilityGranted, // Usage Stats and Accessibility are required
             canUseEnhancedBlocking = usageStatsGranted && accessibilityGranted,
             canUseForceClose = usageStatsGranted && deviceAdminGranted
@@ -315,6 +425,16 @@ class PermissionHelper @Inject constructor(
                     "Personalized Islamic features"
                 )
             )
+            "NOTIFICATION_PERMISSION" -> PermissionExplanation(
+                title = "Notification Access",
+                description = "Enables dhikr notifications and Islamic alerts",
+                benefits = listOf(
+                    "Dhikr reminders and notifications",
+                    "Islamic prayer time alerts",
+                    "Spiritual feature notifications",
+                    "Complete Islamic app experience"
+                )
+            )
             else -> PermissionExplanation(
                 title = "Enhanced Permission",
                 description = "Enhances app blocking capabilities",
@@ -361,6 +481,7 @@ data class EnhancedBlockingPermissionStatus(
     val deviceAdminGranted: Boolean = false,
     val accessibilityServiceGranted: Boolean = false,
     val locationGranted: Boolean = false,
+    val notificationGranted: Boolean = false,
     val isComplete: Boolean = false,
     val canUseEnhancedBlocking: Boolean = false,
     val canUseForceClose: Boolean = false

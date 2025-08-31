@@ -1,6 +1,11 @@
 package com.hieltech.haramblur.ui
 
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.*
+import androidx.compose.ui.text.style.*
+import androidx.compose.ui.unit.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.ui.settings.*
 import com.hieltech.haramblur.data.SettingsCategory

@@ -125,7 +125,7 @@ class ExternalLinkHelper @Inject constructor(
         path: String = "",
         scope: CoroutineScope? = null
     ) {
-        val githubUrl = "https://github.com/hieltech/haramblur$path"
+        val githubUrl = "https://github.com/serhabdel/HaramBlurbyHiel$path"
         openUrl(context, githubUrl, scope = scope)
     }
 
@@ -144,7 +144,7 @@ class ExternalLinkHelper @Inject constructor(
             donationUrl,
             fallbackAction = {
                 // Fallback to general donation URL
-                openUrl(context, "https://github.com/hieltech/haramblur#support", scope = scope)
+                openUrl(context, "https://github.com/serhabdel/HaramBlurbyHiel#support", scope = scope)
             },
             scope = scope
         )
@@ -166,7 +166,7 @@ class ExternalLinkHelper @Inject constructor(
                 ⚡ GPU-accelerated processing
                 🔒 Local processing (no data sent to servers)
 
-                Download from: https://github.com/hieltech/haramblur
+                Download from: https://github.com/serhabdel/HaramBlurbyHiel
             """.trimIndent()
 
             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -260,7 +260,7 @@ class ExternalLinkHelper @Inject constructor(
     /**
      * Open Buy Me a Coffee donation page
      */
-    fun openBuyMeCoffee(context: Context, identifier: String = "hieltech", scope: CoroutineScope? = null) {
+    fun openBuyMeCoffee(context: Context, identifier: String = "serhabdel", scope: CoroutineScope? = null) {
         openDonationLink(context, DonationPlatform.BUY_ME_COFFEE, identifier, scope)
     }
 }

@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.data.AppSettings
+import com.hieltech.haramblur.data.DhikrDataSource
 import com.hieltech.haramblur.detection.AppBlockingManager
 import com.hieltech.haramblur.detection.EnhancedSiteBlockingManager
 import com.hieltech.haramblur.ui.components.*
@@ -44,6 +46,7 @@ data class Quadruple<A, B, C, D>(
  * Responsive HomeScreen that adapts to different screen sizes using Window Size Classes
  */
 @OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun CompactHomeScreen(
     isLandscape: Boolean,
     onNavigateToSettings: () -> Unit,
@@ -169,6 +172,13 @@ private fun CompactHomeScreen(
             )
         }
 
+        // Dhikr Bar (only if dhikr is enabled)
+        if (settings.dhikrEnabled && !showWelcome) {
+            AnimatedVisibility(visible = showFeatures) {
+                DhikrBar(settings = settings)
+            }
+        }
+
         // Dashboard (only if permissions granted and service running)
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             AnimatedVisibility(visible = showFeatures) {
@@ -180,31 +190,6 @@ private fun CompactHomeScreen(
                     onTimelineTypeSelected = statsViewModel::setSelectedTimelineType,
                     onRefreshData = statsViewModel::refreshData
                 )
-            }
-        }
-
-        // Features Grid (1 column for compact)
-        if (hasRequiredPermissions && serviceRunning && !showWelcome) {
-            AnimatedVisibility(visible = showFeatures) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "Key Features",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    val features = listOf(
-                        Triple("Smart Detection", "AI-powered content recognition", "🤖"),
-                        Triple("Privacy First", "All processing happens locally", "🔒"),
-                        Triple("Islamic Values", "Designed to help maintain Islamic principles", "☪️"),
-                        Triple("Real-time", "Instant content filtering", "⚡")
-                    )
-
-                    features.forEach { (title, description, icon) ->
-                        CompactFeatureCard(title, description, icon)
-                    }
-                }
             }
         }
 
@@ -323,12 +308,284 @@ private fun CompactHomeScreen(
                             // Fill remaining space if odd number
                             repeat(2 - row.size) {
                                 Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
         }
+    }
+}
+
+/**
+ * Main responsive HomeScreen composable that adapts to different screen sizes
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreenResponsive(
+    onNavigateToSettings: () -> Unit,
+    onNavigateToDebug: () -> Unit,
+    onNavigateToBlockApps: () -> Unit,
+    onNavigateToBlockSites: () -> Unit,
+    onNavigateToSupport: () -> Unit,
+    onNavigateToLogs: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onNavigateToPermissionWizard: (() -> Unit)? = null,
+    onTriggerDhikr: (() -> Unit)? = null,
+    viewModel: MainViewModel,
+    statsViewModel: StatsViewModel,
+    settingsViewModel: SettingsViewModel,
+    permissionHelper: PermissionHelper,
+    appBlockingManager: AppBlockingManager?,
+    siteBlockingManager: EnhancedSiteBlockingManager?
+) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val isLandscape = screenWidthDp > screenHeightDp
+
+    // Determine window size class
+    val windowSizeClass = when {
+        screenWidthDp < 600 -> "Compact"
+        screenWidthDp < 840 -> "Medium"
+        else -> "Expanded"
+    }
+
+    when (windowSizeClass) {
+        "Compact" -> CompactHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            onTriggerDhikr = onTriggerDhikr,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        "Medium" -> MediumHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        "Expanded" -> ExpandedHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        }
+    }
+}
+
+/**
+ * Main responsive HomeScreen composable that adapts to different screen sizes
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreenResponsive(
+    onNavigateToSettings: () -> Unit,
+    onNavigateToDebug: () -> Unit,
+    onNavigateToBlockApps: () -> Unit,
+    onNavigateToBlockSites: () -> Unit,
+    onNavigateToSupport: () -> Unit,
+    onNavigateToLogs: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onNavigateToPermissionWizard: (() -> Unit)? = null,
+    onTriggerDhikr: (() -> Unit)? = null,
+    viewModel: MainViewModel,
+    statsViewModel: StatsViewModel,
+    settingsViewModel: SettingsViewModel,
+    permissionHelper: PermissionHelper,
+    appBlockingManager: AppBlockingManager?,
+    siteBlockingManager: EnhancedSiteBlockingManager?
+) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val isLandscape = screenWidthDp > screenHeightDp
+
+    // Determine window size class
+    val windowSizeClass = when {
+        screenWidthDp < 600 -> "Compact"
+        screenWidthDp < 840 -> "Medium"
+        else -> "Expanded"
+    }
+
+    when (windowSizeClass) {
+        "Compact" -> CompactHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            onTriggerDhikr = onTriggerDhikr,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        "Medium" -> MediumHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        "Expanded" -> ExpandedHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        }
+    }
+}
+
+/**
+ * Main responsive HomeScreen composable that adapts to different screen sizes
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreenResponsive(
+    onNavigateToSettings: () -> Unit,
+    onNavigateToDebug: () -> Unit,
+    onNavigateToBlockApps: () -> Unit,
+    onNavigateToBlockSites: () -> Unit,
+    onNavigateToSupport: () -> Unit,
+    onNavigateToLogs: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onNavigateToPermissionWizard: (() -> Unit)? = null,
+    onTriggerDhikr: (() -> Unit)? = null,
+    viewModel: MainViewModel,
+    statsViewModel: StatsViewModel,
+    settingsViewModel: SettingsViewModel,
+    permissionHelper: PermissionHelper,
+    appBlockingManager: AppBlockingManager?,
+    siteBlockingManager: EnhancedSiteBlockingManager?
+) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val isLandscape = screenWidthDp > screenHeightDp
+
+    // Determine window size class
+    val windowSizeClass = when {
+        screenWidthDp < 600 -> "Compact"
+        screenWidthDp < 840 -> "Medium"
+        else -> "Expanded"
+    }
+
+    when (windowSizeClass) {
+        "Compact" -> CompactHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            onTriggerDhikr = onTriggerDhikr,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        "Medium" -> MediumHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        "Expanded" -> ExpandedHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        }
+    }
+}
+
+// Test comment
 
         // Permission Setup (if needed)
         if (!hasRequiredPermissions && !showWelcome) {
@@ -361,45 +618,6 @@ private fun CompactHomeScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Complete Setup")
-                        }
-                    }
-                }
-            }
-        }
-
-        // About Section
-        if (!showWelcome) {
-            AnimatedFadeIn(visible = !showWelcome) {
-                ModernCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    gradientColors = listOf(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        MaterialTheme.colorScheme.surface
-                    )
-                ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "About HaramBlur",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        Text(
-                            text = "Automatically detects and blurs inappropriate content across all apps, helping maintain Islamic values while using technology.",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            FeatureChip(text = "🔒 Privacy First")
-                            FeatureChip(text = "⚡ Real-time")
-                            FeatureChip(text = "🛡️ Islamic Values")
                         }
                     }
                 }
@@ -554,6 +772,13 @@ private fun MediumHomeScreen(
             )
         }
 
+        // Dhikr Bar (only if dhikr is enabled)
+        if (settings.dhikrEnabled && !showWelcome) {
+            AnimatedVisibility(visible = showFeatures) {
+                DhikrBar(settings = settings)
+            }
+        }
+
         // Dashboard
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             AnimatedVisibility(visible = showFeatures) {
@@ -568,37 +793,13 @@ private fun MediumHomeScreen(
             }
         }
 
-        // Features + Quick Actions in 2-column layout
+        // Quick Actions
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             AnimatedVisibility(visible = showFeatures) {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Features Column
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Key Features",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        val features = listOf(
-                            Triple("Smart Detection", "AI-powered recognition", "🤖"),
-                            Triple("Privacy First", "Local processing only", "🔒"),
-                            Triple("Islamic Values", "Maintain principles", "☪️"),
-                            Triple("Real-time", "Instant filtering", "⚡")
-                        )
-
-                        features.forEach { (title, description, icon) ->
-                            MediumFeatureCard(title, description, icon)
-                        }
-                    }
-
                     // Quick Actions Column
                     Column(
                         modifier = Modifier.weight(1f),
@@ -925,37 +1126,20 @@ private fun ExpandedHomeScreen(
             }
         }
 
-        // Main Content Grid: Features + Quick Actions + Analytics
+        // Dhikr Bar (only if dhikr is enabled)
+        if (settings.dhikrEnabled && !showWelcome) {
+            AnimatedVisibility(visible = showFeatures) {
+                DhikrBar(settings = settings)
+            }
+        }
+
+        // Main Content Grid: Quick Actions + Analytics
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             AnimatedVisibility(visible = showFeatures) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Features Column
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Key Features",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        val features = listOf(
-                            Triple("Smart Detection", "AI-powered content recognition with GPU acceleration", "🤖"),
-                            Triple("Privacy First", "All processing happens locally on your device", "🔒"),
-                            Triple("Islamic Values", "Designed to help maintain Islamic principles online", "☪️"),
-                            Triple("Real-time", "Instant content filtering across all apps", "⚡")
-                        )
-
-                        features.forEach { (title, description, icon) ->
-                            ExpandedFeatureCard(title, description, icon)
-                        }
-                    }
-
                     // Quick Actions Column
                     Column(
                         modifier = Modifier.weight(1f),
@@ -1060,47 +1244,6 @@ private fun ExpandedHomeScreen(
                     )
                 }
             )
-        }
-
-        // About Section
-        if (!showWelcome) {
-            AnimatedFadeIn(visible = !showWelcome) {
-                ModernCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    gradientColors = listOf(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        MaterialTheme.colorScheme.surface
-                    )
-                ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(24.dp)
-                    ) {
-                        Text(
-                            text = "About HaramBlur",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        Text(
-                            text = "HaramBlur automatically detects and blurs inappropriate content across all Android applications using advanced AI and machine learning. The app is designed to help Muslim users maintain their faith while using technology, with all processing happening locally on the device for complete privacy and security.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            lineHeight = androidx.compose.ui.unit.TextUnit(1.6f, androidx.compose.ui.unit.TextUnitType.Em)
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            FeatureChip(text = "🔒 Privacy First")
-                            FeatureChip(text = "⚡ Real-time")
-                            FeatureChip(text = "🛡️ Islamic Values")
-                            FeatureChip(text = "🤖 AI-Powered")
-                        }
-                    }
-                }
-            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -1438,6 +1581,197 @@ private fun MediumDashboardSection(
                 icon = "📈",
                 modifier = Modifier.weight(1f)
             )
+        }
+    }
+}
+// Test comment added via bash
+
+/**
+ * Main responsive HomeScreen composable that adapts to different screen sizes
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreenResponsive(
+    onNavigateToSettings: () -> Unit,
+    onNavigateToDebug: () -> Unit,
+    onNavigateToBlockApps: () -> Unit,
+    onNavigateToBlockSites: () -> Unit,
+    onNavigateToSupport: () -> Unit,
+    onNavigateToLogs: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onNavigateToPermissionWizard: (() -> Unit)? = null,
+    onTriggerDhikr: (() -> Unit)? = null,
+    viewModel: MainViewModel,
+    statsViewModel: StatsViewModel,
+    settingsViewModel: SettingsViewModel,
+    permissionHelper: PermissionHelper,
+    appBlockingManager: AppBlockingManager?,
+    siteBlockingManager: EnhancedSiteBlockingManager?
+) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val isLandscape = screenWidthDp > screenHeightDp
+
+    // Determine window size class
+    val windowSizeClass = when {
+        screenWidthDp < 600 -> "Compact"
+        screenWidthDp < 840 -> "Medium"
+        else -> "Expanded"
+    }
+
+    when (windowSizeClass) {
+        "Compact" -> CompactHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            onTriggerDhikr = onTriggerDhikr,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        "Medium" -> MediumHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+        "Expanded" -> ExpandedHomeScreen(
+            isLandscape = isLandscape,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDebug = onNavigateToDebug,
+            onNavigateToBlockApps = onNavigateToBlockApps,
+            onNavigateToBlockSites = onNavigateToBlockSites,
+            onNavigateToSupport = onNavigateToSupport,
+            onNavigateToLogs = onNavigateToLogs,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
+            viewModel = viewModel,
+            statsViewModel = statsViewModel,
+            settingsViewModel = settingsViewModel,
+            permissionHelper = permissionHelper,
+            appBlockingManager = appBlockingManager,
+            siteBlockingManager = siteBlockingManager
+        )
+    }
+}
+
+/**
+ * Animated horizontal dhikr bar that displays Islamic remembrance phrases
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DhikrBar(
+    settings: AppSettings,
+    modifier: Modifier = Modifier
+) {
+    // Only show if dhikr is enabled
+    if (!settings.dhikrEnabled) return
+
+    val dhikrList = remember { DhikrDataSource.getAllDhikr() }
+    var currentDhikrIndex by remember { mutableIntStateOf(0) }
+
+    // Auto-cycle through dhikrs with configurable delay
+    val displayDuration = (settings.dhikrDisplayDuration * 1000L).coerceAtLeast(3000L) // Minimum 3 seconds
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(displayDuration)
+            currentDhikrIndex = (currentDhikrIndex + 1) % dhikrList.size
+        }
+    }
+
+    val currentDhikr = dhikrList.getOrNull(currentDhikrIndex) ?: return
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(90.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            // Animated text container with horizontal slide
+            AnimatedContent(
+                targetState = currentDhikr,
+                transitionSpec = {
+                    slideInHorizontally(
+                        animationSpec = tween(durationMillis = 600, easing = EaseInOutCubic),
+                        initialOffsetX = { width -> width }
+                    ) togetherWith slideOutHorizontally(
+                        animationSpec = tween(durationMillis = 600, easing = EaseInOutCubic),
+                        targetOffsetX = { width -> -width }
+                    )
+                },
+                label = "DhikrTransition"
+            ) { dhikr ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Arabic text
+                    Text(
+                        text = dhikr.arabicText,
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+
+                    // Show transliteration if enabled
+                    if (settings.dhikrShowTransliteration) {
+                        Text(
+                            text = dhikr.transliteration,
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                    }
+
+                    // Show translation if enabled
+                    if (settings.dhikrShowTranslation) {
+                        Text(
+                            text = dhikr.englishTranslation,
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                }
+            }
         }
     }
 }

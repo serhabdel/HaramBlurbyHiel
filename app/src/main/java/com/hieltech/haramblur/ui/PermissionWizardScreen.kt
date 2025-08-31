@@ -212,7 +212,7 @@ fun PermissionWizardScreen(
                     )
                 }
 
-                // Error display
+                // Error display with refresh option
                 wizardState.error?.let { error ->
                     AnimatedFadeIn(visible = true, durationMillis = 400) {
                         ModernCard(
@@ -223,20 +223,39 @@ fun PermissionWizardScreen(
                             ),
                             contentPadding = responsiveCardPadding()
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(responsiveSpacing())
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(responsiveSpacing())
                             ) {
-                                Icon(
-                                    Icons.Default.Warning,
-                                    contentDescription = "Error",
-                                    tint = Color(0xFFF44336)
-                                )
-                                Text(
-                                    text = error,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFFC62828)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(responsiveSpacing())
+                                ) {
+                                    Icon(
+                                        Icons.Default.Warning,
+                                        contentDescription = "Error",
+                                        tint = Color(0xFFF44336)
+                                    )
+                                    Text(
+                                        text = error,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color(0xFFC62828),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+
+                                // Add refresh button for errors
+                                OutlinedButton(
+                                    onClick = { viewModel.refreshPermissions() },
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Refresh,
+                                        contentDescription = "Refresh",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Retry")
+                                }
                             }
                         }
                     }
@@ -275,7 +294,10 @@ private fun StepPage(
             },
             onSkipClick = if (!step.isRequired) {
                 { viewModel.skipOptionalPermissions() }
-            } else null
+            } else null,
+            onRefreshClick = {
+                viewModel.refreshCurrentStep()
+            }
         )
 
         // Permission explanation
@@ -316,6 +338,9 @@ private fun StepPage(
                 ) {
                     LocationPermissionInstructions(step.status)
                 }
+            }
+            "NOTIFICATION_PERMISSION" -> {
+                NotificationPermissionInstructions(step.status)
             }
             "ISLAMIC_FEATURES" -> {
                 // Islamic features onboarding step
@@ -601,6 +626,52 @@ private fun LocationPermissionInstructions(status: PermissionWizardViewModel.Per
             if (status == PermissionWizardViewModel.PermissionStatus.REQUESTING) {
                 Text(
                     text = "⚠️ Please grant location permission in Settings to continue",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFFF9800)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Notification permission specific instructions
+ */
+@Composable
+private fun NotificationPermissionInstructions(status: PermissionWizardViewModel.PermissionStatus) {
+    ModernCard(
+        modifier = responsiveMaxContentWidth(),
+        gradientColors = listOf(
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        contentPadding = responsiveCardPadding()
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 10.dp, medium = 11.dp, expanded = 12.dp))
+        ) {
+            Text(
+                text = "🔔 Why notification access?",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = "Notification permission enables the app to show dhikr reminders and Islamic alerts. This is essential for the spiritual features of HaramBlur to work properly.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = "Without this permission, dhikr notifications cannot be displayed, limiting the app's spiritual functionality.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
+            )
+
+            if (status == PermissionWizardViewModel.PermissionStatus.REQUESTING) {
+                Text(
+                    text = "⚠️ Please grant notification permission in Settings to continue",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFFFF9800)
                 )

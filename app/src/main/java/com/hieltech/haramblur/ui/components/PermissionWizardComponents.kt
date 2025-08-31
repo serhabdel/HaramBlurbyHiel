@@ -32,7 +32,8 @@ fun WizardStepCard(
     permissionHelper: PermissionHelper,
     modifier: Modifier = Modifier,
     onGrantClick: () -> Unit,
-    onSkipClick: (() -> Unit)? = null
+    onSkipClick: (() -> Unit)? = null,
+    onRefreshClick: (() -> Unit)? = null
 ) {
     val explanation = permissionHelper.getPermissionExplanation(step.permissionType)
 
@@ -206,6 +207,20 @@ fun WizardStepCard(
                                     "Grant Permission"
                             )
                         }
+                    }
+                }
+
+                // Refresh button for better reliability
+                if (onRefreshClick != null && step.status != PermissionWizardViewModel.PermissionStatus.REQUESTING) {
+                    IconButton(
+                        onClick = onRefreshClick,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Refresh Permission Status",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
 

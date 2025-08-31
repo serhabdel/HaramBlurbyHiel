@@ -209,6 +209,56 @@ fun GeneralSettingsScreen(
                             viewModel.updateBlurIntensity(intensity)
                         }
                     )
+
+                    // Theme Selection
+                    var expanded by remember { mutableStateOf(false) }
+                    val themeOptions = listOf(
+                        AppTheme.ISLAMIC_LIGHT to "Islamic Light - Traditional Islamic colors",
+                        AppTheme.ISLAMIC_DARK to "Islamic Dark - Traditional Islamic colors with dark theme",
+                        AppTheme.MODERN_LIGHT to "Modern Light - Clean modern design",
+                        AppTheme.MODERN_DARK to "Modern Dark - Clean modern design with dark theme",
+                        AppTheme.MINIMAL_LIGHT to "Minimal Light - Minimalist design",
+                        AppTheme.MINIMAL_DARK to "Minimal Dark - Minimalist design with dark theme"
+                    )
+
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = settings.appTheme.displayName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("App Theme") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            themeOptions.forEach { (theme, description) ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(theme.displayName)
+                                            Text(
+                                                description,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        viewModel.updateAppTheme(theme)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 

@@ -29,17 +29,17 @@ fun DhikrDebugPanel(
     var systemStatus by remember { mutableStateOf<DhikrSystemStatus?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
 
-    // Refresh status when panel is first shown
-    LaunchedEffect(Unit) {
-        refreshStatus()
-    }
-
     fun refreshStatus() {
         scope.launch {
             isRefreshing = true
             systemStatus = dhikrManager.getSystemStatus()
             isRefreshing = false
         }
+    }
+
+    // Refresh status when panel is first shown
+    LaunchedEffect(Unit) {
+        refreshStatus()
     }
 
     Card(

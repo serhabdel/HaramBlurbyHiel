@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -15,17 +15,13 @@ import com.hieltech.haramblur.data.*
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.components.CitySelector
 import com.hieltech.haramblur.ui.SettingsViewModel
-import com.hieltech.haramblur.services.DhikrManager
-import com.hieltech.haramblur.utils.DhikrPermissionHelper
-import javax.inject.Inject
+import com.hieltech.haramblur.detection.Language
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IslamicSettingsScreen(
     onNavigateBack: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel(),
-    dhikrManager: DhikrManager = hiltViewModel(),
-    permissionHelper: DhikrPermissionHelper = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
 
@@ -35,7 +31,7 @@ fun IslamicSettingsScreen(
                 title = { Text("Islamic Settings") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 }
             )
@@ -77,12 +73,12 @@ fun IslamicSettingsScreen(
                     if (settings.enableQuranicGuidance) {
                         RadioButtonGroup(
                             title = "Preferred Language",
-                            options = com.hieltech.haramblur.detection.Language.values().map {
+                            options = Language.values().map {
                                 it.displayName to "Language for Islamic guidance"
                             },
-                            selectedIndex = com.hieltech.haramblur.detection.Language.values().indexOf(settings.preferredLanguage),
+                            selectedIndex = Language.values().indexOf(settings.preferredLanguage),
                             onSelectionChange = { index ->
-                                viewModel.updatePreferredLanguage(com.hieltech.haramblur.detection.Language.values()[index])
+                                viewModel.updatePreferredLanguage(Language.values()[index])
                             }
                         )
 
@@ -341,47 +337,6 @@ fun IslamicSettingsScreen(
                             )
                         }
 
-                        // Location Settings
-                        Text(
-                            text = "Location Settings",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        Text(
-                            text = "Prayer times are calculated based on your location",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        // Location display
-                        if (settings.locationLatitude != null && settings.locationLongitude != null) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(
-                                        text = "Current Location",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "${settings.locationCity ?: "Unknown"}, ${settings.locationCountry ?: "Unknown"}",
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    Text(
-                                        text = "Lat: ${String.format("%.4f", settings.locationLatitude)}, Lng: ${String.format("%.4f", settings.locationLongitude)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-
                         // Calculation Method
                         RadioButtonGroup(
                             title = "Calculation Method",
@@ -436,6 +391,8 @@ fun IslamicSettingsScreen(
             }
 
             // Dhikr Debug Panel (only show if dhikr is enabled)
+            // Temporarily disabled due to dependency injection issues
+            /*
             if (settings.dhikrEnabled) {
                 DhikrDebugPanel(
                     dhikrManager = dhikrManager,
@@ -443,6 +400,7 @@ fun IslamicSettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+            */
 
             Spacer(modifier = Modifier.height(32.dp))
         }

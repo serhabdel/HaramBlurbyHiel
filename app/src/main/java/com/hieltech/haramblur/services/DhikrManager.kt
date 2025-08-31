@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import android.app.NotificationManager
-import android.content.Context
 import androidx.core.app.NotificationCompat
 import com.hieltech.haramblur.data.Dhikr
 import com.hieltech.haramblur.data.DhikrPosition
@@ -94,7 +93,8 @@ class DhikrManager @Inject constructor(
                 }
                 
                 dhikrOverlayView = ComposeView(context!!).apply {
-                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                    // Use DisposeOnDetachedFromWindow for overlay views since they don't have a proper lifecycle owner
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                     setContent {
                         HaramBlurTheme {
                             var remainingTime by remember { mutableIntStateOf(settings.displayDurationSeconds) }
@@ -500,6 +500,20 @@ class DhikrManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Error during enhanced cleanup", e)
         }
+    }
+
+    /**
+     * Get next dhikr in sequence for "Next" button functionality
+     */
+    fun getNextDhikrInSequence(): com.hieltech.haramblur.data.Dhikr? {
+        return dhikrRepository.getNextDhikr()
+    }
+
+    /**
+     * Get current dhikr settings for notification actions
+     */
+    fun getCurrentSettings(): com.hieltech.haramblur.data.DhikrSettings {
+        return dhikrRepository.dhikrSettings.value
     }
 }
 
