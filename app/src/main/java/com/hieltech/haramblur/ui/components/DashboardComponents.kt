@@ -1,7 +1,10 @@
+
 package com.hieltech.haramblur.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -14,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +27,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.StrokeCap
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +42,11 @@ import kotlin.math.min
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import com.hieltech.haramblur.data.LogRepository
+import com.hieltech.haramblur.ui.components.AnimatedCounterText
+import com.hieltech.haramblur.ui.components.AnimatedFadeIn
+import com.hieltech.haramblur.ui.components.LoadingShimmer
+import com.hieltech.haramblur.ui.components.MicroInteractionScale
+import com.hieltech.haramblur.ui.components.ModernCard
 
 /**
  * Performance banner showing current performance state with optimized animations

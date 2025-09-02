@@ -8,9 +8,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.*
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.components.CitySelector
@@ -28,10 +30,10 @@ fun IslamicSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Islamic Settings") },
+                title = { Text(stringResource(R.string.islamic_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -58,23 +60,23 @@ fun IslamicSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Quranic Guidance",
+                        text = stringResource(R.string.quranic_guidance_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     SwitchSetting(
-                        title = "Quranic Guidance",
-                        description = "Show Quranic verses when blocking content",
+                        title = stringResource(R.string.quranic_guidance_title),
+                        description = stringResource(R.string.quranic_guidance_description),
                         checked = settings.enableQuranicGuidance,
                         onCheckedChange = { viewModel.updateQuranicGuidance(it) }
                     )
 
                     if (settings.enableQuranicGuidance) {
                         RadioButtonGroup(
-                            title = "Preferred Language",
+                            title = stringResource(R.string.preferred_language_title),
                             options = Language.values().map {
-                                it.displayName to "Language for Islamic guidance"
+                                it.displayName to stringResource(R.string.preferred_language_description)
                             },
                             selectedIndex = Language.values().indexOf(settings.preferredLanguage),
                             onSelectionChange = { index ->
@@ -83,8 +85,8 @@ fun IslamicSettingsScreen(
                         )
 
                         SliderSetting(
-                            title = "Verse Display Duration",
-                            description = "How long to display Quranic verses",
+                            title = stringResource(R.string.verse_display_duration_title),
+                            description = stringResource(R.string.verse_display_duration_description),
                             value = settings.verseDisplayDuration.toFloat(),
                             range = 5f..30f,
                             onValueChange = { viewModel.updateVerseDisplayDuration(it.toInt()) },
@@ -92,15 +94,15 @@ fun IslamicSettingsScreen(
                         )
 
                         SwitchSetting(
-                            title = "Arabic Text Display",
-                            description = "Show original Arabic text alongside translations",
+                            title = stringResource(R.string.arabic_text_display_title),
+                            description = stringResource(R.string.arabic_text_display_description),
                             checked = settings.enableArabicText,
                             onCheckedChange = { viewModel.updateArabicText(it) }
                         )
 
                         SliderSetting(
-                            title = "Custom Reflection Time",
-                            description = "Additional reflection time for spiritual guidance",
+                            title = stringResource(R.string.custom_reflection_time_title),
+                            description = stringResource(R.string.custom_reflection_time_description),
                             value = settings.customReflectionTime.toFloat(),
                             range = 5f..60f,
                             onValueChange = { viewModel.updateCustomReflectionTime(it.toInt()) },
@@ -123,49 +125,49 @@ fun IslamicSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Dhikr (Remembrance)",
+                        text = stringResource(R.string.dhikr_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
-                        text = "Islamic remembrances to help maintain spiritual awareness",
+                        text = stringResource(R.string.dhikr_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     SwitchSetting(
-                        title = "Enable Dhikr",
-                        description = "Show Islamic remembrances throughout the day",
+                        title = stringResource(R.string.enable_dhikr_title),
+                        description = stringResource(R.string.enable_dhikr_description),
                         checked = settings.dhikrEnabled,
                         onCheckedChange = { viewModel.updateDhikrEnabled(it) }
                     )
 
                     if (settings.dhikrEnabled) {
                         SwitchSetting(
-                            title = "Morning Dhikr",
-                            description = "Display morning remembrances (5 AM - 10 AM)",
+                            title = stringResource(R.string.morning_dhikr_title),
+                            description = stringResource(R.string.morning_dhikr_description),
                             checked = settings.dhikrMorningEnabled,
                             onCheckedChange = { viewModel.updateDhikrMorningEnabled(it) }
                         )
 
                         SwitchSetting(
-                            title = "Evening Dhikr",
-                            description = "Display evening remembrances (5 PM - 10 PM)",
+                            title = stringResource(R.string.evening_dhikr_title),
+                            description = stringResource(R.string.evening_dhikr_description),
                             checked = settings.dhikrEveningEnabled,
                             onCheckedChange = { viewModel.updateDhikrEveningEnabled(it) }
                         )
 
                         SwitchSetting(
-                            title = "Anytime Dhikr",
-                            description = "Display general remembrances throughout the day",
+                            title = stringResource(R.string.anytime_dhikr_title),
+                            description = stringResource(R.string.anytime_dhikr_description),
                             checked = settings.dhikrAnytimeEnabled,
                             onCheckedChange = { viewModel.updateDhikrAnytimeEnabled(it) }
                         )
 
                         SliderSetting(
-                            title = "Display Interval",
-                            description = "Minutes between dhikr displays",
+                            title = stringResource(R.string.display_interval_title),
+                            description = stringResource(R.string.display_interval_description),
                             value = settings.dhikrIntervalMinutes.toFloat(),
                             range = 15f..240f,
                             onValueChange = { viewModel.updateDhikrInterval(it.toInt()) },
@@ -173,8 +175,8 @@ fun IslamicSettingsScreen(
                         )
 
                         SliderSetting(
-                            title = "Display Duration",
-                            description = "How long to display each dhikr",
+                            title = stringResource(R.string.display_duration_title),
+                            description = stringResource(R.string.display_duration_description),
                             value = settings.dhikrDisplayDuration.toFloat(),
                             range = 5f..30f,
                             onValueChange = { viewModel.updateDhikrDisplayDuration(it.toInt()) },
@@ -182,13 +184,13 @@ fun IslamicSettingsScreen(
                         )
 
                         RadioButtonGroup(
-                            title = "Display Position",
+                            title = stringResource(R.string.display_position_title),
                             options = listOf(
-                                "TOP_RIGHT" to "Top Right",
-                                "TOP_LEFT" to "Top Left",
-                                "BOTTOM_RIGHT" to "Bottom Right",
-                                "BOTTOM_LEFT" to "Bottom Left",
-                                "CENTER" to "Center"
+                                "TOP_RIGHT" to stringResource(R.string.position_top_right),
+                                "TOP_LEFT" to stringResource(R.string.position_top_left),
+                                "BOTTOM_RIGHT" to stringResource(R.string.position_bottom_right),
+                                "BOTTOM_LEFT" to stringResource(R.string.position_bottom_left),
+                                "CENTER" to stringResource(R.string.position_center)
                             ),
                             selectedIndex = listOf("TOP_RIGHT", "TOP_LEFT", "BOTTOM_RIGHT", "BOTTOM_LEFT", "CENTER")
                                 .indexOf(settings.dhikrPosition),
@@ -199,22 +201,22 @@ fun IslamicSettingsScreen(
                         )
 
                         SwitchSetting(
-                            title = "Show Transliteration",
-                            description = "Display romanized pronunciation",
+                            title = stringResource(R.string.show_transliteration_title),
+                            description = stringResource(R.string.show_transliteration_description),
                             checked = settings.dhikrShowTransliteration,
                             onCheckedChange = { viewModel.updateDhikrShowTransliteration(it) }
                         )
 
                         SwitchSetting(
-                            title = "Show Translation",
-                            description = "Display English translation",
+                            title = stringResource(R.string.show_translation_title),
+                            description = stringResource(R.string.show_translation_description),
                             checked = settings.dhikrShowTranslation,
                             onCheckedChange = { viewModel.updateDhikrShowTranslation(it) }
                         )
 
                         SwitchSetting(
-                            title = "Animation",
-                            description = "Enable slide-in animation",
+                            title = stringResource(R.string.animation_title),
+                            description = stringResource(R.string.animation_description),
                             checked = settings.dhikrAnimationEnabled,
                             onCheckedChange = { viewModel.updateDhikrAnimationEnabled(it) }
                         )
@@ -235,20 +237,20 @@ fun IslamicSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Prayer Times & Islamic Calendar",
+                        text = stringResource(R.string.prayer_times_calendar_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
-                        text = "Islamic prayer times and calendar features",
+                        text = stringResource(R.string.prayer_times_calendar_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     SwitchSetting(
-                        title = "Enable Prayer Times",
-                        description = "Show prayer times and Islamic calendar",
+                        title = stringResource(R.string.enable_prayer_times_title),
+                        description = stringResource(R.string.enable_prayer_times_description),
                         checked = settings.enablePrayerTimes,
                         onCheckedChange = { viewModel.updatePrayerTimesEnabled(it) }
                     )
@@ -256,7 +258,7 @@ fun IslamicSettingsScreen(
                     // Location Settings Section
                     if (settings.enablePrayerTimes) {
                         Text(
-                            text = "Location Settings",
+                            text = stringResource(R.string.location_settings_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -264,15 +266,15 @@ fun IslamicSettingsScreen(
                         )
 
                         Text(
-                            text = "Accurate prayer times depend on your location",
+                            text = stringResource(R.string.location_settings_description),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
 
                         SwitchSetting(
-                            title = "Auto-detect Location",
-                            description = "Use device GPS for automatic location detection",
+                            title = stringResource(R.string.auto_detect_location_title),
+                            description = stringResource(R.string.auto_detect_location_description),
                             checked = settings.autoDetectLocation,
                             onCheckedChange = { viewModel.updateAutoDetectLocation(it) }
                         )
@@ -287,7 +289,7 @@ fun IslamicSettingsScreen(
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Text(
-                                        text = "Current Location",
+                                        text = stringResource(R.string.current_location_title),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -320,16 +322,16 @@ fun IslamicSettingsScreen(
 
                     if (settings.enablePrayerTimes) {
                         SwitchSetting(
-                            title = "Prayer Notifications",
-                            description = "Get notified before prayer times",
+                            title = stringResource(R.string.prayer_notifications_title),
+                            description = stringResource(R.string.prayer_notifications_description),
                             checked = settings.enablePrayerNotifications,
                             onCheckedChange = { viewModel.updatePrayerNotifications(it) }
                         )
 
                         if (settings.enablePrayerNotifications) {
                             SliderSetting(
-                                title = "Advance Notice",
-                                description = "Minutes before prayer to notify",
+                                title = stringResource(R.string.advance_notice_title),
+                                description = stringResource(R.string.advance_notice_description),
                                 value = settings.prayerNotificationAdvanceTime.toFloat(),
                                 range = 5f..60f,
                                 onValueChange = { viewModel.updateNotificationAdvanceTime(it.toInt()) },
@@ -339,13 +341,13 @@ fun IslamicSettingsScreen(
 
                         // Calculation Method
                         RadioButtonGroup(
-                            title = "Calculation Method",
+                            title = stringResource(R.string.calculation_method_title),
                             options = listOf(
-                                "1" to "University of Islamic Sciences, Karachi",
-                                "2" to "Islamic Society of North America (ISNA)",
-                                "3" to "Muslim World League",
-                                "4" to "Umm Al-Qura University, Makkah",
-                                "5" to "Egyptian General Authority of Survey"
+                                "1" to stringResource(R.string.method_karachi),
+                                "2" to stringResource(R.string.method_isna),
+                                "3" to stringResource(R.string.method_muslim_world_league),
+                                "4" to stringResource(R.string.method_umm_al_qura),
+                                "5" to stringResource(R.string.method_egyptian)
                             ),
                             selectedIndex = (settings.prayerCalculationMethod - 1).coerceIn(0, 4),
                             onSelectionChange = { index ->
@@ -354,8 +356,8 @@ fun IslamicSettingsScreen(
                         )
 
                         SliderSetting(
-                            title = "Update Interval",
-                            description = "Minutes between prayer times updates",
+                            title = stringResource(R.string.update_interval_title),
+                            description = stringResource(R.string.update_interval_description),
                             value = settings.prayerTimesUpdateInterval.toFloat(),
                             range = 15f..120f,
                             onValueChange = { viewModel.updatePrayerTimesUpdateInterval(it.toInt()) },
@@ -364,16 +366,16 @@ fun IslamicSettingsScreen(
                     }
 
                     SwitchSetting(
-                        title = "Enable Islamic Calendar",
-                        description = "Show Islamic calendar and Hijri dates",
+                        title = stringResource(R.string.enable_islamic_calendar_title),
+                        description = stringResource(R.string.enable_islamic_calendar_description),
                         checked = settings.enableIslamicCalendar,
                         onCheckedChange = { viewModel.updateIslamicCalendarEnabled(it) }
                     )
 
                     if (settings.enableIslamicCalendar) {
                         SliderSetting(
-                            title = "Calendar Update Interval",
-                            description = "Minutes between calendar updates",
+                            title = stringResource(R.string.calendar_update_interval_title),
+                            description = stringResource(R.string.calendar_update_interval_description),
                             value = settings.islamicCalendarUpdateInterval.toFloat(),
                             range = 30f..240f,
                             onValueChange = { viewModel.updateIslamicCalendarUpdateInterval(it.toInt()) },
@@ -382,8 +384,8 @@ fun IslamicSettingsScreen(
                     }
 
                     SwitchSetting(
-                        title = "Enable Qibla Direction",
-                        description = "Show Qibla direction from your location",
+                        title = stringResource(R.string.enable_qibla_direction_title),
+                        description = stringResource(R.string.enable_qibla_direction_description),
                         checked = settings.enableQiblaDirection,
                         onCheckedChange = { viewModel.updateQiblaDirectionEnabled(it) }
                     )

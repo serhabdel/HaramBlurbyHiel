@@ -22,9 +22,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
 
 import kotlinx.coroutines.launch
@@ -113,7 +116,7 @@ private fun CompactDebugScreen(
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Quick Actions",
+                        stringResource(R.string.quick_actions),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -181,52 +184,52 @@ private fun CompactDebugScreen(
 
             // Service Status
             ServiceStatusCard(
-                title = "🎯 Accessibility Service",
+                title = stringResource(R.string.accessibility_service),
                 status = debugState.accessibilityService,
                 details = listOf(
-                    "Service Running" to debugState.accessibilityService.isRunning.toString(),
-                    "Processing Active" to debugState.accessibilityService.isProcessingActive.toString(),
-                    "Screen Capture" to debugState.accessibilityService.isCapturingActive.toString(),
-                    "Overlay Active" to debugState.accessibilityService.isOverlayActive.toString()
+                    stringResource(R.string.service_running) to debugState.accessibilityService.isRunning.toString(),
+                    stringResource(R.string.processing_active) to debugState.accessibilityService.isProcessingActive.toString(),
+                    stringResource(R.string.screen_capture) to debugState.accessibilityService.isCapturingActive.toString(),
+                    stringResource(R.string.overlay_active) to debugState.accessibilityService.isOverlayActive.toString()
                 )
             )
 
             // Detection Engine Status
             GenericStatusCard(
-                title = "🧠 Detection Engine",
+                title = stringResource(R.string.detection_engine),
                 isHealthy = debugState.detectionEngine.isHealthy,
                 details = listOf(
-                    "Engine Ready" to debugState.detectionEngine.isReady.toString(),
-                    "ML Models Loaded" to debugState.detectionEngine.mlModelsReady.toString(),
-                    "GPU Acceleration" to debugState.detectionEngine.gpuEnabled.toString(),
-                    "Last Processing Time" to "${debugState.detectionEngine.lastProcessingTimeMs}ms"
+                    stringResource(R.string.engine_ready) to debugState.detectionEngine.isReady.toString(),
+                    stringResource(R.string.ml_models_loaded) to debugState.detectionEngine.mlModelsReady.toString(),
+                    stringResource(R.string.gpu_acceleration) to debugState.detectionEngine.gpuEnabled.toString(),
+                    stringResource(R.string.last_processing_time) to "${debugState.detectionEngine.lastProcessingTimeMs}ms"
                 ),
                 lastError = debugState.detectionEngine.lastError
             )
 
             // Face Detection Status
             GenericStatusCard(
-                title = "👤 Face Detection",
+                title = stringResource(R.string.face_detection),
                 isHealthy = debugState.faceDetection.isHealthy,
                 details = listOf(
-                    "Face Detector Ready" to debugState.faceDetection.isReady.toString(),
-                    "Gender Detector Ready" to debugState.faceDetection.genderDetectorReady.toString(),
-                    "Last Faces Detected" to debugState.faceDetection.lastFacesCount.toString(),
-                    "Female Faces" to debugState.faceDetection.lastFemaleFaces.toString(),
-                    "Detection Confidence" to "${(debugState.faceDetection.averageConfidence * 100).toInt()}%"
+                    stringResource(R.string.face_detector_ready) to debugState.faceDetection.isReady.toString(),
+                    stringResource(R.string.gender_detector_ready) to debugState.faceDetection.genderDetectorReady.toString(),
+                    stringResource(R.string.last_faces_detected) to debugState.faceDetection.lastFacesCount.toString(),
+                    stringResource(R.string.female_faces) to debugState.faceDetection.lastFemaleFaces.toString(),
+                    stringResource(R.string.detection_confidence) to "${(debugState.faceDetection.averageConfidence * 100).toInt()}%"
                 ),
                 lastError = debugState.faceDetection.lastError
             )
 
             // NSFW Detection Status
             GenericStatusCard(
-                title = "🔞 Content Detection",
+                title = stringResource(R.string.content_detection),
                 isHealthy = debugState.nsfwDetection.isHealthy,
                 details = listOf(
-                    "NSFW Model Ready" to debugState.nsfwDetection.isReady.toString(),
-                    "Last Detection" to debugState.nsfwDetection.lastResult.toString(),
-                    "Confidence" to "${(debugState.nsfwDetection.lastConfidence * 100).toInt()}%",
-                    "Processing Mode" to debugState.nsfwDetection.processingMode
+                    stringResource(R.string.nsfw_model_ready) to debugState.nsfwDetection.isReady.toString(),
+                    stringResource(R.string.last_detection) to debugState.nsfwDetection.lastResult.toString(),
+                    stringResource(R.string.confidence) to "${(debugState.nsfwDetection.lastConfidence * 100).toInt()}%",
+                    stringResource(R.string.processing_mode) to debugState.nsfwDetection.processingMode
                 ),
                 lastError = debugState.nsfwDetection.lastError
             )
@@ -235,7 +238,7 @@ private fun CompactDebugScreen(
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "⚡ Performance Metrics",
+                        stringResource(R.string.performance_metrics),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -245,7 +248,7 @@ private fun CompactDebugScreen(
                         progress = debugState.performance.cpuUsage,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Text("CPU Usage: ${(debugState.performance.cpuUsage * 100).toInt()}%")
+                    Text("${stringResource(R.string.cpu_usage)}: ${(debugState.performance.cpuUsage * 100).toInt()}%")
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -253,7 +256,7 @@ private fun CompactDebugScreen(
                         progress = debugState.performance.memoryUsage,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Text("Memory Usage: ${(debugState.performance.memoryUsage * 100).toInt()}%")
+                    Text("${stringResource(R.string.memory_usage)}: ${(debugState.performance.memoryUsage * 100).toInt()}%")
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -267,14 +270,14 @@ private fun CompactDebugScreen(
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "🎯 Behavioral Actions Testing",
+                        stringResource(R.string.behavioral_actions_testing),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        "Test the new behavioral intervention system:",
+                        stringResource(R.string.test_behavioral_system),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -285,35 +288,35 @@ private fun CompactDebugScreen(
                             onClick = { viewModel.testAction("CLOSE_TAB") },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("🗂️ Test Close Tab Action")
+                            Text(stringResource(R.string.test_close_tab_action))
                         }
 
                         Button(
                             onClick = { viewModel.testAction("SCROLL_UP") },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("📜 Test Scroll Up Action")
+                            Text(stringResource(R.string.test_scroll_up_action))
                         }
 
                         Button(
                             onClick = { viewModel.testAction("NAVIGATE_SAFE") },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("🛡️ Test Navigate to Safe Content")
+                            Text(stringResource(R.string.test_navigate_safe_action))
                         }
 
                         Button(
                             onClick = { viewModel.testAction("SHOW_ISLAMIC") },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("📖 Test Show Islamic Content")
+                            Text(stringResource(R.string.test_show_islamic_action))
                         }
 
                         Button(
                             onClick = { viewModel.testAction("EMERGENCY_BLUR") },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("🚨 Test Emergency Blur")
+                            Text(stringResource(R.string.test_emergency_blur_action))
                         }
 
                         Button(
@@ -323,14 +326,14 @@ private fun CompactDebugScreen(
                                 containerColor = MaterialTheme.colorScheme.error
                             )
                         ) {
-                            Text("🚨 EMERGENCY: Hide All Overlays")
+                            Text(stringResource(R.string.emergency_hide_overlays))
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        "Last Action Result:",
+                        stringResource(R.string.last_action_result),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium
                     )
@@ -346,7 +349,7 @@ private fun CompactDebugScreen(
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "📝 Recent Debug Logs",
+                        stringResource(R.string.recent_debug_logs),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -782,7 +785,7 @@ private fun ExpandedDebugScreen(
                             ) {
                                 Icon(Icons.Default.Refresh, null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Refresh")
+                            Text(stringResource(R.string.refresh))
                             }
 
                             Button(
@@ -791,7 +794,7 @@ private fun ExpandedDebugScreen(
                             ) {
                                 Icon(Icons.Default.PlayArrow, null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Test")
+                            Text(stringResource(R.string.test))
                             }
                         }
                     }

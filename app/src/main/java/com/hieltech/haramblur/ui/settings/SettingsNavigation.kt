@@ -10,46 +10,48 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 // Import the SettingsCategory from the data package
 import com.hieltech.haramblur.data.SettingsCategory
+import com.hieltech.haramblur.R
 
 // Define navigation categories that map to the data enum
 enum class NavigationCategory(
-    val title: String,
-    val description: String,
+    val titleResId: Int,
+    val descriptionResId: Int,
     val icon: ImageVector,
     val settingsCategory: SettingsCategory
 ) {
     GENERAL(
-        "General",
-        "Service control and basic settings",
+        R.string.nav_general_title,
+        R.string.nav_general_description,
         Icons.Default.Settings,
         SettingsCategory.ESSENTIAL
     ),
     DETECTION(
-        "Detection",
-        "Face and content detection settings",
+        R.string.nav_detection_title,
+        R.string.nav_detection_description,
         Icons.Default.Search,
         SettingsCategory.DETECTION
     ),
     PERFORMANCE(
-        "Performance",
-        "Speed and resource optimization",
+        R.string.nav_performance_title,
+        R.string.nav_performance_description,
         Icons.Default.Build,
         SettingsCategory.PERFORMANCE
     ),
     ISLAMIC(
-        "Islamic",
-        "Quranic guidance and Dhikr",
+        R.string.nav_islamic_title,
+        R.string.nav_islamic_description,
         Icons.Default.Star,
         SettingsCategory.ISLAMIC
     ),
     ADVANCED(
-        "Advanced",
-        "AI and developer options",
+        R.string.nav_advanced_title,
+        R.string.nav_advanced_description,
         Icons.Default.Build,
         SettingsCategory.AI
     )
@@ -64,10 +66,10 @@ fun SettingsNavigationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -118,7 +120,7 @@ private fun SettingsCategoryCard(
         ) {
             Icon(
                 imageVector = category.icon,
-                contentDescription = category.title,
+                contentDescription = stringResource(category.titleResId),
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -126,7 +128,7 @@ private fun SettingsCategoryCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = category.title,
+                text = stringResource(category.titleResId),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -135,7 +137,7 @@ private fun SettingsCategoryCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = category.description,
+                text = stringResource(category.descriptionResId),
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)

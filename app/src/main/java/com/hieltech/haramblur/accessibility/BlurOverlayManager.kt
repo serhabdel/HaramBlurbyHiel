@@ -26,6 +26,7 @@ import com.hieltech.haramblur.ui.components.WarningDialog
 import com.hieltech.haramblur.ui.components.WarningDialogManager
 import com.hieltech.haramblur.ui.effects.EnhancedBlurEffects
 import com.hieltech.haramblur.ui.theme.HaramBlurTheme
+import com.hieltech.haramblur.detection.Language
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -532,9 +533,9 @@ class BlurOverlayManager @Inject constructor(
                 warningOverlayView = ComposeView(context!!).apply {
                     // Use DisposeOnDetachedFromWindow for overlay views since they don't have a proper lifecycle owner
                     setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-                    setContent {
-                        HaramBlurTheme {
-                            var dialogState by remember {
+                     setContent {
+                         HaramBlurTheme(preferredLanguage = Language.ENGLISH) {
+                             var dialogState by remember {
                                 mutableStateOf(
                                     WarningDialogState(
                                         isVisible = true,
@@ -696,8 +697,8 @@ class BlurOverlayManager @Inject constructor(
                     // Use DisposeOnDetachedFromWindow for overlay views since they don't have a proper lifecycle owner
                     setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                     setContent {
-                        HaramBlurTheme {
-                            var selectedLanguage by remember { 
+                        HaramBlurTheme(preferredLanguage = Language.ENGLISH) {
+                            var selectedLanguage by remember {
                                 mutableStateOf(com.hieltech.haramblur.detection.Language.ENGLISH) 
                             }
                             
@@ -818,7 +819,7 @@ class BlurOverlayManager @Inject constructor(
                 blockedSiteOverlayView = ComposeView(context!!).apply {
                     setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                     setContent {
-                        HaramBlurTheme {
+                        HaramBlurTheme(preferredLanguage = Language.ENGLISH) {
                             var selectedLanguage by remember {
                                 mutableStateOf(com.hieltech.haramblur.detection.Language.ENGLISH)
                             }

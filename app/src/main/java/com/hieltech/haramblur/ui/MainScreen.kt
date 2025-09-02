@@ -23,11 +23,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.hieltech.haramblur.R
-import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.R
 import kotlinx.coroutines.delay
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -64,11 +62,11 @@ fun MainScreen(
                     ) {
                         Icon(
                             Icons.Default.CheckCircle,
-                            contentDescription = "HaramBlur Shield",
+                            contentDescription = stringResource(R.string.haramblur_shield),
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "HaramBlur",
+                            text = stringResource(R.string.app_name),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -79,7 +77,7 @@ fun MainScreen(
                         Icon(Icons.Default.Build, contentDescription = "Debug")
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -117,12 +115,12 @@ fun MainScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "🛡️ Welcome to HaramBlur",
+                            text = stringResource(R.string.welcome_to_haramblur),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Your Islamic content filter is ready",
+                            text = stringResource(R.string.your_islamic_content_filter),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -153,28 +151,24 @@ fun MainScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "Setup Required",
+                            text = stringResource(R.string.setup_required_title),
                             style = MaterialTheme.typography.titleMedium
                         )
-                        
+
                         Spacer(modifier = Modifier.height(8.dp))
-                        
+
                         Text(
-                            text = "To use HaramBlur, you need to enable the accessibility service:\n\n" +
-                                    "1. Tap 'Open Settings' below\n" +
-                                    "2. Find 'HaramBlur' in the list\n" +
-                                    "3. Toggle it ON\n" +
-                                    "4. Confirm by tapping 'Allow'",
+                            text = stringResource(R.string.setup_instructions),
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
-                        
+
                         Button(
                             onClick = { viewModel.openAccessibilitySettings(context) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Open Accessibility Settings")
+                            Text(stringResource(R.string.open_accessibility_settings))
                         }
                     }
                 }
@@ -188,17 +182,14 @@ fun MainScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "About HaramBlur",
+                        text = stringResource(R.string.about_haramblur_title),
                         style = MaterialTheme.typography.titleMedium
                     )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Text(
-                        text = "HaramBlur automatically detects and blurs inappropriate content " +
-                                "across all apps on your device, helping you maintain Islamic values " +
-                                "while using technology. All processing happens locally on your device " +
-                                "for complete privacy.",
+                        text = stringResource(R.string.about_haramblur_description),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -216,12 +207,12 @@ fun MainScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "⚡ Quick Actions",
+                            text = stringResource(R.string.quick_actions_title),
                             style = MaterialTheme.typography.titleMedium
                         )
-                        
+
                         Spacer(modifier = Modifier.height(12.dp))
-                        
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -230,14 +221,14 @@ fun MainScreen(
                                 onClick = { /* TODO: Implement optimal settings */ },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("🎯 Optimal")
+                                Text(stringResource(R.string.optimal))
                             }
-                            
+
                             Button(
                                 onClick = { /* TODO: Implement reset settings */ },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("🔄 Reset")
+                                Text(stringResource(R.string.reset))
                             }
                         }
                     }
@@ -255,17 +246,14 @@ fun MainScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "🔒 Privacy & Focus",
+                        text = stringResource(R.string.privacy_focus_title),
                         style = MaterialTheme.typography.titleMedium
                     )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Text(
-                        text = "• Focused on female content detection only\n" +
-                                "• All processing happens locally on device\n" +
-                                "• GPU acceleration for better performance\n" +
-                                "• No data leaves your device",
+                        text = stringResource(R.string.privacy_focus_description),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -321,7 +309,7 @@ fun ServiceStatusDashboard(serviceRunning: Boolean) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = if (serviceRunning) "🛡️ Protection Active" else "⚠️ Protection Inactive",
+                text = if (serviceRunning) stringResource(R.string.protection_active) else stringResource(R.string.protection_inactive),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -329,8 +317,8 @@ fun ServiceStatusDashboard(serviceRunning: Boolean) {
 
             Text(
                 text = if (serviceRunning)
-                    "Monitoring and filtering content across all apps"
-                else "Enable accessibility service to activate protection",
+                    stringResource(R.string.monitoring_and_filtering)
+                else stringResource(R.string.enable_accessibility_service),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 8.dp),
@@ -345,9 +333,9 @@ fun ServiceStatusDashboard(serviceRunning: Boolean) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                 ) {
-                    StatusChip("ML Models", "Active", Icons.Default.CheckCircle)
-                    StatusChip("GPU", "Accelerated", Icons.Default.Lock)
-                    StatusChip("Privacy", "Local", Icons.Default.Lock)
+                    StatusChip(stringResource(R.string.ml_models), stringResource(R.string.active), Icons.Default.CheckCircle)
+                    StatusChip(stringResource(R.string.gpu), stringResource(R.string.accelerated), Icons.Default.Lock)
+                    StatusChip(stringResource(R.string.privacy), stringResource(R.string.local), Icons.Default.Lock)
                 }
             }
         }
@@ -373,12 +361,12 @@ fun DetectionStatsCard() {
             ) {
                 Icon(
                     Icons.Default.CheckCircle,
-                    contentDescription = "Detection Stats",
+                    contentDescription = stringResource(R.string.detection_stats),
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Live Detection Statistics",
+                    text = stringResource(R.string.live_detection_statistics),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -390,16 +378,16 @@ fun DetectionStatsCard() {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    StatItem("Faces Detected", "12", "👤")
-                    StatItem("Content Filtered", "8", "🔞")
+                    StatItem(stringResource(R.string.faces_detected), "12", "👤")
+                    StatItem(stringResource(R.string.content_filtered), "8", "🔞")
                 }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    StatItem("Blur Regions", "15", "👁️")
-                    StatItem("Performance", "95%", "⚡")
+                    StatItem(stringResource(R.string.blur_regions), "15", "👁️")
+                    StatItem(stringResource(R.string.performance), "95%", "⚡")
                 }
             }
 
@@ -407,13 +395,13 @@ fun DetectionStatsCard() {
 
             // Recent activity
             Text(
-                text = "Recent Activity:",
+                text = stringResource(R.string.recent_activity),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary
             )
 
             Text(
-                text = "• Female face detected and blurred\n• NSFW content filtered\n• Region-based full screen blur activated",
+                text = stringResource(R.string.recent_activity_details),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
                 color = MaterialTheme.colorScheme.onSecondaryContainer

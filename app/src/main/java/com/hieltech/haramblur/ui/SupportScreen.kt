@@ -20,10 +20,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
 import com.hieltech.haramblur.ui.components.*
 import kotlinx.coroutines.launch
@@ -45,10 +47,10 @@ fun SupportScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("🆘 Support & Help") },
+                title = { Text(stringResource(R.string.support_help)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -105,7 +107,7 @@ fun QuickHelpSection(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "🚀 Quick Help",
+                text = stringResource(R.string.quick_help),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -116,7 +118,7 @@ fun QuickHelpSection(
             // Quick Actions (Settings only - logs moved to drawer)
             QuickActionButton(
                 icon = Icons.Default.Settings,
-                title = "Settings",
+                title = stringResource(R.string.settings),
                 onClick = onNavigateToSettings,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -150,15 +152,15 @@ fun ServiceStatusIndicator(isRunning: Boolean) {
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (isRunning) "Service Active" else "Service Inactive",
+                    text = if (isRunning) stringResource(R.string.service_active) else stringResource(R.string.service_inactive),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
                     text = if (isRunning)
-                        "HaramBlur is protecting your device"
+                        stringResource(R.string.haramlur_protecting)
                     else
-                        "Enable accessibility service in settings",
+                        stringResource(R.string.enable_accessibility_settings),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -209,50 +211,50 @@ fun TroubleshootingSection(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "🔧 Troubleshooting",
+                text = stringResource(R.string.troubleshooting),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
 
             // Common Issues
             TroubleshootingItem(
-                title = "Content not being blurred",
-                description = "Check if accessibility service is enabled and app has necessary permissions",
+                title = stringResource(R.string.content_not_blurring),
+                description = stringResource(R.string.check_accessibility_enabled),
                 action = {
                     viewModel.openAccessibilitySettings(context)
                 },
-                actionText = "Open Settings"
+                actionText = stringResource(R.string.open_settings)
             )
 
             TroubleshootingItem(
-                title = "App is slow or laggy",
-                description = "Try reducing detection sensitivity or disabling GPU acceleration",
+                title = stringResource(R.string.app_slow_laggy),
+                description = stringResource(R.string.reduce_sensitivity),
                 action = {
                     // Navigate to settings - this would need to be passed in
                 },
-                actionText = "Adjust Settings"
+                actionText = stringResource(R.string.adjust_settings)
             )
 
             TroubleshootingItem(
-                title = "False positives",
-                description = "Lower detection confidence threshold in advanced settings",
+                title = stringResource(R.string.false_positives),
+                description = stringResource(R.string.lower_confidence_threshold),
                 action = {
                     // Navigate to settings
                 },
-                actionText = "Fine-tune Detection"
+                actionText = stringResource(R.string.fine_tune_detection)
             )
 
             // System Info
             Text(
-                text = "System Information:",
+                text = stringResource(R.string.system_information),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium
             )
 
-            SystemInfoItem("Android Version", supportState.androidVersion)
-            SystemInfoItem("Device", supportState.deviceModel)
-            SystemInfoItem("App Version", supportState.appVersion)
-            SystemInfoItem("Service Status", if (supportState.serviceRunning) "Running" else "Stopped")
+            SystemInfoItem(stringResource(R.string.android_version), supportState.androidVersion)
+            SystemInfoItem(stringResource(R.string.device), supportState.deviceModel)
+            SystemInfoItem(stringResource(R.string.app_version), supportState.appVersion)
+            SystemInfoItem(stringResource(R.string.service_status), if (supportState.serviceRunning) stringResource(R.string.running) else stringResource(R.string.stopped))
         }
     }
 }

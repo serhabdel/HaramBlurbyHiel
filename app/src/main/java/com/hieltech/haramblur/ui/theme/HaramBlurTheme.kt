@@ -5,8 +5,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import com.hieltech.haramblur.data.AppTheme
+import com.hieltech.haramblur.detection.Language
 
 // Islamic-inspired Light Color Scheme
 private val LightColorScheme = lightColorScheme(
@@ -245,6 +249,7 @@ private val MinimalDarkColorScheme = darkColorScheme(
 @Composable
 fun HaramBlurTheme(
     appTheme: AppTheme = AppTheme.ISLAMIC_LIGHT,
+    preferredLanguage: Language = Language.ENGLISH,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when (appTheme) {
@@ -256,9 +261,18 @@ fun HaramBlurTheme(
         AppTheme.MINIMAL_DARK -> MinimalDarkColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    // Determine layout direction based on language
+    val layoutDirection = if (preferredLanguage.isRTL) {
+        LayoutDirection.Rtl
+    } else {
+        LayoutDirection.Ltr
+    }
+
+    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

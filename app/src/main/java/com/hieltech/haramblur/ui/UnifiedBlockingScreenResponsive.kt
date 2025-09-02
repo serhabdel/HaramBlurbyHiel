@@ -11,9 +11,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.detection.AppBlockingManager
 import com.hieltech.haramblur.detection.AppInfo
 import com.hieltech.haramblur.detection.EnhancedSiteBlockingManager
@@ -96,7 +98,7 @@ private fun UnifiedBlockingScreenSimple(
                 } catch (e: Exception) {
                     // Simplified error handling
                     snackbarHostState.showSnackbar(
-                        message = "Failed to load data",
+                        message = stringResource(R.string.failed_to_load_data),
                         duration = SnackbarDuration.Short
                     )
                 } finally {
@@ -146,10 +148,10 @@ private fun UnifiedBlockingScreenSimple(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Block Apps & Sites") },
+                title = { Text(stringResource(R.string.block_apps_sites)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -166,12 +168,12 @@ private fun UnifiedBlockingScreenSimple(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("📱 Social Media") }
+                    text = { Text(stringResource(R.string.social_media)) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("🌐 Websites") }
+                    text = { Text(stringResource(R.string.websites)) }
                 )
             }
 
@@ -180,7 +182,7 @@ private fun UnifiedBlockingScreenSimple(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    label = { Text("Search apps") },
+                    label = { Text(stringResource(R.string.search_apps)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -248,7 +250,7 @@ private fun SocialMediaTabContent(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "📊 Overview",
+                            text = stringResource(R.string.overview),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -263,7 +265,7 @@ private fun SocialMediaTabContent(
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold
                                 )
-                                Text("Total Apps", style = MaterialTheme.typography.bodySmall)
+                                Text(stringResource(R.string.total_apps), style = MaterialTheme.typography.bodySmall)
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
@@ -272,7 +274,7 @@ private fun SocialMediaTabContent(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.error
                                 )
-                                Text("Blocked", style = MaterialTheme.typography.bodySmall)
+                                Text(stringResource(R.string.blocked), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -285,7 +287,7 @@ private fun SocialMediaTabContent(
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "⚡ Quick Actions",
+                        text = stringResource(R.string.quick_actions_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -306,7 +308,7 @@ private fun SocialMediaTabContent(
                                 containerColor = MaterialTheme.colorScheme.error
                             )
                         ) {
-                            Text("Block All")
+                            Text(stringResource(R.string.block_all))
                         }
 
                         OutlinedButton(
@@ -318,7 +320,7 @@ private fun SocialMediaTabContent(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Unblock All")
+                            Text(stringResource(R.string.unblock_all))
                         }
                     }
                 }
@@ -345,11 +347,11 @@ private fun SocialMediaTabContent(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "🎉 No social media apps found!",
+                            text = stringResource(R.string.no_social_media_found),
                             style = MaterialTheme.typography.headlineSmall
                         )
                         Text(
-                            text = "Great job maintaining digital wellness",
+                            text = stringResource(R.string.great_job),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -431,12 +433,12 @@ private fun WebsitesTabContent(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "🌐 Website Blocking",
+                        text = stringResource(R.string.website_blocking),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Add custom websites to block",
+                        text = stringResource(R.string.add_custom_websites),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -452,7 +454,7 @@ private fun WebsitesTabContent(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add")
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Add Website to Block")
+                Text(stringResource(R.string.add_website_to_block))
             }
         }
 
@@ -476,11 +478,11 @@ private fun WebsitesTabContent(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "🚫 No websites blocked yet",
+                            text = stringResource(R.string.no_websites_blocked),
                             style = MaterialTheme.typography.headlineSmall
                         )
                         Text(
-                            text = "Add websites above to start blocking them",
+                            text = stringResource(R.string.add_websites_above),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -516,16 +518,16 @@ private fun WebsitesTabContent(
     if (showAddSiteDialog) {
         AlertDialog(
             onDismissRequest = { showAddSiteDialog = false },
-            title = { Text("Add Website to Block") },
+            title = { Text(stringResource(R.string.add_website_to_block)) },
             text = {
                 Column {
-                    Text("Enter the website URL you want to block:")
+                    Text(stringResource(R.string.enter_website_url))
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = newSiteUrl,
                         onValueChange = { newSiteUrl = it },
-                        label = { Text("Website URL") },
-                        placeholder = { Text("e.g., example.com") }
+                        label = { Text(stringResource(R.string.website_url)) },
+                        placeholder = { Text(stringResource(R.string.example_url)) }
                     )
                 }
             },
@@ -541,12 +543,12 @@ private fun WebsitesTabContent(
                     },
                     enabled = newSiteUrl.isNotBlank()
                 ) {
-                    Text("Add")
+                    Text(stringResource(R.string.add))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAddSiteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -646,10 +648,10 @@ private fun CustomBlockedSiteItem(
                     contentColor = MaterialTheme.colorScheme.error
                 )
             ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Remove blocked site"
-                )
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.remove_blocked_site)
+                    )
             }
         }
     }

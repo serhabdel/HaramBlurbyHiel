@@ -78,6 +78,33 @@ graph TD
 - **Gender Classification** - ML-based gender identification for appropriate filtering
 - **Quranic Content Analysis** - Recognizes and respects Islamic content
 - **Real-time Processing** - Continuous monitoring with minimal performance impact
+- **Enhanced Site Blocking** - Comprehensive URL filtering with pattern matching
+- **False Positive Reporting** - User feedback system for blocking accuracy
+
+### 🕌 Islamic Features Integration
+
+```mermaid
+graph TD
+    A[Islamic Content Analysis] --> B{Quranic Verse Database}
+    A --> C[Dhikr System]
+    A --> D[Prayer Times]
+    B --> E[Contextual Guidance]
+    C --> F[Scheduled Reminders]
+    D --> G[Prayer Notifications]
+    E --> H[Spiritual Support]
+    F --> H
+    G --> H
+    H --> I[User Faith Protection]
+```
+
+#### 🕌 Comprehensive Islamic Integration
+
+- **Quranic Verse Database** - 500+ verses organized by content category
+- **Dhikr Remembrance System** - Time-based Islamic remembrance with overlay display
+- **Prayer Times Integration** - Location-based prayer calculations with notifications
+- **Contextual Spiritual Guidance** - Relevant Quranic verses for blocked content
+- **Multi-language Support** - Arabic, English, French, Indonesian translations
+- **Real-time Processing** - Continuous monitoring with minimal performance impact
 
 ### 🛡️ Privacy & Security
 
@@ -120,6 +147,8 @@ graph TB
         G[HaramBlurAccessibilityService] --> H[ScreenCaptureManager]
         G --> I[BlurOverlayManager]
         G --> J[ContentDetectionEngine]
+        G --> K[DhikrManager]
+        G --> L[PrayerNotificationWorker]
     end
 
     subgraph "Detection Layer"
@@ -133,12 +162,17 @@ graph TB
         O[SettingsRepository] --> P[AppSettings]
         O --> Q[ProcessingSpeed]
         R[QuranicRepository] --> S[Quranic Content Database]
+        T[PrayerTimesRepository] --> U[Prayer Times API]
+        V[DhikrRepository] --> W[Dhikr Database]
+        X[SiteBlockingManager] --> Y[Blocked Sites Database]
     end
 
     subgraph "External Integrations"
         T[TensorFlow Lite Models] --> K
         U[Google ML Kit] --> L
         V[OpenRouter LLM Service] --> J
+        W[Aladhan API] --> X[PrayerTimesRepository]
+        Y[Quranic Database] --> Z[QuranicRepository]
     end
 ```
 
@@ -188,10 +222,56 @@ sequenceDiagram
     BlurOverlayManager-->>AccessibilityService: Overlay Applied
 ```
 
-#### 3. **Performance Optimization Flow**
+#### 4. **Dhikr Management Flow**
 
 ```mermaid
-stateDiagram-v2
+sequenceDiagram
+    participant DhikrManager
+    participant DhikrRepository
+    participant PermissionHelper
+    participant OverlayManager
+    participant NotificationManager
+
+    DhikrManager->>DhikrRepository: Check Dhikr Settings
+    DhikrRepository-->>DhikrManager: Settings & Time Windows
+    DhikrManager->>DhikrRepository: Should Show Dhikr?
+    DhikrRepository-->>DhikrManager: Yes/No + Next Dhikr
+    alt Should Show
+        DhikrManager->>PermissionHelper: Get Display Method
+        PermissionHelper-->>DhikrManager: Overlay/Notification/None
+        alt Overlay Available
+            DhikrManager->>OverlayManager: Show Dhikr Overlay
+            OverlayManager-->>DhikrManager: Overlay Displayed
+        else Notification Fallback
+            DhikrManager->>NotificationManager: Show Dhikr Notification
+            NotificationManager-->>DhikrManager: Notification Sent
+        end
+    end
+```
+
+#### 5. **Prayer Times Integration Flow**
+
+```mermaid
+sequenceDiagram
+    participant PrayerNotificationWorker
+    participant PrayerTimesRepository
+    participant AladhanAPI
+    participant SettingsRepository
+    participant NotificationManager
+
+    PrayerNotificationWorker->>SettingsRepository: Check Prayer Settings
+    SettingsRepository-->>PrayerNotificationWorker: Prayer Enabled?
+    PrayerNotificationWorker->>PrayerTimesRepository: Get Next Prayer
+    PrayerTimesRepository->>AladhanAPI: Fetch Prayer Times
+    AladhanAPI-->>PrayerTimesRepository: Prayer Data
+    PrayerTimesRepository-->>PrayerNotificationWorker: Next Prayer Info
+    alt Should Notify
+        PrayerNotificationWorker->>NotificationManager: Send Prayer Notification
+        NotificationManager-->>PrayerNotificationWorker: Notification Delivered
+    end
+```
+
+#### 6. **Performance Optimization Flow**
     [*] --> Initialization
     Initialization --> PerformanceMonitoring
     PerformanceMonitoring --> AdaptiveProcessing
@@ -202,6 +282,28 @@ stateDiagram-v2
     FastMode --> PerformanceMonitoring
     UltraFastMode --> PerformanceMonitoring
     PerformanceMonitoring --> AdaptiveProcessing
+```
+
+#### 6. **Site Blocking with Quranic Integration**
+
+```mermaid
+flowchart LR
+    A[URL Input] --> B[URL Normalization]
+    B --> C{Cache Check}
+    C -->|Hit| D[Return Cached Result]
+    C -->|Miss| E[Pattern Matching]
+    E --> F[Domain Check]
+    E --> G[Regex Patterns]
+    E --> H[Suspicious Keywords]
+    F --> I{Blocked?}
+    G --> I
+    H --> I
+    I -->|Yes| J[Get Category]
+    J --> K[Fetch Quranic Verse]
+    K --> L[Create Blocking Result]
+    L --> M[Cache Result]
+    M --> N[Return to User]
+    I -->|No| O[Allow Access]
 ```
 
 ### 📊 Data Flow Architecture
@@ -242,6 +344,8 @@ flowchart LR
 | **Database** | Room | 2.6.1 | Local data persistence |
 | **HTTP Client** | OkHttp | 4.12.0 | API communication |
 | **Background Tasks** | WorkManager | 2.9.0 | Scheduled background work |
+| **Prayer API** | Aladhan API | REST | Islamic prayer times |
+| **Islamic Content** | Custom Database | SQLite | Quranic verses & dhikr |
 
 ### ML Models
 
@@ -370,11 +474,20 @@ adb logcat | grep "HaramBlur"
 - **Performance Mode** - Balance speed vs accuracy
 - **App Whitelist** - Choose monitored applications
 - **Blur Preferences** - Customize blur appearance
+- **Islamic Settings** - Configure dhikr and prayer times
+- **Quranic Verses** - Manage spiritual guidance preferences
 
 #### Block Apps & Sites Screen
 - **App Management** - Block/unblock specific apps
 - **Site Blocking** - URL-based content filtering
 - **Category Filters** - Filter by content categories
+- **False Positive Reports** - Report incorrect blocking
+
+#### Islamic Features Screen
+- **Dhikr Configuration** - Set remembrance reminders
+- **Prayer Times** - Configure location and notifications
+- **Quranic Guidance** - Customize verse display preferences
+- **Language Settings** - Choose translation languages
 
 ### Advanced Features
 
@@ -444,6 +557,37 @@ data class QuranicContent(
 )
 ```
 
+#### Dhikr Repository
+
+```kotlin
+// Islamic remembrance system configuration
+data class DhikrSettings(
+    val enabled: Boolean = true,
+    val displayMethod: DhikrDisplayMethod = DhikrDisplayMethod.OVERLAY,
+    val displayPosition: DhikrPosition = DhikrPosition.TOP_RIGHT,
+    val showTransliteration: Boolean = true,
+    val showTranslation: Boolean = true,
+    val displayDurationSeconds: Int = 30,
+    val timeWindows: Set<DhikrTime> = setOf(
+        DhikrTime.FAJR, DhikrTime.DHUHR, DhikrTime.ASR,
+        DhikrTime.MAGHRIB, DhikrTime.ISHA
+    )
+)
+```
+
+#### Prayer Times Configuration
+
+```kotlin
+// Prayer times and notification settings
+data class PrayerSettings(
+    val enablePrayerTimes: Boolean = true,
+    val enablePrayerNotifications: Boolean = true,
+    val calculationMethod: CalculationMethod = CalculationMethod.MUSLIM_WORLD_LEAGUE,
+    val notificationAdvanceTime: Int = 15, // minutes
+    val location: LocationSettings = LocationSettings()
+)
+```
+
 ### Customization Options
 
 #### Custom Blur Effects
@@ -465,7 +609,34 @@ enum class ContentCategory {
     NSFW_CONTENT,           // Inappropriate content
     GENDER_SPECIFIC,        // Gender-specific content
     QURANIC_CONTENT,        // Islamic religious content
-    GENERAL_CONTENT         // Regular content
+    GENERAL_CONTENT,        // Regular content
+    ADULT_ENTERTAINMENT,    // Adult entertainment sites
+    GAMBLING,               // Gambling and betting sites
+    DATING_SITES,           // Dating and hookup sites
+    SUSPICIOUS_CONTENT      // Potentially inappropriate content
+}
+```
+
+#### Dhikr Time Categories
+
+```kotlin
+enum class DhikrTime {
+    FAJR("Fajr", "Morning Prayer"),
+    DHUHR("Dhuhr", "Noon Prayer"), 
+    ASR("Asr", "Afternoon Prayer"),
+    MAGHRIB("Maghrib", "Evening Prayer"),
+    ISHA("Isha", "Night Prayer"),
+    GENERAL("General", "Throughout the day")
+}
+```
+
+#### Dhikr Display Methods
+
+```kotlin
+enum class DhikrDisplayMethod {
+    OVERLAY,        // System overlay display
+    NOTIFICATION,   // Push notification
+    NONE           // Disabled
 }
 ```
 
@@ -485,23 +656,40 @@ app/src/main/java/com/hieltech/haramblur/
 │   ├── ContentDetectionEngine.kt
 │   ├── FaceDetectionManager.kt
 │   ├── MLModelManager.kt
+│   ├── SiteBlockingManager.kt
 │   └── BlockingCategory.kt
+├── services/               # Background services
+│   ├── DhikrManager.kt
+│   ├── DhikrNotificationManager.kt
+│   ├── PrayerNotificationWorker.kt
+│   └── DhikrNotificationReceiver.kt
+├── data/                   # Data management
+│   ├── SettingsRepository.kt
+│   ├── AppSettings.kt
+│   ├── QuranicRepository.kt
+│   ├── DhikrRepository.kt
+│   ├── PrayerTimesRepository.kt
+│   └── database/
+│       ├── QuranicVerseDao.kt
+│       ├── BlockedSiteDao.kt
+│       └── SiteBlockingDatabase.kt
 ├── ui/                     # User interface components
 │   ├── HomeScreen.kt
 │   ├── SettingsScreen.kt
 │   ├── DebugScreen.kt
+│   ├── components/
+│   │   ├── DhikrOverlay.kt
+│   │   ├── PrayerTimesWidget.kt
+│   │   └── QuranicVerseDialog.kt
 │   └── theme/
-├── data/                   # Data management
-│   ├── SettingsRepository.kt
-│   ├── AppSettings.kt
-│   └── QuranicRepository.kt
 ├── ml/                     # Machine learning components
 │   ├── MLModelManager.kt
 │   ├── FaceDetectionManager.kt
 │   └── PerformanceMonitor.kt
 └── di/                     # Dependency injection
-    ├── AppModule.kt
-    └── ServiceModule.kt
+    ├── DataModule.kt
+    ├── ServiceModule.kt
+    └── EnhancedDetectionModule.kt
 ```
 
 ### Building the Project
@@ -710,18 +898,21 @@ suspend fun analyzeContent(
 - [ ] **GPU Optimization** - Improved GPU acceleration
 - [ ] **Battery Optimization** - Reduce power consumption
 - [ ] **UI Improvements** - Enhanced user interface
+- [ ] **More Quranic Verses** - Expand Islamic content database
 
 #### Medium Priority
 - [ ] **Additional Languages** - Support for Arabic and other languages
 - [ ] **Advanced Filtering** - Video content analysis
 - [ ] **Cloud Sync** - Settings synchronization
 - [ ] **Analytics** - Usage statistics and insights
+- [ ] **More Dhikr Content** - Additional Islamic remembrance phrases
 
 #### Future Enhancements
 - [ ] **OCR Integration** - Text content analysis
 - [ ] **Audio Filtering** - Inappropriate audio detection
 - [ ] **Wear OS Support** - Smartwatch companion app
 - [ ] **Auto ML** - Automatic model optimization
+- [ ] **Community Features** - Shared blocking lists and settings
 
 ---
 
@@ -751,20 +942,30 @@ This project is licensed under the **Islamic Open Source License (IOSL)** - see 
 >
 > **— Quran 66:6**
 
+> *"Indeed, in the remembrance of Allah do hearts find rest."*
+>
+> **— Quran 13:28**
+
+> *"So remember Me; I will remember you. And be grateful to Me and do not deny Me."*
+>
+> **— Quran 2:152**
+
 ### Open Source Contributions
 
 - **TensorFlow Lite** - For enabling on-device machine learning
 - **Google ML Kit** - For computer vision capabilities
 - **Android Jetpack** - For robust Android development framework
 - **Kotlin** - For modern programming language features
+- **Aladhan API** - For accurate Islamic prayer times calculation
+- **Compose UI** - For modern, declarative user interfaces
 
 ### Islamic Community
 
-Special thanks to the Muslim developer community for their support and feedback in creating this tool to help fellow Muslims maintain their faith in the digital age.
+Special thanks to the Muslim developer community for their support and feedback in creating this tool to help fellow Muslims maintain their faith in the digital age. May this application serve as a means of protecting our eyes, hearts, and minds from content that contradicts Islamic values.
 
 ### Disclaimer
 
-This application is developed with the intention to help Muslims avoid inappropriate content. The detection accuracy may vary and users should exercise their own discretion. The developers are not responsible for any missed detections or false positives.
+This application is developed with the intention to help Muslims avoid inappropriate content through technological means combined with spiritual guidance. The detection accuracy may vary and users should exercise their own discretion. The developers are not responsible for any missed detections or false positives. This tool is meant to complement, not replace, personal taqwa (God-consciousness) and self-discipline.
 
 ---
 

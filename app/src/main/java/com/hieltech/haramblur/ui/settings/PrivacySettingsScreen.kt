@@ -8,9 +8,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.*
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.SettingsViewModel
@@ -26,10 +28,10 @@ fun PrivacySettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Privacy Settings") },
+                title = { Text(stringResource(R.string.privacy_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -56,25 +58,25 @@ fun PrivacySettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Blur Style",
+                        text = stringResource(R.string.blur_style_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
-                        text = "Choose how detected content should be blurred",
+                        text = stringResource(R.string.blur_style_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     RadioButtonGroup(
-                        title = "Blur Style",
+                        title = stringResource(R.string.blur_style_title),
                         options = listOf(
-                            "Artistic" to "Film grain style blur effect (Recommended)",
-                            "Solid" to "Simple gray overlay",
-                            "Pixelated" to "Mosaic-style blur effect",
-                            "Noise" to "Random pattern blur",
-                            "Combined" to "Multiple blur effects layered"
+                            stringResource(R.string.blur_style_artistic) to stringResource(R.string.blur_style_artistic_description),
+                            stringResource(R.string.blur_style_solid) to stringResource(R.string.blur_style_solid_description),
+                            stringResource(R.string.blur_style_pixelated) to stringResource(R.string.blur_style_pixelated_description),
+                            stringResource(R.string.blur_style_noise) to stringResource(R.string.blur_style_noise_description),
+                            stringResource(R.string.blur_style_combined) to stringResource(R.string.blur_style_combined_description)
                         ),
                         selectedIndex = when (settings.blurStyle) {
                             BlurStyle.ARTISTIC -> 0
@@ -110,14 +112,14 @@ fun PrivacySettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Blur Customization",
+                        text = stringResource(R.string.blur_customization_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     SliderSetting(
-                        title = "Blur Area Expansion",
-                        description = "Pixels to expand around detected areas",
+                        title = stringResource(R.string.blur_area_expansion_title),
+                        description = stringResource(R.string.blur_area_expansion_description),
                         value = settings.expandBlurArea.toFloat(),
                         range = 10f..100f,
                         onValueChange = { viewModel.updateBlurExpansion(it.toInt()) },
@@ -125,8 +127,8 @@ fun PrivacySettingsScreen(
                     )
 
                     SliderSetting(
-                        title = "Blur Expansion",
-                        description = "Pixels to expand around detected areas",
+                        title = stringResource(R.string.blur_expansion_title),
+                        description = stringResource(R.string.blur_expansion_description),
                         value = settings.expandBlurArea.toFloat(),
                         range = 10f..100f,
                         onValueChange = { viewModel.updateBlurExpansion(it.toInt()) },
@@ -148,28 +150,28 @@ fun PrivacySettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Privacy Controls",
+                        text = stringResource(R.string.privacy_controls_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     SwitchSetting(
-                        title = "Show Blur Borders",
-                        description = "Display borders around blurred areas",
+                        title = stringResource(R.string.show_blur_borders_title),
+                        description = stringResource(R.string.show_blur_borders_description),
                         checked = settings.showBlurBorders,
                         onCheckedChange = { viewModel.updateBlurBorders(it) }
                     )
 
                     SwitchSetting(
-                        title = "Full Screen Blur for NSFW",
-                        description = "Apply full screen blur when NSFW content is detected",
+                        title = stringResource(R.string.full_screen_blur_nsfw_title),
+                        description = stringResource(R.string.full_screen_blur_nsfw_description),
                         checked = settings.enableFullScreenBlurForNSFW,
                         onCheckedChange = { viewModel.updateFullScreenBlur(it) }
                     )
 
                     SwitchSetting(
-                        title = "Ultra Fast Mode",
-                        description = "Maximum performance with reduced accuracy",
+                        title = stringResource(R.string.ultra_fast_mode_title),
+                        description = stringResource(R.string.ultra_fast_mode_description),
                         checked = settings.ultraFastModeEnabled,
                         onCheckedChange = { viewModel.updateUltraFastMode(it) }
                     )

@@ -8,9 +8,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.*
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.SettingsViewModel
@@ -26,10 +28,10 @@ fun AdvancedSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Advanced Settings") },
+                title = { Text(stringResource(R.string.advanced_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -58,21 +60,21 @@ fun AdvancedSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Developer & Logging",
+                        text = stringResource(R.string.developer_logging_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     SwitchSetting(
-                        title = "Detailed Logging",
-                        description = "Enable detailed logging for troubleshooting",
+                        title = stringResource(R.string.detailed_logging_title),
+                        description = stringResource(R.string.detailed_logging_description),
                         checked = settings.enableDetailedLogging,
                         onCheckedChange = { viewModel.updateDetailedLogging(it) }
                     )
 
                     if (settings.enableDetailedLogging) {
                         RadioButtonGroup(
-                            title = "Log Level",
+                            title = stringResource(R.string.log_level_title),
                             options = LogLevel.values().map { it.displayName to it.description },
                             selectedIndex = LogLevel.values().indexOf(settings.logLevel),
                             onSelectionChange = { index ->
@@ -81,8 +83,8 @@ fun AdvancedSettingsScreen(
                         )
 
                         SliderSetting(
-                            title = "Log Retention",
-                            description = "Days to keep logs before automatic cleanup",
+                            title = stringResource(R.string.log_retention_title),
+                            description = stringResource(R.string.log_retention_description),
                             value = settings.maxLogRetentionDays.toFloat(),
                             range = 1f..30f,
                             onValueChange = { viewModel.updateLogRetentionDays(it.toInt()) },
@@ -91,8 +93,8 @@ fun AdvancedSettingsScreen(
                     }
 
                     SwitchSetting(
-                        title = "Ultra Fast Mode",
-                        description = "Maximum performance with reduced accuracy",
+                        title = stringResource(R.string.ultra_fast_mode_title),
+                        description = stringResource(R.string.ultra_fast_mode_description),
                         checked = settings.ultraFastModeEnabled,
                         onCheckedChange = { viewModel.updateUltraFastMode(it) }
                     )
@@ -112,28 +114,28 @@ fun AdvancedSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Advanced Features",
+                        text = stringResource(R.string.advanced_features_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     SwitchSetting(
-                        title = "Ultra Fast Mode",
-                        description = "Maximum performance with reduced accuracy",
+                        title = stringResource(R.string.ultra_fast_mode_title),
+                        description = stringResource(R.string.ultra_fast_mode_description),
                         checked = settings.ultraFastModeEnabled,
                         onCheckedChange = { viewModel.updateUltraFastMode(it) }
                     )
 
                     SwitchSetting(
-                        title = "Fallback Detection",
-                        description = "Use backup detection methods if primary fails",
+                        title = stringResource(R.string.fallback_detection_title),
+                        description = stringResource(R.string.fallback_detection_description),
                         checked = settings.enableFallbackDetection,
                         onCheckedChange = { viewModel.updateFallbackDetection(it) }
                     )
 
                     SwitchSetting(
-                        title = "User Action Logging",
-                        description = "Log user interactions for troubleshooting",
+                        title = stringResource(R.string.user_action_logging_title),
+                        description = stringResource(R.string.user_action_logging_description),
                         checked = settings.enableUserActionLogging,
                         onCheckedChange = { viewModel.updateUserActionLogging(it) }
                     )

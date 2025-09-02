@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.res.stringResource
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.IslamicGuidance
 import com.hieltech.haramblur.data.QuranicVerse
 import com.hieltech.haramblur.data.WarningDialogAction
@@ -204,16 +206,16 @@ private fun PornBlockingHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = "Critical Warning",
-                    tint = Color.White,
-                    modifier = Modifier.size(40.dp)
-                )
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = stringResource(R.string.critical_warning),
+                        tint = Color.White,
+                        modifier = Modifier.size(40.dp)
+                    )
 
                 Column {
                     Text(
-                        text = "PROTECTED FROM HARAM",
+                        text = stringResource(R.string.protected_from_haram),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -232,11 +234,11 @@ private fun PornBlockingHeader(
             }
 
             IconButton(onClick = onLanguageMenuToggle) {
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = "Language Settings",
-                    tint = Color.White
-                )
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = stringResource(R.string.language_settings),
+                        tint = Color.White
+                    )
             }
         }
     }
@@ -255,7 +257,7 @@ private fun UrgentWarningCard() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "⚠️ URGENT PROTECTION ACTIVATED ⚠️",
+                text = stringResource(R.string.urgent_protection_activated),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFD32F2F),
@@ -265,7 +267,7 @@ private fun UrgentWarningCard() {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "This content violates Islamic principles of modesty and chastity. Allah commands us to lower our gaze and guard our chastity.",
+                text = stringResource(R.string.content_violates_principles),
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color(0xFFB71C1C),
                 textAlign = TextAlign.Center
@@ -408,7 +410,7 @@ private fun PornSpecificGuidanceCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "🛡️ Protection & Guidance",
+                text = stringResource(R.string.protection_guidance),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1976D2)
@@ -423,7 +425,7 @@ private fun PornSpecificGuidanceCard(
             // Action recommendations with enhanced styling
             if (guidance.actionRecommendations.isNotEmpty()) {
                 Text(
-                    text = "Immediate Actions:",
+                    text = stringResource(R.string.immediate_actions),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1976D2)
@@ -453,7 +455,7 @@ private fun PornSpecificGuidanceCard(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "🤲 Du'a for Protection:",
+                    text = stringResource(R.string.dua_for_protection),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1976D2)
@@ -499,7 +501,7 @@ private fun PornBlockingDetailsCard(blockingResult: SiteBlockingResult) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Blocking Details",
+                text = stringResource(R.string.blocking_details),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF424242)
@@ -507,7 +509,7 @@ private fun PornBlockingDetailsCard(blockingResult: SiteBlockingResult) {
 
             blockingResult.blockingReason?.let { reason ->
                 Text(
-                    text = "Reason: $reason",
+                    text = "${stringResource(R.string.reason)}: $reason",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF424242)
                 )
@@ -515,7 +517,7 @@ private fun PornBlockingDetailsCard(blockingResult: SiteBlockingResult) {
 
             blockingResult.matchedPattern?.let { pattern ->
                 Text(
-                    text = "Detected Pattern: $pattern",
+                    text = "${stringResource(R.string.detected_pattern)}: $pattern",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFF757575),
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
@@ -523,7 +525,7 @@ private fun PornBlockingDetailsCard(blockingResult: SiteBlockingResult) {
             }
 
             Text(
-                text = "Severity: ${blockingResult.category?.severity ?: 5}/5",
+                text = "${stringResource(R.string.severity)}: ${blockingResult.category?.severity ?: 5}/5",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFF757575)
             )
@@ -551,19 +553,22 @@ private fun ExtendedReflectionTimerCard(remainingTime: Int) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Extended Reflection Period",
+                text = stringResource(R.string.extended_reflection_period),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF424242)
             )
 
+            val reflectionText = "$remainingTime" + "s"
+            val reflectionDescription = "$remainingTime seconds remaining in extended reflection period"
+
             Text(
-                text = "${remainingTime}s",
+                text = reflectionText,
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFD32F2F),
                 modifier = Modifier.semantics {
-                    contentDescription = "$remainingTime seconds remaining in extended reflection period"
+                    contentDescription = reflectionDescription
                 }
             )
 
@@ -579,7 +584,7 @@ private fun ExtendedReflectionTimerCard(remainingTime: Int) {
             )
 
             Text(
-                text = "Take this extended time to reflect on Allah's guidance, seek forgiveness, and strengthen your resolve against temptation.",
+                text = stringResource(R.string.take_extended_time),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = Color(0xFF424242)
@@ -619,7 +624,7 @@ private fun PornBlockingActionButtons(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                "Close & Seek Protection",
+                text = stringResource(R.string.close_seek_protection),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -640,7 +645,7 @@ private fun PornBlockingActionButtons(
                 border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFFF9800))
             ) {
                 Text(
-                    "Continue (After Reflection)",
+                    text = stringResource(R.string.continue_after_reflection),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -661,7 +666,7 @@ private fun PornBlockingActionButtons(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "⚠️ HIGH-RISK CONTENT WARNING",
+                        text = stringResource(R.string.high_risk_content_warning),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFD32F2F)
@@ -670,7 +675,7 @@ private fun PornBlockingActionButtons(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "This content is classified as explicit and harmful to your faith. Continuing may damage your relationship with Allah.",
+                        text = stringResource(R.string.content_explicit_harmful),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFB71C1C),
                         textAlign = TextAlign.Center
@@ -687,7 +692,7 @@ private fun PornBlockingActionButtons(
                         )
                     ) {
                         Text(
-                            "I Understand the Risk - Continue Anyway",
+                            text = stringResource(R.string.understand_risk_continue),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -699,7 +704,7 @@ private fun PornBlockingActionButtons(
         // Show remaining time if cannot continue
         if (!canContinue) {
             Text(
-                text = "Please complete the reflection period to proceed",
+                text = stringResource(R.string.complete_reflection_period),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color(0xFF757575),
                 textAlign = TextAlign.Center,
@@ -726,7 +731,7 @@ private fun PornLanguageDropdown(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Select Language",
+                text = stringResource(R.string.select_language),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White
@@ -748,7 +753,7 @@ private fun PornLanguageDropdown(
                         if (language == selectedLanguage) {
                             Icon(
                                 Icons.Default.Warning,
-                                contentDescription = "Selected",
+                                contentDescription = stringResource(R.string.selected),
                                 tint = Color(0xFF4CAF50),
                                 modifier = Modifier.size(16.dp)
                             )

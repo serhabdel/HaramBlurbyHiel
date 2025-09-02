@@ -72,7 +72,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val settings by settingsRepository.settings.collectAsState()
-            HaramBlurTheme(appTheme = settings.appTheme) {
+            HaramBlurTheme(
+                appTheme = settings.appTheme,
+                preferredLanguage = settings.preferredLanguage
+            ) {
                 val navController = rememberNavController()
                 val drawerState = rememberDrawerState(DrawerValue.Closed)
                 val scope = rememberCoroutineScope()

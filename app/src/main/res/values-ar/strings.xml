@@ -1,0 +1,255 @@
+<resources>
+    <string name="app_name">حرم بلور</string>
+    <string name="accessibility_service_description">يساعد حرم بلور في التنقل في جهازك باحترام للقيم الإسلامية من خلال الكشف التلقائي عن المحتوى غير المناسب عبر جميع التطبيقات. جميع المعالجة تحدث محليًا على جهازك للخصوصية الكاملة.</string>
+
+    <!-- Enhanced App Blocking Strings -->
+
+    <!-- Section titles and descriptions -->
+    <string name="enhanced_blocking_title">🔒 حظر التطبيقات المحسن</string>
+    <string name="enhanced_blocking_description">حظر أسرع، إنفاذ أكثر موثوقية مع أذونات اختيارية</string>
+    <string name="enhanced_blocking_benefits">• وقت استجابة حظر أسرع\n• إنفاذ أكثر موثوقية\n• مراقبة إطلاق التطبيق في الوقت الفعلي</string>
+
+    <!-- Permission explanations -->
+    <string name="usage_stats_permission_title">الوصول إلى إحصائيات الاستخدام</string>
+    <string name="usage_stats_permission_description">يسمح بالكشف في الوقت الفعلي عن إطلاق التطبيقات للحظر الفوري</string>
+    <string name="device_admin_permission_title">الوصول إلى مسؤول الجهاز</string>
+    <string name="device_admin_permission_description">يسمح بإغلاق التطبيقات المحظورة بالقوة لتعزيز الإنفاذ</string>
+
+    <!-- Blocking method descriptions -->
+    <string name="blocking_method_accessibility_only">إمكانية الوصول فقط</string>
+    <string name="blocking_method_accessibility_description">يستخدم خدمة إمكانية الوصول للحظر (الطريقة الحالية)</string>
+    <string name="blocking_method_force_close_preferred">إغلاق القوة المفضل</string>
+    <string name="blocking_method_force_close_description">يغلق التطبيقات المحظورة فورًا عند الإمكان</string>
+    <string name="blocking_method_adaptive">تكيفي</string>
+    <string name="blocking_method_adaptive_description">يختار تلقائيًا الطريقة الأقوى المتاحة بناءً على إمكانيات جهازك</string>
+
+    <!-- Permission request strings -->
+    <string name="grant_permission">منح</string>
+    <string name="permission_granted">✓ ممنوح</string>
+    <string name="permission_not_granted">⚠ غير ممنوح</string>
+    <string name="permission_required_for_enhanced">مطلوب للحظر المحسن</string>
+
+    <!-- Status messages -->
+    <string name="blocking_strength_basic">أساسي</string>
+    <string name="blocking_strength_enhanced">محسن</string>
+    <string name="blocking_strength_maximum">الحد الأقصى</string>
+    <string name="blocking_strength_basic_description">حظر خدمة إمكانية الوصول فقط</string>
+    <string name="blocking_strength_enhanced_description">مراقبة في الوقت الفعلي نشطة</string>
+    <string name="blocking_strength_maximum_description">إغلاق القوة + مراقبة في الوقت الفعلي نشطة</string>
+
+    <!-- Current blocking strength indicator -->
+    <string name="current_blocking_strength">🛡️ قوة الحظر الحالية: %s</string>
+    <string name="force_close_monitoring_active">إغلاق القوة + مراقبة في الوقت الفعلي نشطة</string>
+    <string name="monitoring_active">مراقبة في الوقت الفعلي نشطة</string>
+    <string name="accessibility_only_active">حظر إمكانية الوصول الأساسي فقط</string>
+
+    <!-- Device Admin specific strings -->
+    <string name="device_admin_activation_title">إذن مسؤول الجهاز</string>
+    <string name="device_admin_activation_message">يسمح الوصول إلى مسؤول الجهاز بتعزيز حظر التطبيقات من خلال السماح للتطبيق بإغلاق التطبيقات المحظورة بالقوة. هذا الإذن اختياري ويحسن إمكانيات الحظر.</string>
+    <string name="device_admin_explanation">يسمح الوصول إلى مسؤول الجهاز لحرم بلور بإغلاق التطبيقات المحظورة بالقوة لتعزيز أقوى. هذا اختياري تمامًا - يعمل التطبيق بدونها.</string>
+    <string name="device_admin_disabled_message">تم تعطيل إذن مسؤول الجهاز. سيعود الحظر إلى خدمة إمكانية الوصول فقط.</string>
+
+    <!-- Error messages -->
+    <string name="permission_denied_title">الإذن مطلوب</string>
+    <string name="permission_denied_message">هذا الإذن مطلوب لميزات الحظر المحسن.</string>
+    <string name="enhanced_blocking_error_title">خطأ في الحظر المحسن</string>
+    <string name="enhanced_blocking_error_message">حدث خطأ أثناء تطبيق الحظر المحسن. العودة إلى حظر إمكانية الوصول.</string>
+
+    <!-- Success messages -->
+    <string name="permission_granted_success">تم منح الإذن بنجاح!</string>
+    <string name="enhanced_blocking_enabled">تم تمكين الحظر المحسن</string>
+    <string name="enhanced_blocking_disabled">تم تعطيل الحظر المحسن</string>
+
+    <!-- Setup and onboarding -->
+    <string name="setup_enhanced_blocking">إعداد الحظر المحسن</string>
+    <string name="enhanced_blocking_setup_complete">اكتمل إعداد الحظر المحسن!</string>
+    <string name="enhanced_blocking_onboarding_title">حظر التطبيقات المحسن</string>
+    <string name="enhanced_blocking_onboarding_message">امنح الأذونات الاختيارية للحصول على إمكانيات حظر تطبيقات أقوى. يعمل التطبيق بشكل مثالي بدونهم.</string>
+
+    <!-- Troubleshooting -->
+    <string name="troubleshooting_title">استكشاف الأخطاء</string>
+    <string name="permission_troubleshooting">إذا لم تعمل الأذونات:\n• انتقل إلى الإعدادات > التطبيقات > حرم بلور > الأذونات\n• فعل الأذونات المطلوبة\n• أعد تشغيل التطبيق</string>
+    <string name="enhanced_blocking_not_working">لا يعمل الحظر المحسن؟\n• تحقق من منح الأذونات\n• تأكد من تمكين خدمة إمكانية الوصول\n• جرب إعادة تشغيل الجهاز</string>
+
+    <!-- Diagnostics -->
+    <string name="blocking_diagnostics_title">تشخيص الحظر</string>
+    <string name="enhanced_blocking_enabled_status">الحظر المحسن مفعل: %s</string>
+    <string name="usage_stats_granted">إذن إحصائيات الاستخدام: %s</string>
+    <string name="device_admin_granted">إذن مسؤول الجهاز: %s</string>
+    <string name="preferred_method">الطريقة المفضلة: %s</string>
+    <string name="effective_method">الطريقة الفعالة: %s</string>
+    <string name="capability_level">مستوى إمكانية الحظر: %s</string>
+    <string name="force_close_timeout">مهلة إغلاق القوة: %dms</string>
+
+    <!-- Accessibility labels -->
+    <string name="permission_status_icon">مؤشر حالة الإذن</string>
+    <string name="blocking_strength_indicator">مؤشر قوة الحظر الحالية</string>
+    <string name="grant_permission_button">زر منح الإذن</string>
+
+    <!-- Why do I need this? explanations -->
+    <string name="why_usage_stats_title">لماذا الوصول إلى إحصائيات الاستخدام؟</string>
+    <string name="why_usage_stats_explanation">يسمح إذن إحصائيات الاستخدام لحرم بلور بـ:\n\n• الكشف عن إطلاق التطبيقات المحظورة\n• تطبيق الحظر فورًا\n• توفير أوقات استجابة أسرع\n• مراقبة أنماط استخدام التطبيقات\n\nهذا الإذن اختياري ويحسن سرعة الحظر فقط.</string>
+
+    <string name="why_device_admin_title">لماذا الوصول إلى مسؤول الجهاز؟</string>
+    <string name="why_device_admin_explanation">يسمح إذن مسؤول الجهاز لحرم بلور بـ:\n\n• إغلاق التطبيقات المحظورة بالقوة\n• توفير إنفاذ أقوى\n• منع التطبيقات من تجاوز الحظر\n• عرض حظر أكثر موثوقية\n\nهذا الإذن اختياري تمامًا - يعمل التطبيق بدونه.</string>
+
+    <!-- Privacy assurance -->
+    <string name="privacy_assurance_title">الخصوصية والأمان</string>
+    <string name="privacy_assurance_message">• جميع الأذونات اختيارية\n• يفعل الحظر المحسن فقط بموافقتك\n• لا يتم إرسال أي بيانات إلى خوادم خارجية\n• تحدث جميع المعالجة محليًا على جهازك\n• يمكنك إلغاء الأذونات في أي وقت</string>
+
+    <!-- Blocking method selection -->
+    <string name="blocking_method_selection_title">اختر طريقة الحظر</string>
+    <string name="accessibility_only_info">يستخدم خدمة إمكانية الوصول في Android لتراكب المحتوى. يعمل على جميع الأجهزة ولكنه قد يكون أبطأ.</string>
+    <string name="force_close_preferred_info">يغلق التطبيقات المحظورة فورًا عند الإطلاق. يتطلب إذن مسؤول الجهاز. أسرع وأكثر موثوقية.</string>
+    <string name="adaptive_info">يختار تلقائيًا الطريقة الأفضل بناءً على إمكانيات جهازك ومنح الأذونات.</string>
+
+    <!-- Settings validation -->
+    <string name="enhanced_blocking_settings_warning">الحظر المحسن مفعل ولكن الأذونات المطلوبة مفقودة. سيكون الحظر محدودًا إلى خدمة إمكانية الوصول فقط.</string>
+    <string name="force_close_timeout_warning">مهلة إغلاق القوة قصيرة جدًا (%dms). الحد الأدنى الموصى به هو 1000ms.</string>
+
+    <!-- Test blocking -->
+    <string name="test_blocking">اختبار الحظر</string>
+    <string name="test_blocking_description">أطلق تطبيقًا محظورًا لاختبار فعالية الحظر المحسن</string>
+    <string name="test_blocking_success">اكتمل الاختبار بنجاح! الحظر المحسن يعمل.</string>
+    <string name="test_blocking_failed">فشل الاختبار. تحقق من الأذونات وحاول مرة أخرى.</string>
+
+    <!-- Home Screen Strings -->
+    <string name="welcome_title">مرحباً بك في حرم بلور</string>
+    <string name="welcome_subtitle">حارس المحتوى الإسلامي الخاص بك</string>
+    <string name="setup_complete">اكتمل الإعداد!</string>
+    <string name="complete_setup">إكمال الإعداد</string>
+    <string name="service_active">الخدمة نشطة</string>
+    <string name="service_inactive">الخدمة غير نشطة</string>
+    <string name="blocking_enabled">الحظر مفعل</string>
+    <string name="blocking_disabled">الحظر معطل</string>
+    <string name="apps_blocked_today">التطبيقات المحظورة اليوم</string>
+    <string name="sites_blocked_today">المواقع المحظورة اليوم</string>
+    <string name="dhikr_completed_today">الذكر المكتمل اليوم</string>
+    <string name="prayers_completed_today">الصلوات المكتملة اليوم</string>
+    <string name="quick_actions">الإجراءات السريعة</string>
+    <string name="enable_service">تمكين الخدمة</string>
+    <string name="disable_service">تعطيل الخدمة</string>
+    <string name="view_stats">عرض الإحصائيات</string>
+    <string name="open_settings">فتح الإعدادات</string>
+    <string name="recent_activity">النشاط الأخير</string>
+    <string name="no_recent_activity">لا يوجد نشاط أخير</string>
+    <string name="app_blocked">تطبيق محظور</string>
+    <string name="site_blocked">موقع محظور</string>
+    <string name="dhikr_completed">ذكر مكتمل</string>
+    <string name="prayer_completed">صلاة مكتملة</string>
+    <string name="islamic_features">الميزات الإسلامية</string>
+    <string name="quranic_verses">الآيات القرآنية</string>
+    <string name="dhikr_reminders">تذكيرات الذكر</string>
+    <string name="prayer_times">أوقات الصلاة</string>
+    <string name="islamic_calendar">التقويم الإسلامي</string>
+    <string name="protection_stats">إحصائيات الحماية</string>
+    <string name="total_blocked">إجمالي المحظور</string>
+    <string name="today_blocked">اليوم</string>
+    <string name="this_week">هذا الأسبوع</string>
+    <string name="this_month">هذا الشهر</string>
+    <string name="most_blocked_category">الفئة الأكثر حظرًا</string>
+    <string name="protection_active">الحماية نشطة</string>
+    <string name="protection_paused">الحماية متوقفة</string>
+    <string name="setup_required">الإعداد مطلوب</string>
+    <string name="setup_in_progress">الإعداد قيد التقدم</string>
+    <string name="setup_wizard">معالج الإعداد</string>
+    <string name="skip_setup">تخطي الإعداد</string>
+    <string name="next_step">التالي</string>
+    <string name="previous_step">السابق</string>
+    <string name="finish_setup">إنهاء</string>
+
+    <!-- Settings Screen Strings -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="general_settings">الإعدادات العامة</string>
+    <string name="detection_settings">إعدادات الكشف</string>
+    <string name="performance_settings">إعدادات الأداء</string>
+    <string name="islamic_settings">الإعدادات الإسلامية</string>
+    <string name="advanced_settings">الإعدادات المتقدمة</string>
+    <string name="back">العودة</string>
+    <string name="save">حفظ</string>
+    <string name="cancel">إلغاء</string>
+    <string name="reset">إعادة تعيين</string>
+    <string name="apply">تطبيق</string>
+    <string name="enable">تمكين</string>
+    <string name="disable">تعطيل</string>
+    <string name="on">تشغيل</string>
+    <string name="off">إيقاف</string>
+    <string name="yes">نعم</string>
+    <string name="no">لا</string>
+    <string name="ok">موافق</string>
+    <string name="close">إغلاق</string>
+    <string name="open">فتح</string>
+    <string name="edit">تحرير</string>
+    <string name="delete">حذف</string>
+    <string name="add">إضافة</string>
+    <string name="remove">إزالة</string>
+    <string name="search">بحث</string>
+    <string name="filter">تصفية</string>
+    <string name="sort">ترتيب</string>
+    <string name="refresh">تحديث</string>
+    <string name="loading">جارٍ التحميل...</string>
+    <string name="error">خطأ</string>
+    <string name="success">نجح</string>
+    <string name="warning">تحذير</string>
+    <string name="info">معلومات</string>
+
+    <!-- Language Settings -->
+    <string name="language_settings">إعدادات اللغة</string>
+    <string name="app_language">لغة التطبيق</string>
+    <string name="select_language">اختر اللغة</string>
+    <string name="language_changed_restart">تم تغيير اللغة. يرجى إعادة تشغيل التطبيق لتطبيق التغييرات.</string>
+    <string name="language_english">English</string>
+    <string name="language_arabic">العربية (Arabic)</string>
+    <string name="language_french">Français (French)</string>
+    <string name="language_urdu">اردو (Urdu)</string>
+    <string name="language_indonesian">Bahasa Indonesia</string>
+    <string name="language_turkish">Türkçe (Turkish)</string>
+    <string name="language_malay">Bahasa Melayu (Malay)</string>
+    <string name="language_bengali">বাংলা (Bengali)</string>
+    <string name="language_persian">فارسی (Persian)</string>
+    <string name="language_spanish">Español (Spanish)</string>
+
+    <!-- Porn Blocking Dialog Strings -->
+    <string name="porn_blocking_title">محمي من الحرام</string>
+    <string name="porn_blocking_subtitle">تم اكتشاف مناطق محتوى غير مناسبة متعددة</string>
+    <string name="urgent_protection_activated">⚠️ تم تفعيل الحماية العاجلة ⚠️</string>
+    <string name="haram_content_blocked">هذا المحتوى ينتهك مبادئ الإسلام في الستر والعفة. يأمرنا الله بغض البصر وحفظ الفروج.</string>
+    <string name="close_and_seek_protection">إغلاق وطلب الحماية</string>
+    <string name="continue_after_reflection">متابعة (بعد التأمل)</string>
+    <string name="high_risk_content_warning">⚠️ تحذير محتوى عالي الخطورة</string>
+    <string name="high_risk_explanation">هذا المحتوى مصنف كصريح وضار بإيمانك. المتابعة قد تؤذي علاقتك بالله.</string>
+    <string name="understand_risk_continue">أفهم المخاطر - متابعة على أي حال</string>
+    <string name="reflection_period">فترة التأمل الممتدة</string>
+    <string name="reflection_seconds">%dث</string>
+    <string name="reflection_guidance">استغل هذا الوقت الممتد للتأمل في هدى الله، وطلب المغفرة، وتعزيز عزيمتك ضد الإغراء.</string>
+    <string name="protection_and_guidance">🛡️ الحماية والإرشاد</string>
+    <string name="dua_for_protection">🤲 دعاء للحماية:</string>
+    <string name="blocking_details">تفاصيل الحظر</string>
+    <string name="reason_label">السبب:</string>
+    <string name="detected_pattern">النمط المكتشف:</string>
+    <string name="severity_label">الخطورة:</string>
+    <string name="complete_reflection_period">يرجى إكمال فترة التأمل للمتابعة</string>
+
+    <!-- Common UI Strings -->
+    <string name="home">الرئيسية</string>
+    <string name="menu">القائمة</string>
+    <string name="profile">الملف الشخصي</string>
+    <string name="notifications">الإشعارات</string>
+    <string name="help">المساعدة</string>
+    <string name="about">حول</string>
+    <string name="version">الإصدار</string>
+    <string name="contact">اتصال</string>
+    <string name="feedback">الملاحظات</string>
+    <string name="support">الدعم</string>
+    <string name="privacy_policy">سياسة الخصوصية</string>
+    <string name="terms_of_service">شروط الخدمة</string>
+    <string name="rate_app">تقييم التطبيق</string>
+    <string name="share_app">مشاركة التطبيق</string>
+    <string name="more_apps">تطبيقات أخرى</string>
+
+    <!-- Additional UI Strings -->
+    <string name="confidence_percentage">الثقة: %d%%</string>
+    <string name="severity_level">الخطورة: %s</string>
+    <string name="reflection_time_seconds">%d ثانية متبقية</string>
+    <string name="language_description">تعيين لغة التطبيق إلى %s</string>
+</resources>

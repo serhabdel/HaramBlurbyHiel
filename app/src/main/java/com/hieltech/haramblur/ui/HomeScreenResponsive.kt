@@ -22,18 +22,27 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.hieltech.haramblur.data.AppSettings
-import com.hieltech.haramblur.data.DhikrDataSource
+import com.hieltech.haramblur.R
+import com.hieltech.haramblur.data.*
+import com.hieltech.haramblur.ui.components.*
+import com.hieltech.haramblur.ui.components.ServiceControlCard
+import com.hieltech.haramblur.ui.MainViewModel
+import com.hieltech.haramblur.ui.StatsViewModel
+import com.hieltech.haramblur.ui.SettingsViewModel
+import com.hieltech.haramblur.ui.PermissionHelper
 import com.hieltech.haramblur.detection.AppBlockingManager
 import com.hieltech.haramblur.detection.EnhancedSiteBlockingManager
-import com.hieltech.haramblur.ui.components.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+
+
 /**
- * Data class for holding quadruple values
+ * Compact home screen for phones
  */
 data class Quadruple<A, B, C, D>(
     val first: A,
@@ -91,13 +100,13 @@ private fun CompactHomeScreen(
 
     // Collect blocking counts
     LaunchedEffect(appBlockingManager) {
-        appBlockingManager?.getBlockedAppsCount()?.collectLatest { count ->
+        appBlockingManager?.getBlockedAppsCount()?.collectLatest { count: Int ->
             blockedAppsCount = count
         }
     }
 
     LaunchedEffect(siteBlockingManager) {
-        siteBlockingManager?.getCustomBlockedWebsitesCount()?.collectLatest { count ->
+        siteBlockingManager?.getCustomBlockedWebsitesCount()?.collectLatest { count: Int ->
             blockedSitesCount = count
         }
     }
@@ -128,16 +137,22 @@ private fun CompactHomeScreen(
                     }
                     AnimatedFadeIn(visible = true) {
                         Text(
-                            text = "Welcome to HaramBlur",
+                            text = stringResource(R.string.welcome_title),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.primary
                         )
+                        Text(
+                            text = stringResource(R.string.welcome_subtitle),
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     AnimatedFadeIn(visible = true) {
                         Text(
-                            text = "Your Islamic content filter is ready to protect your digital space",
+                            text = "welcome_subtitle",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -150,11 +165,11 @@ private fun CompactHomeScreen(
         // Service Status
         AnimatedVisibility(visible = !showWelcome) {
             StatusCard(
-                title = if (accessibilityGranted && serviceRunning) "🟢 Service Active" else "🔴 Service Inactive",
+                title = if (accessibilityGranted && serviceRunning) "🟢 ${stringResource(R.string.service_active)}" else "🔴 ${stringResource(R.string.service_inactive)}",
                 subtitle = when {
-                    accessibilityGranted && serviceRunning -> "Content filtering is enabled"
-                    accessibilityGranted && !serviceRunning -> "Accessibility enabled, service not running"
-                    else -> "Complete setup to enable filtering"
+                    accessibilityGranted && serviceRunning -> stringResource(R.string.blocking_enabled)
+                    accessibilityGranted && !serviceRunning -> stringResource(R.string.service_inactive)
+                    else -> stringResource(R.string.setup_required)
                 },
                 status = when {
                     accessibilityGranted && serviceRunning -> StatusType.SUCCESS
@@ -164,7 +179,7 @@ private fun CompactHomeScreen(
                 icon = {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Service Status",
+                        contentDescription = stringResource(R.string.service_status),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp)
                     )
@@ -230,13 +245,13 @@ private fun CompactHomeScreen(
         // Protection Status
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             StatusCard(
-                title = "🛡️ Protection Active",
+                title = stringResource(R.string.protection_active),
                 subtitle = "$blockedAppsCount apps • $blockedSitesCount sites blocked",
                 status = StatusType.SUCCESS,
                 icon = {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Protection Status",
+                        contentDescription = stringResource(R.string.service_status),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
@@ -257,7 +272,7 @@ private fun CompactHomeScreen(
             AnimatedVisibility(visible = showFeatures) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "Quick Actions",
+                        text = stringResource(R.string.quick_actions),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
@@ -265,26 +280,26 @@ private fun CompactHomeScreen(
 
                     val quickActions = listOf(
                         Quadruple(
-                            if (isServicePaused) "Resume Services" else "Pause Services",
-                            if (isServicePaused) "Service paused" else "All services active",
+                            if (isServicePaused) stringResource(R.string.enable_service) else stringResource(R.string.disable_service),
+                            if (isServicePaused) stringResource(R.string.protection_paused) else stringResource(R.string.protection_active),
                             if (isServicePaused) "▶️" else "⏸️",
                             { settingsViewModel.toggleServicePause() }
                         ),
-                        Quadruple("Block Apps", "$blockedAppsCount blocked", "📱", onNavigateToBlockApps),
-                        Quadruple("Block Sites", "$blockedSitesCount custom", "🌐", onNavigateToBlockSites),
-                        Quadruple("View Logs", "Activity history", "📋", onNavigateToLogs),
-                        Quadruple("Support", "Get help", "🆘", onNavigateToSupport)
+                        Quadruple(stringResource(R.string.blocking_enabled), "$blockedAppsCount ${stringResource(R.string.blocked)}", "📱", onNavigateToBlockApps),
+                        Quadruple(stringResource(R.string.blocking_disabled), "$blockedSitesCount ${stringResource(R.string.custom)}", "🌐", onNavigateToBlockSites),
+                        Quadruple(stringResource(R.string.view_stats), stringResource(R.string.activity_history), "📋", onNavigateToLogs),
+                        Quadruple(stringResource(R.string.support), stringResource(R.string.get_help), "🆘", onNavigateToSupport)
                     )
 
                     // Add Dhikr trigger if enabled
                     val dhikrActions = if (settings.dhikrEnabled && onTriggerDhikr != null) {
                         listOf(
-                            Quadruple(
-                                "Show Dhikr",
-                                "Islamic remembrance",
-                                "🕌",
-                                onTriggerDhikr
-                            )
+                        Quadruple(
+                            stringResource(R.string.show_dhikr),
+                            stringResource(R.string.islamic_remembrance),
+                            "🕌",
+                            onTriggerDhikr
+                        )
                         )
                     } else emptyList()
 
@@ -601,14 +616,14 @@ fun HomeScreenResponsive(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Setup Incomplete",
+                        text = stringResource(R.string.setup_incomplete),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.error
                     )
 
                     Text(
-                        text = "Complete setup to enable content filtering",
+                        text = stringResource(R.string.complete_setup_to_enable_content_filtering),
                         style = MaterialTheme.typography.bodyMedium
                     )
 
@@ -617,7 +632,7 @@ fun HomeScreenResponsive(
                             onClick = onNavigateToPermissionWizard,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Complete Setup")
+                            Text(stringResource(R.string.complete_setup))
                         }
                     }
                 }
@@ -675,13 +690,13 @@ private fun MediumHomeScreen(
 
     // Collect blocking counts
     LaunchedEffect(appBlockingManager) {
-        appBlockingManager?.getBlockedAppsCount()?.collectLatest { count ->
+        appBlockingManager?.getBlockedAppsCount()?.collectLatest { count: Int ->
             blockedAppsCount = count
         }
     }
 
     LaunchedEffect(siteBlockingManager) {
-        siteBlockingManager?.getCustomBlockedWebsitesCount()?.collectLatest { count ->
+        siteBlockingManager?.getCustomBlockedWebsitesCount()?.collectLatest { count: Int ->
             blockedSitesCount = count
         }
     }
@@ -713,14 +728,14 @@ private fun MediumHomeScreen(
                             style = MaterialTheme.typography.displayMedium
                         )
                         Text(
-                            text = "Welcome to HaramBlur",
+                            text = stringResource(R.string.welcome_to_haramblur),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Your Islamic content filter is ready",
+                            text = stringResource(R.string.your_islamic_content_filter),
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -729,10 +744,10 @@ private fun MediumHomeScreen(
                 }
 
                 StatusCard(
-                    title = if (accessibilityGranted && serviceRunning) "🟢 Active" else "🔴 Inactive",
+                    title = if (accessibilityGranted && serviceRunning) "🟢 ${stringResource(R.string.active)}" else "🔴 ${stringResource(R.string.inactive)}",
                     subtitle = when {
-                        accessibilityGranted && serviceRunning -> "Filtering enabled"
-                        else -> "Setup needed"
+                        accessibilityGranted && serviceRunning -> stringResource(R.string.content_filtering_enabled)
+                        else -> stringResource(R.string.setup_needed)
                     },
                     status = when {
                         accessibilityGranted && serviceRunning -> StatusType.SUCCESS
@@ -742,7 +757,7 @@ private fun MediumHomeScreen(
                     icon = {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Service Status",
+                            contentDescription = stringResource(R.string.service_status),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
@@ -752,10 +767,10 @@ private fun MediumHomeScreen(
         } else {
             // Service Status only when welcome is hidden
             StatusCard(
-                title = if (accessibilityGranted && serviceRunning) "🟢 Service Active" else "🔴 Service Inactive",
+                title = if (accessibilityGranted && serviceRunning) "🟢 ${stringResource(R.string.service_active)}" else "🔴 ${stringResource(R.string.service_inactive)}",
                 subtitle = when {
-                    accessibilityGranted && serviceRunning -> "Content filtering is enabled"
-                    else -> "Complete setup to enable filtering"
+                    accessibilityGranted && serviceRunning -> stringResource(R.string.content_filtering_enabled)
+                    else -> stringResource(R.string.complete_setup_to_enable_filtering)
                 },
                 status = when {
                     accessibilityGranted && serviceRunning -> StatusType.SUCCESS
@@ -764,7 +779,7 @@ private fun MediumHomeScreen(
                 icon = {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Service Status",
+                        contentDescription = stringResource(R.string.service_status),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp)
                     )
@@ -806,7 +821,7 @@ private fun MediumHomeScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Quick Actions",
+                            text = stringResource(R.string.quick_actions_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
@@ -814,15 +829,15 @@ private fun MediumHomeScreen(
 
                         val quickActions = listOf(
                             Quadruple(
-                                if (isServicePaused) "Resume" else "Pause",
-                                if (isServicePaused) "Paused" else "Active",
+                                if (isServicePaused) stringResource(R.string.resume) else stringResource(R.string.pause),
+                                if (isServicePaused) stringResource(R.string.paused) else stringResource(R.string.active),
                                 if (isServicePaused) "▶️" else "⏸️",
                                 { settingsViewModel.toggleServicePause() }
                             ),
-                            Quadruple("Block Apps", "$blockedAppsCount blocked", "📱", onNavigateToBlockApps),
-                            Quadruple("Block Sites", "$blockedSitesCount sites", "🌐", onNavigateToBlockSites),
-                            Quadruple("View Logs", "History", "📋", onNavigateToLogs),
-                            Quadruple("Support", "Help", "🆘", onNavigateToSupport)
+                            Quadruple(stringResource(R.string.block_apps), "$blockedAppsCount ${stringResource(R.string.blocked)}", "📱", onNavigateToBlockApps),
+                            Quadruple(stringResource(R.string.block_sites), "$blockedSitesCount ${stringResource(R.string.sites)}", "🌐", onNavigateToBlockSites),
+                            Quadruple(stringResource(R.string.view_logs), stringResource(R.string.history), "📋", onNavigateToLogs),
+                            Quadruple(stringResource(R.string.support), stringResource(R.string.help), "🆘", onNavigateToSupport)
                         )
 
                         quickActions.forEach { (title, subtitle, icon, onClick) ->
@@ -873,13 +888,13 @@ private fun MediumHomeScreen(
         // Protection Status
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             StatusCard(
-                title = "🛡️ Protection Active",
-                subtitle = "$blockedAppsCount apps blocked • $blockedSitesCount sites blocked",
+                title = stringResource(R.string.protection_active),
+                subtitle = "$blockedAppsCount apps ${stringResource(R.string.blocked)} • $blockedSitesCount ${stringResource(R.string.sites)} ${stringResource(R.string.blocked)}",
                 status = StatusType.SUCCESS,
                 icon = {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Protection Status",
+                        contentDescription = stringResource(R.string.service_status),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
@@ -902,10 +917,15 @@ private fun MediumHomeScreen(
                         modifier = Modifier.padding(20.dp)
                     ) {
                         Text(
-                            text = "About HaramBlur",
+                            text = stringResource(R.string.about_haramblur_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Text(
+                            text = stringResource(R.string.about_haramblur_description),
+                            style = MaterialTheme.typography.bodyLarge
                         )
 
                         Text(
@@ -977,13 +997,13 @@ private fun ExpandedHomeScreen(
 
     // Collect blocking counts
     LaunchedEffect(appBlockingManager) {
-        appBlockingManager?.getBlockedAppsCount()?.collectLatest { count ->
+        appBlockingManager?.getBlockedAppsCount()?.collectLatest { count: Int ->
             blockedAppsCount = count
         }
     }
 
     LaunchedEffect(siteBlockingManager) {
-        siteBlockingManager?.getCustomBlockedWebsitesCount()?.collectLatest { count ->
+        siteBlockingManager?.getCustomBlockedWebsitesCount()?.collectLatest { count: Int ->
             blockedSitesCount = count
         }
     }
@@ -1016,14 +1036,14 @@ private fun ExpandedHomeScreen(
                             style = MaterialTheme.typography.displayLarge
                         )
                         Text(
-                            text = "Welcome to HaramBlur",
+                            text = stringResource(R.string.welcome_to_haramblur),
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Your Islamic content filter is ready to protect your digital space",
+                            text = stringResource(R.string.your_islamic_content_filter),
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1033,10 +1053,10 @@ private fun ExpandedHomeScreen(
 
                 // Service Status
                 StatusCard(
-                    title = if (accessibilityGranted && serviceRunning) "🟢 Service Active" else "🔴 Service Inactive",
+                    title = if (accessibilityGranted && serviceRunning) "🟢 ${stringResource(R.string.service_active)}" else "🔴 ${stringResource(R.string.service_inactive)}",
                     subtitle = when {
-                        accessibilityGranted && serviceRunning -> "Content filtering enabled"
-                        else -> "Complete setup"
+                        accessibilityGranted && serviceRunning -> stringResource(R.string.content_filtering_enabled)
+                        else -> stringResource(R.string.complete_setup)
                     },
                     status = when {
                         accessibilityGranted && serviceRunning -> StatusType.SUCCESS
@@ -1046,7 +1066,7 @@ private fun ExpandedHomeScreen(
                     icon = {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Service Status",
+                            contentDescription = stringResource(R.string.service_status),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(32.dp)
                         )
@@ -1061,16 +1081,16 @@ private fun ExpandedHomeScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "📊 Performance",
+                                text = "📊 ${stringResource(R.string.performance)}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "${dashboardState.dailySummary.totalDetections} detections today",
+                                text = "${dashboardState.dailySummary.totalDetections} ${stringResource(R.string.detections_today)}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "${(dashboardState.dailySummary.performanceScore).toInt()}% success rate",
+                                text = "${(dashboardState.dailySummary.performanceScore).toInt()}% ${stringResource(R.string.success_rate)}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -1085,10 +1105,10 @@ private fun ExpandedHomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 StatusCard(
-                    title = if (accessibilityGranted && serviceRunning) "🟢 Service Active" else "🔴 Service Inactive",
+                    title = if (accessibilityGranted && serviceRunning) "🟢 ${stringResource(R.string.service_active)}" else "🔴 ${stringResource(R.string.service_inactive)}",
                     subtitle = when {
-                        accessibilityGranted && serviceRunning -> "Content filtering is enabled"
-                        else -> "Complete setup to enable filtering"
+                        accessibilityGranted && serviceRunning -> stringResource(R.string.content_filtering_enabled)
+                        else -> stringResource(R.string.complete_setup_to_enable_filtering)
                     },
                     status = when {
                         accessibilityGranted && serviceRunning -> StatusType.SUCCESS
@@ -1098,7 +1118,7 @@ private fun ExpandedHomeScreen(
                     icon = {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Service Status",
+                            contentDescription = stringResource(R.string.service_status),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(32.dp)
                         )
@@ -1112,12 +1132,12 @@ private fun ExpandedHomeScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "📊 Performance Dashboard",
+                                text = "📊 ${stringResource(R.string.performance)} ${stringResource(R.string.dashboard)}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "${dashboardState.dailySummary.totalDetections} detections • ${(dashboardState.dailySummary.performanceScore).toInt()}% success rate",
+                                text = "${dashboardState.dailySummary.totalDetections} ${stringResource(R.string.detections)} • ${(dashboardState.dailySummary.performanceScore).toInt()}% ${stringResource(R.string.success_rate)}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -1146,7 +1166,7 @@ private fun ExpandedHomeScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Quick Actions",
+                            text = stringResource(R.string.quick_actions_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
@@ -1154,15 +1174,15 @@ private fun ExpandedHomeScreen(
 
                         val quickActions = listOf(
                             Quadruple(
-                                if (isServicePaused) "Resume Services" else "Pause Services",
-                                if (isServicePaused) "Service paused" else "All services active",
+                                if (isServicePaused) stringResource(R.string.resume_services) else stringResource(R.string.pause_services),
+                                if (isServicePaused) stringResource(R.string.service_paused) else stringResource(R.string.all_services_active),
                                 if (isServicePaused) "▶️" else "⏸️",
                                 { settingsViewModel.toggleServicePause() }
                             ),
-                            Quadruple("Block Apps", "$blockedAppsCount blocked", "📱", onNavigateToBlockApps),
-                            Quadruple("Block Sites", "$blockedSitesCount custom", "🌐", onNavigateToBlockSites),
-                            Quadruple("View Logs", "Activity history", "📋", onNavigateToLogs),
-                            Quadruple("Support", "Get help", "🆘", onNavigateToSupport)
+                            Quadruple(stringResource(R.string.block_apps), "$blockedAppsCount ${stringResource(R.string.blocked)}", "📱", onNavigateToBlockApps),
+                            Quadruple(stringResource(R.string.block_sites), "$blockedSitesCount ${stringResource(R.string.custom)}", "🌐", onNavigateToBlockSites),
+                            Quadruple(stringResource(R.string.view_logs), stringResource(R.string.activity_history), "📋", onNavigateToLogs),
+                            Quadruple(stringResource(R.string.support), stringResource(R.string.get_help), "🆘", onNavigateToSupport)
                         )
 
                         quickActions.forEach { (title, subtitle, icon, onClick) ->
@@ -1176,16 +1196,16 @@ private fun ExpandedHomeScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Analytics",
+                            text = stringResource(R.string.analytics),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
                         )
 
                         // Key metrics cards
-                        MetricCard("Detection Rate", "${dashboardState.dailySummary.totalDetections}/hour", "🎯")
-                        MetricCard("Success Rate", "${(dashboardState.dailySummary.performanceScore).toInt()}%", "✅")
-                        MetricCard("Trend", "Improving", "📈")
+                        MetricCard(stringResource(R.string.detection_rate), "${dashboardState.dailySummary.totalDetections}/hour", "🎯")
+                        MetricCard(stringResource(R.string.success_rate_title), "${(dashboardState.dailySummary.performanceScore).toInt()}%", "✅")
+                        MetricCard(stringResource(R.string.trend), stringResource(R.string.improving), "📈")
                     }
                 }
             }
@@ -1232,13 +1252,13 @@ private fun ExpandedHomeScreen(
         // Protection Status
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             StatusCard(
-                title = "🛡️ Protection Active",
-                subtitle = "$blockedAppsCount apps blocked • $blockedSitesCount sites blocked • ${(dashboardState.dailySummary.performanceScore).toInt()}% success rate",
+                title = stringResource(R.string.protection_active),
+                subtitle = "$blockedAppsCount apps ${stringResource(R.string.blocked)} • $blockedSitesCount ${stringResource(R.string.sites)} ${stringResource(R.string.blocked)} • ${(dashboardState.dailySummary.performanceScore).toInt()}% ${stringResource(R.string.success_rate)}",
                 status = StatusType.SUCCESS,
                 icon = {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Protection Status",
+                        contentDescription = stringResource(R.string.service_status),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
@@ -1476,7 +1496,7 @@ private fun CompactDashboardSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "📊 Dashboard",
+                text = "📊 ${stringResource(R.string.dashboard)}",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -1528,7 +1548,7 @@ private fun MediumDashboardSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "📊 Performance Dashboard",
+                text = "📊 ${stringResource(R.string.performance)} ${stringResource(R.string.dashboard)}",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary

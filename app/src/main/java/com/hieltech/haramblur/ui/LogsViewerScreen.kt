@@ -22,9 +22,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.database.LogEntity
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -49,10 +51,10 @@ fun LogsViewerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("📋 Application Logs") },
+                title = { Text(stringResource(R.string.application_logs)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -64,7 +66,7 @@ fun LogsViewerScreen(
                             }
                         }
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "Export Logs")
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.export_logs_title))
                     }
 
                     // Clear logs button
@@ -75,7 +77,7 @@ fun LogsViewerScreen(
                             }
                         }
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Clear Logs")
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.clear_logs))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -142,10 +144,10 @@ fun LogsFilterSection(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    StatChip("Total", statistics.totalLogs.toString(), Icons.Default.List)
-                    StatChip("Errors", statistics.errorCount.toString(), Icons.Default.Warning, MaterialTheme.colorScheme.error)
-                    StatChip("Warnings", statistics.warnCount.toString(), Icons.Default.Warning, MaterialTheme.colorScheme.tertiary)
-                    StatChip("Info", statistics.infoCount.toString(), Icons.Default.Info, MaterialTheme.colorScheme.secondary)
+                    StatChip(stringResource(R.string.total), statistics.totalLogs.toString(), Icons.Default.List)
+                    StatChip(stringResource(R.string.errors), statistics.errorCount.toString(), Icons.Default.Warning, MaterialTheme.colorScheme.error)
+                    StatChip(stringResource(R.string.warnings), statistics.warnCount.toString(), Icons.Default.Warning, MaterialTheme.colorScheme.tertiary)
+                    StatChip(stringResource(R.string.info), statistics.infoCount.toString(), Icons.Default.Info, MaterialTheme.colorScheme.secondary)
                 }
             }
 
@@ -154,12 +156,12 @@ fun LogsFilterSection(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search logs...") },
+                    placeholder = { Text(stringResource(R.string.search_logs)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear_search))
                         }
                     }
                 },
@@ -190,7 +192,7 @@ fun LogsFilterSection(
 
                 // Refresh button
                 IconButton(onClick = onRefresh) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                 }
             }
         }
@@ -252,16 +254,16 @@ fun LogsList(
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(
-                    text = "No logs found",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Try adjusting your filters or search query",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                    Text(
+                        text = stringResource(R.string.no_logs_found),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(R.string.adjust_filters),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
             }
         }
     } else {
@@ -355,7 +357,7 @@ fun LogItem(log: LogEntity) {
             // Additional details (if available)
             if (!log.category.isNullOrBlank() && log.category != "GENERAL") {
                 Text(
-                    text = "Category: ${log.category}",
+                    text = "${stringResource(R.string.category)}: ${log.category}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -363,7 +365,7 @@ fun LogItem(log: LogEntity) {
 
             if (!log.userAction.isNullOrBlank()) {
                 Text(
-                    text = "User Action: ${log.userAction}",
+                    text = "${stringResource(R.string.user_action)}: ${log.userAction}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -371,7 +373,7 @@ fun LogItem(log: LogEntity) {
 
             if (!log.stackTrace.isNullOrBlank()) {
                 Text(
-                    text = "Stack Trace:",
+                    text = stringResource(R.string.stack_trace),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

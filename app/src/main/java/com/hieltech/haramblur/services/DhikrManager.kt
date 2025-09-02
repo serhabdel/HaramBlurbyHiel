@@ -18,6 +18,7 @@ import com.hieltech.haramblur.data.DhikrRepository
 import com.hieltech.haramblur.data.DhikrSettings
 import com.hieltech.haramblur.ui.components.DhikrOverlay
 import com.hieltech.haramblur.ui.theme.HaramBlurTheme
+import com.hieltech.haramblur.detection.Language
 import com.hieltech.haramblur.utils.DhikrPermissionHelper
 import com.hieltech.haramblur.utils.DhikrDisplayMethod
 import kotlinx.coroutines.CoroutineScope
@@ -96,7 +97,7 @@ class DhikrManager @Inject constructor(
                     // Use DisposeOnDetachedFromWindow for overlay views since they don't have a proper lifecycle owner
                     setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                     setContent {
-                        HaramBlurTheme {
+                        HaramBlurTheme(preferredLanguage = Language.ENGLISH) {
                             var remainingTime by remember { mutableIntStateOf(settings.displayDurationSeconds) }
                             
                             // Countdown timer

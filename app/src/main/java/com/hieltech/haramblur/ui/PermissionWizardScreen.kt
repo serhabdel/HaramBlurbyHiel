@@ -20,10 +20,12 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.R
 import androidx.compose.runtime.DisposableEffect
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.components.IslamicOnboardingStep
@@ -101,7 +103,7 @@ fun PermissionWizardScreen(
                 ) {
                     CircularProgressIndicator()
                     Text(
-                        text = "Checking permissions...",
+                        text = stringResource(R.string.checking_permissions),
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
@@ -142,13 +144,13 @@ fun PermissionWizardScreen(
                                 fontSize = responsiveEmojiSize()
                             )
                             Text(
-                                text = "Welcome to HaramBlur Setup",
+                                text = stringResource(R.string.welcome_to_haramblur_setup),
                                 fontSize = responsiveHeadlineSize(),
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
                             Text(
-                                text = "Let's set up the permissions needed for optimal content protection",
+                                text = stringResource(R.string.setup_permissions_description),
                                 style = MaterialTheme.typography.bodyLarge,
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -254,7 +256,7 @@ fun PermissionWizardScreen(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Retry")
+                                    Text(stringResource(R.string.retry))
                                 }
                             }
                         }
@@ -392,7 +394,7 @@ private fun CompletionScreen(
         Spacer(modifier = Modifier.height(responsiveSpacing(compact = 12.dp, medium = 16.dp, expanded = 20.dp)))
 
         Text(
-            text = "Setup Complete!",
+            text = stringResource(R.string.setup_complete_title),
             fontSize = responsiveHeadlineSize() * 1.1f,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -401,7 +403,7 @@ private fun CompletionScreen(
         Spacer(modifier = Modifier.height(responsiveSpacing(compact = 8.dp, medium = 12.dp, expanded = 16.dp)))
 
         Text(
-            text = "HaramBlur is now ready to protect your digital space",
+            text = stringResource(R.string.haramlur_ready),
             fontSize = responsiveHeadlineSize() * 0.8f,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.primary
@@ -421,12 +423,12 @@ private fun CompletionScreen(
             Column(
                 verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 8.dp, medium = 10.dp, expanded = 12.dp))
             ) {
-                Text(
-                    text = "✅ Granted Permissions",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF2E7D32)
-                )
+                    Text(
+                        text = stringResource(R.string.granted_permissions),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF2E7D32)
+                    )
 
                 grantedPermissions.forEach { step ->
                     Row(
@@ -461,7 +463,7 @@ private fun CompletionScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 8.dp, medium = 10.dp, expanded = 12.dp))
             ) {
-                Text("Continue to HaramBlur")
+                Text(stringResource(R.string.continue_to_haramblur))
                 Icon(
                     Icons.Default.ArrowForward,
                     contentDescription = "Continue"
@@ -489,20 +491,20 @@ private fun AccessibilityServiceInstructions(status: PermissionWizardViewModel.P
             verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 10.dp, medium = 11.dp, expanded = 12.dp))
         ) {
             Text(
-                text = "📱 How it works:",
+                text = stringResource(R.string.how_it_works),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
             )
 
             Text(
-                text = "The Accessibility Service allows HaramBlur to monitor content across all apps in real-time, enabling automatic blur detection and application.",
+                text = stringResource(R.string.accessibility_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             if (status == PermissionWizardViewModel.PermissionStatus.REQUESTING) {
                 Text(
-                    text = "⚠️ Please complete the setup in Settings to continue",
+                    text = stringResource(R.string.please_complete_setup),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFFFF9800)
                 )

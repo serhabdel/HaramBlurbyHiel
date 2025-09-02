@@ -13,7 +13,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.*
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.components.ServiceControlCard
@@ -41,10 +43,10 @@ fun GeneralSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("General Settings") },
+                title = { Text(stringResource(R.string.general_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -64,6 +66,55 @@ fun GeneralSettingsScreen(
                 onTogglePause = { viewModel.toggleServicePause() }
             )
 
+            // Language Settings Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.language_settings_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        text = stringResource(R.string.app_language_title),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Language selection
+                    RadioButtonGroup(
+                        title = stringResource(R.string.select_language_title),
+                        options = com.hieltech.haramblur.detection.Language.values().map {
+                            it.displayName to stringResource(R.string.language_description, it.displayName)
+                        },
+                        selectedIndex = com.hieltech.haramblur.detection.Language.values().indexOf(settings.preferredLanguage),
+                        onSelectionChange = { index ->
+                            val selectedLanguage = com.hieltech.haramblur.detection.Language.values()[index]
+                            viewModel.updatePreferredLanguage(selectedLanguage)
+                        }
+                    )
+
+                    // Language change notice
+                    if (settings.preferredLanguage != com.hieltech.haramblur.detection.Language.ENGLISH) {
+                        Text(
+                            text = stringResource(R.string.language_changed_restart),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            }
+
             // Quick Presets Section
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -77,13 +128,13 @@ fun GeneralSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Quick Presets",
+                        text = stringResource(R.string.quick_presets_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
-                        text = "Choose a preset to quickly configure common settings combinations",
+                        text = stringResource(R.string.quick_presets_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -94,8 +145,8 @@ fun GeneralSettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         PresetButton(
-                            name = "Maximum Protection",
-                            description = "Ultimate privacy with maximum content blocking",
+                            name = stringResource(R.string.maximum_protection_name),
+                            description = stringResource(R.string.maximum_protection_description),
                             icon = "🛡️",
                             gradientColors = listOf(
                                 Color(0xFFD32F2F),
@@ -110,8 +161,8 @@ fun GeneralSettingsScreen(
                         )
 
                         PresetButton(
-                            name = "Optimal Performance",
-                            description = "Balanced settings for best speed and protection",
+                            name = stringResource(R.string.optimal_performance_name),
+                            description = stringResource(R.string.optimal_performance_description),
                             icon = "⚡",
                             gradientColors = listOf(
                                 Color(0xFF2E7D32),
@@ -128,8 +179,8 @@ fun GeneralSettingsScreen(
 
                     // Custom preset button
                     PresetButton(
-                        name = "Custom Settings",
-                        description = "Your personalized configuration",
+                        name = stringResource(R.string.custom_settings_name),
+                        description = stringResource(R.string.custom_settings_description),
                         icon = "⚙️",
                         gradientColors = listOf(
                             Color(0xFF1976D2),
@@ -157,41 +208,41 @@ fun GeneralSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Basic Settings",
+                        text = stringResource(R.string.basic_settings_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
 
                     SwitchSetting(
-                        title = "Face Detection",
-                        description = "Detect and blur faces in images",
+                        title = stringResource(R.string.face_detection_title),
+                        description = stringResource(R.string.face_detection_description),
                         checked = settings.enableFaceDetection,
                         onCheckedChange = { viewModel.updateFaceDetection(it) }
                     )
 
                     SwitchSetting(
-                        title = "NSFW Content Detection",
-                        description = "Detect and blur inappropriate content",
+                        title = stringResource(R.string.nsfw_detection_title),
+                        description = stringResource(R.string.nsfw_detection_description),
                         checked = settings.enableNSFWDetection,
                         onCheckedChange = { viewModel.updateNSFWDetection(it) }
                     )
 
                     if (settings.enableFaceDetection) {
                         SwitchSetting(
-                            title = "Detect Female Faces",
-                            description = "Automatically detect and blur female faces",
+                            title = stringResource(R.string.detect_female_faces_title),
+                            description = stringResource(R.string.detect_female_faces_description),
                             checked = settings.blurFemaleFaces,
                             onCheckedChange = { viewModel.updateFemaleBlur(it) }
                         )
                     }
 
                     RadioButtonGroup(
-                        title = "Blur Intensity",
+                        title = stringResource(R.string.blur_intensity_title),
                         options = listOf(
-                            "Light" to "Minimal blur, maintains some visibility",
-                            "Medium" to "Balanced blur for general content",
-                            "Strong" to "Heavy blur for maximum privacy",
-                            "Maximum" to "Complete coverage for sensitive content"
+                            stringResource(R.string.blur_intensity_light) to stringResource(R.string.blur_intensity_light_description),
+                            stringResource(R.string.blur_intensity_medium) to stringResource(R.string.blur_intensity_medium_description),
+                            stringResource(R.string.blur_intensity_strong) to stringResource(R.string.blur_intensity_strong_description),
+                            stringResource(R.string.blur_intensity_maximum) to stringResource(R.string.blur_intensity_maximum_description)
                         ),
                         selectedIndex = when (settings.blurIntensity) {
                             BlurIntensity.LIGHT -> 0
@@ -213,12 +264,12 @@ fun GeneralSettingsScreen(
                     // Theme Selection
                     var expanded by remember { mutableStateOf(false) }
                     val themeOptions = listOf(
-                        AppTheme.ISLAMIC_LIGHT to "Islamic Light - Traditional Islamic colors",
-                        AppTheme.ISLAMIC_DARK to "Islamic Dark - Traditional Islamic colors with dark theme",
-                        AppTheme.MODERN_LIGHT to "Modern Light - Clean modern design",
-                        AppTheme.MODERN_DARK to "Modern Dark - Clean modern design with dark theme",
-                        AppTheme.MINIMAL_LIGHT to "Minimal Light - Minimalist design",
-                        AppTheme.MINIMAL_DARK to "Minimal Dark - Minimalist design with dark theme"
+                        AppTheme.ISLAMIC_LIGHT to stringResource(R.string.islamic_light_theme),
+                        AppTheme.ISLAMIC_DARK to stringResource(R.string.islamic_dark_theme),
+                        AppTheme.MODERN_LIGHT to stringResource(R.string.modern_light_theme),
+                        AppTheme.MODERN_DARK to stringResource(R.string.modern_dark_theme),
+                        AppTheme.MINIMAL_LIGHT to stringResource(R.string.minimal_light_theme),
+                        AppTheme.MINIMAL_DARK to stringResource(R.string.minimal_dark_theme)
                     )
 
                     ExposedDropdownMenuBox(
@@ -229,7 +280,7 @@ fun GeneralSettingsScreen(
                             value = settings.appTheme.displayName,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("App Theme") },
+                            label = { Text(stringResource(R.string.app_theme_title)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier
                                 .fillMaxWidth()
