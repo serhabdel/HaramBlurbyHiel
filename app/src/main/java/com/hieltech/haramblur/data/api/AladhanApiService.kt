@@ -31,7 +31,8 @@ interface AladhanApiService {
         @Query("school") school: Int = 0, // Shafi
         @Query("midnightMode") midnightMode: Int = 0,
         @Query("latitudeAdjustmentMethod") latitudeAdjustmentMethod: Int = 3,
-        @Query("tune") tune: String? = null
+        @Query("tune") tune: String? = null,
+        @Query("timezonestring") timezonestring: String? = null
     ): PrayerTimesResponse
 
     /**
@@ -50,7 +51,8 @@ interface AladhanApiService {
         @Query("latitude") latitude: Double,
         @Query("longitude") longitude: Double,
         @Query("method") method: Int = 2,
-        @Query("school") school: Int = 0
+        @Query("school") school: Int = 0,
+        @Query("timezonestring") timezonestring: String? = null
     ): IslamicCalendarResponse
 
     /**
@@ -80,7 +82,8 @@ interface AladhanApiService {
         @Query("method") method: Int = 2,
         @Query("school") school: Int = 0,
         @Query("month") month: Int? = null,
-        @Query("year") year: Int? = null
+        @Query("year") year: Int? = null,
+        @Query("timezonestring") timezonestring: String? = null
     ): PrayerTimesResponse
 
     /**
@@ -99,6 +102,7 @@ interface AladhanApiService {
         @Query("city") city: String,
         @Query("country") country: String,
         @Query("method") method: Int = 2,
-        @Query("school") school: Int = 0
+        @Query("school") school: Int = 0,
+        @Query("timezonestring") timezonestring: String? = null
     ): IslamicCalendarResponse
 }

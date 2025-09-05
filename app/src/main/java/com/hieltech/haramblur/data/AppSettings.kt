@@ -2,6 +2,7 @@ package com.hieltech.haramblur.data
 
 import com.hieltech.haramblur.detection.Language
 import com.hieltech.haramblur.detection.BlockingMethod
+import com.hieltech.haramblur.data.compass.CompassSize
 
 data class AppSettings(
     // Theme Settings
@@ -110,8 +111,8 @@ data class AppSettings(
     val dhikrMorningEnd: Int = 10, // Morning dhikr end time
     val dhikrEveningStart: Int = 17, // Evening dhikr start time
     val dhikrEveningEnd: Int = 22, // Evening dhikr end time
-    val dhikrIntervalMinutes: Int = 60, // Interval between dhikr displays
-    val dhikrDisplayDuration: Int = 10, // How long to display each dhikr (seconds)
+    val dhikrIntervalMinutes: Int = 15, // Interval between dhikr displays
+    val dhikrDisplayDuration: Int = 30, // How long to display each dhikr (seconds)
     val dhikrShowTransliteration: Boolean = true, // Show transliteration
     val dhikrShowTranslation: Boolean = true, // Show English translation
     val dhikrPosition: String = "TOP_RIGHT", // Display position on screen
@@ -132,12 +133,98 @@ data class AppSettings(
     val enableQiblaDirection: Boolean = true, // Enable Qibla direction feature
     val prayerTimesUpdateInterval: Int = 30, // Minutes between prayer times updates
     val islamicCalendarUpdateInterval: Int = 60, // Minutes between calendar updates
-    val autoDetectLocation: Boolean = true, // Auto-detect location vs manual entry
-    val preferredCity: String? = null, // User preferred city
-    val preferredCountry: String? = null, // User preferred country
+    val autoDetectLocation: Boolean = true, // Auto-detect location vs manual entry (legacy)
+    /**
+     * Preferred method for determining the user's location for prayer time calculation.
+     * Replaces legacy autoDetectLocation with a more explicit choice.
+     */
+    val locationMethod: LocationMethod = LocationMethod.GPS,
+    /**
+     * Latest measured GPS accuracy in meters. Used for UI display of accuracy tier.
+     */
+    val locationAccuracy: Float? = null,
+    /**
+     * Epoch millis when location was last successfully obtained.
+     */
+    val locationLastUpdated: Long? = null,
+    /**
+     * Tracked permission state for location to simplify UI logic and avoid repeated checks.
+     */
+    val locationPermissionStatus: LocationPermissionStatus = LocationPermissionStatus.UNKNOWN,
+    val preferredCity: String? = null, // User preferred city (legacy)
+    val preferredCountry: String? = null, // User preferred country (legacy)
     val hijriCalendarMethod: String = "MOON_SIGHTING", // Hijri calendar method
 
-    val settingsVersion: Int = 4 // Configuration version for compatibility tracking
+    // New: City Selection fields (enhanced)
+    val selectedCityName: String? = null,
+    val selectedCountry: String? = null,
+    val selectedCountryCode: String? = null,
+    val selectedLatitude: Double? = null,
+    val selectedLongitude: Double? = null,
+
+    // Preferences for city search behavior
+    val enableCitySearchCache: Boolean = true,
+    val enableOfflineCityFallback: Boolean = true,
+    val preferStoredCoordinates: Boolean = true,
+
+    // Prayer Enhancements: Offsets, history, caching and validation
+    /** Per-prayer manual offsets in minutes. Positive values delay the prayer, negative advance it. */
+    val fajrOffsetMinutes: Int = 0,
+    /** Offset for Sunrise time display in minutes. */
+    val sunriseOffsetMinutes: Int = 0,
+    /** Offset for Dhuhr time display in minutes. */
+    val dhuhrOffsetMinutes: Int = 0,
+    /** Offset for Asr time display in minutes. */
+    val asrOffsetMinutes: Int = 0,
+    /** Offset for Maghrib time display in minutes. */
+    val maghribOffsetMinutes: Int = 0,
+    /** Offset for Isha time display in minutes. */
+    val ishaOffsetMinutes: Int = 0,
+    /** Enable storing fetched prayer times into local history for offline display and analysis. */
+    val enablePrayerHistory: Boolean = true,
+    /** Number of days to retain historical prayer times in the local database. */
+    val prayerHistoryRetentionDays: Int = 60,
+    /** Cache TTL in minutes for prayer times fetches (separate from display update interval). */
+    val prayerCacheTtlMinutes: Int = 30,
+    /** Consider location stale after this many minutes and trigger a refresh when using GPS. */
+    val locationStaleAfterMinutes: Int = 60,
+    /** Enable strict validation to detect obviously incorrect API results (timezone/date mismatches etc). */
+    val strictPrayerAccuracyValidation: Boolean = true,
+    /** Threshold in minutes to consider an API result suspicious when compared against previous data. */
+    val maxAllowedPrayerShiftMinutes: Int = 20,
+    /** GPS accuracy thresholds (meters) used to classify accuracy tiers for UI chips. */
+    val gpsAccuracyHighThresholdM: Float = 30f,
+    val gpsAccuracyMediumThresholdM: Float = 100f,
+    val gpsAccuracyLowThresholdM: Float = 300f,
+
+    // Qibla Compass Settings
+    /** Enable/disable the interactive Qibla compass feature */
+    val qiblaCompassEnabled: Boolean = true,
+    /** Show calibration reminders and guidance overlay when sensor accuracy is low */
+    val compassCalibrationReminders: Boolean = true,
+    /** Provide haptic feedback when device is aligned to Qibla within tolerance */
+    val compassHapticFeedback: Boolean = true,
+    /** Show degree markings and labels on the compass UI */
+    val compassShowDegreeMarkings: Boolean = true,
+    /** Adjust sensor responsiveness/smoothing. Valid range: 0.5..2.0 */
+    val compassSensitivity: Float = 1.0f,
+    /** Minimum acceptable sensor accuracy in degrees for green status */
+    val compassAccuracyThreshold: Float = 20.0f,
+    /** Tolerance in degrees to consider pointing toward Qibla */
+    val qiblaToleranceDegrees: Float = 5.0f,
+    /** Rotation animation speed multiplier for compass needle */
+    val compassAnimationSpeed: Float = 1.0f,
+    /** Epoch millis timestamp of last successful compass calibration */
+    val lastCompassCalibration: Long = 0L,
+    /** Preferred compass size in UI */
+    val compassPreferredSize: CompassSize = CompassSize.MEDIUM,
+    /** Enable magnetic declination correction to use true north */
+    val enableMagneticDeclination: Boolean = true,
+    /** Sensor update frequency in Hz (recommended ~15Hz) */
+    val compassUpdateRate: Int = 15,
+
+    // Settings schema version. Bump to 7 for prayer enhancements (offsets/history/cache/validation)
+    val settingsVersion: Int = 7 // Configuration version for compatibility tracking
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {
@@ -145,6 +232,33 @@ enum class BlurIntensity(val displayName: String, val alphaValue: Int, val descr
     MEDIUM("Medium", 200, "Balanced blur, good privacy protection"),
     STRONG("Strong", 240, "Heavy blur, maximum privacy"),
     MAXIMUM("Maximum", 255, "Complete coverage, nothing visible")
+}
+
+/**
+ * Explicit location method selection used across the app for clarity and type-safety.
+ */
+enum class LocationMethod {
+    GPS,
+    MANUAL_CITY
+}
+
+/**
+ * Permission status for location. Helps the UI render appropriate states.
+ */
+enum class LocationPermissionStatus {
+    GRANTED,
+    DENIED,
+    UNKNOWN
+}
+
+/**
+ * User-friendly accuracy tiers for display purposes.
+ */
+enum class LocationAccuracy {
+    HIGH,
+    MEDIUM,
+    LOW,
+    UNKNOWN
 }
 
 enum class BlurStyle(val displayName: String, val description: String) {

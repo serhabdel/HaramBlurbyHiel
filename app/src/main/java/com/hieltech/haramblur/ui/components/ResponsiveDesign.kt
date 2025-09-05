@@ -201,3 +201,129 @@ fun responsiveMaxContentWidth(maxExpanded: Dp = 840.dp): Modifier {
         ScreenSize.EXPANDED -> Modifier.fillMaxWidth(0.7f).widthIn(max = maxExpanded)
     }
 }
+
+/**
+ * Get responsive card elevation based on screen size
+ */
+@Composable
+fun responsiveCardElevation(): Dp {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> 4.dp
+        ScreenSize.MEDIUM -> 6.dp
+        ScreenSize.EXPANDED -> 8.dp
+    }
+}
+
+/**
+ * Get responsive corner radius for consistent rounded corners
+ */
+@Composable
+fun responsiveCornerRadius(): Dp {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> 12.dp
+        ScreenSize.MEDIUM -> 16.dp
+        ScreenSize.EXPANDED -> 20.dp
+    }
+}
+
+/**
+ * Get responsive button height for consistent button sizing
+ */
+@Composable
+fun responsiveButtonHeight(): Dp {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> 40.dp
+        ScreenSize.MEDIUM -> 44.dp
+        ScreenSize.EXPANDED -> 48.dp
+    }
+}
+
+/**
+ * Get responsive button padding for consistent button sizing
+ */
+@Composable
+fun responsiveButtonPadding(): PaddingValues {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+        ScreenSize.MEDIUM -> PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+        ScreenSize.EXPANDED -> PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+    }
+}
+
+/**
+ * Get responsive grid spacing for different content types
+ */
+@Composable
+fun responsiveGridSpacing(
+    compact: Dp = 8.dp,
+    medium: Dp = 12.dp,
+    expanded: Dp = 16.dp
+): Dp {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> compact
+        ScreenSize.MEDIUM -> medium
+        ScreenSize.EXPANDED -> expanded
+    }
+}
+
+/**
+ * Get responsive animation durations based on screen size and performance
+ */
+@Composable
+fun responsiveAnimationDuration(
+    baseDuration: Int = 250,
+    performanceMultiplier: Float = 1f
+): Int {
+    val screenMultiplier = when (getScreenSize()) {
+        ScreenSize.COMPACT -> 0.8f
+        ScreenSize.MEDIUM -> 1f
+        ScreenSize.EXPANDED -> 1.2f
+    }
+    return (baseDuration * screenMultiplier * performanceMultiplier).toInt()
+}
+
+/**
+ * Get responsive typography scale for different text types
+ */
+@Composable
+fun responsiveTextSize(
+    compact: TextUnit = 14.sp,
+    medium: TextUnit = 16.sp,
+    expanded: TextUnit = 18.sp
+): TextUnit {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> compact
+        ScreenSize.MEDIUM -> medium
+        ScreenSize.EXPANDED -> expanded
+    }
+}
+
+/**
+ * Get responsive layout margins for consistent page margins
+ */
+@Composable
+fun responsiveLayoutMargins(): PaddingValues {
+    return when (getScreenSize()) {
+        ScreenSize.COMPACT -> PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+        ScreenSize.MEDIUM -> PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+        ScreenSize.EXPANDED -> PaddingValues(horizontal = 32.dp, vertical = 16.dp)
+    }
+}
+
+/**
+ * Get responsive breakpoint utilities for conditional rendering
+ */
+@Composable
+fun isCompactScreen(): Boolean = getScreenSize() == ScreenSize.COMPACT
+
+@Composable
+fun isMediumScreen(): Boolean = getScreenSize() == ScreenSize.MEDIUM
+
+@Composable
+fun isExpandedScreen(): Boolean = getScreenSize() == ScreenSize.EXPANDED
+
+@Composable
+fun isTabletOrLarger(): Boolean = getScreenSize() != ScreenSize.COMPACT
+
+@Composable
+fun isLargeScreen(): Boolean = getScreenSize() == ScreenSize.EXPANDED

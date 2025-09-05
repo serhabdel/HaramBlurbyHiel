@@ -1,0 +1,29 @@
+{
+  "cities": [
+    {"name": "Makkah", "country": "Saudi Arabia", "countryCode": "SA", "latitude": 21.4225, "longitude": 39.8262, "displayName": "Makkah, Saudi Arabia", "importance": 1.0},
+    {"name": "Medina", "country": "Saudi Arabia", "countryCode": "SA", "latitude": 24.5247, "longitude": 39.5692, "displayName": "Medina, Saudi Arabia", "importance": 0.95},
+    {"name": "Cairo", "country": "Egypt", "countryCode": "EG", "latitude": 30.0444, "longitude": 31.2357, "displayName": "Cairo, Egypt", "importance": 0.9},
+    {"name": "Istanbul", "country": "Turkey", "countryCode": "TR", "latitude": 41.0082, "longitude": 28.9784, "displayName": "Istanbul, Turkey", "importance": 0.9},
+    {"name": "Karachi", "country": "Pakistan", "countryCode": "PK", "latitude": 24.8607, "longitude": 67.0011, "displayName": "Karachi, Pakistan", "importance": 0.88},
+    {"name": "Jakarta", "country": "Indonesia", "countryCode": "ID", "latitude":  -6.2088, "longitude": 106.8456, "displayName": "Jakarta, Indonesia", "importance": 0.88},
+    {"name": "Dhaka", "country": "Bangladesh", "countryCode": "BD", "latitude": 23.8103, "longitude": 90.4125, "displayName": "Dhaka, Bangladesh", "importance": 0.86},
+    {"name": "Lagos", "country": "Nigeria", "countryCode": "NG", "latitude": 6.5244, "longitude": 3.3792, "displayName": "Lagos, Nigeria", "importance": 0.84},
+    {"name": "Tehran", "country": "Iran", "countryCode": "IR", "latitude": 35.6892, "longitude": 51.3890, "displayName": "Tehran, Iran", "importance": 0.84},
+    {"name": "Riyadh", "country": "Saudi Arabia", "countryCode": "SA", "latitude": 24.7136, "longitude": 46.6753, "displayName": "Riyadh, Saudi Arabia", "importance": 0.84},
+    {"name": "Kuala Lumpur", "country": "Malaysia", "countryCode": "MY", "latitude": 3.1390, "longitude": 101.6869, "displayName": "Kuala Lumpur, Malaysia", "importance": 0.83},
+    {"name": "Casablanca", "country": "Morocco", "countryCode": "MA", "latitude": 33.5731, "longitude": -7.5898, "displayName": "Casablanca, Morocco", "importance": 0.82},
+    {"name": "Algiers", "country": "Algeria", "countryCode": "DZ", "latitude": 36.7538, "longitude": 3.0588, "displayName": "Algiers, Algeria", "importance": 0.8},
+    {"name": "Tunis", "country": "Tunisia", "countryCode": "TN", "latitude": 36.8065, "longitude": 10.1815, "displayName": "Tunis, Tunisia", "importance": 0.78},
+    {"name": "Amman", "country": "Jordan", "countryCode": "JO", "latitude": 31.9539, "longitude": 35.9106, "displayName": "Amman, Jordan", "importance": 0.78},
+    {"name": "Baghdad", "country": "Iraq", "countryCode": "IQ", "latitude": 33.3152, "longitude": 44.3661, "displayName": "Baghdad, Iraq", "importance": 0.8},
+    {"name": "Damascus", "country": "Syria", "countryCode": "SY", "latitude": 33.5138, "longitude": 36.2765, "displayName": "Damascus, Syria", "importance": 0.77},
+    {"name": "Kabul", "country": "Afghanistan", "countryCode": "AF", "latitude": 34.5553, "longitude": 69.2075, "displayName": "Kabul, Afghanistan", "importance": 0.76},
+    {"name": "Khartoum", "country": "Sudan", "countryCode": "SD", "latitude": 15.5007, "longitude": 32.5599, "displayName": "Khartoum, Sudan", "importance": 0.74},
+    {"name": "Mogadishu", "country": "Somalia", "countryCode": "SO", "latitude": 2.0469, "longitude": 45.3182, "displayName": "Mogadishu, Somalia", "importance": 0.72},
+    {"name": "London", "country": "United Kingdom", "countryCode": "GB", "latitude": 51.5074, "longitude": -0.1278, "displayName": "London, UK", "importance": 0.9},
+    {"name": "Paris", "country": "France", "countryCode": "FR", "latitude": 48.8566, "longitude": 2.3522, "displayName": "Paris, France", "importance": 0.9},
+    {"name": "New York", "country": "United States", "countryCode": "US", "latitude": 40.7128, "longitude": -74.0060, "displayName": "New York, USA", "importance": 0.9},
+    {"name": "Toronto", "country": "Canada", "countryCode": "CA", "latitude": 43.65107, "longitude": -79.347015, "displayName": "Toronto, Canada", "importance": 0.85},
+    {"name": "Sydney", "country": "Australia", "countryCode": "AU", "latitude": -33.8688, "longitude": 151.2093, "displayName": "Sydney, Australia", "importance": 0.85}
+  ]
+}

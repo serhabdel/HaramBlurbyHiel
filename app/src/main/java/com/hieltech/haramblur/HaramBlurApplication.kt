@@ -1,11 +1,14 @@
 package com.hieltech.haramblur
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import com.hieltech.haramblur.data.LogRepository
+import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.detection.AppBlockingManager
 import com.hieltech.haramblur.services.DhikrManager
 import com.hieltech.haramblur.services.DhikrNotificationManager
+import com.hieltech.haramblur.utils.LocaleUtils
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,12 +32,44 @@ class HaramBlurApplication : Application() {
     @Inject
     lateinit var notificationManager: DhikrNotificationManager
 
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "HaramBlur Application created")
 
         // Initialize app-level components here
         initializeComponents()
+    }
+
+    override fun attachBaseContext(base: Context) {
+        // Apply language before creating the base context using LocaleUtils
+        val language = getSavedLanguage(base)
+        Log.d(TAG, "Wrapping base context with saved language via LocaleUtils: ${language.displayName} (${language.name})")
+        val wrapped = LocaleUtils.wrap(base, language)
+        super.attachBaseContext(wrapped)
+    }
+
+    private fun getSavedLanguage(context: Context): com.hieltech.haramblur.detection.Language {
+        return try {
+            // Read directly from SharedPreferences since DI isn't available here
+            val prefs = context.getSharedPreferences("haramblur_settings", Context.MODE_PRIVATE)
+            val stored = prefs.getString(
+                "preferred_language",
+                com.hieltech.haramblur.detection.Language.ENGLISH.name
+            )
+            val lang = runCatching {
+                com.hieltech.haramblur.detection.Language.valueOf(
+                    stored ?: com.hieltech.haramblur.detection.Language.ENGLISH.name
+                )
+            }.getOrElse { com.hieltech.haramblur.detection.Language.ENGLISH }
+            Log.d(TAG, "Loaded saved language from prefs: ${lang.displayName} (${lang.name})")
+            lang
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting saved language, using English", e)
+            com.hieltech.haramblur.detection.Language.ENGLISH
+        }
     }
 
     override fun onTerminate() {

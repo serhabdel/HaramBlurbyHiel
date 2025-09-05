@@ -98,7 +98,7 @@ private fun UnifiedBlockingScreenSimple(
                 } catch (e: Exception) {
                     // Simplified error handling
                     snackbarHostState.showSnackbar(
-                        message = stringResource(R.string.failed_to_load_data),
+                        message = "Failed to load data",
                         duration = SnackbarDuration.Short
                     )
                 } finally {

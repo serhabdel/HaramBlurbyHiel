@@ -15,6 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.data.cities.CitySearchState
+import com.hieltech.haramblur.data.cities.CitySelection
+import com.hieltech.haramblur.data.cities.CitySearchResult
+import com.hieltech.haramblur.data.cities.toSelection
+import com.hieltech.haramblur.ui.cities.CitySelectorViewModel
 
 /**
  * City selector dialog for manual location entry
@@ -24,50 +30,13 @@ import androidx.compose.ui.window.Dialog
 fun CitySelectorDialog(
     currentCity: String? = null,
     currentCountry: String? = null,
-    onCitySelected: (city: String, country: String) -> Unit,
-    onDismiss: () -> Unit
+    onCitySelected: (selection: CitySelection) -> Unit,
+    onDismiss: () -> Unit,
+    viewModel: CitySelectorViewModel = hiltViewModel()
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCity by remember { mutableStateOf<Pair<String, String>?>(null) }
-
-    // Popular Islamic cities for quick selection
-    val popularCities = listOf(
-        "Mecca" to "Saudi Arabia",
-        "Medina" to "Saudi Arabia",
-        "Casablanca" to "Morocco",
-        "Rabat" to "Morocco",
-        "Marrakech" to "Morocco",
-        "Cairo" to "Egypt",
-        "Alexandria" to "Egypt",
-        "Istanbul" to "Turkey",
-        "Ankara" to "Turkey",
-        "Dubai" to "UAE",
-        "Abu Dhabi" to "UAE",
-        "Kuala Lumpur" to "Malaysia",
-        "Jakarta" to "Indonesia",
-        "Karachi" to "Pakistan",
-        "Lahore" to "Pakistan",
-        "Dhaka" to "Bangladesh",
-        "Tehran" to "Iran",
-        "Baghdad" to "Iraq",
-        "Amman" to "Jordan",
-        "Beirut" to "Lebanon",
-        "Damascus" to "Syria",
-        "Tunis" to "Tunisia",
-        "Algiers" to "Algeria",
-        "Khartoum" to "Sudan",
-        "Mogadishu" to "Somalia",
-        "Doha" to "Qatar",
-        "Kuwait City" to "Kuwait",
-        "Muscat" to "Oman",
-        "Bahrain" to "Bahrain"
-    )
-
-    val filteredCities = popularCities.filter { (city, country) ->
-        searchQuery.isEmpty() ||
-        city.contains(searchQuery, ignoreCase = true) ||
-        country.contains(searchQuery, ignoreCase = true)
-    }
+    var selectedResult by remember { mutableStateOf<CitySearchResult?>(null) }
+    val state by viewModel.uiState.collectAsState()
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -92,7 +61,10 @@ fun CitySelectorDialog(
                 // Search field
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    onValueChange = {
+                        searchQuery = it
+                        viewModel.onQueryChange(it)
+                    },
                     label = { Text("Search cities") },
                     leadingIcon = {
                         Icon(Icons.Default.Search, contentDescription = "Search")
@@ -102,51 +74,73 @@ fun CitySelectorDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // City list
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filteredCities) { (city, country) ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    selectedCity = city to country
-                                },
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (selectedCity?.first == city && selectedCity?.second == country)
-                                    MaterialTheme.colorScheme.primaryContainer
-                                else
-                                    MaterialTheme.colorScheme.surfaceVariant
-                            )
+                when (state) {
+                    is CitySearchState.Empty -> {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text("Type at least ${com.hieltech.haramblur.data.cities.CitySearchConfig.MIN_QUERY_LENGTH} characters to search")
+                        }
+                    }
+                    is CitySearchState.Loading -> {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    is CitySearchState.Error -> {
+                        val msg = (state as CitySearchState.Error).message
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text(msg)
+                        }
+                    }
+                    is CitySearchState.Success -> {
+                        val results = (state as CitySearchState.Success).results
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = city,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium
+                            items(results) { item ->
+                                val city = item.name
+                                val country = item.country ?: ""
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedResult = item
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (selectedResult?.name == city && selectedResult?.country == country)
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.surfaceVariant
                                     )
-                                    Text(
-                                        text = country,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = city,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = if (country.isNotBlank()) country else item.displayName,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
 
-                                if (selectedCity?.first == city && selectedCity?.second == country) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
+                                        if (selectedResult?.name == city && selectedResult?.country == country) {
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -169,12 +163,12 @@ fun CitySelectorDialog(
 
                     Button(
                         onClick = {
-                            selectedCity?.let { (city, country) ->
-                                onCitySelected(city, country)
+                            selectedResult?.let { result ->
+                                onCitySelected(result.toSelection())
                                 onDismiss()
                             }
                         },
-                        enabled = selectedCity != null
+                        enabled = selectedResult != null
                     ) {
                         Text("Select")
                     }
@@ -192,7 +186,7 @@ fun CitySelectorDialog(
 fun CitySelector(
     selectedCity: String? = null,
     selectedCountry: String? = null,
-    onCitySelected: (city: String, country: String) -> Unit,
+    onCitySelected: (selection: CitySelection) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -248,7 +242,6 @@ fun CitySelector(
     if (showDialog) {
         CitySelectorDialog(
             currentCity = selectedCity,
-            currentCountry = selectedCountry,
             onCitySelected = onCitySelected,
             onDismiss = { showDialog = false }
         )

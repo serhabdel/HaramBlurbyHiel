@@ -17,6 +17,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.hieltech.haramblur.data.prayer.*
+import androidx.compose.ui.res.stringResource
+import com.hieltech.haramblur.R
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.hieltech.haramblur.ui.SettingsViewModel
+import com.hieltech.haramblur.data.compass.CompassSize
+import com.hieltech.haramblur.data.LocationMethod
 
 /**
  * Prayer Times Widget for displaying Islamic prayer times
@@ -29,6 +35,9 @@ fun PrayerTimesWidget(
     onLocationSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val settings by settingsViewModel.settings.collectAsState()
+
     ModernCard(modifier = modifier) {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -40,11 +49,40 @@ fun PrayerTimesWidget(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "🕌 Prayer Times",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.prayer_times_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    // City, Country display
+                    val cityCountry: String? = remember(settings) {
+                        if (settings.locationMethod == LocationMethod.MANUAL_CITY) {
+                            // Use selected city/country (fallback to preferred)
+                            val city = settings.selectedCityName ?: settings.preferredCity
+                            val country = settings.selectedCountry ?: settings.preferredCountry
+                            
+                            if (!city.isNullOrBlank() && !country.isNullOrBlank()) {
+                                "$city, $country"
+                            } else city ?: country
+                        } else {
+                            // GPS method - use location city/country
+                            val city = settings.locationCity
+                            val country = settings.locationCountry
+                            
+                            if (!city.isNullOrBlank() && !country.isNullOrBlank()) {
+                                "$city, $country"
+                            } else city ?: country
+                        }
+                    }
+                    if (!cityCountry.isNullOrBlank()) {
+                        Text(
+                            text = cityCountry!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -58,7 +96,7 @@ fun PrayerTimesWidget(
                         ) {
                             Icon(
                                 Icons.Default.LocationOn,
-                                contentDescription = "Location Settings",
+                                contentDescription = stringResource(R.string.location_settings_cd),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -96,7 +134,7 @@ fun PrayerTimesWidget(
                         ) {
                             Column {
                                 Text(
-                                    text = "Next Prayer: ${prayer.name}",
+                                    text = stringResource(R.string.next_prayer_label, prayer.name),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -119,13 +157,13 @@ fun PrayerTimesWidget(
             // All prayer times grid
             prayerData?.timings?.let { timings ->
                 val prayers = listOf(
-                    "Fajr" to timings.Fajr,
-                    "Sunrise" to timings.Sunrise,
-                    "Dhuhr" to timings.Dhuhr,
-                    "Asr" to timings.Asr,
-                    "Maghrib" to timings.Maghrib,
-                    "Sunset" to timings.Sunset,
-                    "Isha" to timings.Isha
+                    stringResource(R.string.prayer_name_fajr) to timings.Fajr,
+                    stringResource(R.string.prayer_name_sunrise) to timings.Sunrise,
+                    stringResource(R.string.prayer_name_dhuhr) to timings.Dhuhr,
+                    stringResource(R.string.prayer_name_asr) to timings.Asr,
+                    stringResource(R.string.prayer_name_maghrib) to timings.Maghrib,
+                    stringResource(R.string.prayer_name_sunset) to timings.Sunset,
+                    stringResource(R.string.prayer_name_isha) to timings.Isha
                 )
 
                 LazyVerticalGrid(
@@ -140,6 +178,23 @@ fun PrayerTimesWidget(
                         }
                     }
                 }
+            }
+
+            // Interactive Qibla Compass (integrated)
+            if (settings.enableQiblaDirection && settings.qiblaCompassEnabled) {
+                QiblaCompassWidget(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    showDegreeMarkings = settings.compassShowDegreeMarkings,
+                    hapticOnAligned = settings.compassHapticFeedback,
+                    alignmentToleranceDeg = settings.qiblaToleranceDegrees,
+                    animationSpeed = settings.compassAnimationSpeed,
+                    preferredSize = when (settings.compassPreferredSize) {
+                        CompassSize.SMALL -> CompassSize.SMALL
+                        CompassSize.MEDIUM -> CompassSize.MEDIUM
+                        CompassSize.LARGE -> CompassSize.LARGE
+                    }
+                )
             }
 
             // Loading state
@@ -175,7 +230,7 @@ fun IslamicCalendarWidget(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "📅 Islamic Calendar",
+                text = stringResource(R.string.islamic_calendar_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -229,7 +284,7 @@ fun IslamicCalendarWidget(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = "Special Day",
+                                    text = stringResource(R.string.special_day_label),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -265,9 +320,13 @@ fun IslamicCalendarWidget(
 
 /**
  * Qibla Direction Widget
+ *
+ * Deprecated: Replaced by the interactive `QiblaCompassWidget` which provides
+ * live sensor-driven direction, accessibility semantics, and error handling.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Deprecated("Replaced by QiblaCompassWidget")
 fun QiblaDirectionWidget(
     qiblaDirection: Double?,
     modifier: Modifier = Modifier
@@ -279,7 +338,7 @@ fun QiblaDirectionWidget(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "🧭 Qibla Direction",
+                text = stringResource(R.string.qibla_direction_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -369,16 +428,17 @@ private fun PrayerTimeChip(name: String, time: String) {
 /**
  * Helper function to get direction text from degrees
  */
+@Composable
 private fun getDirectionText(degrees: Double): String {
     return when {
-        degrees >= 337.5 || degrees < 22.5 -> "North"
-        degrees >= 22.5 && degrees < 67.5 -> "Northeast"
-        degrees >= 67.5 && degrees < 112.5 -> "East"
-        degrees >= 112.5 && degrees < 157.5 -> "Southeast"
-        degrees >= 157.5 && degrees < 202.5 -> "South"
-        degrees >= 202.5 && degrees < 247.5 -> "Southwest"
-        degrees >= 247.5 && degrees < 292.5 -> "West"
-        degrees >= 292.5 && degrees < 337.5 -> "Northwest"
-        else -> "Unknown"
+        degrees >= 337.5 || degrees < 22.5 -> stringResource(R.string.direction_north)
+        degrees >= 22.5 && degrees < 67.5 -> stringResource(R.string.direction_northeast)
+        degrees >= 67.5 && degrees < 112.5 -> stringResource(R.string.direction_east)
+        degrees >= 112.5 && degrees < 157.5 -> stringResource(R.string.direction_southeast)
+        degrees >= 157.5 && degrees < 202.5 -> stringResource(R.string.direction_south)
+        degrees >= 202.5 && degrees < 247.5 -> stringResource(R.string.direction_southwest)
+        degrees >= 247.5 && degrees < 292.5 -> stringResource(R.string.direction_west)
+        degrees >= 292.5 && degrees < 337.5 -> stringResource(R.string.direction_northwest)
+        else -> stringResource(R.string.direction_unknown)
     }
 }

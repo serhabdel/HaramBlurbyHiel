@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import androidx.lifecycle.ViewModel
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.hieltech.haramblur.R
 
 /**
  * ViewModel for DhikrStatusCard to properly handle DhikrManager injection
@@ -63,7 +65,7 @@ fun DhikrStatusCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "🕌 Dhikr Status",
+                    text = stringResource(R.string.dhikr_status_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -75,7 +77,10 @@ fun DhikrStatusCard(
                     )
                 } else {
                     Text(
-                        text = "${systemStatus?.dailyDhikrCount ?: 0} today",
+                        text = stringResource(
+                            R.string.dhikr_today_count,
+                            systemStatus?.dailyDhikrCount ?: 0
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -91,15 +96,15 @@ fun DhikrStatusCard(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Status:",
+                            text = stringResource(R.string.status_label),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         val (statusText, statusColor) = when {
-                            status.isOverlayVisible -> "Displaying" to MaterialTheme.colorScheme.primary
-                            status.timeUntilNextDhikr <= 0 -> "Ready" to MaterialTheme.colorScheme.primary
+                            status.isOverlayVisible -> stringResource(R.string.status_displaying) to MaterialTheme.colorScheme.primary
+                            status.timeUntilNextDhikr <= 0 -> stringResource(R.string.status_ready) to MaterialTheme.colorScheme.primary
                             else -> {
                                 val minutes = status.timeUntilNextDhikr / 1000 / 60
-                                "Next in ${minutes}m" to MaterialTheme.colorScheme.onSurfaceVariant
+                                stringResource(R.string.status_next_in_minutes, minutes) to MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         }
                         Text(
@@ -116,7 +121,7 @@ fun DhikrStatusCard(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Time Window:",
+                            text = stringResource(R.string.time_window_label),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
@@ -133,13 +138,13 @@ fun DhikrStatusCard(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Display Method:",
+                            text = stringResource(R.string.display_method_label),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         val methodText = when (status.recommendedDisplayMethod) {
-                            com.hieltech.haramblur.utils.DhikrDisplayMethod.OVERLAY -> "Overlay"
-                            com.hieltech.haramblur.utils.DhikrDisplayMethod.NOTIFICATION -> "Notification"
-                            com.hieltech.haramblur.utils.DhikrDisplayMethod.NONE -> "None"
+                            com.hieltech.haramblur.utils.DhikrDisplayMethod.OVERLAY -> stringResource(R.string.display_method_overlay)
+                            com.hieltech.haramblur.utils.DhikrDisplayMethod.NOTIFICATION -> stringResource(R.string.display_method_notification)
+                            com.hieltech.haramblur.utils.DhikrDisplayMethod.NONE -> stringResource(R.string.display_method_none)
                         }
                         Text(
                             text = methodText,
@@ -163,7 +168,7 @@ fun DhikrStatusCard(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = status.canShowDhikr
                 ) {
-                    Text("Show Dhikr Now")
+                    Text(stringResource(R.string.show_dhikr_now))
                 }
 
                 // Status description

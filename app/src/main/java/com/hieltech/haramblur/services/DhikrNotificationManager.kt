@@ -31,6 +31,7 @@ class DhikrNotificationManager @Inject constructor(
     companion object {
         private const val TAG = "DhikrNotificationManager"
         private const val DHIKR_CHANNEL_ID = "dhikr_channel"
+        private const val STATUS_CHANNEL_ID = "dhikr_status_channel"
         private const val DHIKR_NOTIFICATION_ID = 1001
         private const val STATUS_NOTIFICATION_ID = 1002
     }
@@ -38,15 +39,18 @@ class DhikrNotificationManager @Inject constructor(
     private val notificationManager = NotificationManagerCompat.from(context)
 
     init {
-        createNotificationChannel()
+        createNotificationChannels()
     }
 
     /**
-     * Create notification channel for Android 8.0+ with heads-up support
+     * Create notification channels for Android 8.0+ with separate channels for dhikr and status
      */
-    private fun createNotificationChannel() {
+    private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            // High-priority channel for actual dhikr notifications
+            val dhikrChannel = NotificationChannel(
                 DHIKR_CHANNEL_ID,
                 "Dhikr Reminders",
                 NotificationManager.IMPORTANCE_HIGH
@@ -61,8 +65,22 @@ class DhikrNotificationManager @Inject constructor(
                 setBypassDnd(true) // Bypass Do Not Disturb for important dhikrs
             }
 
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
+            // Low-priority silent channel for status notifications
+            val statusChannel = NotificationChannel(
+                STATUS_CHANNEL_ID,
+                "Dhikr Status",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Silent status notifications showing dhikr countdown"
+                enableVibration(false)
+                enableLights(false)
+                setShowBadge(false)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setSound(null, null) // No sound
+            }
+
+            manager.createNotificationChannel(dhikrChannel)
+            manager.createNotificationChannel(statusChannel)
         }
     }
 
@@ -235,7 +253,7 @@ class DhikrNotificationManager @Inject constructor(
             "Dhikr disabled"
         }
 
-        val builder = NotificationCompat.Builder(context, DHIKR_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, STATUS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_islamic)
             .setContentTitle("Dhikr Reminder")
             .setContentText(statusText)

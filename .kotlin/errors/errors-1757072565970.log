@@ -1,0 +1,861 @@
+kotlin version: 2.0.21
+error message: org.jetbrains.kotlin.backend.common.BackendException: Backend Internal error: Exception during IR lowering
+File being compiled: /home/serhabdel/Documents/repos/HaramBlur/app/src/main/java/com/hieltech/haramblur/data/SettingsRepository.kt
+The root cause java.lang.RuntimeException was thrown at: org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate(FunctionCodegen.kt:47)
+	at org.jetbrains.kotlin.backend.common.CodegenUtil.reportBackendException(CodegenUtil.kt:253)
+	at org.jetbrains.kotlin.backend.common.CodegenUtil.reportBackendException$default(CodegenUtil.kt:236)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invokeSequential(performByIrFile.kt:65)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invoke(performByIrFile.kt:52)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invoke(performByIrFile.kt:38)
+	at org.jetbrains.kotlin.backend.common.phaser.NamedCompilerPhase.phaseBody(CompilerPhase.kt:166)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:27)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:14)
+	at org.jetbrains.kotlin.backend.common.phaser.NamedCompilerPhase.phaseBody(CompilerPhase.kt:166)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.CompilerPhaseKt.invokeToplevel(CompilerPhase.kt:62)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.invokeCodegen(JvmIrCodegenFactory.kt:371)
+	at org.jetbrains.kotlin.codegen.CodegenFactory.generateModule(CodegenFactory.kt:47)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.generateModuleInFrontendIRMode(JvmIrCodegenFactory.kt:433)
+	at org.jetbrains.kotlin.cli.jvm.compiler.pipeline.JvmCompilerPipelineKt.generateCodeFromIr(jvmCompilerPipeline.kt:246)
+	at org.jetbrains.kotlin.cli.jvm.compiler.pipeline.JvmCompilerPipelineKt.compileModulesUsingFrontendIrAndLightTree(jvmCompilerPipeline.kt:142)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute(K2JVMCompiler.kt:148)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute(K2JVMCompiler.kt:43)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.execImpl(CLICompiler.kt:103)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.execImpl(CLICompiler.kt:49)
+	at org.jetbrains.kotlin.cli.common.CLITool.exec(CLITool.kt:101)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.runCompiler(IncrementalJvmCompilerRunner.kt:464)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.runCompiler(IncrementalJvmCompilerRunner.kt:73)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.doCompile(IncrementalCompilerRunner.kt:506)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileImpl(IncrementalCompilerRunner.kt:423)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:301)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:129)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:675)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:92)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1660)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(UnicastServerRef.java:360)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:200)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:197)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:712)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Transport.java:196)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(TCPTransport.java:587)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(TCPTransport.java:828)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(TCPTransport.java:705)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:399)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(TCPTransport.java:704)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.lang.RuntimeException: Exception while generating code for:
+FUN name:loadSettings visibility:private modality:FINAL <> ($this:com.hieltech.haramblur.data.SettingsRepository) returnType:com.hieltech.haramblur.data.AppSettings
+  $this: VALUE_PARAMETER name:<this> type:com.hieltech.haramblur.data.SettingsRepository
+  BLOCK_BODY
+    RETURN type=kotlin.Nothing from='private final fun loadSettings (): com.hieltech.haramblur.data.AppSettings declared in com.hieltech.haramblur.data.SettingsRepository'
+      CONSTRUCTOR_CALL 'public constructor <init> (appTheme: com.hieltech.haramblur.data.AppTheme?, enableFaceDetection: kotlin.Boolean, enableNSFWDetection: kotlin.Boolean, blurMaleFaces: kotlin.Boolean, blurFemaleFaces: kotlin.Boolean, detectionSensitivity: kotlin.Float, blurIntensity: com.hieltech.haramblur.data.BlurIntensity?, blurStyle: com.hieltech.haramblur.data.BlurStyle?, expandBlurArea: kotlin.Int, processingSpeed: com.hieltech.haramblur.data.ProcessingSpeed?, enableRealTimeProcessing: kotlin.Boolean, pauseInApps: kotlin.collections.Set<kotlin.String>?, enableFullScreenBlurForNSFW: kotlin.Boolean, showBlurBorders: kotlin.Boolean, enableHoverToReveal: kotlin.Boolean, genderDetectionAccuracy: com.hieltech.haramblur.data.GenderAccuracy?, isServicePaused: kotlin.Boolean, contentDensityThreshold: kotlin.Float, mandatoryReflectionTime: kotlin.Int, enableSiteBlocking: kotlin.Boolean, enableQuranicGuidance: kotlin.Boolean, ultraFastModeEnabled: kotlin.Boolean, fullScreenWarningEnabled: kotlin.Boolean, maxProcessingTimeMs: kotlin.Long, enableGPUAcceleration: kotlin.Boolean, frameSkipThreshold: kotlin.Int, imageDownscaleRatio: kotlin.Float, preferredLanguage: com.hieltech.haramblur.detection.Language?, verseDisplayDuration: kotlin.Int, enableArabicText: kotlin.Boolean, customReflectionTime: kotlin.Int, genderConfidenceThreshold: kotlin.Float, nsfwConfidenceThreshold: kotlin.Float, enableFallbackDetection: kotlin.Boolean, enablePerformanceMonitoring: kotlin.Boolean, enableRegionBasedFullScreen: kotlin.Boolean, nsfwFullScreenRegionThreshold: kotlin.Int, nsfwHighConfidenceThreshold: kotlin.Float, regionDetectionTileSize: kotlin.Int, regionOverlapPercentage: kotlin.Float, maxRegionDetectionTime: kotlin.Long, enableDetailedLogging: kotlin.Boolean, logLevel: com.hieltech.haramblur.data.LogLevel?, enableLogCategories: kotlin.collections.Set<com.hieltech.haramblur.data.LogCategory>?, maxLogRetentionDays: kotlin.Int, enablePerformanceLogging: kotlin.Boolean, enableErrorReporting: kotlin.Boolean, enableUserActionLogging: kotlin.Boolean, enableEnhancedBlocking: kotlin.Boolean, usageStatsPermissionGranted: kotlin.Boolean, deviceAdminEnabled: kotlin.Boolean, preferredBlockingMethod: com.hieltech.haramblur.detection.BlockingMethod?, forceCloseTimeout: kotlin.Long, onboardingCompleted: kotlin.Boolean, accessibilityServiceEnabled: kotlin.Boolean, permissionWizardLastShown: kotlin.Long, skipOptionalPermissions: kotlin.Boolean, currentPreset: kotlin.String?, lastPresetUpdate: kotlin.Long, presetLockEnabled: kotlin.Boolean, dhikrEnabled: kotlin.Boolean, dhikrMorningEnabled: kotlin.Boolean, dhikrEveningEnabled: kotlin.Boolean, dhikrAnytimeEnabled: kotlin.Boolean, dhikrMorningStart: kotlin.Int, dhikrMorningEnd: kotlin.Int, dhikrEveningStart: kotlin.Int, dhikrEveningEnd: kotlin.Int, dhikrIntervalMinutes: kotlin.Int, dhikrDisplayDuration: kotlin.Int, dhikrShowTransliteration: kotlin.Boolean, dhikrShowTranslation: kotlin.Boolean, dhikrPosition: kotlin.String?, dhikrAnimationEnabled: kotlin.Boolean, dhikrSoundEnabled: kotlin.Boolean, enableIslamicCalendar: kotlin.Boolean, enablePrayerTimes: kotlin.Boolean, enablePrayerNotifications: kotlin.Boolean, prayerCalculationMethod: kotlin.Int, prayerNotificationAdvanceTime: kotlin.Int, locationLatitude: kotlin.Double?, locationLongitude: kotlin.Double?, locationCity: kotlin.String?, locationCountry: kotlin.String?, locationCountryCode: kotlin.String?, enableQiblaDirection: kotlin.Boolean, prayerTimesUpdateInterval: kotlin.Int, islamicCalendarUpdateInterval: kotlin.Int, autoDetectLocation: kotlin.Boolean, locationMethod: com.hieltech.haramblur.data.LocationMethod?, locationAccuracy: kotlin.Float?, locationLastUpdated: kotlin.Long?, locationPermissionStatus: com.hieltech.haramblur.data.LocationPermissionStatus?, preferredCity: kotlin.String?, preferredCountry: kotlin.String?, hijriCalendarMethod: kotlin.String?, selectedCityName: kotlin.String?, selectedCountry: kotlin.String?, selectedCountryCode: kotlin.String?, selectedLatitude: kotlin.Double?, selectedLongitude: kotlin.Double?, enableCitySearchCache: kotlin.Boolean, enableOfflineCityFallback: kotlin.Boolean, preferStoredCoordinates: kotlin.Boolean, fajrOffsetMinutes: kotlin.Int, sunriseOffsetMinutes: kotlin.Int, dhuhrOffsetMinutes: kotlin.Int, asrOffsetMinutes: kotlin.Int, maghribOffsetMinutes: kotlin.Int, ishaOffsetMinutes: kotlin.Int, enablePrayerHistory: kotlin.Boolean, prayerHistoryRetentionDays: kotlin.Int, prayerCacheTtlMinutes: kotlin.Int, locationStaleAfterMinutes: kotlin.Int, strictPrayerAccuracyValidation: kotlin.Boolean, maxAllowedPrayerShiftMinutes: kotlin.Int, gpsAccuracyHighThresholdM: kotlin.Float, gpsAccuracyMediumThresholdM: kotlin.Float, gpsAccuracyLowThresholdM: kotlin.Float, qiblaCompassEnabled: kotlin.Boolean, compassCalibrationReminders: kotlin.Boolean, compassHapticFeedback: kotlin.Boolean, compassShowDegreeMarkings: kotlin.Boolean, compassSensitivity: kotlin.Float, compassAccuracyThreshold: kotlin.Float, qiblaToleranceDegrees: kotlin.Float, compassAnimationSpeed: kotlin.Float, lastCompassCalibration: kotlin.Long, compassPreferredSize: com.hieltech.haramblur.data.compass.CompassSize?, enableMagneticDeclination: kotlin.Boolean, compassUpdateRate: kotlin.Int, settingsVersion: kotlin.Int, $mask0: kotlin.Int, $mask1: kotlin.Int, $mask2: kotlin.Int, $mask3: kotlin.Int, $mask4: kotlin.Int, $marker: kotlin.jvm.internal.DefaultConstructorMarker?) declared in com.hieltech.haramblur.data.AppSettings' type=com.hieltech.haramblur.data.AppSettings origin=DEFAULT_DISPATCH_CALL
+        appTheme: COMPOSITE type=com.hieltech.haramblur.data.AppTheme? origin=DEFAULT_VALUE
+          CONST Null type=com.hieltech.haramblur.data.AppTheme? value=null
+        enableFaceDetection: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_face_detection"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        enableNSFWDetection: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_nsfw_detection"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        blurMaleFaces: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="blur_male_faces"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        blurFemaleFaces: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="blur_female_faces"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        detectionSensitivity: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="detection_sensitivity"
+          p1: CONST Float type=kotlin.Float value=0.5
+        blurIntensity: CALL 'public final fun valueOf (value: kotlin.String): com.hieltech.haramblur.data.BlurIntensity declared in com.hieltech.haramblur.data.BlurIntensity' type=com.hieltech.haramblur.data.BlurIntensity origin=null
+          value: CALL 'public final fun CHECK_NOT_NULL <T0> (arg0: T0 of kotlin.internal.ir.CHECK_NOT_NULL?): {T0 of kotlin.internal.ir.CHECK_NOT_NULL & Any} declared in kotlin.internal.ir' type=kotlin.String origin=EXCLEXCL
+            <T0>: @[EnhancedNullability] kotlin.String
+            arg0: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+              $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+              p0: CONST String type=kotlin.String value="blur_intensity"
+              p1: CONST String type=kotlin.String value="MEDIUM"
+        blurStyle: CALL 'public final fun valueOf (value: kotlin.String): com.hieltech.haramblur.data.BlurStyle declared in com.hieltech.haramblur.data.BlurStyle' type=com.hieltech.haramblur.data.BlurStyle origin=null
+          value: CALL 'public final fun CHECK_NOT_NULL <T0> (arg0: T0 of kotlin.internal.ir.CHECK_NOT_NULL?): {T0 of kotlin.internal.ir.CHECK_NOT_NULL & Any} declared in kotlin.internal.ir' type=kotlin.String origin=EXCLEXCL
+            <T0>: @[EnhancedNullability] kotlin.String
+            arg0: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+              $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+              p0: CONST String type=kotlin.String value="blur_style"
+              p1: CONST String type=kotlin.String value="PIXELATED"
+        expandBlurArea: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="expand_blur_area"
+          p1: CONST Int type=kotlin.Int value=30
+        processingSpeed: CALL 'public final fun valueOf (value: kotlin.String): com.hieltech.haramblur.data.ProcessingSpeed declared in com.hieltech.haramblur.data.ProcessingSpeed' type=com.hieltech.haramblur.data.ProcessingSpeed origin=null
+          value: CALL 'public final fun CHECK_NOT_NULL <T0> (arg0: T0 of kotlin.internal.ir.CHECK_NOT_NULL?): {T0 of kotlin.internal.ir.CHECK_NOT_NULL & Any} declared in kotlin.internal.ir' type=kotlin.String origin=EXCLEXCL
+            <T0>: @[EnhancedNullability] kotlin.String
+            arg0: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+              $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+              p0: CONST String type=kotlin.String value="processing_speed"
+              p1: CONST String type=kotlin.String value="BALANCED"
+        enableRealTimeProcessing: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_realtime_processing"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        pauseInApps: BLOCK type=kotlin.collections.Set<kotlin.String> origin=FOLDED_ELVIS
+          WHEN type=kotlin.collections.Set<kotlin.String> origin=FOLDED_ELVIS
+            BRANCH
+              if: COMPOSITE type=kotlin.Boolean origin=null
+                VAR IR_TEMPORARY_VARIABLE name:tmp0_elvis_lhs type:@[FlexibleMutability] kotlin.collections.MutableSet<@[FlexibleNullability] kotlin.String?>? [val]
+                  CALL 'public abstract fun getStringSet (p0: @[FlexibleNullability] kotlin.String?, p1: @[FlexibleMutability] kotlin.collections.MutableSet<@[FlexibleNullability] kotlin.String?>?): @[FlexibleMutability] kotlin.collections.MutableSet<@[FlexibleNullability] kotlin.String?>? declared in android.content.SharedPreferences' type=@[FlexibleMutability] kotlin.collections.MutableSet<@[FlexibleNullability] kotlin.String?>? origin=null
+                    $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                      receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                    p0: CONST String type=kotlin.String value="pause_in_apps"
+                    p1: CALL 'public final fun emptySet <T> (): kotlin.collections.Set<T of kotlin.collections.SetsKt.emptySet> declared in kotlin.collections.SetsKt' type=kotlin.collections.Set<@[FlexibleNullability] kotlin.String?> origin=null
+                      <T>: @[FlexibleNullability] kotlin.String?
+                CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=null
+                  $this: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+                    arg0: GET_VAR 'val tmp0_elvis_lhs: @[FlexibleMutability] kotlin.collections.MutableSet<@[FlexibleNullability] kotlin.String?>? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[FlexibleMutability] kotlin.collections.MutableSet<@[FlexibleNullability] kotlin.String?>? origin=null
+                    arg1: CONST Null type=kotlin.Nothing? value=null
+              then: GET_VAR 'val tmp0_elvis_lhs: @[FlexibleMutability] kotlin.collections.MutableSet<@[FlexibleNullability] kotlin.String?>? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[FlexibleMutability] kotlin.collections.MutableSet<@[FlexibleNullability] kotlin.String?>? origin=null
+            BRANCH
+              if: CONST Boolean type=kotlin.Boolean value=true
+              then: CALL 'public final fun emptySet <T> (): kotlin.collections.Set<T of kotlin.collections.SetsKt.emptySet> declared in kotlin.collections.SetsKt' type=kotlin.collections.Set<kotlin.String> origin=null
+                <T>: kotlin.String
+        enableFullScreenBlurForNSFW: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_fullscreen_nsfw_blur"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        showBlurBorders: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="show_blur_borders"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        enableHoverToReveal: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_hover_reveal"
+          p1: CONST Boolean type=kotlin.Boolean value=false
+        genderDetectionAccuracy: CALL 'public final fun valueOf (value: kotlin.String): com.hieltech.haramblur.data.GenderAccuracy declared in com.hieltech.haramblur.data.GenderAccuracy' type=com.hieltech.haramblur.data.GenderAccuracy origin=null
+          value: CALL 'public final fun CHECK_NOT_NULL <T0> (arg0: T0 of kotlin.internal.ir.CHECK_NOT_NULL?): {T0 of kotlin.internal.ir.CHECK_NOT_NULL & Any} declared in kotlin.internal.ir' type=kotlin.String origin=EXCLEXCL
+            <T0>: @[EnhancedNullability] kotlin.String
+            arg0: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+              $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+              p0: CONST String type=kotlin.String value="gender_detection_accuracy"
+              p1: CONST String type=kotlin.String value="HIGH"
+        isServicePaused: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="is_service_paused"
+          p1: CONST Boolean type=kotlin.Boolean value=false
+        contentDensityThreshold: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="content_density_threshold"
+          p1: CONST Float type=kotlin.Float value=0.4
+        mandatoryReflectionTime: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="mandatory_reflection_time"
+          p1: CONST Int type=kotlin.Int value=15
+        enableSiteBlocking: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_site_blocking"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        enableQuranicGuidance: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_quranic_guidance"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        ultraFastModeEnabled: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="ultra_fast_mode_enabled"
+          p1: CONST Boolean type=kotlin.Boolean value=false
+        fullScreenWarningEnabled: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="fullscreen_warning_enabled"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        maxProcessingTimeMs: CALL 'public abstract fun getLong (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Long): kotlin.Long declared in android.content.SharedPreferences' type=kotlin.Long origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="max_processing_time_ms"
+          p1: CONST Long type=kotlin.Long value=50
+        enableGPUAcceleration: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_gpu_acceleration"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        frameSkipThreshold: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="frame_skip_threshold"
+          p1: CONST Int type=kotlin.Int value=3
+        imageDownscaleRatio: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="image_downscale_ratio"
+          p1: CONST Float type=kotlin.Float value=0.5
+        preferredLanguage: CALL 'public final fun valueOf (value: kotlin.String): com.hieltech.haramblur.detection.Language declared in com.hieltech.haramblur.detection.Language' type=com.hieltech.haramblur.detection.Language origin=null
+          value: CALL 'public final fun CHECK_NOT_NULL <T0> (arg0: T0 of kotlin.internal.ir.CHECK_NOT_NULL?): {T0 of kotlin.internal.ir.CHECK_NOT_NULL & Any} declared in kotlin.internal.ir' type=kotlin.String origin=EXCLEXCL
+            <T0>: @[EnhancedNullability] kotlin.String
+            arg0: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+              $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+              p0: CONST String type=kotlin.String value="preferred_language"
+              p1: CONST String type=kotlin.String value="ENGLISH"
+        verseDisplayDuration: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="verse_display_duration"
+          p1: CONST Int type=kotlin.Int value=10
+        enableArabicText: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_arabic_text"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        customReflectionTime: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="custom_reflection_time"
+          p1: CONST Int type=kotlin.Int value=15
+        genderConfidenceThreshold: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="gender_confidence_threshold"
+          p1: CONST Float type=kotlin.Float value=0.8
+        nsfwConfidenceThreshold: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="nsfw_confidence_threshold"
+          p1: CONST Float type=kotlin.Float value=0.7
+        enableFallbackDetection: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_fallback_detection"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        enablePerformanceMonitoring: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_performance_monitoring"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        enableRegionBasedFullScreen: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        nsfwFullScreenRegionThreshold: COMPOSITE type=kotlin.Int origin=DEFAULT_VALUE
+          CONST Int type=kotlin.Int value=0
+        nsfwHighConfidenceThreshold: COMPOSITE type=kotlin.Float origin=DEFAULT_VALUE
+          CONST Float type=kotlin.Float value=0.0
+        regionDetectionTileSize: COMPOSITE type=kotlin.Int origin=DEFAULT_VALUE
+          CONST Int type=kotlin.Int value=0
+        regionOverlapPercentage: COMPOSITE type=kotlin.Float origin=DEFAULT_VALUE
+          CONST Float type=kotlin.Float value=0.0
+        maxRegionDetectionTime: COMPOSITE type=kotlin.Long origin=DEFAULT_VALUE
+          CONST Long type=kotlin.Long value=0
+        enableDetailedLogging: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        logLevel: COMPOSITE type=com.hieltech.haramblur.data.LogLevel? origin=DEFAULT_VALUE
+          CONST Null type=com.hieltech.haramblur.data.LogLevel? value=null
+        enableLogCategories: COMPOSITE type=kotlin.collections.Set<com.hieltech.haramblur.data.LogCategory>? origin=DEFAULT_VALUE
+          CONST Null type=kotlin.collections.Set<com.hieltech.haramblur.data.LogCategory>? value=null
+        maxLogRetentionDays: COMPOSITE type=kotlin.Int origin=DEFAULT_VALUE
+          CONST Int type=kotlin.Int value=0
+        enablePerformanceLogging: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        enableErrorReporting: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        enableUserActionLogging: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        enableEnhancedBlocking: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        usageStatsPermissionGranted: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        deviceAdminEnabled: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        preferredBlockingMethod: COMPOSITE type=com.hieltech.haramblur.detection.BlockingMethod? origin=DEFAULT_VALUE
+          CONST Null type=com.hieltech.haramblur.detection.BlockingMethod? value=null
+        forceCloseTimeout: COMPOSITE type=kotlin.Long origin=DEFAULT_VALUE
+          CONST Long type=kotlin.Long value=0
+        onboardingCompleted: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        accessibilityServiceEnabled: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        permissionWizardLastShown: COMPOSITE type=kotlin.Long origin=DEFAULT_VALUE
+          CONST Long type=kotlin.Long value=0
+        skipOptionalPermissions: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        currentPreset: COMPOSITE type=kotlin.String? origin=DEFAULT_VALUE
+          CONST Null type=kotlin.String? value=null
+        lastPresetUpdate: COMPOSITE type=kotlin.Long origin=DEFAULT_VALUE
+          CONST Long type=kotlin.Long value=0
+        presetLockEnabled: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+          CONST Boolean type=kotlin.Boolean value=false
+        dhikrEnabled: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_enabled"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        dhikrMorningEnabled: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_morning_enabled"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        dhikrEveningEnabled: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_evening_enabled"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        dhikrAnytimeEnabled: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_anytime_enabled"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        dhikrMorningStart: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_morning_start"
+          p1: CONST Int type=kotlin.Int value=5
+        dhikrMorningEnd: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_morning_end"
+          p1: CONST Int type=kotlin.Int value=10
+        dhikrEveningStart: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_evening_start"
+          p1: CONST Int type=kotlin.Int value=17
+        dhikrEveningEnd: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_evening_end"
+          p1: CONST Int type=kotlin.Int value=22
+        dhikrIntervalMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_interval_minutes"
+          p1: CONST Int type=kotlin.Int value=60
+        dhikrDisplayDuration: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_display_duration"
+          p1: CONST Int type=kotlin.Int value=10
+        dhikrShowTransliteration: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_show_transliteration"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        dhikrShowTranslation: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_show_translation"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        dhikrPosition: BLOCK type=kotlin.String origin=FOLDED_ELVIS
+          WHEN type=kotlin.String origin=FOLDED_ELVIS
+            BRANCH
+              if: COMPOSITE type=kotlin.Boolean origin=null
+                VAR IR_TEMPORARY_VARIABLE name:tmp1_elvis_lhs type:@[EnhancedNullability] kotlin.String? [val]
+                  CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+                    $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                      receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                    p0: CONST String type=kotlin.String value="dhikr_position"
+                    p1: CONST String type=kotlin.String value="TOP_RIGHT"
+                CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=null
+                  $this: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+                    arg0: GET_VAR 'val tmp1_elvis_lhs: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+                    arg1: CONST Null type=kotlin.Nothing? value=null
+              then: GET_VAR 'val tmp1_elvis_lhs: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+            BRANCH
+              if: CONST Boolean type=kotlin.Boolean value=true
+              then: CONST String type=kotlin.String value="TOP_RIGHT"
+        dhikrAnimationEnabled: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_animation_enabled"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        dhikrSoundEnabled: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhikr_sound_enabled"
+          p1: CONST Boolean type=kotlin.Boolean value=false
+        enableIslamicCalendar: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_islamic_calendar"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        enablePrayerTimes: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_prayer_times"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        enablePrayerNotifications: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_prayer_notifications"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        prayerCalculationMethod: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="prayer_calculation_method"
+          p1: CONST Int type=kotlin.Int value=2
+        prayerNotificationAdvanceTime: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="prayer_notification_advance_time"
+          p1: CONST Int type=kotlin.Int value=15
+        locationLatitude: BLOCK type=kotlin.Double? origin=FOLDED_SAFE_CALL
+          WHEN type=kotlin.Double? origin=FOLDED_SAFE_CALL
+            BRANCH
+              if: COMPOSITE type=kotlin.Boolean origin=null
+                VAR IR_TEMPORARY_VARIABLE name:tmp2_safe_receiver type:@[EnhancedNullability] kotlin.String? [val]
+                  CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+                    $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                      receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                    p0: CONST String type=kotlin.String value="location_latitude"
+                    p1: CONST Null type=kotlin.Nothing? value=null
+                CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=null
+                  $this: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+                    arg0: GET_VAR 'val tmp2_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+                    arg1: CONST Null type=kotlin.Nothing? value=null
+              then: CALL 'public final fun toDoubleOrNull (): kotlin.Double? declared in kotlin.text.StringsKt' type=kotlin.Double? origin=null
+                $receiver: GET_VAR 'val tmp2_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+            BRANCH
+              if: CONST Boolean type=kotlin.Boolean value=true
+              then: CONST Null type=kotlin.Nothing? value=null
+        locationLongitude: BLOCK type=kotlin.Double? origin=FOLDED_SAFE_CALL
+          WHEN type=kotlin.Double? origin=FOLDED_SAFE_CALL
+            BRANCH
+              if: COMPOSITE type=kotlin.Boolean origin=null
+                VAR IR_TEMPORARY_VARIABLE name:tmp3_safe_receiver type:@[EnhancedNullability] kotlin.String? [val]
+                  CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+                    $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                      receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                    p0: CONST String type=kotlin.String value="location_longitude"
+                    p1: CONST Null type=kotlin.Nothing? value=null
+                CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=null
+                  $this: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+                    arg0: GET_VAR 'val tmp3_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+                    arg1: CONST Null type=kotlin.Nothing? value=null
+              then: CALL 'public final fun toDoubleOrNull (): kotlin.Double? declared in kotlin.text.StringsKt' type=kotlin.Double? origin=null
+                $receiver: GET_VAR 'val tmp3_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+            BRANCH
+              if: CONST Boolean type=kotlin.Boolean value=true
+              then: CONST Null type=kotlin.Nothing? value=null
+        locationCity: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="location_city"
+          p1: CONST Null type=kotlin.Nothing? value=null
+        locationCountry: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="location_country"
+          p1: CONST Null type=kotlin.Nothing? value=null
+        locationCountryCode: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="location_country_code"
+          p1: CONST Null type=kotlin.Nothing? value=null
+        enableQiblaDirection: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_qibla_direction"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        prayerTimesUpdateInterval: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="prayer_times_update_interval"
+          p1: CONST Int type=kotlin.Int value=30
+        islamicCalendarUpdateInterval: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="islamic_calendar_update_interval"
+          p1: CONST Int type=kotlin.Int value=60
+        autoDetectLocation: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="auto_detect_location"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        locationMethod: TRY type=com.hieltech.haramblur.data.LocationMethod
+          try: BLOCK type=com.hieltech.haramblur.data.LocationMethod origin=null
+            CALL 'public final fun valueOf (value: kotlin.String): com.hieltech.haramblur.data.LocationMethod declared in com.hieltech.haramblur.data.LocationMethod' type=com.hieltech.haramblur.data.LocationMethod origin=null
+              value: CALL 'public final fun CHECK_NOT_NULL <T0> (arg0: T0 of kotlin.internal.ir.CHECK_NOT_NULL?): {T0 of kotlin.internal.ir.CHECK_NOT_NULL & Any} declared in kotlin.internal.ir' type=kotlin.String origin=EXCLEXCL
+                <T0>: @[EnhancedNullability] kotlin.String
+                arg0: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+                  $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                    receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                  p0: CONST String type=kotlin.String value="location_method"
+                  p1: CONST String type=kotlin.String value="GPS"
+          CATCH parameter=val e: java.lang.IllegalArgumentException [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings
+            VAR CATCH_PARAMETER name:e type:java.lang.IllegalArgumentException [val]
+            BLOCK type=com.hieltech.haramblur.data.LocationMethod origin=null
+              GET_FIELD 'FIELD FIELD_FOR_ENUM_ENTRY name:GPS type:com.hieltech.haramblur.data.LocationMethod visibility:public [final,static] declared in com.hieltech.haramblur.data.LocationMethod' type=com.hieltech.haramblur.data.LocationMethod origin=null
+        locationAccuracy: BLOCK type=kotlin.Float? origin=FOLDED_SAFE_CALL
+          WHEN type=kotlin.Float? origin=FOLDED_SAFE_CALL
+            BRANCH
+              if: COMPOSITE type=kotlin.Boolean origin=null
+                VAR IR_TEMPORARY_VARIABLE name:tmp4_safe_receiver type:@[EnhancedNullability] kotlin.String? [val]
+                  CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+                    $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                      receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                    p0: CONST String type=kotlin.String value="location_accuracy"
+                    p1: CONST Null type=kotlin.Nothing? value=null
+                CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=null
+                  $this: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+                    arg0: GET_VAR 'val tmp4_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+                    arg1: CONST Null type=kotlin.Nothing? value=null
+              then: CALL 'public final fun toFloatOrNull (): kotlin.Float? declared in kotlin.text.StringsKt' type=kotlin.Float? origin=null
+                $receiver: GET_VAR 'val tmp4_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+            BRANCH
+              if: CONST Boolean type=kotlin.Boolean value=true
+              then: CONST Null type=kotlin.Nothing? value=null
+        locationLastUpdated: CALL 'public final fun let <T, R> (block: kotlin.Function1<T of kotlin.StandardKt.let, R of kotlin.StandardKt.let>): R of kotlin.StandardKt.let [inline] declared in kotlin.StandardKt' type=kotlin.Long? origin=null
+          <T>: kotlin.Long
+          <R>: kotlin.Long?
+          $receiver: CALL 'public abstract fun getLong (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Long): kotlin.Long declared in android.content.SharedPreferences' type=kotlin.Long origin=null
+            $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+              receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+            p0: CONST String type=kotlin.String value="location_last_updated"
+            p1: CONST Long type=kotlin.Long value=0
+          block: BLOCK type=kotlin.Function1<kotlin.Long, kotlin.Long?> origin=LAMBDA
+            COMPOSITE type=kotlin.Unit origin=null
+            FUNCTION_REFERENCE 'private final fun loadSettings$lambda$0 (it: kotlin.Long): kotlin.Long? declared in com.hieltech.haramblur.data.SettingsRepository' type=kotlin.Function1<kotlin.Long, kotlin.Long?> origin=INLINE_LAMBDA reflectionTarget=null
+        locationPermissionStatus: TRY type=com.hieltech.haramblur.data.LocationPermissionStatus
+          try: BLOCK type=com.hieltech.haramblur.data.LocationPermissionStatus origin=null
+            CALL 'public final fun valueOf (value: kotlin.String): com.hieltech.haramblur.data.LocationPermissionStatus declared in com.hieltech.haramblur.data.LocationPermissionStatus' type=com.hieltech.haramblur.data.LocationPermissionStatus origin=null
+              value: CALL 'public final fun CHECK_NOT_NULL <T0> (arg0: T0 of kotlin.internal.ir.CHECK_NOT_NULL?): {T0 of kotlin.internal.ir.CHECK_NOT_NULL & Any} declared in kotlin.internal.ir' type=kotlin.String origin=EXCLEXCL
+                <T0>: @[EnhancedNullability] kotlin.String
+                arg0: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+                  $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                    receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                  p0: CONST String type=kotlin.String value="location_permission_status"
+                  p1: CONST String type=kotlin.String value="UNKNOWN"
+          CATCH parameter=val e: java.lang.IllegalArgumentException [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings
+            VAR CATCH_PARAMETER name:e type:java.lang.IllegalArgumentException [val]
+            BLOCK type=com.hieltech.haramblur.data.LocationPermissionStatus origin=null
+              GET_FIELD 'FIELD FIELD_FOR_ENUM_ENTRY name:UNKNOWN type:com.hieltech.haramblur.data.LocationPermissionStatus visibility:public [final,static] declared in com.hieltech.haramblur.data.LocationPermissionStatus' type=com.hieltech.haramblur.data.LocationPermissionStatus origin=null
+        preferredCity: COMPOSITE type=kotlin.String? origin=DEFAULT_VALUE
+          CONST Null type=kotlin.String? value=null
+        preferredCountry: COMPOSITE type=kotlin.String? origin=DEFAULT_VALUE
+          CONST Null type=kotlin.String? value=null
+        hijriCalendarMethod: COMPOSITE type=kotlin.String? origin=DEFAULT_VALUE
+          CONST Null type=kotlin.String? value=null
+        selectedCityName: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="selected_city_name"
+          p1: CONST Null type=kotlin.Nothing? value=null
+        selectedCountry: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="selected_country"
+          p1: CONST Null type=kotlin.Nothing? value=null
+        selectedCountryCode: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="selected_country_code"
+          p1: CONST Null type=kotlin.Nothing? value=null
+        selectedLatitude: BLOCK type=kotlin.Double? origin=FOLDED_SAFE_CALL
+          WHEN type=kotlin.Double? origin=FOLDED_SAFE_CALL
+            BRANCH
+              if: COMPOSITE type=kotlin.Boolean origin=null
+                VAR IR_TEMPORARY_VARIABLE name:tmp5_safe_receiver type:@[EnhancedNullability] kotlin.String? [val]
+                  CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+                    $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                      receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                    p0: CONST String type=kotlin.String value="selected_latitude"
+                    p1: CONST Null type=kotlin.Nothing? value=null
+                CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=null
+                  $this: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+                    arg0: GET_VAR 'val tmp5_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+                    arg1: CONST Null type=kotlin.Nothing? value=null
+              then: CALL 'public final fun toDoubleOrNull (): kotlin.Double? declared in kotlin.text.StringsKt' type=kotlin.Double? origin=null
+                $receiver: GET_VAR 'val tmp5_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+            BRANCH
+              if: CONST Boolean type=kotlin.Boolean value=true
+              then: CONST Null type=kotlin.Nothing? value=null
+        selectedLongitude: BLOCK type=kotlin.Double? origin=FOLDED_SAFE_CALL
+          WHEN type=kotlin.Double? origin=FOLDED_SAFE_CALL
+            BRANCH
+              if: COMPOSITE type=kotlin.Boolean origin=null
+                VAR IR_TEMPORARY_VARIABLE name:tmp6_safe_receiver type:@[EnhancedNullability] kotlin.String? [val]
+                  CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+                    $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                      receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                    p0: CONST String type=kotlin.String value="selected_longitude"
+                    p1: CONST Null type=kotlin.Nothing? value=null
+                CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=null
+                  $this: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+                    arg0: GET_VAR 'val tmp6_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+                    arg1: CONST Null type=kotlin.Nothing? value=null
+              then: CALL 'public final fun toDoubleOrNull (): kotlin.Double? declared in kotlin.text.StringsKt' type=kotlin.Double? origin=null
+                $receiver: GET_VAR 'val tmp6_safe_receiver: @[EnhancedNullability] kotlin.String? [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=@[EnhancedNullability] kotlin.String? origin=null
+            BRANCH
+              if: CONST Boolean type=kotlin.Boolean value=true
+              then: CONST Null type=kotlin.Nothing? value=null
+        enableCitySearchCache: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_city_search_cache"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        enableOfflineCityFallback: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_offline_city_fallback"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        preferStoredCoordinates: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="prefer_stored_coordinates"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        fajrOffsetMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="fajr_offset_minutes"
+          p1: CONST Int type=kotlin.Int value=0
+        sunriseOffsetMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="sunrise_offset_minutes"
+          p1: CONST Int type=kotlin.Int value=0
+        dhuhrOffsetMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="dhuhr_offset_minutes"
+          p1: CONST Int type=kotlin.Int value=0
+        asrOffsetMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="asr_offset_minutes"
+          p1: CONST Int type=kotlin.Int value=0
+        maghribOffsetMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="maghrib_offset_minutes"
+          p1: CONST Int type=kotlin.Int value=0
+        ishaOffsetMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="isha_offset_minutes"
+          p1: CONST Int type=kotlin.Int value=0
+        enablePrayerHistory: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_prayer_history"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        prayerHistoryRetentionDays: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="prayer_history_retention_days"
+          p1: CONST Int type=kotlin.Int value=60
+        prayerCacheTtlMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="prayer_cache_ttl_minutes"
+          p1: CONST Int type=kotlin.Int value=30
+        locationStaleAfterMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="location_stale_after_minutes"
+          p1: CONST Int type=kotlin.Int value=60
+        strictPrayerAccuracyValidation: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="strict_prayer_accuracy_validation"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        maxAllowedPrayerShiftMinutes: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="max_allowed_prayer_shift_minutes"
+          p1: CONST Int type=kotlin.Int value=20
+        gpsAccuracyHighThresholdM: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="gps_accuracy_high_threshold_m"
+          p1: CONST Float type=kotlin.Float value=30.0
+        gpsAccuracyMediumThresholdM: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="gps_accuracy_medium_threshold_m"
+          p1: CONST Float type=kotlin.Float value=100.0
+        gpsAccuracyLowThresholdM: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="gps_accuracy_low_threshold_m"
+          p1: CONST Float type=kotlin.Float value=300.0
+        qiblaCompassEnabled: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="qibla_compass_enabled"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        compassCalibrationReminders: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="compass_calibration_reminders"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        compassHapticFeedback: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="compass_haptic_feedback"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        compassShowDegreeMarkings: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="compass_show_degree_markings"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        compassSensitivity: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="compass_sensitivity"
+          p1: CONST Float type=kotlin.Float value=1.0
+        compassAccuracyThreshold: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="compass_accuracy_threshold"
+          p1: CONST Float type=kotlin.Float value=20.0
+        qiblaToleranceDegrees: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="qibla_tolerance_degrees"
+          p1: CONST Float type=kotlin.Float value=5.0
+        compassAnimationSpeed: CALL 'public abstract fun getFloat (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Float): kotlin.Float declared in android.content.SharedPreferences' type=kotlin.Float origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="compass_animation_speed"
+          p1: CONST Float type=kotlin.Float value=1.0
+        lastCompassCalibration: CALL 'public abstract fun getLong (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Long): kotlin.Long declared in android.content.SharedPreferences' type=kotlin.Long origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="last_compass_calibration"
+          p1: CONST Long type=kotlin.Long value=0
+        compassPreferredSize: TRY type=com.hieltech.haramblur.data.compass.CompassSize
+          try: BLOCK type=com.hieltech.haramblur.data.compass.CompassSize origin=null
+            CALL 'public final fun valueOf (value: kotlin.String): com.hieltech.haramblur.data.compass.CompassSize declared in com.hieltech.haramblur.data.compass.CompassSize' type=com.hieltech.haramblur.data.compass.CompassSize origin=null
+              value: CALL 'public final fun CHECK_NOT_NULL <T0> (arg0: T0 of kotlin.internal.ir.CHECK_NOT_NULL?): {T0 of kotlin.internal.ir.CHECK_NOT_NULL & Any} declared in kotlin.internal.ir' type=kotlin.String origin=EXCLEXCL
+                <T0>: @[EnhancedNullability] kotlin.String
+                arg0: CALL 'public abstract fun getString (p0: @[FlexibleNullability] kotlin.String?, p1: @[EnhancedNullability] kotlin.String?): @[EnhancedNullability] kotlin.String? declared in android.content.SharedPreferences' type=@[EnhancedNullability] kotlin.String? origin=null
+                  $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+                    receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+                  p0: CONST String type=kotlin.String value="compass_preferred_size"
+                  p1: CONST String type=kotlin.String value="MEDIUM"
+          CATCH parameter=val e: java.lang.IllegalArgumentException [val] declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings
+            VAR CATCH_PARAMETER name:e type:java.lang.IllegalArgumentException [val]
+            BLOCK type=com.hieltech.haramblur.data.compass.CompassSize origin=null
+              GET_FIELD 'FIELD FIELD_FOR_ENUM_ENTRY name:MEDIUM type:com.hieltech.haramblur.data.compass.CompassSize visibility:public [final,static] declared in com.hieltech.haramblur.data.compass.CompassSize' type=com.hieltech.haramblur.data.compass.CompassSize origin=null
+        enableMagneticDeclination: CALL 'public abstract fun getBoolean (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Boolean): kotlin.Boolean declared in android.content.SharedPreferences' type=kotlin.Boolean origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="enable_magnetic_declination"
+          p1: CONST Boolean type=kotlin.Boolean value=true
+        compassUpdateRate: CALL 'public abstract fun getInt (p0: @[FlexibleNullability] kotlin.String?, p1: kotlin.Int): kotlin.Int declared in android.content.SharedPreferences' type=kotlin.Int origin=null
+          $this: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:prefs type:android.content.SharedPreferences visibility:private [final]' type=android.content.SharedPreferences origin=null
+            receiver: GET_VAR '<this>: com.hieltech.haramblur.data.SettingsRepository declared in com.hieltech.haramblur.data.SettingsRepository.loadSettings' type=com.hieltech.haramblur.data.SettingsRepository origin=null
+          p0: CONST String type=kotlin.String value="compass_update_rate"
+          p1: CONST Int type=kotlin.Int value=15
+        settingsVersion: COMPOSITE type=kotlin.Int origin=DEFAULT_VALUE
+          CONST Int type=kotlin.Int value=0
+        $mask0: CONST Int type=kotlin.Int value=1
+        $mask1: CONST Int type=kotlin.Int value=268435448
+        $mask2: CONST Int type=kotlin.Int value=-536870912
+        $mask3: CONST Int type=kotlin.Int value=0
+        $mask4: CONST Int type=kotlin.Int value=8
+        $marker: CONST Null type=kotlin.jvm.internal.DefaultConstructorMarker? value=null
+
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate(FunctionCodegen.kt:47)
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate$default(FunctionCodegen.kt:40)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethodNode(ClassCodegen.kt:406)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethod(ClassCodegen.kt:423)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generate(ClassCodegen.kt:168)
+	at org.jetbrains.kotlin.backend.jvm.FileCodegen.lower(JvmPhases.kt:39)
+	at org.jetbrains.kotlin.backend.common.phaser.PhaseFactoriesKt.createFilePhase$lambda$4(PhaseFactories.kt:71)
+	at org.jetbrains.kotlin.backend.common.phaser.PhaseBuildersKt$createSimpleNamedCompilerPhase$1.phaseBody(PhaseBuilders.kt:69)
+	at org.jetbrains.kotlin.backend.common.phaser.SimpleNamedCompilerPhase.phaseBody(CompilerPhase.kt:226)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invokeSequential(performByIrFile.kt:62)
+	... 45 more
+Caused by: org.jetbrains.kotlin.codegen.CompilationException: Back-end (JVM) Internal error: Couldn't inline method call: CALL 'public final fun let <T, R> (block: kotlin.Function1<T of kotlin.StandardKt.let, R of kotlin.StandardKt.let>): R of kotlin.StandardKt.let [inline] declared in kotlin.StandardKt' type=kotlin.Long? origin=null
+File is unknown
+The root cause org.jetbrains.kotlin.codegen.inline.InlineException was thrown at: org.jetbrains.kotlin.codegen.inline.MethodInliner.wrapException(MethodInliner.kt:1123)
+	at org.jetbrains.kotlin.codegen.inline.InlineCodegen.performInline(InlineCodegen.kt:60)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrInlineCodegen.genInlineCall(IrInlineCodegen.kt:163)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrInlineCallGenerator.genCall(IrInlineCallGenerator.kt:36)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:653)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:138)
+	at org.jetbrains.kotlin.ir.expressions.IrCall.accept(IrCall.kt:24)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.gen(ExpressionCodegen.kt:217)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.generateConstructorArguments(ExpressionCodegen.kt:771)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitConstructorCall(ExpressionCodegen.kt:759)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitConstructorCall(ExpressionCodegen.kt:138)
+	at org.jetbrains.kotlin.ir.expressions.IrConstructorCall.accept(IrConstructorCall.kt:27)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitReturn(ExpressionCodegen.kt:1051)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitReturn(ExpressionCodegen.kt:138)
+	at org.jetbrains.kotlin.ir.expressions.IrReturn.accept(IrReturn.kt:24)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitStatementContainer(ExpressionCodegen.kt:579)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlockBody(ExpressionCodegen.kt:584)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlockBody(ExpressionCodegen.kt:138)
+	at org.jetbrains.kotlin.ir.expressions.IrBlockBody.accept(IrBlockBody.kt:20)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.generate(ExpressionCodegen.kt:240)
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.doGenerate(FunctionCodegen.kt:123)
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate(FunctionCodegen.kt:44)
+	... 55 more
+Caused by: org.jetbrains.kotlin.codegen.inline.InlineException: Lambda inlining com/hieltech/haramblur/data/SettingsRepository$loadSettings$1: couldn't inline method call
+Cause: loadSettings$lambda$0 (J)Ljava/lang/Long;:
+   L0
+    ICONST_0
+    ISTORE 2
+   L1
+    LINENUMBER 129 L1
+    LLOAD 0
+    LCONST_0
+    LCMP
+    IFGT L2
+    ACONST_NULL
+    GOTO L3
+   L2
+    LLOAD 0
+    INVOKESTATIC java/lang/Long.valueOf (J)Ljava/lang/Long;
+   L3
+    ARETURN
+    NOP
+   L4
+    LOCALVARIABLE $i$a$-let-SettingsRepository$loadSettings$1 I L1 L4 2
+    LOCALVARIABLE it J L0 L4 0
+    MAXSTACK = 4
+    MAXLOCALS = 3
+
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.wrapException(MethodInliner.kt:1123)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.preprocessNodeBeforeInline(MethodInliner.kt:906)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.markPlacesForInlineAndRemoveInlinable(MethodInliner.kt:612)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:93)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.access$doInline(MethodInliner.kt:41)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner$doInline$lambdaInliner$1.visitMethodInsn(MethodInliner.kt:353)
+	at org.jetbrains.org.objectweb.asm.tree.MethodInsnNode.accept(MethodInsnNode.java:115)
+	at org.jetbrains.org.objectweb.asm.tree.InsnList.accept(InsnList.java:144)
+	at org.jetbrains.org.objectweb.asm.tree.MethodNode.accept(MethodNode.java:751)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:433)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:98)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:72)
+	at org.jetbrains.kotlin.codegen.inline.InlineCodegen.inlineCall(InlineCodegen.kt:127)
+	at org.jetbrains.kotlin.codegen.inline.InlineCodegen.performInline(InlineCodegen.kt:52)
+	... 75 more
+Caused by: java.lang.OutOfMemoryError: GC overhead limit exceeded
+
+

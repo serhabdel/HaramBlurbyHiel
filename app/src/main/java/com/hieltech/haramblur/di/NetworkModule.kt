@@ -4,6 +4,8 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.hieltech.haramblur.data.api.AladhanApiService
+import com.hieltech.haramblur.data.cities.CitiesApiService
+import com.hieltech.haramblur.data.cities.CitiesRepository
 import com.hieltech.haramblur.utils.LocationHelper
 import dagger.Module
 import dagger.Provides
@@ -17,6 +19,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import javax.inject.Named
 
 /**
  * Network module for dependency injection
@@ -74,8 +77,55 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideAladhanApiService(retrofit: Retrofit): AladhanApiService {
+    @Named("aladhan")
+    fun provideAladhanRetrofit(
+        okHttpClient: OkHttpClient,
+        gson: Gson
+    ): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+    }
+
+    // Separate Retrofit for Nominatim (different base URL)
+    @Provides
+    @Singleton
+    @Named("nominatim")
+    fun provideNominatimRetrofit(
+        okHttpClient: OkHttpClient,
+        gson: Gson
+    ): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(CitiesApiService.NOMINATIM_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAladhanApiService(@Named("aladhan") retrofit: Retrofit): AladhanApiService {
         return retrofit.create(AladhanApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCitiesApiService(
+        @Named("nominatim") retrofit: Retrofit
+    ): CitiesApiService {
+        return retrofit.create(CitiesApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCitiesRepository(
+        @ApplicationContext context: Context,
+        citiesApiService: CitiesApiService,
+        gson: Gson
+    ): CitiesRepository {
+        return CitiesRepository(context, citiesApiService, gson)
     }
 
     @Provides

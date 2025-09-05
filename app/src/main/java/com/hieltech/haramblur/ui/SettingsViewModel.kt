@@ -5,9 +5,15 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieltech.haramblur.data.*
+import com.hieltech.haramblur.utils.LocationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import javax.inject.Inject
@@ -16,10 +22,16 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     @ApplicationContext private val context: Context,
-    private val logRepository: LogRepository
+    private val logRepository: LogRepository,
+    private val prayerTimesRepository: PrayerTimesRepository
 ) : ViewModel() {
     
     val settings: StateFlow<AppSettings> = settingsRepository.settings
+    private val locationHelper: LocationHelper = LocationHelper(context)
+    
+    // One-time events for UI (activity recreation on language change)
+    private val _languageChangeEvents = MutableSharedFlow<Unit>(replay = 0)
+    val languageChangeEvents: SharedFlow<Unit> = _languageChangeEvents.asSharedFlow()
     
     fun updateFaceDetection(enabled: Boolean) {
         viewModelScope.launch {
@@ -216,8 +228,28 @@ class SettingsViewModel @Inject constructor(
     
     fun updatePreferredLanguage(language: com.hieltech.haramblur.detection.Language) {
         viewModelScope.launch {
-            val current = settings.value
-            settingsRepository.updateSettings(current.copy(preferredLanguage = language))
+            // Persist synchronously in repository (updates StateFlow and commits SharedPreferences)
+            settingsRepository.persistPreferredLanguageSync(language)
+            
+            // Log the language change
+            logRepository.logInfo("Language changed to: ${language.displayName}", "SettingsViewModel")
+            // Persist then trigger recreation so attachBaseContext() applies the locale
+            try {
+                android.util.Log.d("SettingsViewModel", "Persisted language; requesting activity recreation")
+                
+                // Optional verification: read-back and ensure it matches
+                val verified = try {
+                    val prefs = context.getSharedPreferences("haramblur_settings", Context.MODE_PRIVATE)
+                    val stored = prefs.getString("preferred_language", null)
+                    stored == language.name
+                } catch (e: Exception) { false }
+                android.util.Log.d("SettingsViewModel", "Language persistence verification: $verified for ${language.name}")
+                
+                // Emit recreation event (suspending) after ensuring persistence
+                _languageChangeEvents.emit(Unit)
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Error updating locale", e)
+            }
         }
     }
     
@@ -779,6 +811,34 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    
+
+    // City selection (OpenStreetMap) methods
+    fun updateSelectedCity(selection: com.hieltech.haramblur.data.cities.CitySelection) {
+        viewModelScope.launch {
+            val current = settings.value
+            val updated = current.copy(
+                selectedCityName = selection.name,
+                selectedCountry = selection.country,
+                selectedCountryCode = selection.countryCode,
+                selectedLatitude = selection.latitude,
+                selectedLongitude = selection.longitude,
+                // Keep legacy fields for backward compatibility in any UI still reading them
+                preferredCity = selection.name,
+                preferredCountry = selection.country,
+                // Switch to manual city mode on selection
+                locationMethod = LocationMethod.MANUAL_CITY,
+                // If coordinates were provided with the selection, prefer them for more accuracy
+                preferStoredCoordinates = selection.latitude != null && selection.longitude != null
+            )
+            settingsRepository.updateSettings(updated)
+            // Invalidate cached prayer times so the widget and screens refresh immediately
+            prayerTimesRepository.invalidateCache()
+            // Trigger immediate refresh for reactive consumers
+            prayerTimesRepository.triggerRefresh()
+        }
+    }
+
     fun updateCalculationMethod(method: Int) {
         viewModelScope.launch {
             val current = settings.value
@@ -793,11 +853,130 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // City search and storage preferences
+    fun updatePreferStoredCoordinates(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(preferStoredCoordinates = enabled))
+        }
+    }
+
+    fun updateEnableCitySearchCache(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableCitySearchCache = enabled))
+        }
+    }
+
+    fun updateEnableOfflineCityFallback(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableOfflineCityFallback = enabled))
+        }
+    }
+
     // Location Settings Methods
     fun updateAutoDetectLocation(enabled: Boolean) {
         viewModelScope.launch {
             val current = settings.value
             settingsRepository.updateSettings(current.copy(autoDetectLocation = enabled))
+        }
+    }
+
+    /**
+     * Explicitly set the preferred location method (GPS vs Manual City)
+     */
+    fun updateLocationMethod(method: LocationMethod) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(locationMethod = method))
+        }
+    }
+
+    /**
+     * Sync the tracked permission status from the system.
+     */
+    fun syncLocationPermissionStatus() {
+        viewModelScope.launch {
+            val status = locationHelper.getLocationPermissionStatus()
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(locationPermissionStatus = status))
+        }
+    }
+
+    /**
+     * Try to fetch the best available location and persist coordinates, accuracy and timestamp.
+     */
+    fun refreshLocation() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val permission = locationHelper.getLocationPermissionStatus()
+            val current = settings.value
+            if (permission != LocationPermissionStatus.GRANTED) {
+                settingsRepository.updateSettings(current.copy(locationPermissionStatus = permission))
+                return@launch
+            }
+
+            val loc = locationHelper.getBestLocation()
+            val updated = if (loc != null) {
+                val ts = System.currentTimeMillis()
+                current.copy(
+                    locationLatitude = loc.latitude,
+                    locationLongitude = loc.longitude,
+                    // Keep existing city/country if we don't have reverse geocode here
+                    locationAccuracy = loc.accuracy,
+                    locationLastUpdated = ts,
+                    locationPermissionStatus = LocationPermissionStatus.GRANTED
+                )
+            } else {
+                current.copy(locationPermissionStatus = permission)
+            }
+            settingsRepository.updateSettings(updated)
+        }
+    }
+
+    /**
+     * Clear stored location coordinates and accuracy.
+     */
+    fun clearLocationData() {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(
+                current.copy(
+                    locationLatitude = null,
+                    locationLongitude = null,
+                    locationAccuracy = null,
+                    locationLastUpdated = null
+                )
+            )
+        }
+    }
+
+    /**
+     * Helper: get current accuracy tier for UI.
+     */
+    fun getLocationAccuracyTier(): LocationAccuracy {
+        return locationHelper.classifyAccuracy(settings.value.locationAccuracy)
+    }
+
+    /**
+     * Helper: status summary string for UI.
+     */
+    fun getLocationStatusSummary(): String {
+        val s = settings.value
+        return when (s.locationMethod) {
+            LocationMethod.GPS -> {
+                val perm = s.locationPermissionStatus
+                if (perm != LocationPermissionStatus.GRANTED) "GPS permission not granted"
+                else if (s.locationLatitude != null && s.locationLongitude != null) {
+                    val acc = s.locationAccuracy?.let { "±${it.toInt()}m" } ?: ""
+                    "GPS: ${"%.4f".format(s.locationLatitude)} , ${"%.4f".format(s.locationLongitude)} $acc"
+                } else "GPS location unavailable"
+            }
+            LocationMethod.MANUAL_CITY -> {
+                val name = s.selectedCityName ?: s.preferredCity
+                val country = s.selectedCountry ?: s.preferredCountry
+                if (name != null) "Manual: $name${if (!country.isNullOrBlank()) ", $country" else ""}" else "Manual city not selected"
+            }
         }
     }
 
@@ -847,4 +1026,123 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.updateSettings(current.copy(enableQiblaDirection = enabled))
         }
     }
+
+    // Compass Settings Methods
+    fun updateQiblaCompassEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(qiblaCompassEnabled = enabled))
+        }
+    }
+
+    fun updateCompassCalibrationReminders(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(compassCalibrationReminders = enabled))
+        }
+    }
+
+    fun updateCompassHapticFeedback(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(compassHapticFeedback = enabled))
+        }
+    }
+
+    fun updateCompassShowDegreeMarkings(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(compassShowDegreeMarkings = enabled))
+        }
+    }
+
+    fun updateCompassSensitivity(value: Float) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(compassSensitivity = value))
+        }
+    }
+
+    fun updateCompassAccuracyThreshold(value: Float) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(compassAccuracyThreshold = value))
+        }
+    }
+
+    fun updateQiblaToleranceDegrees(value: Float) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(qiblaToleranceDegrees = value))
+        }
+    }
+
+    fun updateCompassAnimationSpeed(value: Float) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(compassAnimationSpeed = value))
+        }
+    }
+
+    fun updateCompassPreferredSize(size: com.hieltech.haramblur.data.compass.CompassSize) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(compassPreferredSize = size))
+        }
+    }
+
+    fun updateEnableMagneticDeclination(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableMagneticDeclination = enabled))
+        }
+    }
+
+    fun updateCompassUpdateRate(hz: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(compassUpdateRate = hz))
+        }
+    }
+
+    fun markCompassCalibrated() {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(lastCompassCalibration = System.currentTimeMillis()))
+        }
+    }
+
+    // --- Islamic features health & recovery (lightweight stubs for integration) ---
+    data class IslamicFeaturesStatus(
+        val locationOk: Boolean,
+        val sensorsOk: Boolean,
+        val permissionsOk: Boolean,
+        val apiOk: Boolean,
+        val offlineMode: Boolean
+    )
+
+    fun getIslamicFeaturesStatus(): IslamicFeaturesStatus {
+        val s = settings.value
+        val locationOk = (s.locationLatitude != null && s.locationLongitude != null) || s.locationMethod == LocationMethod.MANUAL_CITY
+        val sensorsOk = true // Placeholder; real sensor health is tracked by compass VM
+        val permissionsOk = s.locationPermissionStatus == LocationPermissionStatus.GRANTED || s.locationMethod == LocationMethod.MANUAL_CITY
+        val apiOk = true // Placeholder; real API status tracked in repositories
+        val offline = false
+        return IslamicFeaturesStatus(locationOk, sensorsOk, permissionsOk, apiOk, offline)
+    }
+
+    fun recoverIslamicFeatures() {
+        // Minimal recovery attempts
+        viewModelScope.launch {
+            runCatching { syncLocationPermissionStatus() }
+            runCatching { if (settings.value.locationMethod == LocationMethod.GPS) refreshLocation() }
+        }
+    }
+
+    fun showIslamicFeatureMessage(message: String) {
+        viewModelScope.launch {
+            logRepository.logInfo("IslamicFeatures", message)
+        }
+    }
+
 }

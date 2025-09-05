@@ -19,9 +19,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         BlockingPreferencesEntity::class,
         QuranicVerseEntity::class,
         FalsePositiveEntity::class,
-        LogEntity::class
+        LogEntity::class,
+        PrayerTimesEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -34,6 +35,7 @@ abstract class SiteBlockingDatabase : RoomDatabase() {
     abstract fun quranicVerseDao(): QuranicVerseDao
     abstract fun falsePositiveDao(): FalsePositiveDao
     abstract fun logDao(): LogDao
+    abstract fun prayerTimesDao(): PrayerTimesDao
     
     companion object {
         private const val DATABASE_NAME = "site_blocking_database"
@@ -212,6 +214,46 @@ abstract class SiteBlockingDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from version 3 to 4: Add prayer_times table
+        private val MIGRATION_3_4 = Migration(3, 4) { database ->
+            // Create prayer_times table
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS prayer_times (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date_millis INTEGER NOT NULL,
+                    lat REAL NOT NULL,
+                    lon REAL NOT NULL,
+                    tz_id TEXT NOT NULL,
+                    method TEXT NOT NULL,
+                    asr_madhab TEXT,
+                    fajr INTEGER NOT NULL,
+                    sunrise INTEGER NOT NULL,
+                    dhuhr INTEGER NOT NULL,
+                    asr INTEGER NOT NULL,
+                    maghrib INTEGER NOT NULL,
+                    isha INTEGER NOT NULL,
+                    fajr_offset_min INTEGER NOT NULL DEFAULT 0,
+                    sunrise_offset_min INTEGER NOT NULL DEFAULT 0,
+                    dhuhr_offset_min INTEGER NOT NULL DEFAULT 0,
+                    asr_offset_min INTEGER NOT NULL DEFAULT 0,
+                    maghrib_offset_min INTEGER NOT NULL DEFAULT 0,
+                    isha_offset_min INTEGER NOT NULL DEFAULT 0,
+                    gps_accuracy_m REAL,
+                    location_source TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+                """
+            )
+
+            // Indexes
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_prayer_times_date_millis ON prayer_times(date_millis)")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_prayer_times_lat_lon ON prayer_times(lat, lon)")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_prayer_times_method ON prayer_times(method)")
+            database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_prayer_times_unique ON prayer_times(date_millis, lat, lon, method)")
+        }
+
         @Volatile
         private var INSTANCE: SiteBlockingDatabase? = null
         
@@ -222,7 +264,7 @@ abstract class SiteBlockingDatabase : RoomDatabase() {
                     SiteBlockingDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .addCallback(DatabaseCallback())
                     .build()
                 INSTANCE = instance

@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
+import com.hieltech.haramblur.detection.Language
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +28,7 @@ class SettingsRepository @Inject constructor(
     companion object {
         private const val TAG = "SettingsRepository"
         private const val SETTINGS_VERSION_KEY = "settings_version"
-        private const val CURRENT_SETTINGS_VERSION = 2
+        private const val CURRENT_SETTINGS_VERSION = 7
     }
     
     private val _settings = MutableStateFlow(loadSettingsWithMigration())
@@ -98,13 +99,86 @@ class SettingsRepository @Inject constructor(
             dhikrMorningEnd = prefs.getInt("dhikr_morning_end", 10),
             dhikrEveningStart = prefs.getInt("dhikr_evening_start", 17),
             dhikrEveningEnd = prefs.getInt("dhikr_evening_end", 22),
-            dhikrIntervalMinutes = prefs.getInt("dhikr_interval_minutes", 60),
-            dhikrDisplayDuration = prefs.getInt("dhikr_display_duration", 10),
+            dhikrIntervalMinutes = prefs.getInt("dhikr_interval_minutes", 15),
+            dhikrDisplayDuration = prefs.getInt("dhikr_display_duration", 30),
             dhikrShowTransliteration = prefs.getBoolean("dhikr_show_transliteration", true),
             dhikrShowTranslation = prefs.getBoolean("dhikr_show_translation", true),
             dhikrPosition = prefs.getString("dhikr_position", "TOP_RIGHT") ?: "TOP_RIGHT",
             dhikrAnimationEnabled = prefs.getBoolean("dhikr_animation_enabled", true),
-            dhikrSoundEnabled = prefs.getBoolean("dhikr_sound_enabled", false)
+            dhikrSoundEnabled = prefs.getBoolean("dhikr_sound_enabled", false),
+
+            // Islamic Calendar & Prayer Times (persist previously missing fields)
+            enableIslamicCalendar = prefs.getBoolean("enable_islamic_calendar", true),
+            enablePrayerTimes = prefs.getBoolean("enable_prayer_times", true),
+            enablePrayerNotifications = prefs.getBoolean("enable_prayer_notifications", true),
+            prayerCalculationMethod = prefs.getInt("prayer_calculation_method", 2),
+            prayerNotificationAdvanceTime = prefs.getInt("prayer_notification_advance_time", 15),
+            locationLatitude = prefs.getString("location_latitude", null)?.toDoubleOrNull(),
+            locationLongitude = prefs.getString("location_longitude", null)?.toDoubleOrNull(),
+            locationCity = prefs.getString("location_city", null),
+            locationCountry = prefs.getString("location_country", null),
+            locationCountryCode = prefs.getString("location_country_code", null),
+            enableQiblaDirection = prefs.getBoolean("enable_qibla_direction", true),
+            prayerTimesUpdateInterval = prefs.getInt("prayer_times_update_interval", 30),
+            islamicCalendarUpdateInterval = prefs.getInt("islamic_calendar_update_interval", 60),
+            autoDetectLocation = prefs.getBoolean("auto_detect_location", true),
+            locationMethod = try {
+                LocationMethod.valueOf(prefs.getString("location_method", LocationMethod.GPS.name)!!)
+            } catch (e: IllegalArgumentException) { LocationMethod.GPS },
+            locationAccuracy = prefs.getString("location_accuracy", null)?.toFloatOrNull(),
+            locationLastUpdated = prefs.getLong("location_last_updated", 0L).let { if (it <= 0L) null else it },
+            locationPermissionStatus = try {
+                LocationPermissionStatus.valueOf(
+                    prefs.getString("location_permission_status", LocationPermissionStatus.UNKNOWN.name)!!
+                )
+            } catch (e: IllegalArgumentException) { LocationPermissionStatus.UNKNOWN },
+
+            // New city selection fields
+            selectedCityName = prefs.getString("selected_city_name", null),
+            selectedCountry = prefs.getString("selected_country", null),
+            selectedCountryCode = prefs.getString("selected_country_code", null),
+            selectedLatitude = prefs.getString("selected_latitude", null)?.toDoubleOrNull(),
+            selectedLongitude = prefs.getString("selected_longitude", null)?.toDoubleOrNull(),
+
+            // City search behavior
+            enableCitySearchCache = prefs.getBoolean("enable_city_search_cache", true),
+            enableOfflineCityFallback = prefs.getBoolean("enable_offline_city_fallback", true),
+            preferStoredCoordinates = prefs.getBoolean("prefer_stored_coordinates", true),
+
+            // Prayer Enhancements: Offsets, history, caching and validation
+            fajrOffsetMinutes = prefs.getInt("fajr_offset_minutes", 0),
+            sunriseOffsetMinutes = prefs.getInt("sunrise_offset_minutes", 0),
+            dhuhrOffsetMinutes = prefs.getInt("dhuhr_offset_minutes", 0),
+            asrOffsetMinutes = prefs.getInt("asr_offset_minutes", 0),
+            maghribOffsetMinutes = prefs.getInt("maghrib_offset_minutes", 0),
+            ishaOffsetMinutes = prefs.getInt("isha_offset_minutes", 0),
+            enablePrayerHistory = prefs.getBoolean("enable_prayer_history", true),
+            prayerHistoryRetentionDays = prefs.getInt("prayer_history_retention_days", 60),
+            prayerCacheTtlMinutes = prefs.getInt("prayer_cache_ttl_minutes", 30),
+            locationStaleAfterMinutes = prefs.getInt("location_stale_after_minutes", 60),
+            strictPrayerAccuracyValidation = prefs.getBoolean("strict_prayer_accuracy_validation", true),
+            maxAllowedPrayerShiftMinutes = prefs.getInt("max_allowed_prayer_shift_minutes", 20),
+            gpsAccuracyHighThresholdM = prefs.getFloat("gps_accuracy_high_threshold_m", 30f),
+            gpsAccuracyMediumThresholdM = prefs.getFloat("gps_accuracy_medium_threshold_m", 100f),
+            gpsAccuracyLowThresholdM = prefs.getFloat("gps_accuracy_low_threshold_m", 300f),
+
+            // Qibla Compass Settings
+            qiblaCompassEnabled = prefs.getBoolean("qibla_compass_enabled", true),
+            compassCalibrationReminders = prefs.getBoolean("compass_calibration_reminders", true),
+            compassHapticFeedback = prefs.getBoolean("compass_haptic_feedback", true),
+            compassShowDegreeMarkings = prefs.getBoolean("compass_show_degree_markings", true),
+            compassSensitivity = prefs.getFloat("compass_sensitivity", 1.0f),
+            compassAccuracyThreshold = prefs.getFloat("compass_accuracy_threshold", 20.0f),
+            qiblaToleranceDegrees = prefs.getFloat("qibla_tolerance_degrees", 5.0f),
+            compassAnimationSpeed = prefs.getFloat("compass_animation_speed", 1.0f),
+            lastCompassCalibration = prefs.getLong("last_compass_calibration", 0L),
+            compassPreferredSize = try {
+                com.hieltech.haramblur.data.compass.CompassSize.valueOf(
+                    prefs.getString("compass_preferred_size", com.hieltech.haramblur.data.compass.CompassSize.MEDIUM.name)!!
+                )
+            } catch (e: IllegalArgumentException) { com.hieltech.haramblur.data.compass.CompassSize.MEDIUM },
+            enableMagneticDeclination = prefs.getBoolean("enable_magnetic_declination", true),
+            compassUpdateRate = prefs.getInt("compass_update_rate", 15)
         )
     }
     
@@ -182,13 +256,88 @@ class SettingsRepository @Inject constructor(
             putString("dhikr_position", settings.dhikrPosition)
             putBoolean("dhikr_animation_enabled", settings.dhikrAnimationEnabled)
             putBoolean("dhikr_sound_enabled", settings.dhikrSoundEnabled)
-            
+
+            // Islamic Calendar & Prayer Times (persist previously missing fields)
+            putBoolean("enable_islamic_calendar", settings.enableIslamicCalendar)
+            putBoolean("enable_prayer_times", settings.enablePrayerTimes)
+            putBoolean("enable_prayer_notifications", settings.enablePrayerNotifications)
+            putInt("prayer_calculation_method", settings.prayerCalculationMethod)
+            putInt("prayer_notification_advance_time", settings.prayerNotificationAdvanceTime)
+            putString("location_latitude", settings.locationLatitude?.toString())
+            putString("location_longitude", settings.locationLongitude?.toString())
+            putString("location_city", settings.locationCity)
+            putString("location_country", settings.locationCountry)
+            putString("location_country_code", settings.locationCountryCode)
+            putBoolean("enable_qibla_direction", settings.enableQiblaDirection)
+            putInt("prayer_times_update_interval", settings.prayerTimesUpdateInterval)
+            putInt("islamic_calendar_update_interval", settings.islamicCalendarUpdateInterval)
+            putBoolean("auto_detect_location", settings.autoDetectLocation)
+            putString("location_method", settings.locationMethod.name)
+            putString("location_accuracy", settings.locationAccuracy?.toString())
+            putLong("location_last_updated", settings.locationLastUpdated ?: 0L)
+            putString("location_permission_status", settings.locationPermissionStatus.name)
+
+            // New city selection fields
+            putString("selected_city_name", settings.selectedCityName)
+            putString("selected_country", settings.selectedCountry)
+            putString("selected_country_code", settings.selectedCountryCode)
+            putString("selected_latitude", settings.selectedLatitude?.toString())
+            putString("selected_longitude", settings.selectedLongitude?.toString())
+
+            // City search behavior
+            putBoolean("enable_city_search_cache", settings.enableCitySearchCache)
+            putBoolean("enable_offline_city_fallback", settings.enableOfflineCityFallback)
+            putBoolean("prefer_stored_coordinates", settings.preferStoredCoordinates)
+
+            // Prayer Enhancements: Offsets, history, caching and validation
+            putInt("fajr_offset_minutes", settings.fajrOffsetMinutes)
+            putInt("sunrise_offset_minutes", settings.sunriseOffsetMinutes)
+            putInt("dhuhr_offset_minutes", settings.dhuhrOffsetMinutes)
+            putInt("asr_offset_minutes", settings.asrOffsetMinutes)
+            putInt("maghrib_offset_minutes", settings.maghribOffsetMinutes)
+            putInt("isha_offset_minutes", settings.ishaOffsetMinutes)
+            putBoolean("enable_prayer_history", settings.enablePrayerHistory)
+            putInt("prayer_history_retention_days", settings.prayerHistoryRetentionDays)
+            putInt("prayer_cache_ttl_minutes", settings.prayerCacheTtlMinutes)
+            putInt("location_stale_after_minutes", settings.locationStaleAfterMinutes)
+            putBoolean("strict_prayer_accuracy_validation", settings.strictPrayerAccuracyValidation)
+            putInt("max_allowed_prayer_shift_minutes", settings.maxAllowedPrayerShiftMinutes)
+            putFloat("gps_accuracy_high_threshold_m", settings.gpsAccuracyHighThresholdM)
+            putFloat("gps_accuracy_medium_threshold_m", settings.gpsAccuracyMediumThresholdM)
+            putFloat("gps_accuracy_low_threshold_m", settings.gpsAccuracyLowThresholdM)
+
+            // Qibla Compass Settings
+            putBoolean("qibla_compass_enabled", settings.qiblaCompassEnabled)
+            putBoolean("compass_calibration_reminders", settings.compassCalibrationReminders)
+            putBoolean("compass_haptic_feedback", settings.compassHapticFeedback)
+            putBoolean("compass_show_degree_markings", settings.compassShowDegreeMarkings)
+            putFloat("compass_sensitivity", settings.compassSensitivity)
+            putFloat("compass_accuracy_threshold", settings.compassAccuracyThreshold)
+            putFloat("qibla_tolerance_degrees", settings.qiblaToleranceDegrees)
+            putFloat("compass_animation_speed", settings.compassAnimationSpeed)
+            putLong("last_compass_calibration", settings.lastCompassCalibration)
+            putString("compass_preferred_size", settings.compassPreferredSize.name)
+            putBoolean("enable_magnetic_declination", settings.enableMagneticDeclination)
+            putInt("compass_update_rate", settings.compassUpdateRate)
+
             apply()
         }
     }
     
     // Quick access methods for common settings
     fun getCurrentSettings(): AppSettings = _settings.value
+    
+    /**
+     * Persist preferred language synchronously (commit) and update in-memory state.
+     * This avoids race conditions when the UI must recreate immediately after change.
+     */
+    fun persistPreferredLanguageSync(language: Language) {
+        val updated = _settings.value.copy(preferredLanguage = language)
+        _settings.value = updated
+        // Commit synchronously to ensure durability before consumers act on it
+        prefs.edit().putString("preferred_language", language.name).commit()
+        Log.d(TAG, "persistPreferredLanguageSync committed: ${language.name}")
+    }
     
     fun updateBlurIntensity(intensity: BlurIntensity) {
         updateSettings(_settings.value.copy(blurIntensity = intensity))
@@ -206,6 +355,150 @@ class SettingsRepository @Inject constructor(
         updateSettings(_settings.value.copy(processingSpeed = speed))
     }
     
+    // Location Settings - Atomic Helper Methods
+    /**
+     * Update the explicit location method (GPS vs MANUAL_CITY).
+     * Resets incompatible fields when switching methods to keep state coherent.
+     */
+    fun updateLocationMethod(method: LocationMethod) {
+        val current = _settings.value
+        val updated = if (method == LocationMethod.GPS) {
+            // Switching to GPS: keep GPS fields, clear selected manual city if it was set
+            current.copy(
+                locationMethod = LocationMethod.GPS,
+                autoDetectLocation = true, // backward-compat mirror
+                // keep any existing GPS cache
+                // clear manual selection so UI reflects GPS choice
+                selectedCityName = null,
+                selectedCountry = null,
+                selectedCountryCode = null,
+                selectedLatitude = null,
+                selectedLongitude = null
+            )
+        } else {
+            // Switching to MANUAL_CITY: keep manual fields, do not silently clear stored GPS
+            current.copy(
+                locationMethod = LocationMethod.MANUAL_CITY,
+                autoDetectLocation = false // backward-compat mirror
+            )
+        }
+        updateSettings(updated)
+    }
+
+    /**
+     * Update stored GPS location and associated metadata.
+     * Pass null for city/country if reverse-geocode not available.
+     */
+    fun updateGpsLocation(
+        latitude: Double,
+        longitude: Double,
+        city: String? = null,
+        country: String? = null,
+        accuracyMeters: Float? = null,
+        permissionStatus: LocationPermissionStatus = _settings.value.locationPermissionStatus
+    ) {
+        val current = _settings.value
+        val updated = current.copy(
+            locationLatitude = latitude,
+            locationLongitude = longitude,
+            locationCity = city ?: current.locationCity,
+            locationCountry = country ?: current.locationCountry,
+            locationAccuracy = accuracyMeters,
+            locationLastUpdated = System.currentTimeMillis(),
+            locationPermissionStatus = permissionStatus
+        )
+        updateSettings(updated)
+    }
+
+    /**
+     * Clear stored GPS location cache (coordinates and labels).
+     */
+    fun clearGpsLocation() {
+        val current = _settings.value
+        val updated = current.copy(
+            locationLatitude = null,
+            locationLongitude = null,
+            locationCity = null,
+            locationCountry = null,
+            locationAccuracy = null,
+            locationLastUpdated = null
+        )
+        updateSettings(updated)
+    }
+
+    /**
+     * Update manual city selection (city/country and optional coords).
+     */
+    fun updateManualCitySelection(
+        city: String,
+        country: String,
+        countryCode: String? = null,
+        latitude: Double? = null,
+        longitude: Double? = null
+    ) {
+        val current = _settings.value
+        val updated = current.copy(
+            selectedCityName = city,
+            selectedCountry = country,
+            selectedCountryCode = countryCode,
+            selectedLatitude = latitude,
+            selectedLongitude = longitude
+        )
+        updateSettings(updated)
+    }
+
+    /**
+     * Clear manual city selection.
+     */
+    fun clearManualCitySelection() {
+        val current = _settings.value
+        val updated = current.copy(
+            selectedCityName = null,
+            selectedCountry = null,
+            selectedCountryCode = null,
+            selectedLatitude = null,
+            selectedLongitude = null
+        )
+        updateSettings(updated)
+    }
+
+    /**
+     * Update location permission status enum.
+     */
+    fun updateLocationPermissionStatus(status: LocationPermissionStatus) {
+        val current = _settings.value
+        val updated = current.copy(locationPermissionStatus = status)
+        updateSettings(updated)
+    }
+
+    /**
+     * Update only location accuracy value (meters) and optionally bump timestamp.
+     */
+    fun updateLocationAccuracy(accuracyMeters: Float?, setTimestampNow: Boolean = false) {
+        val current = _settings.value
+        val updated = current.copy(
+            locationAccuracy = accuracyMeters,
+            locationLastUpdated = if (setTimestampNow) System.currentTimeMillis() else current.locationLastUpdated
+        )
+        updateSettings(updated)
+    }
+
+    /**
+     * Convenience to mark the location as refreshed "now" without changing coordinates.
+     */
+    fun markLocationUpdatedNow() {
+        val current = _settings.value
+        val updated = current.copy(locationLastUpdated = System.currentTimeMillis())
+        updateSettings(updated)
+    }
+
+    /**
+     * Backward-compat setter to mirror legacy auto-detect flag into the new enum.
+     */
+    fun setAutoDetectCompat(autoDetect: Boolean) {
+        updateLocationMethod(if (autoDetect) LocationMethod.GPS else LocationMethod.MANUAL_CITY)
+    }
+
     // Settings Migration
     private fun loadSettingsWithMigration(): AppSettings {
         val currentVersion = prefs.getInt(SETTINGS_VERSION_KEY, 1)
@@ -245,6 +538,70 @@ class SettingsRepository @Inject constructor(
                     apply()
                 }
             }
+            2, 3, 4 -> {
+                // Migration to version 5: Introduce city selection fields and defaults
+                Log.i(TAG, "Migrating from version $fromVersion: Adding city selection fields and defaults + location method")
+                prefs.edit().apply {
+                    // Defaults
+                    putBoolean("enable_city_search_cache", true)
+                    putBoolean("enable_offline_city_fallback", true)
+                    putBoolean("prefer_stored_coordinates", true)
+
+                    // Map legacy preferredCity/preferredCountry to new fields if present
+                    val legacyCity = prefs.getString("preferred_city", null) ?: prefs.getString("preferredCity", null)
+                    val legacyCountry = prefs.getString("preferred_country", null) ?: prefs.getString("preferredCountry", null)
+                    if (!legacyCity.isNullOrBlank()) putString("selected_city_name", legacyCity)
+                    if (!legacyCountry.isNullOrBlank()) putString("selected_country", legacyCountry)
+
+                    // Map legacy auto-detect boolean to new explicit location method
+                    val legacyAuto = prefs.getBoolean("auto_detect_location", true)
+                    putString("location_method", if (legacyAuto) LocationMethod.GPS.name else LocationMethod.MANUAL_CITY.name)
+                    if (!prefs.contains("location_permission_status")) putString("location_permission_status", LocationPermissionStatus.UNKNOWN.name)
+
+                    apply()
+                }
+            }
+            5 -> {
+                // Migration to version 6: Introduce compass settings with sensible defaults
+                Log.i(TAG, "Migrating from version 5: Adding compass settings defaults")
+                prefs.edit().apply {
+                    putBoolean("qibla_compass_enabled", true)
+                    putBoolean("compass_calibration_reminders", true)
+                    putBoolean("compass_haptic_feedback", true)
+                    putBoolean("compass_show_degree_markings", true)
+                    putFloat("compass_sensitivity", 1.0f)
+                    putFloat("compass_accuracy_threshold", 20.0f)
+                    putFloat("qibla_tolerance_degrees", 5.0f)
+                    putFloat("compass_animation_speed", 1.0f)
+                    putLong("last_compass_calibration", 0L)
+                    putString("compass_preferred_size", com.hieltech.haramblur.data.compass.CompassSize.MEDIUM.name)
+                    putBoolean("enable_magnetic_declination", true)
+                    putInt("compass_update_rate", 15)
+                    apply()
+                }
+            }
+            6 -> {
+                // Migration to version 7: Add prayer enhancement defaults
+                Log.i(TAG, "Migrating from version 6: Adding prayer enhancement defaults")
+                prefs.edit().apply {
+                    putInt("fajr_offset_minutes", 0)
+                    putInt("sunrise_offset_minutes", 0)
+                    putInt("dhuhr_offset_minutes", 0)
+                    putInt("asr_offset_minutes", 0)
+                    putInt("maghrib_offset_minutes", 0)
+                    putInt("isha_offset_minutes", 0)
+                    putBoolean("enable_prayer_history", true)
+                    putInt("prayer_history_retention_days", 60)
+                    putInt("prayer_cache_ttl_minutes", 30)
+                    putInt("location_stale_after_minutes", 60)
+                    putBoolean("strict_prayer_accuracy_validation", true)
+                    putInt("max_allowed_prayer_shift_minutes", 20)
+                    putFloat("gps_accuracy_high_threshold_m", 30f)
+                    putFloat("gps_accuracy_medium_threshold_m", 100f)
+                    putFloat("gps_accuracy_low_threshold_m", 300f)
+                    apply()
+                }
+            }
         }
     }
     
@@ -261,7 +618,21 @@ class SettingsRepository @Inject constructor(
             customReflectionTime = settings.customReflectionTime.coerceIn(5, 60),
             genderConfidenceThreshold = settings.genderConfidenceThreshold.coerceIn(0.5f, 0.95f),
             nsfwConfidenceThreshold = settings.nsfwConfidenceThreshold.coerceIn(0.5f, 0.95f),
-            expandBlurArea = settings.expandBlurArea.coerceIn(0, 100)
+            expandBlurArea = settings.expandBlurArea.coerceIn(0, 100),
+            // Prayer enhancement ranges
+            fajrOffsetMinutes = settings.fajrOffsetMinutes.coerceIn(-60, 60),
+            sunriseOffsetMinutes = settings.sunriseOffsetMinutes.coerceIn(-60, 60),
+            dhuhrOffsetMinutes = settings.dhuhrOffsetMinutes.coerceIn(-60, 60),
+            asrOffsetMinutes = settings.asrOffsetMinutes.coerceIn(-60, 60),
+            maghribOffsetMinutes = settings.maghribOffsetMinutes.coerceIn(-60, 60),
+            ishaOffsetMinutes = settings.ishaOffsetMinutes.coerceIn(-60, 60),
+            prayerHistoryRetentionDays = settings.prayerHistoryRetentionDays.coerceIn(7, 365),
+            prayerCacheTtlMinutes = settings.prayerCacheTtlMinutes.coerceIn(5, 180),
+            locationStaleAfterMinutes = settings.locationStaleAfterMinutes.coerceIn(5, 240),
+            maxAllowedPrayerShiftMinutes = settings.maxAllowedPrayerShiftMinutes.coerceIn(0, 60),
+            gpsAccuracyHighThresholdM = settings.gpsAccuracyHighThresholdM.coerceAtLeast(5f),
+            gpsAccuracyMediumThresholdM = settings.gpsAccuracyMediumThresholdM.coerceAtLeast(settings.gpsAccuracyHighThresholdM + 1f),
+            gpsAccuracyLowThresholdM = settings.gpsAccuracyLowThresholdM.coerceAtLeast(settings.gpsAccuracyMediumThresholdM + 1f)
         )
     }
     
@@ -310,6 +681,67 @@ class SettingsRepository @Inject constructor(
             put("nsfwConfidenceThreshold", settings.nsfwConfidenceThreshold)
             put("enableFallbackDetection", settings.enableFallbackDetection)
             put("enablePerformanceMonitoring", settings.enablePerformanceMonitoring)
+
+            // Islamic Calendar & Prayer Times
+            put("enableIslamicCalendar", settings.enableIslamicCalendar)
+            put("enablePrayerTimes", settings.enablePrayerTimes)
+            put("enablePrayerNotifications", settings.enablePrayerNotifications)
+            put("prayerCalculationMethod", settings.prayerCalculationMethod)
+            put("prayerNotificationAdvanceTime", settings.prayerNotificationAdvanceTime)
+            put("locationLatitude", settings.locationLatitude)
+            put("locationLongitude", settings.locationLongitude)
+            put("locationCity", settings.locationCity)
+            put("locationCountry", settings.locationCountry)
+            put("locationCountryCode", settings.locationCountryCode)
+            put("enableQiblaDirection", settings.enableQiblaDirection)
+            put("prayerTimesUpdateInterval", settings.prayerTimesUpdateInterval)
+            put("islamicCalendarUpdateInterval", settings.islamicCalendarUpdateInterval)
+            put("autoDetectLocation", settings.autoDetectLocation)
+            put("locationMethod", settings.locationMethod.name)
+            put("locationAccuracy", settings.locationAccuracy)
+            put("locationLastUpdated", settings.locationLastUpdated)
+            put("locationPermissionStatus", settings.locationPermissionStatus.name)
+
+            // New city selection fields
+            put("selectedCityName", settings.selectedCityName)
+            put("selectedCountry", settings.selectedCountry)
+            put("selectedCountryCode", settings.selectedCountryCode)
+            put("selectedLatitude", settings.selectedLatitude)
+            put("selectedLongitude", settings.selectedLongitude)
+            put("enableCitySearchCache", settings.enableCitySearchCache)
+            put("enableOfflineCityFallback", settings.enableOfflineCityFallback)
+            put("preferStoredCoordinates", settings.preferStoredCoordinates)
+
+            // Prayer Enhancements: Offsets, history, caching and validation
+            put("fajrOffsetMinutes", settings.fajrOffsetMinutes)
+            put("sunriseOffsetMinutes", settings.sunriseOffsetMinutes)
+            put("dhuhrOffsetMinutes", settings.dhuhrOffsetMinutes)
+            put("asrOffsetMinutes", settings.asrOffsetMinutes)
+            put("maghribOffsetMinutes", settings.maghribOffsetMinutes)
+            put("ishaOffsetMinutes", settings.ishaOffsetMinutes)
+            put("enablePrayerHistory", settings.enablePrayerHistory)
+            put("prayerHistoryRetentionDays", settings.prayerHistoryRetentionDays)
+            put("prayerCacheTtlMinutes", settings.prayerCacheTtlMinutes)
+            put("locationStaleAfterMinutes", settings.locationStaleAfterMinutes)
+            put("strictPrayerAccuracyValidation", settings.strictPrayerAccuracyValidation)
+            put("maxAllowedPrayerShiftMinutes", settings.maxAllowedPrayerShiftMinutes)
+            put("gpsAccuracyHighThresholdM", settings.gpsAccuracyHighThresholdM)
+            put("gpsAccuracyMediumThresholdM", settings.gpsAccuracyMediumThresholdM)
+            put("gpsAccuracyLowThresholdM", settings.gpsAccuracyLowThresholdM)
+
+            // Qibla Compass Settings
+            put("qiblaCompassEnabled", settings.qiblaCompassEnabled)
+            put("compassCalibrationReminders", settings.compassCalibrationReminders)
+            put("compassHapticFeedback", settings.compassHapticFeedback)
+            put("compassShowDegreeMarkings", settings.compassShowDegreeMarkings)
+            put("compassSensitivity", settings.compassSensitivity)
+            put("compassAccuracyThreshold", settings.compassAccuracyThreshold)
+            put("qiblaToleranceDegrees", settings.qiblaToleranceDegrees)
+            put("compassAnimationSpeed", settings.compassAnimationSpeed)
+            put("lastCompassCalibration", settings.lastCompassCalibration)
+            put("compassPreferredSize", settings.compassPreferredSize.name)
+            put("enableMagneticDeclination", settings.enableMagneticDeclination)
+            put("compassUpdateRate", settings.compassUpdateRate)
             
             // Metadata
             put("exportVersion", CURRENT_SETTINGS_VERSION)
@@ -383,6 +815,75 @@ class SettingsRepository @Inject constructor(
                 nsfwConfidenceThreshold = jsonObject.optDouble("nsfwConfidenceThreshold", 0.7).toFloat(),
                 enableFallbackDetection = jsonObject.optBoolean("enableFallbackDetection", true),
                 enablePerformanceMonitoring = jsonObject.optBoolean("enablePerformanceMonitoring", true)
+                ,
+                // Islamic Calendar & Prayer Times
+                enableIslamicCalendar = jsonObject.optBoolean("enableIslamicCalendar", true),
+                enablePrayerTimes = jsonObject.optBoolean("enablePrayerTimes", true),
+                enablePrayerNotifications = jsonObject.optBoolean("enablePrayerNotifications", true),
+                prayerCalculationMethod = jsonObject.optInt("prayerCalculationMethod", 2),
+                prayerNotificationAdvanceTime = jsonObject.optInt("prayerNotificationAdvanceTime", 15),
+                locationLatitude = if (jsonObject.has("locationLatitude")) jsonObject.optDouble("locationLatitude").let { if (it.isNaN()) null else it } else null,
+                locationLongitude = if (jsonObject.has("locationLongitude")) jsonObject.optDouble("locationLongitude").let { if (it.isNaN()) null else it } else null,
+                locationCity = jsonObject.optString("locationCity", null).takeIf { it.isNotBlank() },
+                locationCountry = jsonObject.optString("locationCountry", null).takeIf { it.isNotBlank() },
+                locationCountryCode = jsonObject.optString("locationCountryCode", null).takeIf { it.isNotBlank() },
+                enableQiblaDirection = jsonObject.optBoolean("enableQiblaDirection", true),
+                prayerTimesUpdateInterval = jsonObject.optInt("prayerTimesUpdateInterval", 30),
+                islamicCalendarUpdateInterval = jsonObject.optInt("islamicCalendarUpdateInterval", 60),
+                autoDetectLocation = jsonObject.optBoolean("autoDetectLocation", true),
+                locationMethod = try {
+                    LocationMethod.valueOf(jsonObject.optString("locationMethod", LocationMethod.GPS.name))
+                } catch (e: IllegalArgumentException) { LocationMethod.GPS },
+                locationAccuracy = if (jsonObject.has("locationAccuracy")) jsonObject.optDouble("locationAccuracy").toFloat() else null,
+                locationLastUpdated = if (jsonObject.has("locationLastUpdated")) jsonObject.optLong("locationLastUpdated") else null,
+                locationPermissionStatus = try {
+                    LocationPermissionStatus.valueOf(jsonObject.optString("locationPermissionStatus", LocationPermissionStatus.UNKNOWN.name))
+                } catch (e: IllegalArgumentException) { LocationPermissionStatus.UNKNOWN }
+                ,
+                // New city selection fields
+                selectedCityName = jsonObject.optString("selectedCityName", null).takeIf { it.isNotBlank() },
+                selectedCountry = jsonObject.optString("selectedCountry", null).takeIf { it.isNotBlank() },
+                selectedCountryCode = jsonObject.optString("selectedCountryCode", null).takeIf { it.isNotBlank() },
+                selectedLatitude = if (jsonObject.has("selectedLatitude")) jsonObject.optDouble("selectedLatitude").let { if (it.isNaN()) null else it } else null,
+                selectedLongitude = if (jsonObject.has("selectedLongitude")) jsonObject.optDouble("selectedLongitude").let { if (it.isNaN()) null else it } else null,
+                enableCitySearchCache = jsonObject.optBoolean("enableCitySearchCache", true),
+                enableOfflineCityFallback = jsonObject.optBoolean("enableOfflineCityFallback", true),
+                preferStoredCoordinates = jsonObject.optBoolean("preferStoredCoordinates", true),
+
+                // Prayer Enhancements: Offsets, history, caching and validation
+                fajrOffsetMinutes = jsonObject.optInt("fajrOffsetMinutes", 0),
+                sunriseOffsetMinutes = jsonObject.optInt("sunriseOffsetMinutes", 0),
+                dhuhrOffsetMinutes = jsonObject.optInt("dhuhrOffsetMinutes", 0),
+                asrOffsetMinutes = jsonObject.optInt("asrOffsetMinutes", 0),
+                maghribOffsetMinutes = jsonObject.optInt("maghribOffsetMinutes", 0),
+                ishaOffsetMinutes = jsonObject.optInt("ishaOffsetMinutes", 0),
+                enablePrayerHistory = jsonObject.optBoolean("enablePrayerHistory", true),
+                prayerHistoryRetentionDays = jsonObject.optInt("prayerHistoryRetentionDays", 60),
+                prayerCacheTtlMinutes = jsonObject.optInt("prayerCacheTtlMinutes", 30),
+                locationStaleAfterMinutes = jsonObject.optInt("locationStaleAfterMinutes", 60),
+                strictPrayerAccuracyValidation = jsonObject.optBoolean("strictPrayerAccuracyValidation", true),
+                maxAllowedPrayerShiftMinutes = jsonObject.optInt("maxAllowedPrayerShiftMinutes", 20),
+                gpsAccuracyHighThresholdM = jsonObject.optDouble("gpsAccuracyHighThresholdM", 30.0).toFloat(),
+                gpsAccuracyMediumThresholdM = jsonObject.optDouble("gpsAccuracyMediumThresholdM", 100.0).toFloat(),
+                gpsAccuracyLowThresholdM = jsonObject.optDouble("gpsAccuracyLowThresholdM", 300.0).toFloat(),
+
+                // Qibla Compass Settings
+                qiblaCompassEnabled = jsonObject.optBoolean("qiblaCompassEnabled", true),
+                compassCalibrationReminders = jsonObject.optBoolean("compassCalibrationReminders", true),
+                compassHapticFeedback = jsonObject.optBoolean("compassHapticFeedback", true),
+                compassShowDegreeMarkings = jsonObject.optBoolean("compassShowDegreeMarkings", true),
+                compassSensitivity = jsonObject.optDouble("compassSensitivity", 1.0).toFloat(),
+                compassAccuracyThreshold = jsonObject.optDouble("compassAccuracyThreshold", 20.0).toFloat(),
+                qiblaToleranceDegrees = jsonObject.optDouble("qiblaToleranceDegrees", 5.0).toFloat(),
+                compassAnimationSpeed = jsonObject.optDouble("compassAnimationSpeed", 1.0).toFloat(),
+                lastCompassCalibration = jsonObject.optLong("lastCompassCalibration", 0L),
+                compassPreferredSize = try {
+                    com.hieltech.haramblur.data.compass.CompassSize.valueOf(
+                        jsonObject.optString("compassPreferredSize", com.hieltech.haramblur.data.compass.CompassSize.MEDIUM.name)
+                    )
+                } catch (e: IllegalArgumentException) { com.hieltech.haramblur.data.compass.CompassSize.MEDIUM },
+                enableMagneticDeclination = jsonObject.optBoolean("enableMagneticDeclination", true),
+                compassUpdateRate = jsonObject.optInt("compassUpdateRate", 15)
             )
             
             val validatedSettings = validateSettings(importedSettings)

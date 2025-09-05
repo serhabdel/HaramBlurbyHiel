@@ -33,6 +33,7 @@ class PrayerTimesRepository @Inject constructor(
 
     private var cachedPrayerData: PrayerData? = null
     private var cacheTimestamp: Long = 0
+    private var lastLocationKey: String? = null
 
     /**
      * Get current prayer times for user's location
@@ -46,8 +47,58 @@ class PrayerTimesRepository @Inject constructor(
                 }
 
                 val settings = settingsRepository.settings.value
+                val tz = TimeZone.getDefault().id
 
-                // Try city-based request first if city/country are available
+                // Branch by location method
+                if (settings.locationMethod == LocationMethod.MANUAL_CITY) {
+                    // Prefer coordinates if enabled and available
+                    if (settings.preferStoredCoordinates &&
+                        settings.selectedLatitude != null && settings.selectedLongitude != null) {
+                        val timestamp = System.currentTimeMillis() / 1000
+                        val method = settings.prayerCalculationMethod
+                        Log.d(TAG, "Fetching prayer times for selected coordinates: ${settings.selectedLatitude}, ${settings.selectedLongitude}")
+                        val response = apiService.getPrayerTimes(
+                            timestamp = timestamp,
+                            latitude = settings.selectedLatitude!!,
+                            longitude = settings.selectedLongitude!!,
+                            method = method,
+                            school = 0,
+                            timezonestring = tz
+                        )
+                        return@withContext if (response.code == 200) {
+                            lastLocationKey = buildLocationKey(
+                                lat = settings.selectedLatitude!!,
+                                lon = settings.selectedLongitude!!,
+                                method = method,
+                                tz = tz
+                            )
+                            cachedPrayerData = response.data
+                            cacheTimestamp = System.currentTimeMillis()
+                            Result.success(response.data)
+                        } else {
+                            Log.e(TAG, "API Error: ${response.status}")
+                            Result.failure(Exception("API Error: ${response.status}"))
+                        }
+                    }
+
+                    // Else prefer selected city/country if present
+                    if (!settings.selectedCityName.isNullOrEmpty() && !settings.selectedCountry.isNullOrEmpty()) {
+                        return@withContext getPrayerTimesByCity(
+                            settings.selectedCityName!!,
+                            settings.selectedCountry!!
+                        )
+                    }
+
+                    // Legacy preferred city/country
+                    if (!settings.preferredCity.isNullOrEmpty() && !settings.preferredCountry.isNullOrEmpty()) {
+                        return@withContext getPrayerTimesByCity(
+                            settings.preferredCity!!,
+                            settings.preferredCountry!!
+                        )
+                    }
+                }
+
+                // When using GPS, try city-based request if cached in settings
                 if (!settings.locationCity.isNullOrEmpty() && !settings.locationCountry.isNullOrEmpty()) {
                     return@withContext getPrayerTimesByCity(
                         settings.locationCity!!,
@@ -67,10 +118,17 @@ class PrayerTimesRepository @Inject constructor(
                     latitude = location.latitude,
                     longitude = location.longitude,
                     method = method,
-                    school = 0 // Shafi method
+                    school = 0, // Shafi method
+                    timezonestring = tz
                 )
 
                 if (response.code == 200) {
+                    lastLocationKey = buildLocationKey(
+                        lat = location.latitude,
+                        lon = location.longitude,
+                        method = method,
+                        tz = tz
+                    )
                     cachedPrayerData = response.data
                     cacheTimestamp = System.currentTimeMillis()
                     Result.success(response.data)
@@ -91,13 +149,19 @@ class PrayerTimesRepository @Inject constructor(
     suspend fun getPrayerTimesByCity(city: String, country: String): Result<PrayerData> {
         return withContext(Dispatchers.IO) {
             try {
-                // Check cache first
-                if (isCacheValid()) {
-                    cachedPrayerData?.let { return@withContext Result.success(it) }
-                }
-
                 val settings = settingsRepository.settings.value
                 val method = settings.prayerCalculationMethod
+                val tz = TimeZone.getDefault().id
+                
+                // Compute cache key for the requested city/country
+                val requestedKey = buildLocationKey(city = city, country = country, method = method, tz = tz)
+                
+                // Check cache first - compare against the requested key and TTL
+                if (cachedPrayerData != null &&
+                    (System.currentTimeMillis() - cacheTimestamp) < CACHE_DURATION_MS &&
+                    requestedKey == lastLocationKey) {
+                    return@withContext Result.success(cachedPrayerData!!)
+                }
 
                 Log.d(TAG, "Fetching prayer times for city: $city, country: $country")
 
@@ -105,10 +169,12 @@ class PrayerTimesRepository @Inject constructor(
                     city = city,
                     country = country,
                     method = method,
-                    school = 0 // Shafi method
+                    school = 0, // Shafi method
+                    timezonestring = tz
                 )
 
                 if (response.code == 200) {
+                    lastLocationKey = requestedKey
                     cachedPrayerData = response.data
                     cacheTimestamp = System.currentTimeMillis()
                     Result.success(response.data)
@@ -130,8 +196,48 @@ class PrayerTimesRepository @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 val settings = settingsRepository.settings.value
+                val tz = TimeZone.getDefault().id
 
-                // Try city-based request first if city/country are available
+                // Branch by location method
+                if (settings.locationMethod == LocationMethod.MANUAL_CITY) {
+                    // Prefer coordinates if enabled and available
+                    if (settings.preferStoredCoordinates &&
+                        settings.selectedLatitude != null && settings.selectedLongitude != null) {
+                        val calendar = Calendar.getInstance()
+                        val hijriYear = getHijriYear()
+                        val hijriMonth = getHijriMonth()
+                        val response = apiService.getIslamicCalendar(
+                            year = hijriYear,
+                            month = hijriMonth,
+                            latitude = settings.selectedLatitude!!,
+                            longitude = settings.selectedLongitude!!,
+                            timezonestring = tz
+                        )
+                        return@withContext if (response.code == 200) {
+                            Result.success(response.data)
+                        } else {
+                            Result.failure(Exception("API Error: ${response.status}"))
+                        }
+                    }
+
+                    // Else prefer selected city/country if present
+                    if (!settings.selectedCityName.isNullOrEmpty() && !settings.selectedCountry.isNullOrEmpty()) {
+                        return@withContext getIslamicCalendarByCity(
+                            settings.selectedCityName!!,
+                            settings.selectedCountry!!
+                        )
+                    }
+
+                    // Legacy preferred city/country
+                    if (!settings.preferredCity.isNullOrEmpty() && !settings.preferredCountry.isNullOrEmpty()) {
+                        return@withContext getIslamicCalendarByCity(
+                            settings.preferredCity!!,
+                            settings.preferredCountry!!
+                        )
+                    }
+                }
+
+                // When GPS, try city-based request first if cached
                 if (!settings.locationCity.isNullOrEmpty() && !settings.locationCountry.isNullOrEmpty()) {
                     return@withContext getIslamicCalendarByCity(
                         settings.locationCity!!,
@@ -151,7 +257,8 @@ class PrayerTimesRepository @Inject constructor(
                     year = hijriYear,
                     month = hijriMonth,
                     latitude = location.latitude,
-                    longitude = location.longitude
+                    longitude = location.longitude,
+                    timezonestring = tz
                 )
 
                 if (response.code == 200) {
@@ -175,6 +282,7 @@ class PrayerTimesRepository @Inject constructor(
                 val calendar = Calendar.getInstance()
                 val hijriYear = getHijriYear()
                 val hijriMonth = getHijriMonth()
+                val tz = TimeZone.getDefault().id
 
                 Log.d(TAG, "Fetching Islamic calendar for city: $city, country: $country ($hijriYear/$hijriMonth)")
 
@@ -182,7 +290,8 @@ class PrayerTimesRepository @Inject constructor(
                     year = hijriYear,
                     month = hijriMonth,
                     city = city,
-                    country = country
+                    country = country,
+                    timezonestring = tz
                 )
 
                 if (response.code == 200) {
@@ -250,21 +359,39 @@ class PrayerTimesRepository @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 val settings = settingsRepository.settings.value
-
-                // If auto-detect is disabled and user has set preferred location, use that
-                if (!settings.autoDetectLocation &&
-                    !settings.preferredCity.isNullOrEmpty() &&
-                    !settings.preferredCountry.isNullOrEmpty()) {
-                    return@withContext LocationData(
-                        latitude = 0.0, // Not needed for city-based requests
-                        longitude = 0.0, // Not needed for city-based requests
-                        city = settings.preferredCity,
-                        country = settings.preferredCountry
-                    )
+                // MANUAL_CITY: return selected or preferred entries
+                if (settings.locationMethod == LocationMethod.MANUAL_CITY) {
+                    if (settings.preferStoredCoordinates &&
+                        settings.selectedLatitude != null && settings.selectedLongitude != null) {
+                        return@withContext LocationData(
+                            latitude = settings.selectedLatitude!!,
+                            longitude = settings.selectedLongitude!!,
+                            city = settings.selectedCityName ?: settings.preferredCity,
+                            country = settings.selectedCountry ?: settings.preferredCountry
+                        )
+                    }
+                    if (!settings.selectedCityName.isNullOrEmpty() && !settings.selectedCountry.isNullOrEmpty()) {
+                        return@withContext LocationData(
+                            latitude = 0.0,
+                            longitude = 0.0,
+                            city = settings.selectedCityName,
+                            country = settings.selectedCountry
+                        )
+                    }
+                    if (!settings.preferredCity.isNullOrEmpty() && !settings.preferredCountry.isNullOrEmpty()) {
+                        return@withContext LocationData(
+                            latitude = 0.0,
+                            longitude = 0.0,
+                            city = settings.preferredCity,
+                            country = settings.preferredCountry
+                        )
+                    }
                 }
 
-                // Try to get location from cached settings first
+                // GPS path
+                // 1) Prefer stored coordinates from settings if present
                 if (settings.locationLatitude != null && settings.locationLongitude != null) {
+                    Log.d(TAG, "Using stored GPS coordinates from settings")
                     return@withContext LocationData(
                         latitude = settings.locationLatitude!!,
                         longitude = settings.locationLongitude!!,
@@ -273,17 +400,28 @@ class PrayerTimesRepository @Inject constructor(
                     )
                 }
 
-                // Try to get current location
-                val location = locationHelper.getCurrentLocation()
-                if (location != null) {
-                    return@withContext location
+                // 2) Try in-memory cached location from helper for fast path
+                locationHelper.getCachedLocation()?.let {
+                    Log.d(TAG, "Using cached in-memory location")
+                    return@withContext it
                 }
 
-                // Try last known location as fallback
-                val lastLocation = locationHelper.getLastKnownLocation()
-                if (lastLocation != null) {
-                    return@withContext lastLocation
+                // 3) If permission is not granted, avoid fresh request and fallback
+                if (!locationHelper.hasLocationPermission()) {
+                    Log.w(TAG, "Location permission not granted; falling back")
+                    // Optionally use last known even without runtime grant; but many devices need permission
+                    locationHelper.getLastKnownLocation()?.let { return@withContext it }
+                    return@withContext LocationData(
+                        latitude = 21.4225,
+                        longitude = 39.8262,
+                        city = "Mecca",
+                        country = "Saudi Arabia"
+                    )
                 }
+
+                // 4) Try enhanced best location, then last known
+                locationHelper.getBestLocation()?.let { return@withContext it }
+                locationHelper.getLastKnownLocation()?.let { return@withContext it }
 
                 // Fallback to default location (Mecca)
                 Log.w(TAG, "Using fallback location (Mecca)")
@@ -411,8 +549,10 @@ class PrayerTimesRepository @Inject constructor(
      * Check if cached data is still valid
      */
     private fun isCacheValid(): Boolean {
+        val currentKey = computeCurrentLocationKey()
         return cachedPrayerData != null &&
-               (System.currentTimeMillis() - cacheTimestamp) < CACHE_DURATION_MS
+               (System.currentTimeMillis() - cacheTimestamp) < CACHE_DURATION_MS &&
+               currentKey != null && currentKey == lastLocationKey
     }
 
     /**
@@ -421,7 +561,13 @@ class PrayerTimesRepository @Inject constructor(
     fun clearCache() {
         cachedPrayerData = null
         cacheTimestamp = 0
+        lastLocationKey = null
     }
+
+    /**
+     * Explicitly invalidate prayer times cache (to be called on settings/location changes)
+     */
+    fun invalidateCache() = clearCache()
 
     /**
      * Get prayer times as a Flow for reactive updates
@@ -430,6 +576,72 @@ class PrayerTimesRepository @Inject constructor(
         while (currentCoroutineContext().isActive) {
             emit(getPrayerTimes())
             delay(30 * 60 * 1000L) // Refresh every 30 minutes
+        }
+    }
+
+    /**
+     * Trigger immediate refresh of prayer times (fire-and-forget)
+     */
+    fun triggerRefresh() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                getPrayerTimes()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during triggered refresh", e)
+            }
+        }
+    }
+
+    /**
+     * Build a key representing the current location context for cache validation
+     */
+    private fun buildLocationKey(
+        city: String? = null,
+        country: String? = null,
+        lat: Double? = null,
+        lon: Double? = null,
+        method: Int,
+        tz: String
+    ): String {
+        return if (!city.isNullOrEmpty() && !country.isNullOrEmpty()) {
+            "city:$city|$country|m:$method|tz:$tz"
+        } else if (lat != null && lon != null) {
+            val rlat = String.format(Locale.US, "%.3f", lat)
+            val rlon = String.format(Locale.US, "%.3f", lon)
+            "geo:$rlat,$rlon|m:$method|tz:$tz"
+        } else {
+            "unknown|m:$method|tz:$tz"
+        }
+    }
+
+    private fun computeCurrentLocationKey(): String? {
+        return try {
+            val settings = settingsRepository.settings.value
+            val method = settings.prayerCalculationMethod
+            val tz = TimeZone.getDefault().id
+            when {
+                settings.locationMethod == LocationMethod.MANUAL_CITY &&
+                        settings.preferStoredCoordinates &&
+                        settings.selectedLatitude != null && settings.selectedLongitude != null ->
+                    buildLocationKey(lat = settings.selectedLatitude, lon = settings.selectedLongitude, method = method, tz = tz)
+
+                settings.locationMethod == LocationMethod.MANUAL_CITY &&
+                        !settings.selectedCityName.isNullOrEmpty() && !settings.selectedCountry.isNullOrEmpty() ->
+                    buildLocationKey(city = settings.selectedCityName, country = settings.selectedCountry, method = method, tz = tz)
+
+                !settings.preferredCity.isNullOrEmpty() && !settings.preferredCountry.isNullOrEmpty() ->
+                    buildLocationKey(city = settings.preferredCity, country = settings.preferredCountry, method = method, tz = tz)
+
+                !settings.locationCity.isNullOrEmpty() && !settings.locationCountry.isNullOrEmpty() ->
+                    buildLocationKey(city = settings.locationCity, country = settings.locationCountry, method = method, tz = tz)
+
+                settings.locationLatitude != null && settings.locationLongitude != null ->
+                    buildLocationKey(lat = settings.locationLatitude, lon = settings.locationLongitude, method = method, tz = tz)
+
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 }

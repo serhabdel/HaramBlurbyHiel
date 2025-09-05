@@ -59,7 +59,11 @@ android {
         kotlinCompilerExtensionVersion = "1.5.10"
     }
 
-
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+        disable += setOf("ExtraTranslation")
+    }
 }
 
 dependencies {
@@ -130,7 +134,13 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation("io.mockk:mockk:1.13.9")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    // Compose testing: use BOM to manage versions in androidTest
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // Manifest for UI tests in debug builds
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

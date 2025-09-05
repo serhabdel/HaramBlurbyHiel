@@ -15,6 +15,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.ui.PermissionWizardViewModel
 import com.hieltech.haramblur.ui.SettingsViewModel
+import com.hieltech.haramblur.data.cities.CitySelection
+import com.hieltech.haramblur.data.LocationMethod
+import com.hieltech.haramblur.data.LocationPermissionStatus
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
 
 /**
  * Islamic Features Onboarding Step
@@ -30,10 +36,17 @@ fun IslamicOnboardingStep(
 ) {
     val settings by settingsViewModel.settings.collectAsState()
     var enableIslamicFeatures by remember { mutableStateOf(true) }
-    var autoDetectLocation by remember { mutableStateOf(true) }
-    var selectedCity by remember { mutableStateOf<String?>(null) }
-    var selectedCountry by remember { mutableStateOf<String?>(null) }
+    var locationMethod by remember { mutableStateOf(settings.locationMethod) }
+    var selectedSelection by remember { mutableStateOf<CitySelection?>(null) }
     var showCitySelector by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        // Sync permission and try to refresh location
+        settingsViewModel.syncLocationPermissionStatus()
+        settingsViewModel.refreshLocation()
+    }
 
     Column(
         modifier = Modifier
@@ -199,33 +212,43 @@ fun IslamicOnboardingStep(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Auto-detect Location Toggle
+                    // Location Method Selection
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Auto-detect Location",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = "Use device GPS for automatic location detection",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Switch(
-                            checked = autoDetectLocation,
-                            onCheckedChange = { autoDetectLocation = it }
+                        FilterChip(
+                            selected = locationMethod == LocationMethod.GPS,
+                            onClick = { locationMethod = LocationMethod.GPS },
+                            label = { Text("Use GPS") }
+                        )
+                        FilterChip(
+                            selected = locationMethod == LocationMethod.MANUAL_CITY,
+                            onClick = { locationMethod = LocationMethod.MANUAL_CITY },
+                            label = { Text("Select City Manually") }
                         )
                     }
 
-                    // Manual City Selection (when auto-detect is disabled)
-                    if (!autoDetectLocation) {
+                    if (locationMethod == LocationMethod.GPS) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            OutlinedButton(onClick = {
+                                permissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            }) {
+                                Text("Grant Location Permission")
+                            }
+                        }
+                    }
+
+                    // Manual City Selection (when Method is Manual City)
+                    if (locationMethod == LocationMethod.MANUAL_CITY) {
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
@@ -244,11 +267,10 @@ fun IslamicOnboardingStep(
 
                         // City Selector
                         CitySelector(
-                            selectedCity = selectedCity,
-                            selectedCountry = selectedCountry,
-                            onCitySelected = { city, country ->
-                                selectedCity = city
-                                selectedCountry = country
+                            selectedCity = selectedSelection?.name,
+                            selectedCountry = selectedSelection?.country,
+                            onCitySelected = { selection ->
+                                selectedSelection = selection
                             },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -319,12 +341,13 @@ fun IslamicOnboardingStep(
                         settingsViewModel.updateIslamicCalendarEnabled(true)
                         settingsViewModel.updateQiblaDirectionEnabled(true)
 
-                        // Save location settings
-                        settingsViewModel.updateAutoDetectLocation(autoDetectLocation)
-
-                        if (!autoDetectLocation && selectedCity != null && selectedCountry != null) {
-                            settingsViewModel.updatePreferredCity(selectedCity!!)
-                            settingsViewModel.updatePreferredCountry(selectedCountry!!)
+                        // Save location settings using LocationMethod
+                        settingsViewModel.updateLocationMethod(locationMethod)
+                        settingsViewModel.syncLocationPermissionStatus()
+                        if (locationMethod == LocationMethod.GPS) {
+                            settingsViewModel.refreshLocation()
+                        } else if (selectedSelection != null) {
+                            settingsViewModel.updateSelectedCity(selectedSelection!!)
                         }
                     } else {
                         settingsViewModel.updatePrayerTimesEnabled(false)
@@ -344,9 +367,8 @@ fun IslamicOnboardingStep(
     // City Selector Dialog
     if (showCitySelector) {
         CitySelectorDialog(
-            onCitySelected = { city, country ->
-                selectedCity = city
-                selectedCountry = country
+            onCitySelected = { selection ->
+                selectedSelection = selection
                 showCitySelector = false
             },
             onDismiss = { showCitySelector = false }

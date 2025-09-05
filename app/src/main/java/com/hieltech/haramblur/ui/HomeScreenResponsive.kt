@@ -115,19 +115,27 @@ private fun CompactHomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 16.dp else 24.dp),
+            .padding(responsiveLayoutMargins()),
+        verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = if (isLandscape) 12.dp else 16.dp, medium = 20.dp, expanded = 24.dp)),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
         // Welcome Section
         AnimatedVisibility(visible = showWelcome) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            ModernCard(
+                modifier = Modifier.fillMaxWidth(),
+                gradientColors = listOf(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+                ),
+                elevation = responsiveCardElevation(),
+                cornerRadius = responsiveCornerRadius(),
+                contentPadding = responsiveCardPadding()
+            ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(20.dp)
+                    verticalArrangement = Arrangement.spacedBy(responsiveSpacing())
                 ) {
                     AnimatedFadeIn(visible = true) {
                         Text(
@@ -138,21 +146,13 @@ private fun CompactHomeScreen(
                     AnimatedFadeIn(visible = true) {
                         Text(
                             text = stringResource(R.string.welcome_title),
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.copy(headlineMedium = MaterialTheme.typography.headlineMedium.copy(fontSize = responsiveHeadlineSize())).headlineMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = stringResource(R.string.welcome_subtitle),
-                            style = MaterialTheme.typography.bodyLarge,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    AnimatedFadeIn(visible = true) {
-                        Text(
-                            text = "welcome_subtitle",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -181,7 +181,7 @@ private fun CompactHomeScreen(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = stringResource(R.string.service_status),
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(responsiveIconSize())
                     )
                 }
             )
@@ -212,30 +212,24 @@ private fun CompactHomeScreen(
         if (settings.enablePrayerTimes && !showWelcome) {
             AnimatedVisibility(visible = showFeatures) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // Prayer Times Widget
-                    PrayerTimesWidget(
+                    // Enhanced Prayer Times Widget (includes interactive Qibla compass when enabled)
+                    EnhancedPrayerTimesWidget(
                         prayerData = dashboardState.prayerTimes,
                         nextPrayer = dashboardState.nextPrayer,
                         onLocationSettingsClick = {
                             // Navigate to Islamic settings
                             onNavigateToSettings()
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        loading = (dashboardState.prayerTimes == null)
                     )
 
-                    // Islamic Calendar Widget
+                    // Enhanced Islamic Calendar Widget
                     if (settings.enableIslamicCalendar) {
-                        IslamicCalendarWidget(
+                        EnhancedIslamicCalendarWidget(
                             hijriDate = dashboardState.hijriDate,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Qibla Direction Widget
-                    if (settings.enableQiblaDirection) {
-                        QiblaDirectionWidget(
-                            qiblaDirection = dashboardState.qiblaDirection,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            loading = (dashboardState.hijriDate == null)
                         )
                     }
                 }
@@ -253,7 +247,7 @@ private fun CompactHomeScreen(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = stringResource(R.string.service_status),
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(responsiveIconSize())
                     )
                 }
             )
@@ -270,7 +264,7 @@ private fun CompactHomeScreen(
         // Quick Actions (2 per row for compact)
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             AnimatedVisibility(visible = showFeatures) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(responsiveSpacing())) {
                     Text(
                         text = stringResource(R.string.quick_actions),
                         style = MaterialTheme.typography.titleMedium,
@@ -305,302 +299,23 @@ private fun CompactHomeScreen(
 
                     val allActions = quickActions + dhikrActions
 
-                    // Group actions in pairs
-                    allActions.chunked(2).forEach { row ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            row.forEach { (title, subtitle, icon, onClick) ->
+                    // Use ResponsiveActionGrid for better layout
+                    ResponsiveActionGrid(
+                        actions = allActions.map { (title, subtitle, icon, onClick) ->
+                            {
                                 CompactQuickActionCard(
                                     title = title,
                                     subtitle = subtitle,
                                     icon = icon,
                                     onClick = onClick,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
-                            // Fill remaining space if odd number
-                            repeat(2 - row.size) {
-                                Spacer(modifier = Modifier.weight(1f))
+                        }
+                    )
+                }
+            }
         }
-    }
-}
-
-/**
- * Main responsive HomeScreen composable that adapts to different screen sizes
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeScreenResponsive(
-    onNavigateToSettings: () -> Unit,
-    onNavigateToDebug: () -> Unit,
-    onNavigateToBlockApps: () -> Unit,
-    onNavigateToBlockSites: () -> Unit,
-    onNavigateToSupport: () -> Unit,
-    onNavigateToLogs: () -> Unit,
-    onOpenDrawer: () -> Unit,
-    onNavigateToPermissionWizard: (() -> Unit)? = null,
-    onTriggerDhikr: (() -> Unit)? = null,
-    viewModel: MainViewModel,
-    statsViewModel: StatsViewModel,
-    settingsViewModel: SettingsViewModel,
-    permissionHelper: PermissionHelper,
-    appBlockingManager: AppBlockingManager?,
-    siteBlockingManager: EnhancedSiteBlockingManager?
-) {
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    val screenHeightDp = configuration.screenHeightDp
-    val isLandscape = screenWidthDp > screenHeightDp
-
-    // Determine window size class
-    val windowSizeClass = when {
-        screenWidthDp < 600 -> "Compact"
-        screenWidthDp < 840 -> "Medium"
-        else -> "Expanded"
-    }
-
-    when (windowSizeClass) {
-        "Compact" -> CompactHomeScreen(
-            isLandscape = isLandscape,
-            onNavigateToSettings = onNavigateToSettings,
-            onNavigateToDebug = onNavigateToDebug,
-            onNavigateToBlockApps = onNavigateToBlockApps,
-            onNavigateToBlockSites = onNavigateToBlockSites,
-            onNavigateToSupport = onNavigateToSupport,
-            onNavigateToLogs = onNavigateToLogs,
-            onOpenDrawer = onOpenDrawer,
-            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-            onTriggerDhikr = onTriggerDhikr,
-            viewModel = viewModel,
-            statsViewModel = statsViewModel,
-            settingsViewModel = settingsViewModel,
-            permissionHelper = permissionHelper,
-            appBlockingManager = appBlockingManager,
-            siteBlockingManager = siteBlockingManager
-        )
-        "Medium" -> MediumHomeScreen(
-            isLandscape = isLandscape,
-            onNavigateToSettings = onNavigateToSettings,
-            onNavigateToDebug = onNavigateToDebug,
-            onNavigateToBlockApps = onNavigateToBlockApps,
-            onNavigateToBlockSites = onNavigateToBlockSites,
-            onNavigateToSupport = onNavigateToSupport,
-            onNavigateToLogs = onNavigateToLogs,
-            onOpenDrawer = onOpenDrawer,
-            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-            viewModel = viewModel,
-            statsViewModel = statsViewModel,
-            settingsViewModel = settingsViewModel,
-            permissionHelper = permissionHelper,
-            appBlockingManager = appBlockingManager,
-            siteBlockingManager = siteBlockingManager
-        )
-        "Expanded" -> ExpandedHomeScreen(
-            isLandscape = isLandscape,
-            onNavigateToSettings = onNavigateToSettings,
-            onNavigateToDebug = onNavigateToDebug,
-            onNavigateToBlockApps = onNavigateToBlockApps,
-            onNavigateToBlockSites = onNavigateToBlockSites,
-            onNavigateToSupport = onNavigateToSupport,
-            onNavigateToLogs = onNavigateToLogs,
-            onOpenDrawer = onOpenDrawer,
-            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-            viewModel = viewModel,
-            statsViewModel = statsViewModel,
-            settingsViewModel = settingsViewModel,
-            permissionHelper = permissionHelper,
-            appBlockingManager = appBlockingManager,
-            siteBlockingManager = siteBlockingManager
-        )
-        }
-    }
-}
-
-/**
- * Main responsive HomeScreen composable that adapts to different screen sizes
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeScreenResponsive(
-    onNavigateToSettings: () -> Unit,
-    onNavigateToDebug: () -> Unit,
-    onNavigateToBlockApps: () -> Unit,
-    onNavigateToBlockSites: () -> Unit,
-    onNavigateToSupport: () -> Unit,
-    onNavigateToLogs: () -> Unit,
-    onOpenDrawer: () -> Unit,
-    onNavigateToPermissionWizard: (() -> Unit)? = null,
-    onTriggerDhikr: (() -> Unit)? = null,
-    viewModel: MainViewModel,
-    statsViewModel: StatsViewModel,
-    settingsViewModel: SettingsViewModel,
-    permissionHelper: PermissionHelper,
-    appBlockingManager: AppBlockingManager?,
-    siteBlockingManager: EnhancedSiteBlockingManager?
-) {
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    val screenHeightDp = configuration.screenHeightDp
-    val isLandscape = screenWidthDp > screenHeightDp
-
-    // Determine window size class
-    val windowSizeClass = when {
-        screenWidthDp < 600 -> "Compact"
-        screenWidthDp < 840 -> "Medium"
-        else -> "Expanded"
-    }
-
-    when (windowSizeClass) {
-        "Compact" -> CompactHomeScreen(
-            isLandscape = isLandscape,
-            onNavigateToSettings = onNavigateToSettings,
-            onNavigateToDebug = onNavigateToDebug,
-            onNavigateToBlockApps = onNavigateToBlockApps,
-            onNavigateToBlockSites = onNavigateToBlockSites,
-            onNavigateToSupport = onNavigateToSupport,
-            onNavigateToLogs = onNavigateToLogs,
-            onOpenDrawer = onOpenDrawer,
-            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-            onTriggerDhikr = onTriggerDhikr,
-            viewModel = viewModel,
-            statsViewModel = statsViewModel,
-            settingsViewModel = settingsViewModel,
-            permissionHelper = permissionHelper,
-            appBlockingManager = appBlockingManager,
-            siteBlockingManager = siteBlockingManager
-        )
-        "Medium" -> MediumHomeScreen(
-            isLandscape = isLandscape,
-            onNavigateToSettings = onNavigateToSettings,
-            onNavigateToDebug = onNavigateToDebug,
-            onNavigateToBlockApps = onNavigateToBlockApps,
-            onNavigateToBlockSites = onNavigateToBlockSites,
-            onNavigateToSupport = onNavigateToSupport,
-            onNavigateToLogs = onNavigateToLogs,
-            onOpenDrawer = onOpenDrawer,
-            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-            viewModel = viewModel,
-            statsViewModel = statsViewModel,
-            settingsViewModel = settingsViewModel,
-            permissionHelper = permissionHelper,
-            appBlockingManager = appBlockingManager,
-            siteBlockingManager = siteBlockingManager
-        )
-        "Expanded" -> ExpandedHomeScreen(
-            isLandscape = isLandscape,
-            onNavigateToSettings = onNavigateToSettings,
-            onNavigateToDebug = onNavigateToDebug,
-            onNavigateToBlockApps = onNavigateToBlockApps,
-            onNavigateToBlockSites = onNavigateToBlockSites,
-            onNavigateToSupport = onNavigateToSupport,
-            onNavigateToLogs = onNavigateToLogs,
-            onOpenDrawer = onOpenDrawer,
-            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-            viewModel = viewModel,
-            statsViewModel = statsViewModel,
-            settingsViewModel = settingsViewModel,
-            permissionHelper = permissionHelper,
-            appBlockingManager = appBlockingManager,
-            siteBlockingManager = siteBlockingManager
-        )
-        }
-    }
-}
-
-/**
- * Main responsive HomeScreen composable that adapts to different screen sizes
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeScreenResponsive(
-    onNavigateToSettings: () -> Unit,
-    onNavigateToDebug: () -> Unit,
-    onNavigateToBlockApps: () -> Unit,
-    onNavigateToBlockSites: () -> Unit,
-    onNavigateToSupport: () -> Unit,
-    onNavigateToLogs: () -> Unit,
-    onOpenDrawer: () -> Unit,
-    onNavigateToPermissionWizard: (() -> Unit)? = null,
-    onTriggerDhikr: (() -> Unit)? = null,
-    viewModel: MainViewModel,
-    statsViewModel: StatsViewModel,
-    settingsViewModel: SettingsViewModel,
-    permissionHelper: PermissionHelper,
-    appBlockingManager: AppBlockingManager?,
-    siteBlockingManager: EnhancedSiteBlockingManager?
-) {
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    val screenHeightDp = configuration.screenHeightDp
-    val isLandscape = screenWidthDp > screenHeightDp
-
-    // Determine window size class
-    val windowSizeClass = when {
-        screenWidthDp < 600 -> "Compact"
-        screenWidthDp < 840 -> "Medium"
-        else -> "Expanded"
-    }
-
-    when (windowSizeClass) {
-        "Compact" -> CompactHomeScreen(
-            isLandscape = isLandscape,
-            onNavigateToSettings = onNavigateToSettings,
-            onNavigateToDebug = onNavigateToDebug,
-            onNavigateToBlockApps = onNavigateToBlockApps,
-            onNavigateToBlockSites = onNavigateToBlockSites,
-            onNavigateToSupport = onNavigateToSupport,
-            onNavigateToLogs = onNavigateToLogs,
-            onOpenDrawer = onOpenDrawer,
-            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-            onTriggerDhikr = onTriggerDhikr,
-            viewModel = viewModel,
-            statsViewModel = statsViewModel,
-            settingsViewModel = settingsViewModel,
-            permissionHelper = permissionHelper,
-            appBlockingManager = appBlockingManager,
-            siteBlockingManager = siteBlockingManager
-        )
-        "Medium" -> MediumHomeScreen(
-            isLandscape = isLandscape,
-            onNavigateToSettings = onNavigateToSettings,
-            onNavigateToDebug = onNavigateToDebug,
-            onNavigateToBlockApps = onNavigateToBlockApps,
-            onNavigateToBlockSites = onNavigateToBlockSites,
-            onNavigateToSupport = onNavigateToSupport,
-            onNavigateToLogs = onNavigateToLogs,
-            onOpenDrawer = onOpenDrawer,
-            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-            viewModel = viewModel,
-            statsViewModel = statsViewModel,
-            settingsViewModel = settingsViewModel,
-            permissionHelper = permissionHelper,
-            appBlockingManager = appBlockingManager,
-            siteBlockingManager = siteBlockingManager
-        )
-        "Expanded" -> ExpandedHomeScreen(
-            isLandscape = isLandscape,
-            onNavigateToSettings = onNavigateToSettings,
-            onNavigateToDebug = onNavigateToDebug,
-            onNavigateToBlockApps = onNavigateToBlockApps,
-            onNavigateToBlockSites = onNavigateToBlockSites,
-            onNavigateToSupport = onNavigateToSupport,
-            onNavigateToLogs = onNavigateToLogs,
-            onOpenDrawer = onOpenDrawer,
-            onNavigateToPermissionWizard = onNavigateToPermissionWizard,
-            viewModel = viewModel,
-            statsViewModel = statsViewModel,
-            settingsViewModel = settingsViewModel,
-            permissionHelper = permissionHelper,
-            appBlockingManager = appBlockingManager,
-            siteBlockingManager = siteBlockingManager
-        )
-        }
-    }
-}
-
-// Test comment
 
         // Permission Setup (if needed)
         if (!hasRequiredPermissions && !showWelcome) {
@@ -609,11 +324,13 @@ fun HomeScreenResponsive(
                 gradientColors = listOf(
                     MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
                     MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.05f)
-                )
+                ),
+                elevation = responsiveCardElevation(),
+                cornerRadius = responsiveCornerRadius(),
+                contentPadding = responsiveCardPadding()
             ) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(responsiveSpacing())
                 ) {
                     Text(
                         text = stringResource(R.string.setup_incomplete),
@@ -630,7 +347,10 @@ fun HomeScreenResponsive(
                     if (onNavigateToPermissionWizard != null) {
                         Button(
                             onClick = onNavigateToPermissionWizard,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
                         ) {
                             Text(stringResource(R.string.complete_setup))
                         }
@@ -705,8 +425,8 @@ private fun MediumHomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+            .padding(responsiveLayoutMargins()),
+        verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 20.dp, medium = 24.dp, expanded = 28.dp)),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(8.dp))
@@ -715,13 +435,21 @@ private fun MediumHomeScreen(
         if (showWelcome) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(responsiveSpacing())
             ) {
-                Card(modifier = Modifier.weight(1f)) {
+                ModernCard(
+                    modifier = Modifier.weight(1f),
+                    gradientColors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+                    ),
+                    elevation = responsiveCardElevation(),
+                    cornerRadius = responsiveCornerRadius(),
+                    contentPadding = responsiveCardPadding()
+                ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(20.dp)
+                        verticalArrangement = Arrangement.spacedBy(responsiveSpacing())
                     ) {
                         Text(
                             text = "🛡️",
@@ -729,7 +457,7 @@ private fun MediumHomeScreen(
                         )
                         Text(
                             text = stringResource(R.string.welcome_to_haramblur),
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.copy(headlineMedium = MaterialTheme.typography.headlineMedium.copy(fontSize = responsiveHeadlineSize())).headlineMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.primary
@@ -759,7 +487,7 @@ private fun MediumHomeScreen(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = stringResource(R.string.service_status),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(responsiveIconSize())
                         )
                     }
                 )
@@ -855,32 +583,26 @@ private fun MediumHomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Prayer Times Widget
-                    PrayerTimesWidget(
+                    // Enhanced Prayer Times Widget
+                    EnhancedPrayerTimesWidget(
                         onLocationSettingsClick = {
                             // Navigate to Islamic settings
                             onNavigateToSettings()
                         },
                         prayerData = dashboardState.prayerTimes,
                         nextPrayer = dashboardState.nextPrayer,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        loading = (dashboardState.prayerTimes == null)
                     )
 
-                    // Islamic Calendar Widget
+                    // Enhanced Islamic Calendar Widget
                     if (settings.enableIslamicCalendar) {
-                        IslamicCalendarWidget(
+                        EnhancedIslamicCalendarWidget(
                             hijriDate = dashboardState.hijriDate,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            loading = (dashboardState.hijriDate == null)
                         )
                     }
-                }
-
-                // Qibla Direction Widget (full width)
-                if (settings.enableQiblaDirection) {
-                    QiblaDirectionWidget(
-                        qiblaDirection = dashboardState.qiblaDirection,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             }
         }
@@ -1012,8 +734,8 @@ private fun ExpandedHomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+            .padding(responsiveLayoutMargins()),
+        verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 24.dp, medium = 28.dp, expanded = 32.dp)),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(8.dp))
@@ -1022,14 +744,22 @@ private fun ExpandedHomeScreen(
         if (showWelcome) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(responsiveSpacing())
             ) {
                 // Welcome Card
-                Card(modifier = Modifier.weight(1f)) {
+                ModernCard(
+                    modifier = Modifier.weight(1f),
+                    gradientColors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+                    ),
+                    elevation = responsiveCardElevation(),
+                    cornerRadius = responsiveCornerRadius(),
+                    contentPadding = responsiveCardPadding()
+                ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(24.dp)
+                        verticalArrangement = Arrangement.spacedBy(responsiveSpacing())
                     ) {
                         Text(
                             text = "🛡️",
@@ -1037,7 +767,7 @@ private fun ExpandedHomeScreen(
                         )
                         Text(
                             text = stringResource(R.string.welcome_to_haramblur),
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = MaterialTheme.typography.copy(headlineLarge = MaterialTheme.typography.headlineLarge.copy(fontSize = responsiveHeadlineSize() * 1.2f)).headlineLarge,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.primary
@@ -1068,17 +798,25 @@ private fun ExpandedHomeScreen(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = stringResource(R.string.service_status),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(responsiveIconSize())
                         )
                     }
                 )
 
                 // Dashboard Preview
                 if (hasRequiredPermissions && serviceRunning) {
-                    Card(modifier = Modifier.weight(1f)) {
+                    ModernCard(
+                        modifier = Modifier.weight(1f),
+                        gradientColors = listOf(
+                            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                        ),
+                        elevation = responsiveCardElevation(),
+                        cornerRadius = responsiveCornerRadius(),
+                        contentPadding = responsiveCardPadding()
+                    ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 6.dp, medium = 8.dp, expanded = 10.dp))
                         ) {
                             Text(
                                 text = "📊 ${stringResource(R.string.performance)}",
@@ -1219,30 +957,24 @@ private fun ExpandedHomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Prayer Times Widget
-                    PrayerTimesWidget(
+                    // Enhanced Prayer Times Widget
+                    EnhancedPrayerTimesWidget(
                         prayerData = dashboardState.prayerTimes,
                         nextPrayer = dashboardState.nextPrayer,
                         onLocationSettingsClick = {
                             // Navigate to Islamic settings
                             onNavigateToSettings()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        loading = (dashboardState.prayerTimes == null)
                     )
 
-                    // Islamic Calendar Widget
+                    // Enhanced Islamic Calendar Widget
                     if (settings.enableIslamicCalendar) {
-                        IslamicCalendarWidget(
+                        EnhancedIslamicCalendarWidget(
                             hijriDate = dashboardState.hijriDate,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    // Qibla Direction Widget
-                    if (settings.enableQiblaDirection) {
-                        QiblaDirectionWidget(
-                            qiblaDirection = dashboardState.qiblaDirection,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            loading = (dashboardState.hijriDate == null)
                         )
                     }
                 }
@@ -1723,19 +1455,22 @@ private fun DhikrBar(
 
     val currentDhikr = dhikrList.getOrNull(currentDhikrIndex) ?: return
 
-    Card(
+    ModernCard(
         modifier = modifier
             .fillMaxWidth()
             .height(90.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+        gradientColors = listOf(
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = responsiveCardElevation(),
+        cornerRadius = responsiveCornerRadius(),
+        contentPadding = PaddingValues(0.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = responsiveSpacing()),
             contentAlignment = Alignment.Center
         ) {
             // Animated text container with horizontal slide

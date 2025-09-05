@@ -140,7 +140,6 @@
     <string name="islamic_features">Fonctionnalités islamiques</string>
     <string name="quranic_verses">Versets coraniques</string>
     <string name="dhikr_reminders">Rappels de dhikr</string>
-    <string name="prayer_times">Heures de prière</string>
     <string name="islamic_calendar">Calendrier islamique</string>
     <string name="protection_stats">Statistiques de protection</string>
     <string name="total_blocked">Total bloqué</string>
@@ -252,6 +251,32 @@
     <string name="severity_level">Sévérité : %s</string>
     <string name="reflection_time_seconds">%d secondes restantes</string>
      <string name="language_description">Définir la langue de l\'app à %s</string>
+
+     <!-- Missing French Translations -->
+     <string name="accessibility_enabled_service_not_running">Accessibilité activée, service non en cours d\'exécution</string>
+     <string name="advanced_features_title">Fonctionnalités avancées</string>
+     <string name="advanced_settings_title">Paramètres avancés</string>
+     <string name="complete_setup_to_enable_content_filtering">Terminer la configuration pour activer le filtrage de contenu</string>
+     <string name="custom">personnalisé</string>
+     <string name="detailed_logging_description">Activer la journalisation détaillée pour le débogage</string>
+     <string name="detailed_logging_title">Journalisation détaillée</string>
+     <string name="developer_logging_title">Journalisation développeur</string>
+     <string name="dp">dp</string>
+     <string name="enter_website_url">Entrer l\'URL du site web</string>
+     <string name="get_help">Obtenir de l\'aide</string>
+     <string name="islamic_content_filter">Votre filtre de contenu islamique est prêt à protéger votre espace numérique</string>
+     <string name="islamic_remembrance">Souvenir islamique</string>
+     <string name="log_level_title">Niveau de journalisation</string>
+     <string name="log_retention_description">Durée de conservation des fichiers de journalisation</string>
+     <string name="log_retention_title">Rétention des journaux</string>
+     <string name="quick_help">Aide rapide</string>
+     <string name="setup_incomplete">Configuration incomplète</string>
+     <string name="show_dhikr">Afficher le Dhikr</string>
+     <string name="ultra_fast_mode_description">Optimiser pour la vitesse plutôt que la précision</string>
+     <string name="ultra_fast_mode_title">Mode ultra rapide</string>
+     <string name="user_action_logging_description">Enregistrer les actions utilisateur pour l\'analyse</string>
+     <string name="user_action_logging_title">Journalisation des actions utilisateur</string>
+     <string name="restart_app">Redémarrer l\'application</string>
 
      <!-- Settings Navigation Categories -->
      <string name="nav_general_title">Général</string>
@@ -654,5 +679,69 @@
       <string name="debug">Déboguer</string>
       <string name="detection_stats">Statistiques de détection</string>
 
-      <!-- Debug Screen Strings -->
-  </resources>
+     <!-- Dhikr Status Card -->
+    <string name="dhikr_status_title">🕌 État du Dhikr</string>
+    <string name="dhikr_today_count">%d aujourd\'hui</string>
+    <string name="status_label">Statut :</string>
+    <string name="status_displaying">Affichage</string>
+    <string name="status_ready">Prêt</string>
+    <string name="status_next_in_minutes">Prochain dans %d min</string>
+    <string name="time_window_label">Plage horaire :</string>
+    <string name="display_method_label">Méthode d\'affichage :</string>
+    <string name="display_method_overlay">Superposition</string>
+    <string name="display_method_notification">Notification</string>
+    <string name="display_method_none">Aucune</string>
+    <string name="show_dhikr_now">Afficher le Dhikr maintenant</string>
+    <string name="prayer_times">Heures de prière</string>
+    <string name="prayer_times_description">Affichez les heures de prière islamiques pour votre localisation</string>
+    <string name="prayer_times_settings">Paramètres des heures de prière</string>
+    <string name="prayer_times_settings_description">Configurez les paramètres des heures de prière pour votre localisation</string>
+    <string name="prayer_times_notification">Notification des heures de prière</string>
+    <string name="prayer_times_notification_description">Recevez des notifications pour les heures de prière</string>
+    <string name="prayer_times_overlay">Superposition des heures de prière</string>
+    <string name="prayer_times_overlay_description">Affichez les heures de prière en superposition</string>
+
+    <string name="prayer_times_widget_title">Heures de prière</string>
+    <string name="prayer_times_widget_subtitle">Affichez les heures de prière islamiques pour votre localisation</string>
+    <string name="prayer_times_widget_label">Heures de prière</string>
+    <string name="fajr">Fajr</string>
+    <string name="dhuhr">Dhuhr</string>
+    <string name="asr">Asr</string>
+    <string name="maghrib">Maghrib</string>
+    <string name="isha">Isha</string>
+    <string name="qibla_direction">Direction de la Qibla</string>
+    <string name="qibla_direction_description">Affichez la direction de la Qibla pour votre localisation</string>
+    <string name="prayer_times_settings_title">Paramètres des heures de prière</string>
+    <string name="prayer_times_settings_subtitle">Configurez les paramètres des heures de prière pour votre localisation</string>
+    <string name="prayer_times_settings_label">Paramètres des heures de prière</string>
+    <string name="prayer_times_notification_title">Notification des heures de prière</string>
+    <string name="prayer_times_notification_subtitle">Recevez des notifications pour les heures de prière</string>
+    <string name="prayer_times_notification_label">Notification des heures de prière</string>
+    <string name="prayer_times_overlay_title">Superposition des heures de prière</string>
+    <string name="prayer_times_overlay_subtitle">Affichez les heures de prière en superposition</string>
+    <string name="prayer_times_overlay_label">Superposition des heures de prière</string>
+
+     <!-- Prayer Times & Qibla (Widget) -->
+     <string name="prayer_times_title">🕌 Heures de prière</string>
+     <string name="location_settings_cd">Paramètres de localisation</string>
+     <string name="next_prayer_label">Prière suivante : %s</string>
+     <string name="prayer_name_fajr">Fajr</string>
+     <string name="prayer_name_sunrise">Lever du soleil</string>
+     <string name="prayer_name_dhuhr">Dhuhr</string>
+     <string name="prayer_name_asr">Asr</string>
+     <string name="prayer_name_maghrib">Maghrib</string>
+     <string name="prayer_name_sunset">Coucher du soleil</string>
+     <string name="prayer_name_isha">Isha</string>
+     <string name="islamic_calendar_title">📅 Calendrier islamique</string>
+     <string name="special_day_label">Jour spécial</string>
+     <string name="qibla_direction_title">🧭 Direction de la Qibla</string>
+     <string name="direction_north">Nord</string>
+     <string name="direction_northeast">Nord-Est</string>
+     <string name="direction_east">Est</string>
+     <string name="direction_southeast">Sud-Est</string>
+     <string name="direction_south">Sud</string>
+     <string name="direction_southwest">Sud-Ouest</string>
+     <string name="direction_west">Ouest</string>
+     <string name="direction_northwest">Nord-Ouest</string>
+     <string name="direction_unknown">Inconnu</string>
+ </resources>

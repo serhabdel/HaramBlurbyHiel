@@ -1,9 +1,11 @@
 package com.hieltech.haramblur
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,12 +13,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.ui.HomeScreenResponsive
 import com.hieltech.haramblur.ui.UnifiedBlockingScreenResponsive
@@ -35,11 +38,16 @@ import com.hieltech.haramblur.ui.NavRoutes
 import com.hieltech.haramblur.ui.theme.HaramBlurTheme
 import com.hieltech.haramblur.detection.AppBlockingManager
 import com.hieltech.haramblur.detection.EnhancedSiteBlockingManager
+import com.hieltech.haramblur.utils.LocaleUtils
+import com.hieltech.haramblur.ui.SettingsViewModel
+import com.hieltech.haramblur.detection.Language
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     @Inject
     lateinit var appBlockingManager: AppBlockingManager
@@ -53,9 +61,29 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var permissionHelper: PermissionHelper
 
+    override fun attachBaseContext(base: Context) {
+        // Wrap base context with saved language before any UI is created
+        val prefs = base.getSharedPreferences("haramblur_settings", Context.MODE_PRIVATE)
+        val langName = prefs.getString("preferred_language", Language.ENGLISH.name) ?: Language.ENGLISH.name
+        val lang = try { Language.valueOf(langName) } catch (_: Exception) { Language.ENGLISH }
+        val wrapped = LocaleUtils.wrap(base, lang)
+        super.attachBaseContext(wrapped)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+
+        // Observe language change events and recreate activity to refresh resources
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                settingsViewModel.languageChangeEvents.collect {
+                    android.util.Log.d("MainActivity", "Language change event received. Recreating activity.")
+                    recreate()
+                }
+            }
+        }
 
         // Test app detection
         lifecycleScope.launch {

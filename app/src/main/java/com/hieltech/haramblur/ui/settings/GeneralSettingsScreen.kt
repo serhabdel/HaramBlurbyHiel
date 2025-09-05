@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,7 +46,7 @@ fun GeneralSettingsScreen(
                 title = { Text(stringResource(R.string.general_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -105,12 +105,30 @@ fun GeneralSettingsScreen(
 
                     // Language change notice
                     if (settings.preferredLanguage != com.hieltech.haramblur.detection.Language.ENGLISH) {
-                        Text(
-                            text = stringResource(R.string.language_changed_restart),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Language changed to ${settings.preferredLanguage.displayName}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                
+                                Text(
+                                    text = "The interface should now display in ${settings.preferredLanguage.displayName}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -168,7 +186,7 @@ fun GeneralSettingsScreen(
                                 Color(0xFF2E7D32),
                                 Color(0xFF1B5E20)
                             ),
-                            isSelected = settings.currentPreset == "Optimal Performance",
+                            isSelected = settings.currentPreset == stringResource(R.string.optimal_performance_name),
                             onClick = {
                                 val preset = PresetManager.createOptimalPerformancePreset()
                                 showPresetConfirmation = preset
@@ -186,7 +204,7 @@ fun GeneralSettingsScreen(
                             Color(0xFF1976D2),
                             Color(0xFF0D47A1)
                         ),
-                        isSelected = settings.currentPreset == "Custom",
+                        isSelected = settings.currentPreset == stringResource(R.string.custom_settings_name),
                         onClick = {
                             // Custom preset - no action needed, just show it's selected
                         },

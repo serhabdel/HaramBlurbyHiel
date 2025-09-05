@@ -6,9 +6,13 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import android.util.Log
+import android.view.View
 import com.hieltech.haramblur.data.AppTheme
 import com.hieltech.haramblur.detection.Language
 
@@ -252,6 +256,12 @@ fun HaramBlurTheme(
     preferredLanguage: Language = Language.ENGLISH,
     content: @Composable () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    // Log locale changes to help verify configuration propagation into Compose
+    LaunchedEffect(configuration.locales) {
+        val locale = runCatching { configuration.locales[0] }.getOrNull()
+        Log.d("HaramBlurTheme", "Configuration locales updated: $locale")
+    }
     val colorScheme = when (appTheme) {
         AppTheme.ISLAMIC_LIGHT -> LightColorScheme
         AppTheme.ISLAMIC_DARK -> DarkColorScheme
@@ -261,12 +271,9 @@ fun HaramBlurTheme(
         AppTheme.MINIMAL_DARK -> MinimalDarkColorScheme
     }
 
-    // Determine layout direction based on language
-    val layoutDirection = if (preferredLanguage.isRTL) {
-        LayoutDirection.Rtl
-    } else {
-        LayoutDirection.Ltr
-    }
+    // Determine layout direction primarily from preferred language; fall back to configuration
+    val isRtl = preferredLanguage.isRTL || configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
+    val layoutDirection = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
         MaterialTheme(
