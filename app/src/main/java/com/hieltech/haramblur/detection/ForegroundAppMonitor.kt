@@ -6,14 +6,20 @@ import android.content.Context
 import android.os.Build
 import android.os.PowerManager
 import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.RequiresApi
+import com.hieltech.haramblur.data.AppFilteringManager
+import com.hieltech.haramblur.data.AppUsageTracker
 import com.hieltech.haramblur.data.LogRepository
+import com.hieltech.haramblur.data.SettingsRepository
+import com.hieltech.haramblur.services.UsageTimeNotificationManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.hieltech.haramblur.data.LogRepository.LogCategory
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,23 +43,32 @@ class ForegroundAppMonitor @Inject constructor(
     private val usageStatsManager: UsageStatsManager,
     private val systemCapabilities: SystemCapabilities,
     private val logRepository: LogRepository,
-    private val blockedAppLaunchCallback: BlockedAppLaunchCallback
+    private val blockedAppLaunchCallback: BlockedAppLaunchCallback,
+    private val appUsageTracker: AppUsageTracker,
+    private val usageTimeNotificationManager: UsageTimeNotificationManager,
+    private val appFilteringManager: AppFilteringManager,
+    private val settingsRepository: SettingsRepository,
+    private val usageTrackingIntegrator: UsageTrackingIntegrator
 ) {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var monitoringJob: Job? = null
+    private var settingsCollectorJob: Job? = null
 
     private val _isMonitoringFlow = MutableStateFlow(false)
     val isMonitoringFlow: StateFlow<Boolean> = _isMonitoringFlow.asStateFlow()
 
     private var lastForegroundApp: String? = null
     private var lastEventTime: Long = 0
+    private var lastUsageStatsRefresh: Long = 0
 
     companion object {
+        private const val TAG = "ForegroundAppMonitor"
         private const val MONITORING_INTERVAL_MS = 1000L // 1 second base interval
         private const val MONITORING_INTERVAL_IDLE_MS = 5000L // 5 seconds when device is idle
         private const val EVENT_TIME_WINDOW_MS = 2000L // 2 seconds
         private const val MIN_EVENT_INTERVAL_MS = 500L // Prevent duplicate events
+        private const val USAGE_STATS_REFRESH_THROTTLE_MS = 30000L // 30 seconds minimum between refreshes
     }
 
     /**
@@ -82,6 +97,9 @@ class ForegroundAppMonitor @Inject constructor(
                 userAction = "MONITORING_STARTED"
             )
 
+            // Start usage tracking integration
+            usageTrackingIntegrator.startIntegration(scope)
+
             while (isActive) {
                 try {
                     checkForegroundApp()
@@ -101,12 +119,29 @@ class ForegroundAppMonitor @Inject constructor(
     }
 
     /**
+     * Throttled usage stats refresh to prevent excessive refreshes
+     */
+    private suspend fun throttledRefreshUsageStats() {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastUsageStatsRefresh >= USAGE_STATS_REFRESH_THROTTLE_MS) {
+            appUsageTracker.refreshUsageStats()
+            lastUsageStatsRefresh = currentTime
+            Log.d(TAG, "Usage stats refreshed")
+        }
+    }
+
+    /**
      * Stop monitoring foreground apps
      */
     fun stopMonitoring() {
         monitoringJob?.cancel()
+        settingsCollectorJob?.cancel()
         monitoringJob = null
+        settingsCollectorJob = null
         _isMonitoringFlow.value = false
+
+        // Stop usage tracking integration
+        usageTrackingIntegrator.stopIntegration()
 
         scope.launch {
             logRepository.logInfo(
@@ -115,6 +150,8 @@ class ForegroundAppMonitor @Inject constructor(
                 userAction = "MONITORING_STOPPED"
             )
         }
+
+        Log.i(TAG, "Foreground app monitoring stopped")
     }
 
     /**
@@ -179,7 +216,7 @@ class ForegroundAppMonitor @Inject constructor(
     }
 
     /**
-     * Handle detected app launch with aggressive blocking
+     * Handle detected app launch with aggressive blocking and usage tracking
      */
     private suspend fun handleAppLaunch(packageName: String, eventTime: Long) {
         try {
@@ -190,6 +227,15 @@ class ForegroundAppMonitor @Inject constructor(
                 // If blocking was successful, set up additional monitoring for this app
                 // to ensure it stays blocked if it tries to relaunch
                 setupAggressiveMonitoring(packageName)
+            }
+
+            // Track usage and check limits sequentially to avoid race conditions
+            try {
+                usageTrackingIntegrator.trackAppUsage(packageName, eventTime)
+                usageTrackingIntegrator.checkAndHandleTimeLimits(packageName)
+                Log.d(TAG, "Usage tracking completed for $packageName")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in usage tracking for $packageName", e)
             }
 
             scope.launch {
@@ -212,6 +258,7 @@ class ForegroundAppMonitor @Inject constructor(
             }
         }
     }
+
 
     /**
      * Setup aggressive monitoring for persistently blocked apps

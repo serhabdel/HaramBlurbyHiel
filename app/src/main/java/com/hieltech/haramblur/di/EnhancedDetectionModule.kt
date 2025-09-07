@@ -11,6 +11,10 @@ import com.hieltech.haramblur.ml.MLModelManager
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.data.database.SiteBlockingDatabase
+import com.hieltech.haramblur.data.AppCategoryDetector
+import com.hieltech.haramblur.data.AppFilteringManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import dagger.Module
 import dagger.Provides
 import dagger.Binds
@@ -141,7 +145,10 @@ abstract class EnhancedDetectionModule {
             performanceMonitor: PerformanceMonitor,
             contentDensityAnalyzer: ContentDensityAnalyzer,
             fullScreenBlurTrigger: FullScreenBlurTrigger,
-            logRepository: LogRepository
+            logRepository: LogRepository,
+            settingsRepository: SettingsRepository,
+            appCategoryDetector: AppCategoryDetector,
+            appFilteringManager: AppFilteringManager
         ): ContentDetectionEngine {
             return ContentDetectionEngine(
                 mlModelManager,
@@ -151,10 +158,38 @@ abstract class EnhancedDetectionModule {
                 performanceMonitor,
                 contentDensityAnalyzer,
                 fullScreenBlurTrigger,
-                logRepository
+                logRepository,
+                settingsRepository,
+                appCategoryDetector,
+                appFilteringManager
             )
         }
-        
+
+        // Application coroutine scope for state flows
+        @Provides
+        @Singleton
+        fun provideApplicationScope(): CoroutineScope {
+            return CoroutineScope(SupervisorJob())
+        }
+
+        // App category detector for centralized app identification
+        @Provides
+        @Singleton
+        fun provideAppCategoryDetector(): AppCategoryDetector {
+            return AppCategoryDetector()
+        }
+
+        // App filtering manager for centralized filtering logic
+        @Provides
+        @Singleton
+        fun provideAppFilteringManager(
+            settingsRepository: SettingsRepository,
+            appCategoryDetector: AppCategoryDetector,
+            applicationScope: CoroutineScope
+        ): AppFilteringManager {
+            return AppFilteringManager(settingsRepository, appCategoryDetector, applicationScope)
+        }
+
         // System service providers
         @Provides
         @Singleton

@@ -1145,4 +1145,166 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // App-Specific Detection Update Methods
+    fun updateAppSpecificDetection(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableAppSpecificDetection = enabled))
+        }
+    }
+
+    fun updateMonitoredAppCategories(categories: Set<com.hieltech.haramblur.data.models.AppCategory>) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(monitoredAppCategories = categories))
+        }
+    }
+
+    fun updateCustomMonitoredApps(apps: Set<String>) {
+        viewModelScope.launch {
+            val current = settings.value
+            // Remove any apps that are in the excluded list (excluded takes precedence)
+            val filteredApps = apps.filter { !current.excludedApps.contains(it) }.toSet()
+            settingsRepository.updateSettings(current.copy(customMonitoredApps = filteredApps))
+        }
+    }
+
+    fun updateExcludedApps(apps: Set<String>) {
+        viewModelScope.launch {
+            val current = settings.value
+            // Remove any apps that are in the monitored list (excluded takes precedence)
+            val filteredApps = apps.filter { !current.customMonitoredApps.contains(it) }.toSet()
+            settingsRepository.updateSettings(current.copy(excludedApps = filteredApps))
+        }
+    }
+
+    /**
+     * Check if an app can be added to the monitored list
+     */
+    fun canAddToMonitored(packageName: String): Boolean {
+        val current = settings.value
+        return !current.excludedApps.contains(packageName) &&
+               !current.customMonitoredApps.contains(packageName)
+    }
+
+    /**
+     * Check if an app can be added to the excluded list
+     */
+    fun canAddToExcluded(packageName: String): Boolean {
+        val current = settings.value
+        return !current.customMonitoredApps.contains(packageName) &&
+               !current.excludedApps.contains(packageName) &&
+               !isAppInMonitoredCategories(packageName)
+    }
+
+    /**
+     * Check if an app is in any monitored category
+     */
+    private fun isAppInMonitoredCategories(packageName: String): Boolean {
+        val current = settings.value
+        return current.monitoredAppCategories.any { category ->
+            category.defaultApps.contains(packageName)
+        }
+    }
+
+    // Usage Time Tracking Update Methods
+    fun updateUsageTimeNotifications(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+
+            // Prepopulate default app time limits on first enable if not already seeded
+            val updatedLimits = if (enabled && !current.usageDefaultsSeeded) {
+                val defaultLimits = current.customAppTimeLimits.toMutableMap()
+                defaultLimits["com.instagram.android"] = 60 // Instagram - 1 hour
+                defaultLimits["com.facebook.katana"] = 60 // Facebook - 1 hour
+                defaultLimits["com.whatsapp"] = 120 // WhatsApp - 2 hours
+                defaultLimits.toMap()
+            } else {
+                current.customAppTimeLimits
+            }
+
+            settingsRepository.updateSettings(current.copy(
+                enableUsageTimeNotifications = enabled,
+                customAppTimeLimits = updatedLimits,
+                usageDefaultsSeeded = current.usageDefaultsSeeded || enabled
+            ))
+        }
+    }
+
+    fun updateDefaultSocialMediaTimeLimit(limitMinutes: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(defaultSocialMediaTimeLimit = limitMinutes))
+        }
+    }
+
+    fun updateDefaultMessagingTimeLimit(limitMinutes: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(defaultMessagingTimeLimit = limitMinutes))
+        }
+    }
+
+    fun updateCustomAppTimeLimit(packageName: String, limitMinutes: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            val updatedLimits = current.customAppTimeLimits.toMutableMap()
+            updatedLimits[packageName] = limitMinutes
+            settingsRepository.updateSettings(current.copy(customAppTimeLimits = updatedLimits))
+        }
+    }
+
+    fun removeCustomAppTimeLimit(packageName: String) {
+        viewModelScope.launch {
+            val current = settings.value
+            val updatedLimits = current.customAppTimeLimits.toMutableMap()
+            updatedLimits.remove(packageName)
+            settingsRepository.updateSettings(current.copy(customAppTimeLimits = updatedLimits))
+        }
+    }
+
+    fun updateUsageNotificationFrequency(frequencyMinutes: Int) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(usageNotificationFrequency = frequencyMinutes))
+        }
+    }
+
+    fun updateDailyUsageReset(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value
+            settingsRepository.updateSettings(current.copy(enableDailyUsageReset = enabled))
+        }
+    }
+
+    // Helper Methods for UI
+    fun getUsageTimeConfig(): com.hieltech.haramblur.data.models.UsageTimeConfig {
+        val current = settings.value
+        return com.hieltech.haramblur.data.models.UsageTimeConfig(
+            enabled = current.enableUsageTimeNotifications,
+            defaultLimits = mapOf(
+                com.hieltech.haramblur.data.models.AppCategory.SOCIAL_MEDIA to current.defaultSocialMediaTimeLimit,
+                com.hieltech.haramblur.data.models.AppCategory.MESSAGING to current.defaultMessagingTimeLimit,
+                com.hieltech.haramblur.data.models.AppCategory.ENTERTAINMENT to 60,
+                com.hieltech.haramblur.data.models.AppCategory.DATING to 30,
+                com.hieltech.haramblur.data.models.AppCategory.BROWSERS to 180
+            ),
+            customAppLimits = current.customAppTimeLimits,
+            notificationFrequencyMinutes = current.usageNotificationFrequency,
+            enableDailyReset = current.enableDailyUsageReset
+        )
+    }
+
+    fun getMonitoredAppCategoriesCount(): Int {
+        return settings.value.monitoredAppCategories.size
+    }
+
+    fun getCustomMonitoredAppsCount(): Int {
+        return settings.value.customMonitoredApps.size
+    }
+
+    fun isAppCategoryMonitored(category: com.hieltech.haramblur.data.models.AppCategory): Boolean {
+        return settings.value.monitoredAppCategories.contains(category)
+    }
+
 }

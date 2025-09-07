@@ -1,12 +1,16 @@
 package com.hieltech.haramblur.ui.settings
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -14,8 +18,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.*
+import com.hieltech.haramblur.data.models.AppCategory
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.SettingsViewModel
+import com.hieltech.haramblur.ui.components.getAppDisplayName
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,6 +144,210 @@ fun DetectionSettingsScreen(
                         checked = settings.enableFallbackDetection,
                         onCheckedChange = { viewModel.updateFallbackDetection(it) }
                     )
+                }
+            }
+
+            // App-Specific Detection Settings
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.app_specific_detection_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = stringResource(R.string.app_specific_detection_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Master toggle
+                    SwitchSetting(
+                        title = stringResource(R.string.enable_app_specific_detection_title),
+                        description = stringResource(R.string.enable_app_specific_detection_description),
+                        checked = settings.enableAppSpecificDetection,
+                        onCheckedChange = { viewModel.updateAppSpecificDetection(it) }
+                    )
+
+                    // App Category Selection (shown when app-specific detection is enabled)
+                    AnimatedVisibility(
+                        visible = settings.enableAppSpecificDetection,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.app_categories_title),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            AppCategorySelectionGrid(
+                                selectedCategories = settings.monitoredAppCategories,
+                                onCategoryToggle = { category, isSelected ->
+                                    val updatedCategories = if (isSelected) {
+                                        settings.monitoredAppCategories + category
+                                    } else {
+                                        settings.monitoredAppCategories - category
+                                    }
+                                    viewModel.updateMonitoredAppCategories(updatedCategories)
+                                }
+                            )
+                        }
+                    }
+
+                    // Custom Apps Section (shown when app-specific detection is enabled)
+                    AnimatedVisibility(
+                        visible = settings.enableAppSpecificDetection,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CustomAppsManager(
+                                customApps = settings.customMonitoredApps,
+                                onAddApp = { packageName ->
+                                    if (viewModel.canAddToMonitored(packageName)) {
+                                        val updatedApps = settings.customMonitoredApps + packageName
+                                        viewModel.updateCustomMonitoredApps(updatedApps)
+                                    }
+                                },
+                                onRemoveApp = { packageName ->
+                                    val updatedApps = settings.customMonitoredApps - packageName
+                                    viewModel.updateCustomMonitoredApps(updatedApps)
+                                },
+                                conflictingApps = settings.excludedApps
+                            )
+                        }
+                    }
+
+                    // Excluded Apps Section (shown when app-specific detection is enabled)
+                    AnimatedVisibility(
+                        visible = settings.enableAppSpecificDetection,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        var showAddExcludedDialog by remember { mutableStateOf(false) }
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.excluded_apps_title, settings.excludedApps.size),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                OutlinedButton(
+                                    onClick = { showAddExcludedDialog = true }
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(stringResource(R.string.add_app_title))
+                                }
+                            }
+
+                            // List of excluded apps
+                            if (settings.excludedApps.isNotEmpty()) {
+                                LazyColumn(
+                                    modifier = Modifier.heightIn(max = 150.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    items(settings.excludedApps.toList()) { packageName ->
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                            )
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(12.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = getAppDisplayName(packageName),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    Text(
+                                                        text = packageName,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = {
+                                                        val updatedApps = settings.excludedApps - packageName
+                                                        viewModel.updateExcludedApps(updatedApps)
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Delete,
+                                                        contentDescription = "Remove",
+                                                        tint = MaterialTheme.colorScheme.error
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.no_excluded_apps),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Add excluded app dialog
+                        if (showAddExcludedDialog) {
+                            AddCustomAppDialog(
+                                onDismiss = { showAddExcludedDialog = false },
+                                onAddApp = { packageName ->
+                                    if (viewModel.canAddToExcluded(packageName)) {
+                                        val updatedApps = settings.excludedApps + packageName
+                                        viewModel.updateExcludedApps(updatedApps)
+                                        showAddExcludedDialog = false
+                                    }
+                                },
+                                existingApps = settings.excludedApps,
+                                conflictingApps = settings.customMonitoredApps,
+                                conflictMessage = "This app is already in the monitored list"
+                            )
+                        }
+                    }
                 }
             }
 

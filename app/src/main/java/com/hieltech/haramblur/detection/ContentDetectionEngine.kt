@@ -9,6 +9,12 @@ import com.hieltech.haramblur.ml.FaceDetectionManager
 import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.data.LogRepository.LogCategory
+import com.hieltech.haramblur.data.SettingsRepository
+import com.hieltech.haramblur.data.models.AppCategory
+import com.hieltech.haramblur.data.models.DetectionScope
+import com.hieltech.haramblur.data.AppRegistry
+import com.hieltech.haramblur.data.AppCategoryDetector
+import com.hieltech.haramblur.data.AppFilteringManager
 import kotlinx.coroutines.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,7 +28,10 @@ class ContentDetectionEngine @Inject constructor(
     private val performanceMonitor: PerformanceMonitor,
     private val contentDensityAnalyzer: ContentDensityAnalyzer,
     private val fullScreenBlurTrigger: FullScreenBlurTrigger,
-    private val logRepository: LogRepository
+    private val logRepository: LogRepository,
+    private val settingsRepository: SettingsRepository,
+    private val appCategoryDetector: AppCategoryDetector,
+    private val appFilteringManager: AppFilteringManager
 ) {
     
     companion object {
@@ -32,13 +41,40 @@ class ContentDetectionEngine @Inject constructor(
     }
 
     /**
+     * Determine the category of an app based on its package name
+     */
+    private fun determineAppCategory(packageName: String): AppCategory? {
+        return appCategoryDetector.determineAppCategory(packageName)
+    }
+
+    /**
+     * Check if an app is a browser based on package name and common patterns
+     */
+    private fun isBrowserApp(packageName: String): Boolean {
+        return appCategoryDetector.isBrowserApp(packageName)
+    }
+
+    /**
+     * Check if a specific app should be monitored for content detection
+     */
+    private suspend fun shouldProcessAppContent(packageName: String?, appSettings: AppSettings): Boolean {
+        // Short-circuit: if app-specific detection is disabled, monitor all apps
+        if (!appSettings.enableAppSpecificDetection) {
+            return true
+        }
+
+        return appFilteringManager.shouldMonitorApp(packageName)
+    }
+
+    /**
      * Log detection event with structured information for analytics
      * Uses sampling to reduce database overhead
      */
     private suspend fun logDetectionEvent(
         result: ContentAnalysisResult,
         performanceMode: PerformanceMode? = null,
-        appSettings: AppSettings? = null
+        appSettings: AppSettings? = null,
+        currentAppPackage: String? = null
     ) {
         // Implement sampling to reduce database overhead
         detectionCounter++
@@ -47,13 +83,20 @@ class ContentDetectionEngine @Inject constructor(
 
         try {
             // Always log essential detection data (faces/NSFW) for stats - no sampling
+            val appCategory = currentAppPackage?.let { determineAppCategory(it) }
             val essentialLogMessage = buildString {
                 append("DETECTION|")
                 append("faces:${result.faceDetectionResult?.detectedFaces?.size ?: 0}|")
                 append("nsfw:${result.nsfwDetectionResult?.isNSFW ?: false}|")
                 append("processing_time:${result.processingTimeMs}ms|")
-                append("success:${result.success}")
+                append("success:${result.success}|")
                 append("performance_mode:${performanceMode ?: "unknown"}")
+                if (currentAppPackage != null) {
+                    append("|app:$currentAppPackage")
+                    if (appCategory != null) {
+                        append("|category:${appCategory.name.lowercase()}")
+                    }
+                }
                 if (result.error != null) {
                     append("|error:${result.error}")
                 }
@@ -147,12 +190,28 @@ class ContentDetectionEngine @Inject constructor(
     
     suspend fun analyzeContent(
         bitmap: Bitmap,
-        appSettings: AppSettings
+        appSettings: AppSettings,
+        currentAppPackage: String? = null
     ): ContentAnalysisResult = withContext(Dispatchers.Default) {
         val startTime = System.currentTimeMillis()
 
         return@withContext try {
             Log.d(TAG, "📸 Starting content analysis - Image: ${bitmap.width}x${bitmap.height}")
+
+            // Check app filtering first - early exit if app should not be monitored
+            if (!shouldProcessAppContent(currentAppPackage, appSettings)) {
+                Log.d(TAG, "Content detection skipped for app: $currentAppPackage (not in monitored categories)")
+                return@withContext ContentAnalysisResult(
+                    shouldBlur = false,
+                    blurRegions = emptyList(),
+                    faceDetectionResult = null,
+                    nsfwDetectionResult = null,
+                    processingTimeMs = System.currentTimeMillis() - startTime,
+                    success = true,
+                    error = null,
+                    recommendedAction = ContentAction.NO_ACTION
+                )
+            }
 
             // Check if bitmap is valid
             if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) {
@@ -170,7 +229,7 @@ class ContentDetectionEngine @Inject constructor(
             }
 
             // Use concurrent processing for better performance
-            val faceDetectionDeferred = if (appSettings.enableFaceDetection && isEngineReady()) {
+            val faceDetectionDeferred = if (appSettings.enableFaceDetection && isInitialized) {
                 async {
                     try {
                         Log.d(TAG, "👤 Starting face detection...")
@@ -221,7 +280,9 @@ class ContentDetectionEngine @Inject constructor(
             val blurRegions = calculateBlurRegions(
                 faceResult,
                 nsfwResult,
-                appSettings
+                appSettings,
+                bitmap.width,
+                bitmap.height
             )
             
             Log.d(TAG, "🎯 Generated ${blurRegions.size} blur regions")
@@ -242,7 +303,7 @@ class ContentDetectionEngine @Inject constructor(
 
             // Log detection event for analytics
             detectionScope.launch {
-                logDetectionEvent(result, PerformanceMode.BALANCED, appSettings)
+                logDetectionEvent(result, PerformanceMode.BALANCED, appSettings, currentAppPackage)
             }
 
             return@withContext result
@@ -264,7 +325,7 @@ class ContentDetectionEngine @Inject constructor(
 
             // Log failed detection event for analytics
             detectionScope.launch {
-                logDetectionEvent(failedResult, PerformanceMode.BALANCED, appSettings)
+                logDetectionEvent(failedResult, PerformanceMode.BALANCED, appSettings, currentAppPackage)
             }
 
             return@withContext failedResult
@@ -276,13 +337,29 @@ class ContentDetectionEngine @Inject constructor(
      */
     suspend fun analyzeContentFast(
         bitmap: Bitmap,
-        appSettings: AppSettings
+        appSettings: AppSettings,
+        currentAppPackage: String? = null
     ): ContentAnalysisResult = withContext(Dispatchers.Default) {
         
         val startTime = System.currentTimeMillis()
         Log.d(TAG, "🔍 Starting content analysis - Bitmap: ${bitmap.width}x${bitmap.height}")
         Log.d(TAG, "⚙️ Settings - Female faces: ${appSettings.blurFemaleFaces}, Male faces: ${appSettings.blurMaleFaces}, NSFW: ${appSettings.enableNSFWDetection}, GPU: ${appSettings.enableGPUAcceleration}")
-        
+
+        // Check app filtering first - early exit if app should not be monitored
+        if (!shouldProcessAppContent(currentAppPackage, appSettings)) {
+            Log.d(TAG, "Content detection skipped for app: $currentAppPackage (not in monitored categories)")
+            return@withContext ContentAnalysisResult(
+                shouldBlur = false,
+                blurRegions = emptyList(),
+                faceDetectionResult = null,
+                nsfwDetectionResult = null,
+                processingTimeMs = System.currentTimeMillis() - startTime,
+                success = true,
+                error = null,
+                recommendedAction = ContentAction.NO_ACTION
+            )
+        }
+
         // Enhanced performance mode with GPU acceleration priority
         val performanceMode = when {
             appSettings.enableGPUAcceleration && appSettings.ultraFastModeEnabled -> PerformanceMode.ULTRA_FAST
@@ -417,7 +494,7 @@ class ContentDetectionEngine @Inject constructor(
 
             // Log detection event for analytics
             detectionScope.launch {
-                logDetectionEvent(contentAnalysisResult, performanceMode, appSettings)
+                logDetectionEvent(contentAnalysisResult, performanceMode, appSettings, currentAppPackage)
             }
 
             return@withContext contentAnalysisResult
@@ -435,7 +512,7 @@ class ContentDetectionEngine @Inject constructor(
 
             // Log failed detection event for analytics
             detectionScope.launch {
-                logDetectionEvent(failedResult, performanceMode, appSettings)
+                logDetectionEvent(failedResult, performanceMode, appSettings, currentAppPackage)
             }
 
             return@withContext failedResult
@@ -445,7 +522,9 @@ class ContentDetectionEngine @Inject constructor(
     private fun calculateBlurRegions(
         faceResult: FaceDetectionManager.FaceDetectionResult,
         nsfwResult: MLModelManager.DetectionResult,
-        appSettings: AppSettings
+        appSettings: AppSettings,
+        bitmapWidth: Int,
+        bitmapHeight: Int
     ): List<Rect> {
         val blurRegions = mutableListOf<Rect>()
 
@@ -454,7 +533,7 @@ class ContentDetectionEngine @Inject constructor(
             nsfwResult.regionCount >= appSettings.nsfwFullScreenRegionThreshold &&
             nsfwResult.maxRegionConfidence >= appSettings.nsfwHighConfidenceThreshold) {
             Log.d(TAG, "Region-based full-screen blur in standard mode: ${nsfwResult.regionCount} regions")
-            return listOf(Rect(0, 0, 1000, 1000)) // Placeholder - would need actual bitmap dimensions
+            return listOf(Rect(0, 0, bitmapWidth, bitmapHeight))
         }
 
         // Add female face regions with enhanced detection

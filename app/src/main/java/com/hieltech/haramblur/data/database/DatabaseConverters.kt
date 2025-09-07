@@ -3,6 +3,9 @@ package com.hieltech.haramblur.data.database
 import androidx.room.TypeConverter
 import com.hieltech.haramblur.detection.BlockingCategory
 import com.hieltech.haramblur.detection.Language
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Date
 
 /**
  * Type converters for Room database
@@ -59,5 +62,25 @@ class DatabaseConverters {
     @TypeConverter
     fun toStringList(value: String): List<String> {
         return if (value.isEmpty()) emptyList() else value.split(",")
+    }
+
+    @TypeConverter
+    fun fromLocalDate(date: LocalDate): String {
+        return date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+    }
+
+    @TypeConverter
+    fun toLocalDate(dateString: String): LocalDate {
+        return LocalDate.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE)
+    }
+
+    @TypeConverter
+    fun fromDate(date: Date?): Long? {
+        return date?.time
+    }
+
+    @TypeConverter
+    fun toDate(value: Long?): Date? {
+        return value?.let { Date(it) }
     }
 }

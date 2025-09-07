@@ -20,9 +20,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         QuranicVerseEntity::class,
         FalsePositiveEntity::class,
         LogEntity::class,
-        PrayerTimesEntity::class
+        PrayerTimesEntity::class,
+        com.hieltech.haramblur.data.database.entities.StatisticsEntity::class,
+        com.hieltech.haramblur.data.database.entities.AppUsageStatsEntity::class
     ],
-    version = 4,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -36,6 +38,8 @@ abstract class SiteBlockingDatabase : RoomDatabase() {
     abstract fun falsePositiveDao(): FalsePositiveDao
     abstract fun logDao(): LogDao
     abstract fun prayerTimesDao(): PrayerTimesDao
+    abstract fun statisticsDao(): StatisticsDao
+    abstract fun appUsageStatsDao(): AppUsageStatsDao
     
     companion object {
         private const val DATABASE_NAME = "site_blocking_database"
@@ -254,9 +258,113 @@ abstract class SiteBlockingDatabase : RoomDatabase() {
             database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_prayer_times_unique ON prayer_times(date_millis, lat, lon, method)")
         }
 
+        // Migration from version 4 to 5: Add daily_statistics table
+        private val MIGRATION_4_5 = Migration(4, 5) { database ->
+            try {
+                // First, drop any existing statistics table to avoid conflicts
+                database.execSQL("DROP TABLE IF EXISTS statistics")
+                
+                // Create daily_statistics table
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS daily_statistics (
+                        date INTEGER NOT NULL,
+                        facesDetected INTEGER NOT NULL DEFAULT 0,
+                        sitesBlocked INTEGER NOT NULL DEFAULT 0,
+                        detectionAccuracy REAL NOT NULL DEFAULT 0.0,
+                        averageProcessingTime INTEGER NOT NULL DEFAULT 0,
+                        totalScreenTime INTEGER NOT NULL DEFAULT 0,
+                        protectionActiveTime INTEGER NOT NULL DEFAULT 0,
+                        batteryUsage REAL NOT NULL DEFAULT 0.0,
+                        memoryPeakUsage REAL NOT NULL DEFAULT 0.0,
+                        networkRequests INTEGER NOT NULL DEFAULT 0,
+                        errorsEncountered INTEGER NOT NULL DEFAULT 0,
+                        lastUpdated INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(date)
+                    )
+                    """
+                )
+
+                // Create index for performance
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_daily_statistics_date ON daily_statistics(date)")
+            } catch (e: Exception) {
+                android.util.Log.e("SiteBlockingDatabase", "Migration 4->5 failed", e)
+                throw e
+            }
+        }
+
+        // Migration from version 5 to 6: Clean up any remaining database issues
+        private val MIGRATION_5_6 = Migration(5, 6) { database ->
+            try {
+                // Drop any problematic tables and recreate them cleanly
+                database.execSQL("DROP TABLE IF EXISTS statistics")
+                database.execSQL("DROP TABLE IF EXISTS daily_statistics")
+
+                // Create daily_statistics table fresh
+                database.execSQL(
+                    """
+                    CREATE TABLE daily_statistics (
+                        date INTEGER NOT NULL,
+                        facesDetected INTEGER NOT NULL DEFAULT 0,
+                        sitesBlocked INTEGER NOT NULL DEFAULT 0,
+                        detectionAccuracy REAL NOT NULL DEFAULT 0.0,
+                        averageProcessingTime INTEGER NOT NULL DEFAULT 0,
+                        totalScreenTime INTEGER NOT NULL DEFAULT 0,
+                        protectionActiveTime INTEGER NOT NULL DEFAULT 0,
+                        batteryUsage REAL NOT NULL DEFAULT 0.0,
+                        memoryPeakUsage REAL NOT NULL DEFAULT 0.0,
+                        networkRequests INTEGER NOT NULL DEFAULT 0,
+                        errorsEncountered INTEGER NOT NULL DEFAULT 0,
+                        lastUpdated INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(date)
+                    )
+                    """
+                )
+
+                // Create index for performance
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_daily_statistics_date ON daily_statistics(date)")
+            } catch (e: Exception) {
+                android.util.Log.e("SiteBlockingDatabase", "Migration 5->6 failed", e)
+                throw e
+            }
+        }
+
+        // Migration from version 6 to 7: Add app usage statistics table
+        private val MIGRATION_6_7 = Migration(6, 7) { database ->
+            try {
+                // Create app_usage_stats table
+                database.execSQL("""
+                    CREATE TABLE app_usage_stats (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        packageName TEXT NOT NULL,
+                        date INTEGER NOT NULL,
+                        totalMinutes INTEGER NOT NULL DEFAULT 0,
+                        lastUsed INTEGER NOT NULL,
+                        limitExceededTime INTEGER,
+                        notificationCount INTEGER NOT NULL DEFAULT 0,
+                        lastNotificationTime INTEGER,
+                        appCategory TEXT,
+                        timeLimitMinutes INTEGER,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """)
+
+                // Create indexes for performance
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_app_usage_stats_package_date ON app_usage_stats(packageName, date)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_app_usage_stats_date ON app_usage_stats(date)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_app_usage_stats_package ON app_usage_stats(packageName)")
+
+                android.util.Log.i("SiteBlockingDatabase", "Migration 6->7 completed successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("SiteBlockingDatabase", "Migration 6->7 failed", e)
+                throw e
+            }
+        }
+
         @Volatile
         private var INSTANCE: SiteBlockingDatabase? = null
-        
+
         fun getDatabase(context: Context): SiteBlockingDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -264,7 +372,7 @@ abstract class SiteBlockingDatabase : RoomDatabase() {
                     SiteBlockingDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .addCallback(DatabaseCallback())
                     .build()
                 INSTANCE = instance

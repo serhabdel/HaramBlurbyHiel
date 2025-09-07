@@ -405,7 +405,7 @@ class QuranicRepository @Inject constructor(
         }
     }
     
-    private fun getDuaForCategory(category: BlockingCategory): String? {
+    fun getDuaForCategory(category: BlockingCategory): String? {
         return when (category) {
             BlockingCategory.EXPLICIT_CONTENT ->
                 "اللَّهُمَّ طَهِّرْ قَلْبِي وَأَعِنِّي عَلَى غَضِّ بَصَرِي وَحَصِّنْ فَرْجِي وَأَعِذْنِي مِنَ الْفَحْشَاءِ وَالْمُنْكَرِ وَأَعِذْنِي مِنْ وَسَاوِسِ الْخَنَّاسِ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ" // O Allah, purify my heart, help me lower my gaze, protect my chastity, protect me from immorality and evil, and protect me from the evil whisperer who whispers in people's hearts

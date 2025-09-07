@@ -1,11 +1,15 @@
 package com.hieltech.haramblur.di
 
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.data.QuranicRepository
 import com.hieltech.haramblur.data.LogRepository
+import com.hieltech.haramblur.data.UsageStatsHelper
+import com.hieltech.haramblur.data.AppUsageTracker
 import com.hieltech.haramblur.data.database.DatabaseInitializer
 import com.hieltech.haramblur.data.database.SiteBlockingDatabase
+import com.hieltech.haramblur.data.database.AppUsageStatsDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,7 +24,15 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DataModule {
-    
+
+    @Provides
+    @Singleton
+    fun provideApplicationContext(
+        @ApplicationContext context: Context
+    ): Context {
+        return context
+    }
+
     // Core Data Components
     @Provides
     @Singleton
@@ -63,5 +75,48 @@ object DataModule {
         database: SiteBlockingDatabase
     ): DatabaseInitializer {
         return DatabaseInitializer(database)
+    }
+
+    @Provides
+    @Singleton
+    fun provideStatisticsDao(
+        database: SiteBlockingDatabase
+    ): com.hieltech.haramblur.data.database.StatisticsDao {
+        return database.statisticsDao()
+    }
+
+    // Usage Stats Components
+
+    @Provides
+    @Singleton
+    fun provideUsageStatsHelper(
+        @ApplicationContext context: Context,
+        usageStatsManager: UsageStatsManager
+    ): UsageStatsHelper {
+        return UsageStatsHelper(context, usageStatsManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAppUsageStatsDao(
+        database: SiteBlockingDatabase
+    ): AppUsageStatsDao {
+        return database.appUsageStatsDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAppUsageTracker(
+        @ApplicationContext context: Context,
+        settingsRepository: SettingsRepository,
+        usageStatsHelper: UsageStatsHelper,
+        appUsageStatsDao: AppUsageStatsDao
+    ): AppUsageTracker {
+        return AppUsageTracker(
+            context,
+            settingsRepository,
+            usageStatsHelper,
+            appUsageStatsDao
+        )
     }
 }

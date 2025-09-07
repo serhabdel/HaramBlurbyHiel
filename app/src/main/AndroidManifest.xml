@@ -156,6 +156,20 @@
             </intent-filter>
         </receiver>
 
+        <!-- Usage Time Notification Receiver -->
+        <receiver
+            android:name=".services.UsageTimeNotificationReceiver"
+            android:exported="false"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="com.hieltech.haramblur.REFLECT_AND_CONTINUE" />
+                <action android:name="com.hieltech.haramblur.CLOSE_APP" />
+                <action android:name="com.hieltech.haramblur.OPEN_SETTINGS" />
+                <action android:name="com.hieltech.haramblur.DISMISS_USAGE_NOTIFICATION" />
+                <action android:name="com.hieltech.haramblur.SHOW_GUIDANCE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

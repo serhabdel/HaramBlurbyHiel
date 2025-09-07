@@ -29,14 +29,18 @@ fun SettingsScreen(
             // Show navigation screen with modern enhancements
             AnimatedFadeIn(visible = true) {
                 SettingsNavigationScreen(
-                    onNavigateToCategory = { category ->
+                    onNavigateToCategory = { categoryName: String ->
+                        // Map string back to SettingsCategory
+                        val category = when (categoryName) {
+                            "ESSENTIAL" -> SettingsCategory.ESSENTIAL
+                            "DETECTION" -> SettingsCategory.DETECTION
+                            "PERFORMANCE" -> SettingsCategory.PERFORMANCE
+                            "ISLAMIC" -> SettingsCategory.ISLAMIC
+                            else -> SettingsCategory.ESSENTIAL
+                        }
                         currentScreen = category
                     },
-                    onNavigateBack = onNavigateBack,
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = { searchQuery = it },
-                    settingsMode = settingsMode,
-                    onSettingsModeChange = { settingsMode = it }
+                    onNavigateBack = onNavigateBack
                 )
             }
         }

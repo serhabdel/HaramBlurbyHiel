@@ -104,9 +104,7 @@ fun CompactStatusHeader(
                     }
                 ) {
                     Icon(
-                        imageVector = if (systemStatus.protectionEnabled) 
-                            Icons.Default.Security 
-                        else Icons.Default.Security,
+                        imageVector = Icons.Default.Home,
                         contentDescription = "Toggle Protection",
                         tint = if (systemStatus.protectionEnabled) 
                             Color(0xFF4CAF50) 
@@ -140,7 +138,7 @@ fun CompactStatusHeader(
                 
                 // Detection rate
                 StatisticItem(
-                    icon = Icons.Default.TrendingUp,
+                    icon = Icons.Default.Info,
                     value = String.format("%.1f", systemStatus.getDetectionRate()),
                     label = "Rate/hr",
                     color = Color(0xFF9C27B0)

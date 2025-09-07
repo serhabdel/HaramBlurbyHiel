@@ -20,6 +20,10 @@ import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.data.ProcessingSpeed
 import com.hieltech.haramblur.data.QuranicRepository
+import com.hieltech.haramblur.data.models.DetectionScope
+import com.hieltech.haramblur.data.models.AppCategory
+import com.hieltech.haramblur.data.AppFilteringManager
+import com.hieltech.haramblur.data.AppCategoryDetector
 import com.hieltech.haramblur.utils.UrlUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -87,6 +91,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     @Inject
     lateinit var dhikrManager: com.hieltech.haramblur.services.DhikrManager
 
+    @Inject
+    lateinit var appFilteringManager: AppFilteringManager
+
+    @Inject
+    lateinit var appCategoryDetector: AppCategoryDetector
+
 
 
     // TODO: Behavioral action components temporarily disabled
@@ -95,6 +105,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private var isProcessingActive = false
     private var lastProcessingTime: Long = 0
     private var frameCount = 0
+
+    // Current app tracking for app-specific filtering
+    private var currentAppPackage: String? = null
 
     // Action throttling to prevent crashes
     private var lastActionTime: Long = 0
@@ -205,13 +218,32 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         
         serviceScope.launch {
             startContentMonitoring()
-            
+
             // Start app blocking monitor
             try {
                 foregroundAppMonitor.startMonitoring()
                 Log.d(TAG, "ForegroundAppMonitor started successfully")
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to start ForegroundAppMonitor: ${e.message}")
+            }
+        }
+
+        // Observe dynamic settings changes for app filtering
+        serviceScope.launch {
+            appFilteringManager.detectionScopeFlow.collect { newScope ->
+                Log.d(TAG, "App filtering settings updated: mode=${newScope.mode}, categories=${newScope.monitoredCategories.size}, custom=${newScope.customIncludedApps.size}")
+
+                // Check if current app should still be monitored based on new scope
+                val shouldMonitorCurrent = appFilteringManager.shouldMonitorApp(currentAppPackage)
+                if (!shouldMonitorCurrent && screenCaptureManager.isCapturingActive()) {
+                    Log.d(TAG, "Stopping screen capture due to settings change for app: $currentAppPackage")
+                    screenCaptureManager.stopCapturing()
+                } else if (shouldMonitorCurrent && !screenCaptureManager.isCapturingActive()) {
+                    Log.d(TAG, "Starting screen capture due to settings change for app: $currentAppPackage")
+                    // Note: This would need proper initialization with onScreenCaptured callback
+                    // For now, we'll just log that it should start
+                    Log.i(TAG, "Screen capture should be started but requires proper callback setup")
+                }
             }
         }
     }
@@ -342,9 +374,15 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         try {
             Log.d(TAG, "Processing screen content: ${bitmap.width}x${bitmap.height} (speed: ${currentSettings.processingSpeed})")
             
+            // Check app filtering first - early exit if app should not be monitored
+            if (!shouldMonitorCurrentApp()) {
+                Log.d(TAG, "Content monitoring skipped for app: $currentAppPackage (not in monitored categories)")
+                return
+            }
+
             // Analyze content using detection engine with user settings
             Log.d(TAG, "🧠 Starting content analysis with detection engine...")
-            val analysisResult = contentDetectionEngine.analyzeContent(bitmap, currentSettings)
+            val analysisResult = contentDetectionEngine.analyzeContent(bitmap, currentSettings, currentAppPackage)
             
             if (analysisResult.isSuccessful()) {
                 Log.d(TAG, "✅ Content analysis successful, handling results...")
@@ -717,16 +755,44 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         when (event?.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                val newPackageName = event.packageName?.toString()
+
+                // Update current app package tracking
+                if (currentAppPackage != newPackageName) {
+                    val oldApp = currentAppPackage
+                    currentAppPackage = newPackageName
+                    Log.d(TAG, "App changed from: $oldApp to: $currentAppPackage")
+                }
+
                 Log.d(TAG, "Window state changed: ${event.packageName}")
-                
+
+                // Check app filtering and control screen capture
+                serviceScope.launch {
+                    val shouldMonitor = appFilteringManager.shouldMonitorApp(currentAppPackage)
+                    if (!shouldMonitor) {
+                        // Stop screen capture for non-monitored apps
+                        if (screenCaptureManager.isCapturingActive()) {
+                            Log.d(TAG, "Stopping screen capture for non-monitored app: $currentAppPackage")
+                            screenCaptureManager.stopCapturing()
+                        }
+                    } else {
+                        // Start screen capture for monitored apps (if needed)
+                        if (!screenCaptureManager.isCapturingActive()) {
+                            Log.d(TAG, "Screen capture should be started for monitored app: $currentAppPackage")
+                            // Note: This would need proper initialization with onScreenCaptured callback
+                            Log.i(TAG, "Screen capture start requested but requires proper callback setup")
+                        }
+                    }
+                }
+
                 // Check for stuck overlays when app changes
                 blurOverlayManager.checkForStuckOverlays(event.packageName?.toString())
-                
+
                 // Check for URL changes in browser apps
                 serviceScope.launch {
                     checkForUrlChanges(event)
                 }
-                
+
                 // Trigger immediate content analysis when window changes
                 serviceScope.launch {
                     delay(500) // Small delay to let window settle
@@ -864,6 +930,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
         try {
             val packageName = event.packageName?.toString()
+
+            // Check app filtering first - skip if app should not be monitored
+            if (!appFilteringManager.shouldMonitorApp(packageName)) {
+                Log.d(TAG, "URL checking skipped for non-monitored app: $packageName")
+                return
+            }
 
             // Only check URLs for browser apps and web-based apps
             if (isBrowserApp(packageName)) {
@@ -1049,40 +1121,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private fun isBrowserApp(packageName: String?): Boolean {
         if (packageName == null) return false
-
-        val browserPackages = setOf(
-            "com.android.chrome",
-            "org.mozilla.firefox",
-            "com.microsoft.emmx",
-            "com.opera.browser",
-            "com.brave.browser",
-            "com.duckduckgo.mobile.android",
-            "com.samsung.android.app.sbrowser",
-            "com.UCMobile.intl",
-            "com.kiwibrowser.browser",
-            "org.mozilla.focus",  // Firefox Focus (always private)
-            "com.android.browser",
-            "com.sec.android.app.sbrowser"
-        )
-
-        // Check exact matches first
-        if (browserPackages.contains(packageName)) {
-            return true
-        }
-
-        // Check for common browser patterns
-        val browserPatterns = listOf(
-            "browser",
-            "chrome",
-            "firefox",
-            "opera",
-            "edge",
-            "safari"
-        )
-
-        return browserPatterns.any { pattern ->
-            packageName.lowercase().contains(pattern)
-        }
+        return appCategoryDetector.isBrowserApp(packageName)
     }
 
     /**
@@ -2563,7 +2602,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             val rootNode = rootInActiveWindow
             val packageName = rootNode?.packageName?.toString() ?: "unknown"
             rootNode?.recycle()
-            
+
+            // Update currentAppPackage tracking variable
+            if (currentAppPackage != packageName) {
+                currentAppPackage = packageName
+            }
+
             // Simplify package name for better LLM context
             when {
                 packageName.contains("firefox", ignoreCase = true) -> "firefox_browser"
@@ -2581,5 +2625,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             Log.w(TAG, "Error getting current app package", e)
             "unknown_app"
         }
+    }
+
+    /**
+     * Check if the current app should be monitored based on app filtering settings
+     */
+    private suspend fun shouldMonitorCurrentApp(): Boolean {
+        return appFilteringManager.shouldMonitorApp(currentAppPackage)
     }
 }

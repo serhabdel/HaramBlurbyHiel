@@ -650,4 +650,82 @@
     <string name="direction_west">West</string>
     <string name="direction_northwest">Northwest</string>
     <string name="direction_unknown">Unknown</string>
+
+    <!-- App-Specific Detection Strings -->
+    <string name="app_specific_detection_title">🛡️ App-Specific Detection</string>
+    <string name="app_specific_detection_description">Control which apps are monitored for content detection</string>
+    <string name="enable_app_specific_detection_title">Enable App-Specific Detection</string>
+    <string name="enable_app_specific_detection_description">Monitor only specific app categories instead of all apps</string>
+    <string name="app_categories_title">📂 App Categories</string>
+    <string name="custom_apps_title">Custom Apps (%d)</string>
+    <string name="excluded_apps_title">🚫 Excluded Apps (%d)</string>
+    <string name="add_app_title">Add App</string>
+    <string name="no_custom_apps">No custom apps added</string>
+    <string name="no_excluded_apps">No apps excluded from monitoring</string>
+    <string name="package_name_title">Package Name</string>
+    <string name="package_name_placeholder">com.example.app</string>
+    <string name="package_name_example">Example: com.instagram.android</string>
+    <string name="add_custom_app_title">Add Custom App</string>
+
+    <!-- Usage Time Management Strings -->
+    <string name="usage_time_management_title">⏰ Usage Time Management</string>
+    <string name="usage_time_management_description">Set time limits and receive Islamic guidance when limits are exceeded</string>
+    <string name="enable_usage_time_notifications_title">Enable Usage Time Notifications</string>
+    <string name="enable_usage_time_notifications_description">Show Quranic verses and Islamic guidance when app time limits are exceeded</string>
+    <string name="default_time_limits_title">⏱️ Default Time Limits</string>
+    <string name="default_time_limits_description">Set default daily time limits for different app categories. Individual apps can have custom limits.</string>
+    <string name="social_media_apps_title">Social Media Apps</string>
+    <string name="social_media_apps_description">Instagram, Facebook, TikTok, Twitter, Snapchat</string>
+    <string name="messaging_apps_title">Messaging Apps</string>
+    <string name="messaging_apps_description">WhatsApp, Telegram, Discord, Messenger</string>
+    <string name="notification_settings_title">🔔 Notification Settings</string>
+    <string name="notification_frequency_title">Notification Frequency</string>
+    <string name="notification_frequency_description">How often to show reminders after time limit is exceeded</string>
+    <string name="minutes_title">%d minutes</string>
+    <string name="daily_reset_title">Daily Reset</string>
+    <string name="daily_reset_description">Reset usage statistics daily at midnight</string>
+    <string name="custom_app_limits_title">⚙️ Custom App Limits</string>
+    <string name="custom_app_limits_count">%d custom limits set</string>
+    <string name="add_custom_limit_title">Add Custom Limit</string>
+    <string name="no_custom_limits">No custom app limits set\nUse the button above to add specific limits for individual apps</string>
+    <string name="app_package_name_title">App Package Name</string>
+    <string name="time_limit_title">Time Limit</string>
+    <string name="add_custom_time_limit_title">Add Custom Time Limit</string>
+    <string name="edit_time_limit_title">Edit Time Limit</string>
+    <string name="update_title">Update</string>
+    <string name="add_title">Add</string>
+
+    <!-- Time Formatting Strings -->
+    <string name="time_format_minutes">%dm</string>
+    <string name="time_format_hours">%dh</string>
+    <string name="time_format_hours_minutes">%dh %dm</string>
+    <string name="time_range_format">%s - %s</string>
+
+    <!-- App Display Names -->
+    <string name="app_name_instagram">Instagram</string>
+    <string name="app_name_facebook">Facebook</string>
+    <string name="app_name_tiktok">TikTok</string>
+    <string name="app_name_twitter">Twitter</string>
+    <string name="app_name_whatsapp">WhatsApp</string>
+    <string name="app_name_chrome">Chrome</string>
+    <string name="app_name_firefox">Firefox</string>
+    <string name="app_name_youtube">YouTube</string>
+    <string name="app_name_netflix">Netflix</string>
+
+    <!-- App Category Names -->
+    <string name="category_social_media">Social Media</string>
+    <string name="category_browsers">Browsers</string>
+    <string name="category_dating">Dating</string>
+    <string name="category_messaging">Messaging</string>
+    <string name="category_entertainment">Entertainment</string>
+
+    <!-- Plurals -->
+    <plurals name="apps_count">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+    <plurals name="custom_limits_count">
+        <item quantity="one">%d custom limit set</item>
+        <item quantity="other">%d custom limits set</item>
+    </plurals>
 </resources>

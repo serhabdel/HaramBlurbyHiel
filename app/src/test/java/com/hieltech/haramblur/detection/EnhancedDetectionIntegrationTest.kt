@@ -87,6 +87,11 @@ class EnhancedDetectionIntegrationTest {
             batteryOptimizationManager
         )
         
+        // Mock additional dependencies for ContentDetectionEngine
+        val mockSettingsRepository = mockk<com.hieltech.haramblur.data.SettingsRepository>(relaxed = true)
+        val mockAppCategoryDetector = mockk<com.hieltech.haramblur.data.AppCategoryDetector>(relaxed = true)
+        val mockAppFilteringManager = mockk<com.hieltech.haramblur.data.AppFilteringManager>(relaxed = true)
+
         contentDetectionEngine = ContentDetectionEngine(
             mlModelManager,
             faceDetectionManager,
@@ -94,7 +99,11 @@ class EnhancedDetectionIntegrationTest {
             frameOptimizationManager,
             performanceMonitor,
             contentDensityAnalyzer,
-            fullScreenBlurTrigger
+            fullScreenBlurTrigger,
+            mockk(relaxed = true), // logRepository
+            mockSettingsRepository,
+            mockAppCategoryDetector,
+            mockAppFilteringManager
         )
         
         // Initialize components
@@ -154,7 +163,7 @@ class EnhancedDetectionIntegrationTest {
         )
         
         // Act
-        val result = contentDetectionEngine.analyzeContent(testBitmap, testSettings)
+        val result = contentDetectionEngine.analyzeContent(testBitmap, testSettings, "com.test.app")
         
         // Assert
         assertTrue("Detection should succeed", result.isSuccessful())
@@ -200,7 +209,7 @@ class EnhancedDetectionIntegrationTest {
         
         // Act
         val startTime = System.currentTimeMillis()
-        val result = contentDetectionEngine.analyzeContentFast(testBitmap, ultraFastSettings)
+        val result = contentDetectionEngine.analyzeContentFast(testBitmap, ultraFastSettings, "com.test.app")
         val processingTime = System.currentTimeMillis() - startTime
         
         // Assert
@@ -249,7 +258,7 @@ class EnhancedDetectionIntegrationTest {
         coEvery { mlModelManager.isModelReady() } returns true
         
         // Act
-        val result = contentDetectionEngine.analyzeContent(testBitmap, testSettings)
+        val result = contentDetectionEngine.analyzeContent(testBitmap, testSettings, "com.test.app")
         
         // Assert
         assertTrue("Detection should succeed", result.isSuccessful())

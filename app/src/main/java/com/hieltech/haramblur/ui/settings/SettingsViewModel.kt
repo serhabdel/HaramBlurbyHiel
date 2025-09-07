@@ -10,7 +10,7 @@ import com.hieltech.haramblur.data.models.SettingType
 import com.hieltech.haramblur.data.models.StatusIndicator
 import com.hieltech.haramblur.data.models.UserActionType
 import com.hieltech.haramblur.data.repository.StatisticsRepository
-import com.hieltech.haramblur.data.repository.SettingsRepository
+import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.utils.SystemHealthMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -117,7 +117,7 @@ class SettingsViewModel @Inject constructor(
         return listOf(
             QuickSetting(
                 id = "protection",
-                displayName = com.hieltech.haramblur.R.string.protection_active,
+                displayName = "Protection Active",
                 currentValue = _systemStatus.value.protectionEnabled,
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_dialog_alert,
@@ -126,7 +126,7 @@ class SettingsViewModel @Inject constructor(
             ),
             QuickSetting(
                 id = "prayer_times",
-                displayName = com.hieltech.haramblur.R.string.prayer_times,
+                displayName = "Prayer Times",
                 currentValue = true, // Would be loaded from actual settings
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_menu_my_calendar,
@@ -135,7 +135,7 @@ class SettingsViewModel @Inject constructor(
             ),
             QuickSetting(
                 id = "dhikr",
-                displayName = com.hieltech.haramblur.R.string.dhikr,
+                displayName = "Dhikr",
                 currentValue = true, // Would be loaded from actual settings
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_menu_edit,
@@ -144,7 +144,7 @@ class SettingsViewModel @Inject constructor(
             ),
             QuickSetting(
                 id = "site_blocking",
-                displayName = com.hieltech.haramblur.R.string.site_blocking,
+                displayName = "Site Blocking",
                 currentValue = true, // Would be loaded from actual settings
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_menu_close_clear_cancel,
@@ -153,7 +153,7 @@ class SettingsViewModel @Inject constructor(
             ),
             QuickSetting(
                 id = "nsfw_detection",
-                displayName = com.hieltech.haramblur.R.string.nsfw_detection,
+                displayName = "NSFW Detection",
                 currentValue = true, // Would be loaded from actual settings
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_menu_view,
@@ -162,7 +162,7 @@ class SettingsViewModel @Inject constructor(
             ),
             QuickSetting(
                 id = "blur_intensity",
-                displayName = com.hieltech.haramblur.R.string.blur_intensity,
+                displayName = "Blur Intensity",
                 currentValue = 0.7f, // Would be loaded from actual settings
                 settingType = SettingType.SLIDER,
                 iconRes = android.R.drawable.ic_menu_manage,

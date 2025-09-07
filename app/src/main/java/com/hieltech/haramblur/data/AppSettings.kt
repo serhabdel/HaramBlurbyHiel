@@ -3,6 +3,7 @@ package com.hieltech.haramblur.data
 import com.hieltech.haramblur.detection.Language
 import com.hieltech.haramblur.detection.BlockingMethod
 import com.hieltech.haramblur.data.compass.CompassSize
+import com.hieltech.haramblur.data.models.AppCategory
 
 data class AppSettings(
     // Theme Settings
@@ -223,8 +224,24 @@ data class AppSettings(
     /** Sensor update frequency in Hz (recommended ~15Hz) */
     val compassUpdateRate: Int = 15,
 
-    // Settings schema version. Bump to 7 for prayer enhancements (offsets/history/cache/validation)
-    val settingsVersion: Int = 7 // Configuration version for compatibility tracking
+    // App-Specific Detection Settings
+    val enableAppSpecificDetection: Boolean = true, // Toggle between monitoring all apps vs specific categories
+    val monitoredAppCategories: Set<AppCategory> = setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING), // Default categories to monitor
+    val customMonitoredApps: Set<String> = emptySet(), // User-added package names for monitoring
+    val excludedApps: Set<String> = emptySet(), // Apps to exclude from detection even if in monitored categories
+
+    // Usage Time Tracking Settings
+    val enableUsageTimeNotifications: Boolean = true, // Enable/disable usage time notifications
+    val defaultSocialMediaTimeLimit: Int = 60, // Default time limit in minutes for social media apps
+    val defaultMessagingTimeLimit: Int = 120, // Default time limit in minutes for messaging apps
+    val customAppTimeLimits: Map<String, Int> = emptyMap(), // Custom time limits per app package name
+    val usageNotificationFrequency: Int = 30, // How often to show notifications after limit exceeded (minutes)
+    val enableDailyUsageReset: Boolean = true, // Reset usage stats daily at midnight
+    val lastUsageResetDate: Long? = null, // Epoch day of last usage reset (LocalDate.toEpochDay())
+    val usageDefaultsSeeded: Boolean = false, // Whether default app time limits have been prepopulated
+
+    // Settings schema version. Bump to 8 for app-specific detection and usage time settings
+    val settingsVersion: Int = 8 // Configuration version for compatibility tracking
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {

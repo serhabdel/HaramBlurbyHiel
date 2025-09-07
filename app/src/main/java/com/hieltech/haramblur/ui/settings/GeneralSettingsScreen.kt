@@ -1,5 +1,6 @@
 package com.hieltech.haramblur.ui.settings
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -327,6 +328,122 @@ fun GeneralSettingsScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            // Usage Time Management Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "⏰ Usage Time Management",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Set time limits and receive Islamic guidance when limits are exceeded",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Master toggle for usage time notifications
+                    SwitchSetting(
+                        title = "Enable Usage Time Notifications",
+                        description = "Show Quranic verses and Islamic guidance when app time limits are exceeded",
+                        checked = settings.enableUsageTimeNotifications,
+                        onCheckedChange = { viewModel.updateUsageTimeNotifications(it) }
+                    )
+
+                    // Default time limits section (shown when usage notifications are enabled)
+                    AnimatedVisibility(
+                        visible = settings.enableUsageTimeNotifications,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        DefaultTimeLimitsSection(
+                            socialMediaLimit = settings.defaultSocialMediaTimeLimit,
+                            messagingLimit = settings.defaultMessagingTimeLimit,
+                            onSocialMediaLimitChange = { viewModel.updateDefaultSocialMediaTimeLimit(it) },
+                            onMessagingLimitChange = { viewModel.updateDefaultMessagingTimeLimit(it) }
+                        )
+                    }
+
+                    // Notification frequency setting (shown when usage notifications are enabled)
+                    AnimatedVisibility(
+                        visible = settings.enableUsageTimeNotifications,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "🔔 Notification Settings",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            SliderSetting(
+                                title = "Notification Frequency",
+                                description = "How often to show reminders after time limit is exceeded",
+                                value = settings.usageNotificationFrequency.toFloat(),
+                                range = 15f..120f, // 15 minutes to 2 hours
+                                onValueChange = { viewModel.updateUsageNotificationFrequency(it.toInt()) },
+                                valueFormatter = { "${it.toInt()} minutes" }
+                            )
+                        }
+                    }
+
+                    // Daily reset toggle (shown when usage notifications are enabled)
+                    AnimatedVisibility(
+                        visible = settings.enableUsageTimeNotifications,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        SwitchSetting(
+                            title = "Daily Reset",
+                            description = "Reset usage statistics daily at midnight",
+                            checked = settings.enableDailyUsageReset,
+                            onCheckedChange = { viewModel.updateDailyUsageReset(it) }
+                        )
+                    }
+
+                    // Custom app time limits section (shown when usage notifications are enabled)
+                    AnimatedVisibility(
+                        visible = settings.enableUsageTimeNotifications,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        CustomAppTimeLimitsManager(
+                            customLimits = settings.customAppTimeLimits,
+                            onAddCustomLimit = { packageName, limit ->
+                                viewModel.updateCustomAppTimeLimit(packageName, limit)
+                            },
+                            onRemoveCustomLimit = { packageName ->
+                                viewModel.removeCustomAppTimeLimit(packageName)
+                            },
+                            onEditCustomLimit = { packageName, limit ->
+                                viewModel.updateCustomAppTimeLimit(packageName, limit)
+                            }
+                        )
                     }
                 }
             }

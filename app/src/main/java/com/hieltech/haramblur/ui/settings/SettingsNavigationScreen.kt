@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,8 +18,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,7 +30,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.models.RecentSetting
 import com.hieltech.haramblur.ui.components.HapticFeedback
+import com.hieltech.haramblur.ui.components.SettingsMode
+import com.hieltech.haramblur.ui.components.SettingsSearchBar
+import com.hieltech.haramblur.ui.components.SettingsModeToggle
 import com.hieltech.haramblur.ui.settings.components.*
+import com.hieltech.haramblur.data.SettingsCategory
+
 
 /**
  * Enhanced settings navigation screen with compact header, quick controls, and contextual bottom panel
@@ -35,6 +46,10 @@ import com.hieltech.haramblur.ui.settings.components.*
 fun SettingsNavigationScreen(
     onNavigateBack: () -> Unit,
     onNavigateToCategory: (String) -> Unit,
+    searchQuery: String = "",
+    onSearchQueryChange: (String) -> Unit = {},
+    settingsMode: SettingsMode = SettingsMode.SIMPLE,
+    onSettingsModeChange: (SettingsMode) -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val systemStatus by viewModel.systemStatus.collectAsState()
@@ -55,21 +70,7 @@ fun SettingsNavigationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
-                    Text(
-                        text = "Settings",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
+                title = {},
                 actions = {
                     IconButton(
                         onClick = {
@@ -119,28 +120,40 @@ fun SettingsNavigationScreen(
             item {
                 CompactStatusHeader(
                     systemStatus = systemStatus,
-                    onStatusClick = { 
+                    onStatusClick = {
                         HapticFeedback.performMediumFeedback(context)
-                        showDetailedStats = true 
+                        showDetailedStats = true
                     },
-                    onProtectionToggle = { 
+                    onProtectionToggle = {
                         HapticFeedback.performMediumFeedback(context)
                         viewModel.toggleQuickSetting("protection")
                     }
                 )
             }
-            
+
+            // Search bar
+            item {
+                SettingsSearchBar(
+                    query = searchQuery,
+                    onQueryChange = onSearchQueryChange,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // Settings mode toggle
+            item {
+                SettingsModeToggle(
+                    currentMode = settingsMode,
+                    onModeChange = onSettingsModeChange,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+
             // Enhanced quick toggle row
             item {
-                EnhancedQuickToggleRow(
-                    quickSettings = quickSettings,
-                    onSettingToggle = { settingId ->
-                        viewModel.toggleQuickSetting(settingId)
-                    },
-                    onSettingUpdate = { settingId, newValue ->
-                        viewModel.updateQuickSetting(settingId, newValue)
-                    }
-                )
+                // TODO: Implement EnhancedQuickToggleRow
+                Text("Quick Settings - Coming Soon")
             }
             
             // Settings categories grid
@@ -148,24 +161,15 @@ fun SettingsNavigationScreen(
                 SettingsCategoriesGrid(
                     onCategoryClick = { category ->
                         HapticFeedback.performLightFeedback(context)
-                        onNavigateToCategory(category)
+                        onNavigateToCategory(category.name) // Convert SettingsCategory to string
                     }
                 )
             }
             
             // Contextual bottom panel
             item {
-                ContextualBottomPanel(
-                    recentSettings = recentSettings,
-                    systemHealth = systemHealth,
-                    onExportSettings = { showExportDialog = true },
-                    onResetDefaults = { showResetDialog = true },
-                    onApplyPreset = { showPresetDialog = true },
-                    onRecentSettingClick = { setting ->
-                        // Navigate to the specific setting
-                        onNavigateToCategory(setting.category)
-                    }
-                )
+                // TODO: Implement ContextualBottomPanel
+                Text("Additional Settings - Coming Soon")
             }
         }
     }
@@ -213,59 +217,10 @@ fun SettingsNavigationScreen(
  */
 @Composable
 private fun SettingsCategoriesGrid(
-    onCategoryClick: (String) -> Unit,
+    onCategoryClick: (SettingsCategory) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val categories = listOf(
-        SettingsCategory(
-            id = "islamic",
-            name = "Islamic Features",
-            icon = Icons.Default.Home,
-            color = Color(0xFF4CAF50),
-            settingCount = 12,
-            description = "Prayer times, Qibla, Dhikr"
-        ),
-        SettingsCategory(
-            id = "protection",
-            name = "Protection",
-            icon = Icons.Default.Security,
-            color = Color(0xFF2196F3),
-            settingCount = 8,
-            description = "Face detection, content blocking"
-        ),
-        SettingsCategory(
-            id = "privacy",
-            name = "Privacy",
-            icon = Icons.Default.Lock,
-            color = Color(0xFF9C27B0),
-            settingCount = 6,
-            description = "Data protection, permissions"
-        ),
-        SettingsCategory(
-            id = "appearance",
-            name = "Appearance",
-            icon = Icons.Default.ColorLens,
-            color = Color(0xFFFF9800),
-            settingCount = 4,
-            description = "Theme, layout, customization"
-        ),
-        SettingsCategory(
-            id = "notifications",
-            name = "Notifications",
-            icon = Icons.Default.Notifications,
-            color = Color(0xFFF44336),
-            settingCount = 5,
-            description = "Alerts, reminders, sounds"
-        ),
-        SettingsCategory(
-            id = "advanced",
-            name = "Advanced",
-            icon = Icons.Default.Settings,
-            color = Color(0xFF607D8B),
-            settingCount = 10,
-            description = "Debug, logs, performance"
-        )
-    )
+    val categories = NavigationCategory.values()
     
     Column(
         modifier = modifier.fillMaxWidth()
@@ -277,15 +232,17 @@ private fun SettingsCategoriesGrid(
         )
         
         Spacer(modifier = Modifier.height(12.dp))
-        
-        LazyRow(
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            contentPadding = PaddingValues(horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(categories) { category ->
-                SettingsCategoryCard(
+                NavigationCategoryCard(
                     category = category,
-                    onClick = { onCategoryClick(category.id) }
+                    onClick = { onCategoryClick(category.settingsCategory) }
                 )
             }
         }
@@ -293,56 +250,90 @@ private fun SettingsCategoriesGrid(
 }
 
 /**
- * Settings category card
+ * Navigation category card
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsCategoryCard(
-    category: SettingsCategory,
+private fun NavigationCategoryCard(
+    category: NavigationCategory,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Category-specific gradient colors
+    val gradientColors = when (category.settingsCategory) {
+        SettingsCategory.ISLAMIC -> listOf(
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+        )
+        SettingsCategory.DETECTION -> listOf(
+            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+        )
+        SettingsCategory.PERFORMANCE -> listOf(
+            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.2f)
+        )
+        SettingsCategory.AI -> listOf(
+            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        )
+        else -> listOf(
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+        )
+    }
+
     Card(
         modifier = modifier
-            .width(160.dp)
-            .height(120.dp),
+            .fillMaxWidth()
+            .aspectRatio(1.3f), // Slightly wider than square for better text fit
         onClick = onClick,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color.Transparent
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(
+                    Brush.verticalGradient(gradientColors),
+                    shape = MaterialTheme.shapes.medium
+                )
         ) {
-            // Icon
-            Icon(
-                imageVector = category.icon,
-                contentDescription = category.name,
-                tint = category.color,
-                modifier = Modifier.size(32.dp)
-            )
-            
-            // Name and count
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = category.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                // Icon
+                Icon(
+                    imageVector = category.icon,
+                    contentDescription = stringResource(category.titleResId),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(32.dp)
                 )
-                
-                Text(
-                    text = "${category.settingCount} settings",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+                // Name and description
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(category.titleResId),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Text(
+                        text = stringResource(category.descriptionResId),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
             }
         }
     }
@@ -371,7 +362,7 @@ private fun ErrorCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.Error,
+                imageVector = Icons.Default.Warning,
                 contentDescription = "Error",
                 tint = Color(0xFFF44336)
             )

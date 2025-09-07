@@ -2,7 +2,7 @@ package com.hieltech.haramblur.data.database.entities
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import java.time.LocalDate
+import java.util.Date
 
 /**
  * Room entity for storing daily statistics
@@ -10,7 +10,7 @@ import java.time.LocalDate
 @Entity(tableName = "daily_statistics")
 data class StatisticsEntity(
     @PrimaryKey
-    val date: LocalDate,
+    val date: Long,
     val facesDetected: Int = 0,
     val sitesBlocked: Int = 0,
     val detectionAccuracy: Float = 0.0f,

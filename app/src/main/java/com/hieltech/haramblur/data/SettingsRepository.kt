@@ -6,11 +6,17 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.hieltech.haramblur.detection.Language
+import com.hieltech.haramblur.data.models.AppCategory
+import com.hieltech.haramblur.data.models.DetectionScope
+import com.hieltech.haramblur.data.models.DetectionMode
+import com.hieltech.haramblur.data.models.RecentSetting
+import com.hieltech.haramblur.data.models.UsageTimeConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileWriter
@@ -28,7 +34,7 @@ class SettingsRepository @Inject constructor(
     companion object {
         private const val TAG = "SettingsRepository"
         private const val SETTINGS_VERSION_KEY = "settings_version"
-        private const val CURRENT_SETTINGS_VERSION = 7
+        private const val CURRENT_SETTINGS_VERSION = 8
     }
     
     private val _settings = MutableStateFlow(loadSettingsWithMigration())
@@ -178,10 +184,118 @@ class SettingsRepository @Inject constructor(
                 )
             } catch (e: IllegalArgumentException) { com.hieltech.haramblur.data.compass.CompassSize.MEDIUM },
             enableMagneticDeclination = prefs.getBoolean("enable_magnetic_declination", true),
-            compassUpdateRate = prefs.getInt("compass_update_rate", 15)
+            compassUpdateRate = prefs.getInt("compass_update_rate", 15),
+
+            // App-Specific Detection Settings
+            enableAppSpecificDetection = prefs.getBoolean("enable_app_specific_detection", true),
+            monitoredAppCategories = loadMonitoredAppCategories(),
+            customMonitoredApps = prefs.getStringSet("custom_monitored_apps", emptySet()) ?: emptySet(),
+            excludedApps = prefs.getStringSet("excluded_apps", emptySet()) ?: emptySet(),
+
+            // Usage Time Tracking Settings
+            enableUsageTimeNotifications = prefs.getBoolean("enable_usage_time_notifications", true),
+            defaultSocialMediaTimeLimit = prefs.getInt("default_social_media_time_limit", 60),
+            defaultMessagingTimeLimit = prefs.getInt("default_messaging_time_limit", 120),
+            customAppTimeLimits = loadCustomAppTimeLimits(),
+            usageNotificationFrequency = prefs.getInt("usage_notification_frequency", 30),
+            enableDailyUsageReset = prefs.getBoolean("enable_daily_usage_reset", true),
+            lastUsageResetDate = prefs.getLong("last_usage_reset_date", 0L).let { if (it <= 0L) null else it }
         )
     }
-    
+
+    /**
+     * Load monitored app categories from SharedPreferences
+     */
+    private fun loadMonitoredAppCategories(): Set<AppCategory> {
+        val categoriesJson = prefs.getString("monitored_app_categories", null)
+        if (categoriesJson.isNullOrBlank()) {
+            return setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING)
+        }
+
+        return try {
+            val jsonObject = JSONObject(categoriesJson)
+            val categories = mutableSetOf<AppCategory>()
+            val keys = jsonObject.keys()
+            var foundUnknownCategory = false
+
+            while (keys.hasNext()) {
+                val categoryName = keys.next()
+                if (jsonObject.optBoolean(categoryName, false)) {
+                    try {
+                        categories.add(AppCategory.valueOf(categoryName))
+                    } catch (e: IllegalArgumentException) {
+                        Log.w(TAG, "Unknown AppCategory in stored preferences: $categoryName - skipping")
+                        foundUnknownCategory = true
+                    }
+                }
+            }
+
+            // If we found unknown categories, sanitize the stored preferences
+            if (foundUnknownCategory && categories.isNotEmpty()) {
+                prefs.edit().putString("monitored_app_categories", saveMonitoredAppCategories(categories)).apply()
+                Log.i(TAG, "Sanitized monitored app categories - removed unknown categories")
+            }
+
+            // Ensure we have at least the defaults if everything was filtered out
+            if (categories.isEmpty()) {
+                Log.w(TAG, "No valid categories found, falling back to defaults")
+                setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING)
+            } else {
+                categories
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load monitored app categories", e)
+            setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING)
+        }
+    }
+
+    /**
+     * Load a presence map from SharedPreferences and convert to Set<String>.
+     *
+     * Storage format: JSON object where keys are set elements and values are boolean 'true'.
+     * Example: {"com.instagram.android": true, "com.facebook.katana": true}
+     * This format allows for efficient lookups and easy extension to store additional metadata.
+     */
+    private fun loadPresenceMapAsSet(key: String): Set<String> {
+        val jsonString = prefs.getString(key, null)
+        if (jsonString.isNullOrBlank()) return emptySet()
+
+        return try {
+            val jsonObject = JSONObject(jsonString)
+            val set = mutableSetOf<String>()
+            val keys = jsonObject.keys()
+            while (keys.hasNext()) {
+                set.add(keys.next())
+            }
+            set
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load presence map as set for key: $key", e)
+            emptySet()
+        }
+    }
+
+    /**
+     * Load custom app time limits from SharedPreferences
+     */
+    private fun loadCustomAppTimeLimits(): Map<String, Int> {
+        val jsonString = prefs.getString("custom_app_time_limits", null)
+        if (jsonString.isNullOrBlank()) return emptyMap()
+
+        return try {
+            val jsonObject = JSONObject(jsonString)
+            val map = mutableMapOf<String, Int>()
+            val keys = jsonObject.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                map[key] = jsonObject.optInt(key, 0)
+            }
+            map
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load custom app time limits", e)
+            emptyMap()
+        }
+    }
+
     fun updateSettings(newSettings: AppSettings) {
         val validatedSettings = validateSettings(newSettings)
         _settings.value = validatedSettings
@@ -320,10 +434,62 @@ class SettingsRepository @Inject constructor(
             putBoolean("enable_magnetic_declination", settings.enableMagneticDeclination)
             putInt("compass_update_rate", settings.compassUpdateRate)
 
+            // App-Specific Detection Settings
+            putBoolean("enable_app_specific_detection", settings.enableAppSpecificDetection)
+            putString("monitored_app_categories", saveMonitoredAppCategories(settings.monitoredAppCategories))
+            putStringSet("custom_monitored_apps", settings.customMonitoredApps)
+            putStringSet("excluded_apps", settings.excludedApps)
+
+            // Usage Time Tracking Settings
+            putBoolean("enable_usage_time_notifications", settings.enableUsageTimeNotifications)
+            putInt("default_social_media_time_limit", settings.defaultSocialMediaTimeLimit)
+            putInt("default_messaging_time_limit", settings.defaultMessagingTimeLimit)
+            putString("custom_app_time_limits", saveCustomAppTimeLimits(settings.customAppTimeLimits))
+            putInt("usage_notification_frequency", settings.usageNotificationFrequency)
+            putBoolean("enable_daily_usage_reset", settings.enableDailyUsageReset)
+            putLong("last_usage_reset_date", settings.lastUsageResetDate ?: 0L)
+
             apply()
         }
     }
-    
+
+    /**
+     * Save monitored app categories to SharedPreferences
+     */
+    private fun saveMonitoredAppCategories(categories: Set<AppCategory>): String {
+        val jsonObject = JSONObject()
+        AppCategory.values().forEach { category ->
+            jsonObject.put(category.name, categories.contains(category))
+        }
+        return jsonObject.toString()
+    }
+
+    /**
+     * Save a Set<String> as a presence map JSON string for SharedPreferences storage.
+     *
+     * Storage format: JSON object where keys are set elements and values are boolean 'true'.
+     * Example: {"com.instagram.android": true, "com.facebook.katana": true}
+     * This format allows for efficient lookups and easy extension to store additional metadata.
+     */
+    private fun saveSetAsPresenceMapJson(set: Set<String>): String {
+        val jsonObject = JSONObject()
+        set.forEach { item ->
+            jsonObject.put(item, true)
+        }
+        return jsonObject.toString()
+    }
+
+    /**
+     * Save custom app time limits to SharedPreferences
+     */
+    private fun saveCustomAppTimeLimits(limits: Map<String, Int>): String {
+        val jsonObject = JSONObject()
+        limits.forEach { (packageName, limit) ->
+            jsonObject.put(packageName, limit)
+        }
+        return jsonObject.toString()
+    }
+
     // Quick access methods for common settings
     fun getCurrentSettings(): AppSettings = _settings.value
     
@@ -499,6 +665,100 @@ class SettingsRepository @Inject constructor(
         updateLocationMethod(if (autoDetect) LocationMethod.GPS else LocationMethod.MANUAL_CITY)
     }
 
+    // App-Specific Detection Helper Methods
+    fun getDetectionScope(): DetectionScope = DetectionScope(
+        mode = if (settings.value.enableAppSpecificDetection) DetectionMode.SPECIFIC_CATEGORIES else DetectionMode.ALL_APPS,
+        monitoredCategories = settings.value.monitoredAppCategories,
+        customIncludedApps = settings.value.customMonitoredApps,
+        excludedApps = settings.value.excludedApps
+    )
+
+    fun getUsageTimeConfig(): UsageTimeConfig = UsageTimeConfig(
+        enabled = settings.value.enableUsageTimeNotifications,
+        defaultLimits = mapOf(
+            AppCategory.SOCIAL_MEDIA to settings.value.defaultSocialMediaTimeLimit,
+            AppCategory.MESSAGING to settings.value.defaultMessagingTimeLimit,
+            AppCategory.ENTERTAINMENT to settings.value.defaultSocialMediaTimeLimit, // Same as social media for now
+            AppCategory.DATING to 30, // Fixed 30 minutes for dating apps
+            AppCategory.BROWSERS to 180 // Fixed 3 hours for browsers
+        ),
+        customAppLimits = settings.value.customAppTimeLimits,
+        notificationFrequencyMinutes = settings.value.usageNotificationFrequency,
+        enableDailyReset = settings.value.enableDailyUsageReset
+    )
+
+    // App-Specific Detection Update Methods
+    fun updateAppSpecificDetectionEnabled(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(enableAppSpecificDetection = enabled)
+        updateSettings(updated)
+    }
+
+    fun updateMonitoredAppCategories(categories: Set<AppCategory>) {
+        val current = _settings.value
+        val updated = current.copy(monitoredAppCategories = categories)
+        updateSettings(updated)
+    }
+
+    fun updateCustomMonitoredApps(apps: Set<String>) {
+        val current = _settings.value
+        val updated = current.copy(customMonitoredApps = apps)
+        updateSettings(updated)
+    }
+
+    fun updateExcludedApps(apps: Set<String>) {
+        val current = _settings.value
+        val updated = current.copy(excludedApps = apps)
+        updateSettings(updated)
+    }
+
+    // Usage Time Tracking Update Methods
+    fun updateUsageTimeNotifications(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(enableUsageTimeNotifications = enabled)
+        updateSettings(updated)
+    }
+
+    fun updateAppTimeLimit(packageName: String, limitMinutes: Int) {
+        val current = _settings.value
+        val updatedLimits = current.customAppTimeLimits.toMutableMap()
+        updatedLimits[packageName] = limitMinutes
+        val updated = current.copy(customAppTimeLimits = updatedLimits)
+        updateSettings(updated)
+    }
+
+    fun removeAppTimeLimit(packageName: String) {
+        val current = _settings.value
+        val updatedLimits = current.customAppTimeLimits.toMutableMap()
+        updatedLimits.remove(packageName)
+        val updated = current.copy(customAppTimeLimits = updatedLimits)
+        updateSettings(updated)
+    }
+
+    fun updateDefaultSocialMediaTimeLimit(limitMinutes: Int) {
+        val current = _settings.value
+        val updated = current.copy(defaultSocialMediaTimeLimit = limitMinutes)
+        updateSettings(updated)
+    }
+
+    fun updateDefaultMessagingTimeLimit(limitMinutes: Int) {
+        val current = _settings.value
+        val updated = current.copy(defaultMessagingTimeLimit = limitMinutes)
+        updateSettings(updated)
+    }
+
+    fun updateUsageNotificationFrequency(frequencyMinutes: Int) {
+        val current = _settings.value
+        val updated = current.copy(usageNotificationFrequency = frequencyMinutes)
+        updateSettings(updated)
+    }
+
+    fun updateDailyUsageReset(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(enableDailyUsageReset = enabled)
+        updateSettings(updated)
+    }
+
     // Settings Migration
     private fun loadSettingsWithMigration(): AppSettings {
         val currentVersion = prefs.getInt(SETTINGS_VERSION_KEY, 1)
@@ -602,6 +862,23 @@ class SettingsRepository @Inject constructor(
                     apply()
                 }
             }
+            7 -> {
+                // Migration to version 8: Add app-specific detection and usage time settings
+                Log.i(TAG, "Migrating from version 7: Adding app-specific detection and usage time settings")
+                prefs.edit().apply {
+                    putBoolean("enable_app_specific_detection", true)
+                    putString("monitored_app_categories", saveMonitoredAppCategories(setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING)))
+                    putStringSet("custom_monitored_apps", emptySet<String>())
+                    putStringSet("excluded_apps", emptySet<String>())
+                    putBoolean("enable_usage_time_notifications", true)
+                    putInt("default_social_media_time_limit", 60)
+                    putInt("default_messaging_time_limit", 120)
+                    putString("custom_app_time_limits", saveCustomAppTimeLimits(emptyMap()))
+                    putInt("usage_notification_frequency", 30)
+                    putBoolean("enable_daily_usage_reset", true)
+                    apply()
+                }
+            }
         }
     }
     
@@ -632,7 +909,12 @@ class SettingsRepository @Inject constructor(
             maxAllowedPrayerShiftMinutes = settings.maxAllowedPrayerShiftMinutes.coerceIn(0, 60),
             gpsAccuracyHighThresholdM = settings.gpsAccuracyHighThresholdM.coerceAtLeast(5f),
             gpsAccuracyMediumThresholdM = settings.gpsAccuracyMediumThresholdM.coerceAtLeast(settings.gpsAccuracyHighThresholdM + 1f),
-            gpsAccuracyLowThresholdM = settings.gpsAccuracyLowThresholdM.coerceAtLeast(settings.gpsAccuracyMediumThresholdM + 1f)
+            gpsAccuracyLowThresholdM = settings.gpsAccuracyLowThresholdM.coerceAtLeast(settings.gpsAccuracyMediumThresholdM + 1f),
+
+            // App-Specific Detection and Usage Time validation
+            defaultSocialMediaTimeLimit = settings.defaultSocialMediaTimeLimit.coerceIn(1, 1440), // 1 minute to 24 hours
+            defaultMessagingTimeLimit = settings.defaultMessagingTimeLimit.coerceIn(1, 1440), // 1 minute to 24 hours
+            usageNotificationFrequency = settings.usageNotificationFrequency.coerceIn(5, 120) // 5 minutes to 2 hours
         )
     }
     
@@ -742,7 +1024,25 @@ class SettingsRepository @Inject constructor(
             put("compassPreferredSize", settings.compassPreferredSize.name)
             put("enableMagneticDeclination", settings.enableMagneticDeclination)
             put("compassUpdateRate", settings.compassUpdateRate)
-            
+
+            // App-Specific Detection Settings
+            put("enableAppSpecificDetection", settings.enableAppSpecificDetection)
+            put("monitoredAppCategories", JSONArray(settings.monitoredAppCategories.map { it.name }))
+            put("customMonitoredApps", JSONArray(settings.customMonitoredApps.toList()))
+            put("excludedApps", JSONArray(settings.excludedApps.toList()))
+
+            // Usage Time Tracking Settings
+            put("enableUsageTimeNotifications", settings.enableUsageTimeNotifications)
+            put("defaultSocialMediaTimeLimit", settings.defaultSocialMediaTimeLimit)
+            put("defaultMessagingTimeLimit", settings.defaultMessagingTimeLimit)
+            put("customAppTimeLimits", JSONObject().apply {
+                settings.customAppTimeLimits.forEach { (packageName, limit) ->
+                    put(packageName, limit)
+                }
+            })
+            put("usageNotificationFrequency", settings.usageNotificationFrequency)
+            put("enableDailyUsageReset", settings.enableDailyUsageReset)
+
             // Metadata
             put("exportVersion", CURRENT_SETTINGS_VERSION)
             put("exportTimestamp", System.currentTimeMillis())
@@ -883,7 +1183,21 @@ class SettingsRepository @Inject constructor(
                     )
                 } catch (e: IllegalArgumentException) { com.hieltech.haramblur.data.compass.CompassSize.MEDIUM },
                 enableMagneticDeclination = jsonObject.optBoolean("enableMagneticDeclination", true),
-                compassUpdateRate = jsonObject.optInt("compassUpdateRate", 15)
+                compassUpdateRate = jsonObject.optInt("compassUpdateRate", 15),
+
+                // App-Specific Detection Settings
+                enableAppSpecificDetection = jsonObject.optBoolean("enableAppSpecificDetection", true),
+                monitoredAppCategories = parseMonitoredAppCategories(jsonObject),
+                customMonitoredApps = parseStringArray(jsonObject, "customMonitoredApps"),
+                excludedApps = parseStringArray(jsonObject, "excludedApps"),
+
+                // Usage Time Tracking Settings
+                enableUsageTimeNotifications = jsonObject.optBoolean("enableUsageTimeNotifications", true),
+                defaultSocialMediaTimeLimit = validateTimeLimit(jsonObject.optInt("defaultSocialMediaTimeLimit", 60)),
+                defaultMessagingTimeLimit = validateTimeLimit(jsonObject.optInt("defaultMessagingTimeLimit", 120)),
+                customAppTimeLimits = parseCustomAppTimeLimits(jsonObject),
+                usageNotificationFrequency = validateNotificationFrequency(jsonObject.optInt("usageNotificationFrequency", 30)),
+                enableDailyUsageReset = jsonObject.optBoolean("enableDailyUsageReset", true)
             )
             
             val validatedSettings = validateSettings(importedSettings)
@@ -895,6 +1209,95 @@ class SettingsRepository @Inject constructor(
             Log.e(TAG, "Failed to import settings", e)
             false
         }
+    }
+
+    /**
+     * Parse monitored app categories from JSON array
+     */
+    private fun parseMonitoredAppCategories(jsonObject: JSONObject): Set<AppCategory> {
+        val categoriesArray = jsonObject.optJSONArray("monitoredAppCategories")
+        if (categoriesArray == null) {
+            return setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING)
+        }
+
+        val categories = mutableSetOf<AppCategory>()
+        for (i in 0 until categoriesArray.length()) {
+            try {
+                val categoryName = categoriesArray.getString(i)
+                val category = AppCategory.valueOf(categoryName)
+                categories.add(category)
+            } catch (e: Exception) {
+                Log.w(TAG, "Unknown AppCategory in import: ${categoriesArray.getString(i)}")
+            }
+        }
+
+        return if (categories.isEmpty()) {
+            setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING)
+        } else {
+            categories
+        }
+    }
+
+    /**
+     * Parse string array from JSON
+     */
+    private fun parseStringArray(jsonObject: JSONObject, key: String): Set<String> {
+        val array = jsonObject.optJSONArray(key)
+        if (array == null) return emptySet()
+
+        val set = mutableSetOf<String>()
+        for (i in 0 until array.length()) {
+            val item = array.optString(i, "")
+            if (item.isNotBlank() && isValidPackageName(item)) {
+                set.add(item)
+            }
+        }
+        return set
+    }
+
+    /**
+     * Parse custom app time limits from JSON object
+     */
+    private fun parseCustomAppTimeLimits(jsonObject: JSONObject): Map<String, Int> {
+        val limitsObject = jsonObject.optJSONObject("customAppTimeLimits")
+        if (limitsObject == null) return emptyMap()
+
+        val map = mutableMapOf<String, Int>()
+        val keys = limitsObject.keys()
+        while (keys.hasNext()) {
+            val packageName = keys.next()
+            if (isValidPackageName(packageName)) {
+                val limit = limitsObject.optInt(packageName, 0)
+                if (limit > 0) {
+                    map[packageName] = validateTimeLimit(limit)
+                }
+            }
+        }
+        return map
+    }
+
+    /**
+     * Validate time limit (1 minute to 24 hours)
+     */
+    private fun validateTimeLimit(limit: Int): Int {
+        return limit.coerceIn(1, 1440) // 1 minute to 24 hours
+    }
+
+    /**
+     * Validate notification frequency (5 minutes to 2 hours)
+     */
+    private fun validateNotificationFrequency(frequency: Int): Int {
+        return frequency.coerceIn(5, 120) // 5 minutes to 2 hours
+    }
+
+    /**
+     * Basic validation for Android package names
+     */
+    private fun isValidPackageName(packageName: String): Boolean {
+        // Simple validation: contains dots, starts with letter, reasonable length
+        return packageName.matches(Regex("^[a-zA-Z][a-zA-Z0-9._]{0,254}$")) &&
+               packageName.contains(".") &&
+               packageName.length <= 255
     }
 
     fun updatePermissionStatus(permissionType: String, granted: Boolean) {
@@ -1357,5 +1760,75 @@ class SettingsRepository @Inject constructor(
     suspend fun toggleServicePause(paused: Boolean) {
         val current = getCurrentSettings()
         updateSettings(current.copy(isServicePaused = paused))
+    }
+
+    /**
+     * Get recent settings changes
+     */
+    fun getRecentSettings(limit: Int): List<RecentSetting> {
+        // This would typically query a database or log file
+        // For now, return empty list
+        return emptyList()
+    }
+
+    /**
+     * Get recent settings changes as Flow
+     */
+    fun getRecentSettingsFlow(limit: Int): Flow<List<RecentSetting>> {
+        // This would typically observe a database or log file
+        // For now, return empty flow
+        return kotlinx.coroutines.flow.flowOf(emptyList<RecentSetting>())
+    }
+
+    /**
+     * Record a toggle change
+     */
+    suspend fun recordToggleChange(
+        settingName: String,
+        category: String,
+        isEnabled: Boolean,
+        settingId: String
+    ) {
+        // This would typically save to a database or log file
+        // For now, just log
+        Log.d(TAG, "Toggle recorded: $settingName = $isEnabled")
+    }
+
+    /**
+     * Record a value change
+     */
+    suspend fun recordValueChange(
+        settingName: String,
+        category: String,
+        previousValue: String,
+        newValue: String,
+        settingId: String
+    ) {
+        // This would typically save to a database or log file
+        // For now, just log
+        Log.d(TAG, "Value change recorded: $settingName = $newValue")
+    }
+
+    /**
+     * Record a reset action
+     */
+    suspend fun recordResetAction(
+        settingName: String,
+        category: String,
+        previousValue: String,
+        settingId: String
+    ) {
+        // This would typically save to a database or log file
+        // For now, just log
+        Log.d(TAG, "Reset recorded: $settingName")
+    }
+
+    /**
+     * Export recent settings
+     */
+    suspend fun exportRecentSettings(days: Int): List<RecentSetting> {
+        // This would typically query recent changes from database
+        // For now, return empty list
+        return emptyList<RecentSetting>()
     }
 }

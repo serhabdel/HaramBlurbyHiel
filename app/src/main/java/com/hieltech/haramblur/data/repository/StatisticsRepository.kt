@@ -28,7 +28,8 @@ class StatisticsRepository @Inject constructor(
      * Get recent statistics for the last N days
      */
     fun getRecentStatisticsFlow(days: Int = 7): Flow<List<StatisticsEntity>> {
-        return statisticsDao.getRecentStatisticsFlow(days)
+        val startDate = LocalDate.now().minusDays(days.toLong())
+        return statisticsDao.getRecentStatisticsFlow(startDate)
     }
     
     /**
@@ -100,7 +101,7 @@ class StatisticsRepository @Inject constructor(
             statisticsDao.incrementDetections(today, 1, 0, System.currentTimeMillis())
         } else {
             val newStats = StatisticsEntity(
-                date = today,
+                date = today.toEpochDay(),
                 facesDetected = 1,
                 lastUpdated = System.currentTimeMillis()
             )
@@ -119,7 +120,7 @@ class StatisticsRepository @Inject constructor(
             statisticsDao.incrementDetections(today, 0, 1, System.currentTimeMillis())
         } else {
             val newStats = StatisticsEntity(
-                date = today,
+                date = today.toEpochDay(),
                 sitesBlocked = 1,
                 lastUpdated = System.currentTimeMillis()
             )
@@ -138,7 +139,7 @@ class StatisticsRepository @Inject constructor(
             statisticsDao.incrementProtectionTime(today, timeIncrement, System.currentTimeMillis())
         } else {
             val newStats = StatisticsEntity(
-                date = today,
+                date = today.toEpochDay(),
                 protectionActiveTime = timeIncrement,
                 lastUpdated = System.currentTimeMillis()
             )
@@ -169,7 +170,7 @@ class StatisticsRepository @Inject constructor(
             statisticsDao.insertStatistics(updatedStats)
         } else {
             val newStats = StatisticsEntity(
-                date = today,
+                date = today.toEpochDay(),
                 averageProcessingTime = processingTime,
                 batteryUsage = batteryUsage,
                 memoryPeakUsage = memoryUsage,
@@ -186,7 +187,7 @@ class StatisticsRepository @Inject constructor(
     suspend fun getDetectionTrends(days: Int = 7): List<Pair<LocalDate, Int>> {
         val recentStats = statisticsDao.getRecentStatistics(days)
         return recentStats.map { stats ->
-            stats.date to stats.getTotalDetections()
+            LocalDate.ofEpochDay(stats.date) to stats.getTotalDetections()
         }
     }
     
@@ -194,7 +195,8 @@ class StatisticsRepository @Inject constructor(
      * Get performance trends
      */
     suspend fun getPerformanceTrends(days: Int = 7): List<com.hieltech.haramblur.data.database.PerformanceTrend> {
-        return statisticsDao.getPerformanceTrends(days)
+        val startDate = LocalDate.now().minusDays(days.toLong())
+        return statisticsDao.getPerformanceTrends(startDate)
     }
     
     /**
