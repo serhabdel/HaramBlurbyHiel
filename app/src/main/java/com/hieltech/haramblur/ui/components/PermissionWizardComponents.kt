@@ -33,7 +33,8 @@ fun WizardStepCard(
     modifier: Modifier = Modifier,
     onGrantClick: () -> Unit,
     onSkipClick: (() -> Unit)? = null,
-    onRefreshClick: (() -> Unit)? = null
+    onRefreshClick: (() -> Unit)? = null,
+    showGrantButton: Boolean = true
 ) {
     val explanation = permissionHelper.getPermissionExplanation(step.permissionType)
 
@@ -186,7 +187,7 @@ fun WizardStepCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(responsiveSpacing())
             ) {
-                if (step.status != PermissionWizardViewModel.PermissionStatus.GRANTED) {
+                if (showGrantButton && step.status != PermissionWizardViewModel.PermissionStatus.GRANTED) {
                     OutlinedButton(
                         onClick = onGrantClick,
                         modifier = Modifier.weight(1f),

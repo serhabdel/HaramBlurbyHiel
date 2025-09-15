@@ -85,6 +85,13 @@ class PermissionWizardViewModel @Inject constructor(
         ),
         WizardStep(
             stepNumber = 5,
+            title = "Notifications",
+            description = "Allow dhikr reminders and important alerts",
+            permissionType = "NOTIFICATION_PERMISSION",
+            isRequired = false
+        ),
+        WizardStep(
+            stepNumber = 6,
             title = "Islamic Features",
             description = "Set up prayer times, Islamic calendar, and spiritual features",
             permissionType = "ISLAMIC_FEATURES",

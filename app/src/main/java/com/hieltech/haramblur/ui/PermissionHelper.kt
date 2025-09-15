@@ -43,17 +43,38 @@ class PermissionHelper @Inject constructor(
     val permissionStatusFlow: StateFlow<Map<String, PermissionResult>> = _permissionStatusFlow.asStateFlow()
 
     /**
-     * Request Usage Stats permission
+     * Request Usage Stats permission with improved navigation
      */
     fun requestUsageStatsPermission(activity: Activity) {
         try {
             val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
             intent.data = Uri.parse("package:${context.packageName}")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             activity.startActivity(intent)
+
+            Log.d("PermissionHelper", "Opened usage access settings for package: ${context.packageName}")
         } catch (e: Exception) {
-            // Fallback to general settings
-            val intent = Intent(Settings.ACTION_SETTINGS)
-            activity.startActivity(intent)
+            Log.e("PermissionHelper", "Failed to open usage access settings", e)
+            try {
+                // Fallback to general usage access settings
+                val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                activity.startActivity(intent)
+
+                Log.d("PermissionHelper", "Opened general usage access settings as fallback")
+            } catch (fallbackException: Exception) {
+                Log.e("PermissionHelper", "Failed to open general usage access settings", fallbackException)
+                try {
+                    // Last fallback to app settings
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    intent.data = Uri.parse("package:${context.packageName}")
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    activity.startActivity(intent)
+                } catch (lastException: Exception) {
+                    Log.e("PermissionHelper", "Failed to open any settings for usage stats", lastException)
+                    showPermissionError(activity, "Unable to open settings. Please manually enable Usage Access in Android Settings > Apps > Special access > Usage access > HaramBlur.")
+                }
+            }
         }
     }
 
@@ -70,17 +91,37 @@ class PermissionHelper @Inject constructor(
     }
 
     /**
-     * Request Location permission
+     * Request Location permission with improved navigation
      */
     fun requestLocationPermission(activity: Activity) {
         try {
+            // Try to open app-specific permission settings first
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             intent.data = Uri.parse("package:${context.packageName}")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             activity.startActivity(intent)
+
+            Log.d("PermissionHelper", "Opened app settings for location permission")
         } catch (e: Exception) {
-            // Fallback to general settings
-            val intent = Intent(Settings.ACTION_SETTINGS)
-            activity.startActivity(intent)
+            Log.e("PermissionHelper", "Failed to open app settings for location", e)
+            try {
+                // Fallback to location settings
+                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                activity.startActivity(intent)
+
+                Log.d("PermissionHelper", "Opened location settings as fallback")
+            } catch (fallbackException: Exception) {
+                Log.e("PermissionHelper", "Failed to open location settings", fallbackException)
+                try {
+                    // Last fallback to general settings
+                    val intent = Intent(Settings.ACTION_SETTINGS)
+                    activity.startActivity(intent)
+                } catch (lastException: Exception) {
+                    Log.e("PermissionHelper", "Failed to open any settings for location", lastException)
+                    showPermissionError(activity, "Unable to open settings. Please manually enable Location permission in Android Settings > Apps > HaramBlur > Permissions > Location.")
+                }
+            }
         }
     }
 
@@ -127,21 +168,33 @@ class PermissionHelper @Inject constructor(
      */
     fun requestAccessibilityService(activity: Activity) {
         try {
+            // Try to open accessibility settings directly
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            // Add package to help system navigate to our service
-            intent.data = Uri.parse("package:${activity.packageName}")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             activity.startActivity(intent)
+
+            Log.d("PermissionHelper", "Opened accessibility settings successfully")
         } catch (e: Exception) {
             Log.e("PermissionHelper", "Failed to open accessibility settings", e)
             try {
-                // Fallback to general settings
-                val intent = Intent(Settings.ACTION_SETTINGS)
+                // Fallback: Try to open app-specific settings where accessibility might be listed
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                intent.data = Uri.parse("package:${activity.packageName}")
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 activity.startActivity(intent)
+
+                Log.d("PermissionHelper", "Opened app settings as fallback")
             } catch (fallbackException: Exception) {
-                Log.e("PermissionHelper", "Failed to open fallback settings", fallbackException)
-                // Last resort - show error message
-                showPermissionError(activity, "Unable to open settings. Please manually enable Accessibility Service in Android Settings > Accessibility > HaramBlur.")
+                Log.e("PermissionHelper", "Failed to open app settings fallback", fallbackException)
+                try {
+                    // Last fallback to general settings
+                    val intent = Intent(Settings.ACTION_SETTINGS)
+                    activity.startActivity(intent)
+                } catch (lastException: Exception) {
+                    Log.e("PermissionHelper", "Failed to open any settings", lastException)
+                    // Show error message
+                    showPermissionError(activity, "Unable to open settings. Please manually enable Accessibility Service in Android Settings > Accessibility > HaramBlur.")
+                }
             }
         }
     }
@@ -150,9 +203,14 @@ class PermissionHelper @Inject constructor(
      * Show permission error message to user
      */
     private fun showPermissionError(activity: Activity, message: String) {
-        // This would typically show a Toast or Snackbar
-        // For now, we'll log it and could be enhanced to show UI feedback
-        Log.w("PermissionHelper", "Permission error: $message")
+        // Show a Toast message to provide immediate user feedback
+        try {
+            android.widget.Toast.makeText(activity, message, android.widget.Toast.LENGTH_LONG).show()
+            Log.w("PermissionHelper", "Permission error shown to user: $message")
+        } catch (e: Exception) {
+            // Fallback to just logging if Toast fails
+            Log.w("PermissionHelper", "Permission error (Toast failed): $message", e)
+        }
     }
 
     /**
@@ -238,19 +296,41 @@ class PermissionHelper @Inject constructor(
     }
 
     /**
-     * Request Notification permission
+     * Request Notification permission with improved navigation
      */
     fun requestNotificationPermission(activity: Activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
                 val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                 intent.putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 activity.startActivity(intent)
+
+                Log.d("PermissionHelper", "Opened notification settings for package: ${context.packageName}")
             } catch (e: Exception) {
-                // Fallback to general settings
-                val intent = Intent(Settings.ACTION_SETTINGS)
-                activity.startActivity(intent)
+                Log.e("PermissionHelper", "Failed to open notification settings", e)
+                try {
+                    // Fallback to app settings
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    intent.data = Uri.parse("package:${context.packageName}")
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    activity.startActivity(intent)
+
+                    Log.d("PermissionHelper", "Opened app settings for notifications as fallback")
+                } catch (fallbackException: Exception) {
+                    Log.e("PermissionHelper", "Failed to open app settings for notifications", fallbackException)
+                    try {
+                        // Last fallback to general settings
+                        val intent = Intent(Settings.ACTION_SETTINGS)
+                        activity.startActivity(intent)
+                    } catch (lastException: Exception) {
+                        Log.e("PermissionHelper", "Failed to open any settings for notifications", lastException)
+                        showPermissionError(activity, "Unable to open settings. Please manually enable Notification permission in Android Settings > Apps > HaramBlur > Notifications.")
+                    }
+                }
             }
+        } else {
+            Log.d("PermissionHelper", "Notification permission not required for Android version < 13")
         }
     }
 

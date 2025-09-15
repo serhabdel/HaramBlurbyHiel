@@ -154,7 +154,7 @@ fun PrayerTimesWidget(
                 }
             }
 
-            // All prayer times grid
+            // All prayer times grid (highlight next prayer)
             prayerData?.timings?.let { timings ->
                 val prayers = listOf(
                     stringResource(R.string.prayer_name_fajr) to timings.Fajr,
@@ -166,6 +166,8 @@ fun PrayerTimesWidget(
                     stringResource(R.string.prayer_name_isha) to timings.Isha
                 )
 
+                val nextName = nextPrayer?.name?.lowercase()
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -173,8 +175,9 @@ fun PrayerTimesWidget(
                     modifier = Modifier.height(200.dp)
                 ) {
                     items(prayers) { (name, time) ->
+                        val isNext = nextName != null && name.lowercase().contains(nextName)
                         AnimatedFadeIn(visible = true) {
-                            PrayerTimeChip(name = name, time = time)
+                            PrayerTimeChip(name = name, time = time, highlighted = isNext)
                         }
                     }
                 }
@@ -400,11 +403,11 @@ fun QiblaDirectionWidget(
  * Individual prayer time chip
  */
 @Composable
-private fun PrayerTimeChip(name: String, time: String) {
+private fun PrayerTimeChip(name: String, time: String, highlighted: Boolean = false) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Column(
@@ -414,12 +417,13 @@ private fun PrayerTimeChip(name: String, time: String) {
             Text(
                 text = name,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = time,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
             )
         }
     }

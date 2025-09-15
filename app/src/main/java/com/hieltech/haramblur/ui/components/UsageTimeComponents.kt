@@ -2,8 +2,6 @@ package com.hieltech.haramblur.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -199,11 +197,11 @@ fun CustomAppTimeLimitsManager(
 
         // List of custom limits
         if (customLimits.isNotEmpty()) {
-            LazyColumn(
+            Column(
                 modifier = Modifier.heightIn(max = 300.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(customLimits.toList()) { (packageName, limit) ->
+                customLimits.forEach { (packageName, limit) ->
                     CustomAppLimitItem(
                         packageName = packageName,
                         timeLimit = limit,

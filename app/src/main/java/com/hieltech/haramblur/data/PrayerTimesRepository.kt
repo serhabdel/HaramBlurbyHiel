@@ -108,11 +108,12 @@ class PrayerTimesRepository @Inject constructor(
 
                 // Fallback to coordinate-based request
                 val location = getCurrentLocation()
-                val timestamp = System.currentTimeMillis() / 1000
                 val method = settings.prayerCalculationMethod
 
-                Log.d(TAG, "Fetching prayer times for location: ${location.latitude}, ${location.longitude}")
+                // Prefer API for accuracy; local fallback is disabled for now
 
+                // Fallback to API if local calc was not possible
+                val timestamp = System.currentTimeMillis() / 1000
                 val response = apiService.getPrayerTimes(
                     timestamp = timestamp,
                     latitude = location.latitude,
@@ -123,12 +124,7 @@ class PrayerTimesRepository @Inject constructor(
                 )
 
                 if (response.code == 200) {
-                    lastLocationKey = buildLocationKey(
-                        lat = location.latitude,
-                        lon = location.longitude,
-                        method = method,
-                        tz = tz
-                    )
+                    lastLocationKey = buildLocationKey(lat = location.latitude, lon = location.longitude, method = method, tz = tz)
                     cachedPrayerData = response.data
                     cacheTimestamp = System.currentTimeMillis()
                     Result.success(response.data)
@@ -203,12 +199,12 @@ class PrayerTimesRepository @Inject constructor(
                     // Prefer coordinates if enabled and available
                     if (settings.preferStoredCoordinates &&
                         settings.selectedLatitude != null && settings.selectedLongitude != null) {
-                        val calendar = Calendar.getInstance()
-                        val hijriYear = getHijriYear()
-                        val hijriMonth = getHijriMonth()
-                        val response = apiService.getIslamicCalendar(
-                            year = hijriYear,
-                            month = hijriMonth,
+                val calendar = Calendar.getInstance()
+                val gregorianYear = calendar.get(Calendar.YEAR)
+                val gregorianMonth = calendar.get(Calendar.MONTH) + 1
+                val response = apiService.getIslamicCalendar(
+                    year = gregorianYear,
+                    month = gregorianMonth,
                             latitude = settings.selectedLatitude!!,
                             longitude = settings.selectedLongitude!!,
                             timezonestring = tz
@@ -248,14 +244,14 @@ class PrayerTimesRepository @Inject constructor(
                 // Fallback to coordinate-based request
                 val location = getCurrentLocation()
                 val calendar = Calendar.getInstance()
-                val hijriYear = getHijriYear()
-                val hijriMonth = getHijriMonth()
+                val gregorianYear = calendar.get(Calendar.YEAR)
+                val gregorianMonth = calendar.get(Calendar.MONTH) + 1
 
-                Log.d(TAG, "Fetching Islamic calendar for $hijriYear/$hijriMonth")
+                Log.d(TAG, "Fetching Islamic calendar for $gregorianYear/$gregorianMonth (Gregorian)")
 
                 val response = apiService.getIslamicCalendar(
-                    year = hijriYear,
-                    month = hijriMonth,
+                    year = gregorianYear,
+                    month = gregorianMonth,
                     latitude = location.latitude,
                     longitude = location.longitude,
                     timezonestring = tz
@@ -280,15 +276,15 @@ class PrayerTimesRepository @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 val calendar = Calendar.getInstance()
-                val hijriYear = getHijriYear()
-                val hijriMonth = getHijriMonth()
+                val gregorianYear = calendar.get(Calendar.YEAR)
+                val gregorianMonth = calendar.get(Calendar.MONTH) + 1
                 val tz = TimeZone.getDefault().id
 
-                Log.d(TAG, "Fetching Islamic calendar for city: $city, country: $country ($hijriYear/$hijriMonth)")
+                Log.d(TAG, "Fetching Islamic calendar for city: $city, country: $country ($gregorianYear/$gregorianMonth Gregorian)")
 
                 val response = apiService.getIslamicCalendarByCity(
-                    year = hijriYear,
-                    month = hijriMonth,
+                    year = gregorianYear,
+                    month = gregorianMonth,
                     city = city,
                     country = country,
                     timezonestring = tz
@@ -350,6 +346,40 @@ class PrayerTimesRepository @Inject constructor(
                 Result.failure(e)
             }
         }
+    }
+
+    // Helpers to construct simple date structs when using local calculation
+    private fun getGregorianForToday(): com.hieltech.haramblur.data.prayer.GregorianCalendar {
+        val cal = Calendar.getInstance()
+        val day = String.format(Locale.US, "%02d", cal.get(Calendar.DAY_OF_MONTH))
+        val monthNum = cal.get(Calendar.MONTH) + 1
+        val year = cal.get(Calendar.YEAR).toString()
+        return com.hieltech.haramblur.data.prayer.GregorianCalendar(
+            date = "$day-$monthNum-$year",
+            format = "DD-MM-YYYY",
+            day = day,
+            weekday = com.hieltech.haramblur.data.prayer.GregorianWeekday(en = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.ENGLISH) ?: ""),
+            month = com.hieltech.haramblur.data.prayer.GregorianMonth(number = monthNum, en = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.ENGLISH) ?: ""),
+            year = year,
+            designation = com.hieltech.haramblur.data.prayer.Designation(abbreviated = "AD", expanded = "Anno Domini")
+        )
+    }
+
+    private fun getHijriCalendarApprox(): com.hieltech.haramblur.data.prayer.HijriCalendar {
+        val day = "--"
+        val year = getHijriYear().toString()
+        val monthNum = getHijriMonth()
+        val monthName = "Hijri"
+        return com.hieltech.haramblur.data.prayer.HijriCalendar(
+            date = "$day-$monthNum-$year",
+            format = "DD-MM-YYYY",
+            day = day,
+            weekday = com.hieltech.haramblur.data.prayer.HijriWeekday(en = "", ar = ""),
+            month = com.hieltech.haramblur.data.prayer.HijriMonth(number = monthNum, en = monthName, ar = monthName),
+            year = year,
+            designation = com.hieltech.haramblur.data.prayer.Designation(abbreviated = "AH", expanded = "Anno Hegirae"),
+            holidays = emptyList()
+        )
     }
 
     /**

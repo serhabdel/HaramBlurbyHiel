@@ -2,8 +2,6 @@ package com.hieltech.haramblur.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,24 +14,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.models.AppCategory
-import com.hieltech.haramblur.ui.components.getAppDisplayName
 
 /**
  * Grid component for selecting app categories to monitor
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppCategorySelectionGrid(
     selectedCategories: Set<AppCategory>,
     onCategoryToggle: (AppCategory, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    FlowRow(
+    // Create a list of categories to avoid potential issues with enum iteration
+    val categories = remember {
+        listOf(
+            AppCategory.SOCIAL_MEDIA,
+            AppCategory.BROWSERS,
+            AppCategory.DATING,
+            AppCategory.MESSAGING,
+            AppCategory.ENTERTAINMENT
+        )
+    }
+
+    Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        AppCategory.entries.forEach { category ->
+        categories.forEach { category ->
             AppCategoryCard(
                 category = category,
                 isSelected = selectedCategories.contains(category),
@@ -57,7 +64,7 @@ fun AppCategoryCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(120.dp),
+            .height(100.dp), // Reduced height since we're in a vertical layout
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
@@ -157,11 +164,11 @@ fun CustomAppsManager(
 
         // List of custom apps
         if (customApps.isNotEmpty()) {
-            LazyColumn(
+            Column(
                 modifier = Modifier.heightIn(max = 200.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(customApps.toList()) { packageName ->
+                customApps.forEach { packageName ->
                     CustomAppItem(
                         packageName = packageName,
                         onRemove = { onRemoveApp(packageName) }

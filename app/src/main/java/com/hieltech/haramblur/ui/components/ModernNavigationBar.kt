@@ -39,24 +39,24 @@ fun ModernNavigationBar(
     val navigationItems = listOf(
         NavigationItem(
             route = NavRoutes.HOME,
-            label = "Overview",
-            icon = Icons.Default.Menu,
-            selectedIcon = Icons.Default.Menu,
-            description = "Protection overview and stats"
+            label = "Home",
+            icon = Icons.Default.Home,
+            selectedIcon = Icons.Default.Home,
+            description = "Protection overview and dashboard"
         ),
         NavigationItem(
             route = NavRoutes.BLOCK_APPS_SITES,
-            label = "Protect",
+            label = "Protection",
             icon = Icons.Default.Lock,
             selectedIcon = Icons.Default.Lock,
-            description = "Block harmful content"
+            description = "Content blocking and filtering"
         ),
         NavigationItem(
             route = NavRoutes.SETTINGS,
             label = "Settings",
             icon = Icons.Default.Settings,
             selectedIcon = Icons.Default.Settings,
-            description = "App settings and preferences"
+            description = "App configuration and preferences"
         )
     )
 
@@ -64,14 +64,14 @@ fun ModernNavigationBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .height(80.dp) // Consistent height for better centering
+            .height(84.dp) // Slightly taller for better Material Design 3 proportions
             .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                elevation = 6.dp,
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             ),
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 2.dp,
         windowInsets = WindowInsets.systemBars
     ) {
         navigationItems.forEach { item ->
@@ -104,10 +104,10 @@ private fun RowScope.ModernNavigationBarItem(
     onClick: () -> Unit
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.1f else 1f,
+        targetValue = if (isSelected) 1.08f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            stiffness = Spring.StiffnessMedium
         ),
         label = "scale"
     )
@@ -124,11 +124,11 @@ private fun RowScope.ModernNavigationBarItem(
 
     val backgroundColor by animateColorAsState(
         targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.24f)
         } else {
             Color.Transparent
         },
-        animationSpec = tween(300, easing = EaseOut),
+        animationSpec = tween(250, easing = EaseInOut),
         label = "backgroundColor"
     )
 
@@ -143,9 +143,9 @@ private fun RowScope.ModernNavigationBarItem(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp) // Proper Material Design 3 icon container size
+                        .size(48.dp) // Larger touch target for better accessibility
                         .graphicsLayer(scaleX = scale, scaleY = scale)
-                        .clip(CircleShape)
+                        .clip(RoundedCornerShape(16.dp)) // More modern rounded corners
                         .background(backgroundColor),
                     contentAlignment = Alignment.Center
                 ) {
@@ -153,7 +153,7 @@ private fun RowScope.ModernNavigationBarItem(
                         imageVector = if (isSelected) item.selectedIcon else item.icon,
                         contentDescription = item.description,
                         tint = iconColor,
-                        modifier = Modifier.size(24.dp) // Standard Material Design 3 icon size
+                        modifier = Modifier.size(26.dp) // Slightly larger for better visibility
                     )
                 }
             }
@@ -197,24 +197,24 @@ fun FloatingNavigationBar(
     val navigationItems = listOf(
         NavigationItem(
             route = NavRoutes.HOME,
-            label = "Overview",
-            icon = Icons.Default.Menu,
-            selectedIcon = Icons.Default.Menu,
-            description = "Protection overview and stats"
+            label = "Home",
+            icon = Icons.Default.Home,
+            selectedIcon = Icons.Default.Home,
+            description = "Protection overview and dashboard"
         ),
         NavigationItem(
             route = NavRoutes.BLOCK_APPS_SITES,
-            label = "Protect",
+            label = "Protection",
             icon = Icons.Default.Lock,
             selectedIcon = Icons.Default.Lock,
-            description = "Block harmful content"
+            description = "Content blocking and filtering"
         ),
         NavigationItem(
             route = NavRoutes.SETTINGS,
             label = "Settings",
             icon = Icons.Default.Settings,
             selectedIcon = Icons.Default.Settings,
-            description = "App settings and preferences"
+            description = "App configuration and preferences"
         )
     )
 

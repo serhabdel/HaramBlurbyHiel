@@ -190,14 +190,7 @@ abstract class EnhancedDetectionModule {
             return AppFilteringManager(settingsRepository, appCategoryDetector, applicationScope)
         }
 
-        // System service providers
-        @Provides
-        @Singleton
-        fun provideUsageStatsManager(
-            @ApplicationContext context: Context
-        ): UsageStatsManager {
-            return context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        }
+        // System service providers (UsageStatsManager is provided in DataModule)
         
         @Provides
         @Singleton

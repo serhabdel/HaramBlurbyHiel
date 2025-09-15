@@ -69,13 +69,33 @@ class UsageTimeNotificationReceiver : BroadcastReceiver() {
     }
 
     private fun handleReflectAndContinue(context: Context, packageName: String, appName: String, verseId: String?) {
-        // Note: Implementation will be added when notification manager is fully implemented
-        Log.i(TAG, "Reflect & Continue clicked for $appName (notification manager not yet implemented)")
+        try {
+            val intent = Intent(context, com.hieltech.haramblur.ui.ReflectionActivity::class.java).apply {
+                putExtra("package_name", packageName)
+                putExtra("app_name", appName)
+                verseId?.let { putExtra("verse_id", it) }
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error launching ReflectionActivity", e)
+        }
     }
 
     private fun handleCloseApp(context: Context, packageName: String, appName: String) {
-        // Note: Implementation will be added when notification manager is fully implemented
-        Log.i(TAG, "Close App clicked for $appName (notification manager not yet implemented)")
+        try {
+            // Delegate to an activity to leverage Hilt and required privileges
+            val intent = Intent(context, com.hieltech.haramblur.ui.ReflectionActivity::class.java).apply {
+                putExtra("package_name", packageName)
+                putExtra("app_name", appName)
+                // Launch with zero reflection time and immediate close action
+                putExtra("force_close", true)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling Close App action", e)
+        }
     }
 
     private fun handleOpenSettings(context: Context, packageName: String) {

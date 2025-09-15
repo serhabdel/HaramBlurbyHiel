@@ -288,6 +288,8 @@ private fun StepPage(
         verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 16.dp, medium = 20.dp, expanded = 24.dp))
     ) {
         // Step card
+        val showGrantButton = step.permissionType !in setOf("LOCATION_PERMISSION", "NOTIFICATION_PERMISSION")
+
         WizardStepCard(
             step = step,
             permissionHelper = permissionHelper,
@@ -299,7 +301,8 @@ private fun StepPage(
             } else null,
             onRefreshClick = {
                 viewModel.refreshCurrentStep()
-            }
+            },
+            showGrantButton = showGrantButton
         )
 
         // Permission explanation
@@ -342,7 +345,18 @@ private fun StepPage(
                 }
             }
             "NOTIFICATION_PERMISSION" -> {
-                NotificationPermissionInstructions(step.status)
+                // Notification permission step with integrated handler
+                NotificationPermissionHandler(
+                    onPermissionGranted = {
+                        viewModel.proceedToNextStep()
+                    },
+                    onPermissionDenied = {
+                        // proceed but mark as skipped
+                        viewModel.proceedToNextStep()
+                    }
+                ) {
+                    NotificationPermissionInstructions(step.status)
+                }
             }
             "ISLAMIC_FEATURES" -> {
                 // Islamic features onboarding step
@@ -502,11 +516,54 @@ private fun AccessibilityServiceInstructions(status: PermissionWizardViewModel.P
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            // Step-by-step instructions
+            Column(
+                verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 6.dp, medium = 8.dp, expanded = 10.dp))
+            ) {
+                Text(
+                    text = "📋 Steps to enable:",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "1. Tap 'Grant Permission' below to open Accessibility settings",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = "2. Find 'HaramBlur' in the list of services",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = "3. Tap on 'HaramBlur' and toggle the switch to ON",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = "4. Confirm by tapping 'OK' in the dialog",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = "5. Return to HaramBlur - the permission will be detected automatically",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             if (status == PermissionWizardViewModel.PermissionStatus.REQUESTING) {
                 Text(
-                    text = stringResource(R.string.please_complete_setup),
+                    text = "⚠️ Please complete the steps above in Settings, then return to HaramBlur",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFF9800)
+                    color = Color(0xFFFF9800),
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -541,11 +598,48 @@ private fun UsageStatsInstructions(status: PermissionWizardViewModel.PermissionS
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            // Step-by-step instructions
+            Column(
+                verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 6.dp, medium = 8.dp, expanded = 10.dp))
+            ) {
+                Text(
+                    text = "📋 Steps to enable:",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "1. Tap 'Grant Permission' below to open Usage Access settings",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = "2. Find 'HaramBlur' in the list of apps",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = "3. Tap on 'HaramBlur' and toggle 'Allow usage access' to ON",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = "4. Return to HaramBlur - the permission will be detected automatically",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             if (status == PermissionWizardViewModel.PermissionStatus.REQUESTING) {
                 Text(
-                    text = "⚠️ Please grant the permission in Settings to continue",
+                    text = "⚠️ Please complete the steps above in Settings, then return to HaramBlur",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFF9800)
+                    color = Color(0xFFFF9800),
+                    fontWeight = FontWeight.Medium
                 )
             }
         }

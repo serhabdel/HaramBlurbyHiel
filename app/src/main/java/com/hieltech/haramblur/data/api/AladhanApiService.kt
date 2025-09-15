@@ -36,13 +36,9 @@ interface AladhanApiService {
     ): PrayerTimesResponse
 
     /**
-     * Get Islamic calendar for a specific month
-     * @param year Hijri year
-     * @param month Hijri month (1-12)
-     * @param latitude Location latitude
-     * @param longitude Location longitude
-     * @param method Calculation method
-     * @param school Asr calculation method
+     * Get calendar for a specific Gregorian month/year and location; API returns Hijri + Gregorian per day.
+     * @param year Gregorian year
+     * @param month Gregorian month (1-12)
      */
     @GET("calendar/{year}/{month}")
     suspend fun getIslamicCalendar(
@@ -87,13 +83,7 @@ interface AladhanApiService {
     ): PrayerTimesResponse
 
     /**
-     * Get Islamic calendar by city and country
-     * @param city City name
-     * @param country Country name
-     * @param month Hijri month
-     * @param year Hijri year
-     * @param method Calculation method
-     * @param school Asr calculation method
+     * Get calendar by city/country for a Gregorian month/year. Returns Hijri+Gregorian entries.
      */
     @GET("calendarByCity/{year}/{month}")
     suspend fun getIslamicCalendarByCity(

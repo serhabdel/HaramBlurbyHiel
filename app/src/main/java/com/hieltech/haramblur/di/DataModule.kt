@@ -89,6 +89,14 @@ object DataModule {
 
     @Provides
     @Singleton
+    fun provideUsageStatsManager(
+        @ApplicationContext context: Context
+    ): UsageStatsManager {
+        return context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+    }
+
+    @Provides
+    @Singleton
     fun provideUsageStatsHelper(
         @ApplicationContext context: Context,
         usageStatsManager: UsageStatsManager

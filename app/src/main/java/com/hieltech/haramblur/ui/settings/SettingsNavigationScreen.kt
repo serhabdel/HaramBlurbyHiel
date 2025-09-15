@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.models.RecentSetting
+import com.hieltech.haramblur.data.models.QuickSetting
+import com.hieltech.haramblur.data.models.SystemHealth
 import com.hieltech.haramblur.ui.components.HapticFeedback
 import com.hieltech.haramblur.ui.components.SettingsMode
 import com.hieltech.haramblur.ui.components.SettingsSearchBar
@@ -131,14 +135,7 @@ fun SettingsNavigationScreen(
                 )
             }
 
-            // Search bar
-            item {
-                SettingsSearchBar(
-                    query = searchQuery,
-                    onQueryChange = onSearchQueryChange,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            // Search bar removed for a cleaner layout
 
             // Settings mode toggle
             item {
@@ -152,8 +149,13 @@ fun SettingsNavigationScreen(
 
             // Enhanced quick toggle row
             item {
-                // TODO: Implement EnhancedQuickToggleRow
-                Text("Quick Settings - Coming Soon")
+                QuickSettingsRow(
+                    quickSettings = quickSettings,
+                    onToggle = { settingKey ->
+                        HapticFeedback.performLightFeedback(context)
+                        viewModel.toggleQuickSetting(settingKey)
+                    }
+                )
             }
             
             // Settings categories grid
@@ -166,10 +168,28 @@ fun SettingsNavigationScreen(
                 )
             }
             
-            // Contextual bottom panel
+            // Recent settings section
+            if (recentSettings.isNotEmpty()) {
+                item {
+                    RecentSettingsSection(
+                        recentSettings = recentSettings,
+                        onSettingClick = { setting ->
+                            HapticFeedback.performLightFeedback(context)
+                            // Navigate to the specific setting
+                        }
+                    )
+                }
+            }
+
+            // System health indicator
             item {
-                // TODO: Implement ContextualBottomPanel
-                Text("Additional Settings - Coming Soon")
+                SystemHealthCard(
+                    systemHealth = systemHealth,
+                    onViewDetails = {
+                        HapticFeedback.performMediumFeedback(context)
+                        showDetailedStats = true
+                    }
+                )
             }
         }
     }
@@ -216,6 +236,7 @@ fun SettingsNavigationScreen(
  * Settings categories grid with optimized layout
  */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun SettingsCategoriesGrid(
     onCategoryClick: (SettingsCategory) -> Unit,
     modifier: Modifier = Modifier
@@ -233,16 +254,20 @@ private fun SettingsCategoriesGrid(
         
         Spacer(modifier = Modifier.height(12.dp))
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(horizontal = 4.dp),
+        // Use a non-scrollable grid (FlowRow) to avoid
+        // placing a lazy grid inside a LazyColumn, which
+        // causes unbounded height constraints and crashes.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            maxItemsInEachRow = 2
         ) {
-            items(categories) { category ->
+            categories.forEach { category ->
                 NavigationCategoryCard(
                     category = category,
-                    onClick = { onCategoryClick(category.settingsCategory) }
+                    onClick = { onCategoryClick(category.settingsCategory) },
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -286,7 +311,8 @@ private fun NavigationCategoryCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(1.3f), // Slightly wider than square for better text fit
+            // Make categories slimmer; reduce vertical footprint
+            .aspectRatio(2.2f),
         onClick = onClick,
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
@@ -304,7 +330,7 @@ private fun NavigationCategoryCard(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
@@ -313,7 +339,7 @@ private fun NavigationCategoryCard(
                     imageVector = category.icon,
                     contentDescription = stringResource(category.titleResId),
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(24.dp)
                 )
 
                 // Name and description
@@ -322,14 +348,14 @@ private fun NavigationCategoryCard(
                 ) {
                     Text(
                         text = stringResource(category.titleResId),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Text(
                         text = stringResource(category.descriptionResId),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2
                     )
@@ -462,13 +488,238 @@ private fun ApplyPresetDialog(
 }
 
 /**
- * Settings category data class
+ * Quick settings row with modern toggle cards
  */
-data class SettingsCategory(
-    val id: String,
-    val name: String,
-    val icon: ImageVector,
-    val color: Color,
-    val settingCount: Int,
-    val description: String
-)
+@Composable
+private fun QuickSettingsRow(
+    quickSettings: List<QuickSetting>,
+    onToggle: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Quick Controls",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(quickSettings) { setting ->
+                QuickSettingCard(
+                    setting = setting,
+                    onToggle = { onToggle(setting.id) }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Individual quick setting card
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickSettingCard(
+    setting: QuickSetting,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.width(120.dp),
+        onClick = onToggle,
+        colors = CardDefaults.cardColors(
+            containerColor = if (setting.getBooleanValue()) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings, // Use a default icon for now
+                contentDescription = setting.displayName,
+                tint = if (setting.getBooleanValue()) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(24.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = setting.displayName,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (setting.getBooleanValue()) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 2
+            )
+        }
+    }
+}
+
+/**
+ * Recent settings section
+ */
+@Composable
+private fun RecentSettingsSection(
+    recentSettings: List<RecentSetting>,
+    onSettingClick: (RecentSetting) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Recently Modified",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                recentSettings.take(3).forEach { setting ->
+                    RecentSettingItem(
+                        setting = setting,
+                        onClick = { onSettingClick(setting) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Individual recent setting item
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecentSettingItem(
+    setting: RecentSetting,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = setting.settingName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = setting.category,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Text(
+                text = "Recent",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * System health card
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SystemHealthCard(
+    systemHealth: SystemHealth?,
+    onViewDetails: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (systemHealth == null) return
+
+    val healthStatus = systemHealth.getHealthStatus()
+    val healthColor = when (healthStatus) {
+        "Good" -> Color(0xFF4CAF50)
+        "Warning" -> Color(0xFFFF9800)
+        "Critical" -> Color(0xFFF44336)
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        onClick = onViewDetails,
+        colors = CardDefaults.cardColors(
+            containerColor = healthColor.copy(alpha = 0.1f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "System Health",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = healthStatus,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = healthColor,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = "View details",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}

@@ -129,10 +129,9 @@ class MainActivity : ComponentActivity() {
 
                         val permissionStatus = permissionHelper.getEnhancedBlockingPermissionStatus()
 
-                        // Enhanced wizard logic: show if onboarding incomplete OR critical permissions missing
-                        val shouldShowWizard = !settings.onboardingCompleted ||
-                                              !permissionStatus.isComplete ||
-                                              !permissionStatus.accessibilityServiceGranted // Always require accessibility
+                        // Enhanced wizard logic: show wizard only when needed
+                        // Show wizard if onboarding is not completed OR if critical permissions are missing
+                        val shouldShowWizard = !settings.onboardingCompleted || !permissionStatus.isComplete
 
                         android.util.Log.d("MainActivity", "Setup check - Onboarding: ${settings.onboardingCompleted}, " +
                             "Permissions complete: ${permissionStatus.isComplete}, " +

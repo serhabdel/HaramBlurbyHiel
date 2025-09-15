@@ -115,8 +115,9 @@ private fun CompactHomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(responsiveLayoutMargins()),
-        verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = if (isLandscape) 12.dp else 16.dp, medium = 20.dp, expanded = 24.dp)),
+            .padding(responsiveLayoutMargins())
+            .widthIn(max = 600.dp), // Constrain max width for better readability
+        verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = if (isLandscape) 16.dp else 20.dp, medium = 24.dp, expanded = 28.dp)),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(8.dp))
@@ -124,10 +125,12 @@ private fun CompactHomeScreen(
         // Welcome Section
         AnimatedVisibility(visible = showWelcome) {
             ModernCard(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp), // Add horizontal padding for better centering
                 gradientColors = listOf(
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.24f),
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.16f)
                 ),
                 elevation = responsiveCardElevation(),
                 cornerRadius = responsiveCornerRadius(),
@@ -183,7 +186,10 @@ private fun CompactHomeScreen(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(responsiveIconSize())
                     )
-                }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp) // Center the status card
             )
         }
 
@@ -224,13 +230,20 @@ private fun CompactHomeScreen(
                         loading = (dashboardState.prayerTimes == null)
                     )
 
-                    // Enhanced Islamic Calendar Widget
+                    // Enhanced Islamic Calendar Widget + Month Grid
                     if (settings.enableIslamicCalendar) {
                         EnhancedIslamicCalendarWidget(
                             hijriDate = dashboardState.hijriDate,
                             modifier = Modifier.fillMaxWidth(),
                             loading = (dashboardState.hijriDate == null)
                         )
+                        if (dashboardState.islamicCalendarMonth.isNotEmpty()) {
+                            Spacer(Modifier.height(8.dp))
+                            IslamicCalendarMonthGrid(
+                                monthDays = dashboardState.islamicCalendarMonth,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
             }
@@ -264,12 +277,19 @@ private fun CompactHomeScreen(
         // Quick Actions (2 per row for compact)
         if (hasRequiredPermissions && serviceRunning && !showWelcome) {
             AnimatedVisibility(visible = showFeatures) {
-                Column(verticalArrangement = Arrangement.spacedBy(responsiveSpacing())) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp), // Center the quick actions
+                    verticalArrangement = Arrangement.spacedBy(responsiveSpacing()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
                         text = stringResource(R.string.quick_actions),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center
                     )
 
                     val quickActions = listOf(
@@ -308,10 +328,13 @@ private fun CompactHomeScreen(
                                     subtitle = subtitle,
                                     icon = icon,
                                     onClick = onClick,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp) // Add padding for better spacing
                                 )
                             }
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
@@ -320,10 +343,12 @@ private fun CompactHomeScreen(
         // Permission Setup (if needed)
         if (!hasRequiredPermissions && !showWelcome) {
             ModernCard(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp), // Center the permission setup card
                 gradientColors = listOf(
-                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
-                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.05f)
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f),
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.06f)
                 ),
                 elevation = responsiveCardElevation(),
                 cornerRadius = responsiveCornerRadius(),
@@ -595,13 +620,22 @@ private fun MediumHomeScreen(
                         loading = (dashboardState.prayerTimes == null)
                     )
 
-                    // Enhanced Islamic Calendar Widget
+                    // Enhanced Islamic Calendar Widget + Month Grid (medium layout)
                     if (settings.enableIslamicCalendar) {
-                        EnhancedIslamicCalendarWidget(
-                            hijriDate = dashboardState.hijriDate,
-                            modifier = Modifier.weight(1f),
-                            loading = (dashboardState.hijriDate == null)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            EnhancedIslamicCalendarWidget(
+                                hijriDate = dashboardState.hijriDate,
+                                modifier = Modifier.fillMaxWidth(),
+                                loading = (dashboardState.hijriDate == null)
+                            )
+                            if (dashboardState.islamicCalendarMonth.isNotEmpty()) {
+                                Spacer(Modifier.height(8.dp))
+                                IslamicCalendarMonthGrid(
+                                    monthDays = dashboardState.islamicCalendarMonth,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -969,13 +1003,22 @@ private fun ExpandedHomeScreen(
                         loading = (dashboardState.prayerTimes == null)
                     )
 
-                    // Enhanced Islamic Calendar Widget
+                    // Enhanced Islamic Calendar Widget + Month Grid (expanded)
                     if (settings.enableIslamicCalendar) {
-                        EnhancedIslamicCalendarWidget(
-                            hijriDate = dashboardState.hijriDate,
-                            modifier = Modifier.weight(1f),
-                            loading = (dashboardState.hijriDate == null)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            EnhancedIslamicCalendarWidget(
+                                hijriDate = dashboardState.hijriDate,
+                                modifier = Modifier.fillMaxWidth(),
+                                loading = (dashboardState.hijriDate == null)
+                            )
+                            if (dashboardState.islamicCalendarMonth.isNotEmpty()) {
+                                Spacer(Modifier.height(8.dp))
+                                IslamicCalendarMonthGrid(
+                                    monthDays = dashboardState.islamicCalendarMonth,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
                     }
                 }
             }

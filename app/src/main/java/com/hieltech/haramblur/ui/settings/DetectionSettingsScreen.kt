@@ -2,8 +2,6 @@ package com.hieltech.haramblur.ui.settings
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -276,11 +274,11 @@ fun DetectionSettingsScreen(
 
                             // List of excluded apps
                             if (settings.excludedApps.isNotEmpty()) {
-                                LazyColumn(
+                                Column(
                                     modifier = Modifier.heightIn(max = 150.dp),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    items(settings.excludedApps.toList()) { packageName ->
+                                    settings.excludedApps.forEach { packageName ->
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = CardDefaults.cardColors(

@@ -170,6 +170,13 @@
             </intent-filter>
         </receiver>
 
+        <!-- Reflection dialog activity opened from notifications -->
+        <activity
+            android:name=".ui.ReflectionActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HaramBlur">
+        </activity>
+
     </application>
 
 </manifest>

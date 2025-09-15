@@ -14,6 +14,7 @@ import com.hieltech.haramblur.data.PrayerTimesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import javax.inject.Inject
@@ -58,6 +59,7 @@ class StatsViewModel @Inject constructor(
         val hijriDate: com.hieltech.haramblur.data.prayer.HijriCalendar? = null,
         val nextPrayer: com.hieltech.haramblur.data.prayer.NextPrayerInfo? = null,
         val qiblaDirection: Double? = null,
+        val islamicCalendarMonth: List<com.hieltech.haramblur.data.prayer.CalendarDay> = emptyList(),
         val isIslamicFeaturesEnabled: Boolean = true
     )
 
@@ -129,9 +131,15 @@ class StatsViewModel @Inject constructor(
             try {
                 _dashboardState.value = _dashboardState.value.copy(isLoading = true, error = null)
 
-                // Load all data in parallel using StatsRepository - convert types
-                val dailyData = statsRepository.getHistoricalStats(StatsRepository.TimeRange.LAST_24H).first()
-                val weeklyData = statsRepository.getHistoricalStats(StatsRepository.TimeRange.LAST_7D).first()
+                // Load all data off the main thread to avoid UI stalls
+                val dailyData = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    statsRepository.getHistoricalStats(StatsRepository.TimeRange.LAST_24H).first()
+                }
+                val weeklyData = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    statsRepository.getHistoricalStats(StatsRepository.TimeRange.LAST_7D).first()
+                }
+                val timelineData = withContext(kotlinx.coroutines.Dispatchers.IO) { getTimelineData(24) }
+                val trendsData = withContext(kotlinx.coroutines.Dispatchers.IO) { statsRepository.getPerformanceTrends().first() }
                 val dailySummary = LogRepository.DetectionSummary(
                     totalDetections = dailyData.totalDetections,
                     successfulDetections = dailyData.successfulDetections,
@@ -144,8 +152,7 @@ class StatsViewModel @Inject constructor(
                     failedDetections = weeklyData.failedDetections,
                     averageProcessingTime = weeklyData.averageProcessingTime
                 )
-                val timelineData = getTimelineData(24)
-                val performanceTrendsData = statsRepository.getPerformanceTrends().first()
+                val performanceTrendsData = trendsData
                 val performanceTrends = PerformanceTrends(
                     processingTimeChange = 0f,
                     violationRateChange = 0f,
@@ -229,7 +236,7 @@ class StatsViewModel @Inject constructor(
      */
     private suspend fun updateTimelineData(hours: Int) {
         try {
-            val timelineData = getTimelineData(hours)
+            val timelineData = withContext(kotlinx.coroutines.Dispatchers.IO) { getTimelineData(hours) }
             _dashboardState.value = _dashboardState.value.copy(
                 timelineData = timelineData
             )
@@ -243,7 +250,9 @@ class StatsViewModel @Inject constructor(
      */
     suspend fun getDailySummary(): LogRepository.DetectionSummary {
         return try {
-            logRepository.getDailyDetectionSummary(System.currentTimeMillis()).first()
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                logRepository.getDailyDetectionSummary(System.currentTimeMillis()).first()
+            }
         } catch (e: Exception) {
             LogRepository.DetectionSummary.empty()
         }
@@ -254,7 +263,9 @@ class StatsViewModel @Inject constructor(
      */
     suspend fun getWeeklySummary(): LogRepository.DetectionSummary {
         return try {
-            logRepository.getWeeklyDetectionSummary(System.currentTimeMillis()).first()
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                logRepository.getWeeklyDetectionSummary(System.currentTimeMillis()).first()
+            }
         } catch (e: Exception) {
             LogRepository.DetectionSummary.empty()
         }
@@ -333,6 +344,15 @@ class StatsViewModel @Inject constructor(
                     )
                 }.onFailure { error ->
                     println("Error loading Qibla direction: ${error.message}")
+                }
+
+                // Load Islamic calendar for current month
+                prayerTimesRepository.getIslamicCalendar().onSuccess { month ->
+                    _dashboardState.value = _dashboardState.value.copy(
+                        islamicCalendarMonth = month
+                    )
+                }.onFailure { error ->
+                    println("Error loading Islamic calendar: ${error.message}")
                 }
             } catch (e: Exception) {
                 println("Error in loadIslamicData: ${e.message}")

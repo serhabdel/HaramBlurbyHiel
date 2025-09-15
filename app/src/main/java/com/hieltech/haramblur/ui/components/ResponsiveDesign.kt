@@ -129,7 +129,12 @@ fun ResponsiveActionGrid(
     actions: List<@Composable () -> Unit>,
     modifier: Modifier = Modifier
 ) {
-    val columns = responsiveGridColumns()
+    // Actions should feel compact on phones: 2 per row minimum
+    val columns = when (getScreenSize()) {
+        ScreenSize.COMPACT -> 2
+        ScreenSize.MEDIUM -> 3
+        ScreenSize.EXPANDED -> 4
+    }
     val rows = (actions.size + columns - 1) / columns
 
     Column(
