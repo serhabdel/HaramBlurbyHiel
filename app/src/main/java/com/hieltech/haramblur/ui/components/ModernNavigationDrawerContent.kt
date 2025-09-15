@@ -27,6 +27,7 @@ fun ModernNavigationDrawerContent(
     onNavigateToLogs: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToSupport: () -> Unit = {},
+    onNavigateToDiagnostics: () -> Unit = {},
     onCloseDrawer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -51,6 +52,13 @@ fun ModernNavigationDrawerContent(
             icon = Icons.Default.Build,
             selectedIcon = Icons.Default.Build,
             description = "Debug tools and information"
+        ),
+        DrawerItem(
+            route = NavRoutes.DIAGNOSTICS,
+            label = "Diagnostics",
+            icon = Icons.Default.Settings,
+            selectedIcon = Icons.Default.Settings,
+            description = "System health diagnostics"
         )
     )
 
@@ -100,6 +108,7 @@ fun ModernNavigationDrawerContent(
                             "logs" -> onNavigateToLogs()
                             "debug" -> onNavigateToDebug()
                             "support" -> onNavigateToSupport()
+                            "diagnostics" -> onNavigateToDiagnostics()
                         }
                         onCloseDrawer()
                     },

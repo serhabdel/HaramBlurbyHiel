@@ -83,6 +83,9 @@ interface AppBlockingManager {
 
     // Persistent blocking methods
     suspend fun applyPersistentBlocking(packageName: String): Boolean
+    
+    // App monitoring
+    suspend fun isAppInMonitoredCategories(packageName: String?): Boolean
 }
 
 /**
@@ -1611,6 +1614,64 @@ class AppBlockingManagerImpl @Inject constructor(
         }
 
         return scheduledTime
+    }
+    
+    /**
+     * Check if an app is in monitored categories for content filtering
+     * This method checks if the app should be monitored for inappropriate content
+     */
+    override suspend fun isAppInMonitoredCategories(packageName: String?): Boolean {
+        if (packageName.isNullOrBlank()) return false
+        
+        try {
+            // Check if it's a browser app (always monitored)
+            val browserApps = setOf(
+                "com.android.chrome",
+                "com.chrome.beta",
+                "com.chrome.dev",
+                "com.chrome.canary",
+                "org.mozilla.firefox",
+                "org.mozilla.firefox_beta",
+                "com.microsoft.emmx",
+                "com.opera.browser",
+                "com.opera.mini.native",
+                "com.duckduckgo.mobile.android",
+                "com.brave.browser",
+                "com.sec.android.app.sbrowser",
+                "com.UCMobile.intl",
+                "com.vivaldi.browser"
+            )
+            
+            if (browserApps.contains(packageName)) {
+                return true
+            }
+            
+            // Check if it's a social media app (monitored based on settings)
+            if (SocialMediaDetector.isSocialMediaApp(packageName)) {
+                return true
+            }
+            
+            // Check if it's in popular apps registry
+            if (AppRegistry.ALL_POPULAR_APPS.containsKey(packageName)) {
+                val appInfo = AppRegistry.ALL_POPULAR_APPS[packageName]
+                // Monitor apps in certain categories
+                return when (appInfo?.category) {
+                    "Social Media", "Entertainment", "Video Players", "Communication", "Dating", "Photography" -> true
+                    else -> false
+                }
+            }
+            
+            // Check the app category from our detection
+            val category = getAppCategory(packageName)
+            return when (category) {
+                "Social Media", "Browser", "Entertainment", "Video", "Dating", "Photography" -> true
+                else -> false
+            }
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Error checking monitored categories for $packageName", e)
+            // Default to monitoring for safety
+            return true
+        }
     }
 }
 

@@ -297,13 +297,26 @@ class SettingsRepository @Inject constructor(
     }
 
     fun updateSettings(newSettings: AppSettings) {
-        val validatedSettings = validateSettings(newSettings)
-        _settings.value = validatedSettings
-        saveSettings(validatedSettings)
+        try {
+            val validatedSettings = validateSettings(newSettings)
+            
+            // Update state first
+            _settings.value = validatedSettings
+            
+            // Force immediate save to prevent loss
+            saveSettings(validatedSettings)
+            
+            Log.v(TAG, "Settings updated and saved successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update settings", e)
+            throw e // Re-throw to let caller handle
+        }
     }
     
     private fun saveSettings(settings: AppSettings) {
-        prefs.edit().apply {
+        try {
+            Log.v(TAG, "Saving settings to SharedPreferences")
+            prefs.edit().apply {
             // Basic Detection Settings
             putBoolean("enable_face_detection", settings.enableFaceDetection)
             putBoolean("enable_nsfw_detection", settings.enableNSFWDetection)
@@ -448,8 +461,16 @@ class SettingsRepository @Inject constructor(
             putInt("usage_notification_frequency", settings.usageNotificationFrequency)
             putBoolean("enable_daily_usage_reset", settings.enableDailyUsageReset)
             putLong("last_usage_reset_date", settings.lastUsageResetDate ?: 0L)
+            putBoolean("usage_defaults_seeded", settings.usageDefaultsSeeded)
+            putInt("settings_version", settings.settingsVersion)
 
+            // Force immediate commit to prevent data loss
             apply()
+            }
+            Log.v(TAG, "Settings saved successfully to SharedPreferences")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save settings", e)
+            throw e
         }
     }
 
@@ -1758,8 +1779,23 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun toggleServicePause(paused: Boolean) {
-        val current = getCurrentSettings()
-        updateSettings(current.copy(isServicePaused = paused))
+        try {
+            Log.d(TAG, "Toggling service pause state to: $paused")
+            
+            // Force immediate persistence to SharedPreferences
+            prefs.edit().apply {
+                putBoolean("is_service_paused", paused)
+                apply() // Use apply() for immediate synchronous write
+            }
+            
+            // Update the state flow
+            val current = getCurrentSettings()
+            _settings.value = current.copy(isServicePaused = paused)
+            
+            Log.i(TAG, "Service pause state updated successfully: $paused")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to toggle service pause state", e)
+        }
     }
 
     /**

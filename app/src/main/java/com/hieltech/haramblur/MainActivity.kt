@@ -27,6 +27,7 @@ import com.hieltech.haramblur.ui.SettingsScreen
 import com.hieltech.haramblur.ui.DebugScreen
 import com.hieltech.haramblur.ui.LogsViewerScreen
 import com.hieltech.haramblur.ui.SupportScreen
+import com.hieltech.haramblur.ui.DiagnosticsScreen
 import com.hieltech.haramblur.ui.PermissionWizardScreen
 import com.hieltech.haramblur.ui.PermissionWizardViewModel
 import com.hieltech.haramblur.ui.PermissionHelper
@@ -176,24 +177,29 @@ class MainActivity : ComponentActivity() {
                         drawerState = drawerState,
                         drawerContent = {
                                                     ModernNavigationDrawerContent(
-                            currentRoute = currentRoute,
-                            onNavigateToLogs = {
-                                if (currentRoute != NavRoutes.LOGS) {
-                                    navController.navigate(NavRoutes.LOGS)
-                                }
-                            },
-                            onNavigateToDebug = {
-                                if (currentRoute != NavRoutes.DEBUG) {
-                                    navController.navigate(NavRoutes.DEBUG)
-                                }
-                            },
-                            onNavigateToSupport = {
-                                if (currentRoute != NavRoutes.SUPPORT) {
-                                    navController.navigate(NavRoutes.SUPPORT)
-                                }
-                            },
-                            onCloseDrawer = { scope.launch { drawerState.close() } }
-                        )
+            currentRoute = currentRoute,
+            onNavigateToLogs = {
+                if (currentRoute != NavRoutes.LOGS) {
+                    navController.navigate(NavRoutes.LOGS)
+                }
+            },
+            onNavigateToDebug = {
+                if (currentRoute != NavRoutes.DEBUG) {
+                    navController.navigate(NavRoutes.DEBUG)
+                }
+            },
+            onNavigateToSupport = {
+                if (currentRoute != NavRoutes.SUPPORT) {
+                    navController.navigate(NavRoutes.SUPPORT)
+                }
+            },
+            onNavigateToDiagnostics = {
+                if (currentRoute != NavRoutes.DIAGNOSTICS) {
+                    navController.navigate(NavRoutes.DIAGNOSTICS)
+                }
+            },
+            onCloseDrawer = { scope.launch { drawerState.close() } }
+        )
                         }
                     ) {
                         Scaffold(
@@ -363,6 +369,11 @@ class MainActivity : ComponentActivity() {
                                 composable(NavRoutes.DEBUG) {
                                     DebugScreen(
                                         onNavigateBack = { navController.popBackStack() }
+                                    )
+                                }
+                                composable(NavRoutes.DIAGNOSTICS) {
+                                    DiagnosticsScreen(
+                                        viewModel = hiltViewModel()
                                     )
                                 }
                             }

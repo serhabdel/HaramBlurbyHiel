@@ -177,6 +177,14 @@
             android:theme="@style/Theme.HaramBlur">
         </activity>
 
+        <!-- Diagnostics activity for troubleshooting -->
+        <activity
+            android:name=".ui.DiagnosticsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HaramBlur"
+            android:label="@string/diagnostics_title">
+        </activity>
+
     </application>
 
 </manifest>

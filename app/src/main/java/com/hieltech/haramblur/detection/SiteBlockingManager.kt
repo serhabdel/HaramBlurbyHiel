@@ -1,5 +1,6 @@
 package com.hieltech.haramblur.detection
 
+import android.util.Log
 import com.hieltech.haramblur.data.QuranicVerse
 import com.hieltech.haramblur.data.database.BlockedSiteEntity
 import com.hieltech.haramblur.data.database.FalsePositiveEntity
@@ -57,22 +58,54 @@ class SiteBlockingManagerImpl @Inject constructor(
     
     override suspend fun checkUrl(url: String): SiteBlockingResult = withContext(Dispatchers.IO) {
         try {
+            if (url.isBlank()) {
+                Log.w("SiteBlockingManager", "Cannot check blank URL")
+                return@withContext SiteBlockingResult(
+                    isBlocked = false,
+                    category = null,
+                    confidence = 0.0f,
+                    quranicVerse = null,
+                    reflectionTimeSeconds = 0
+                )
+            }
+            
             val cleanUrl = cleanUrl(url)
             val domain = UrlUtils.extractDomain(cleanUrl)
             
+            if (domain.isBlank()) {
+                Log.w("SiteBlockingManager", "Invalid domain extracted from URL: $url")
+                return@withContext SiteBlockingResult(
+                    isBlocked = false,
+                    category = null,
+                    confidence = 0.0f,
+                    quranicVerse = null,
+                    reflectionTimeSeconds = 0
+                )
+            }
+            
             // Check cache first
             domainCache[domain]?.let { cachedResult ->
+                Log.v("SiteBlockingManager", "Using cached result for domain: $domain")
                 return@withContext cachedResult
             }
             
             // Check against blocked sites
             val blockingResult = checkAgainstBlockedSites(domain, cleanUrl)
             
-            // Cache the result
-            cacheResult(domain, blockingResult)
+            // Cache the result if it's valid
+            if (blockingResult != null) {
+                cacheResult(domain, blockingResult)
+            }
             
-            blockingResult
+            blockingResult ?: SiteBlockingResult(
+                isBlocked = false,
+                category = null,
+                confidence = 0.0f,
+                quranicVerse = null,
+                reflectionTimeSeconds = 0
+            )
         } catch (e: Exception) {
+            Log.e("SiteBlockingManager", "Error checking URL: $url", e)
             // Return safe default on error
             SiteBlockingResult(
                 isBlocked = false,
@@ -104,6 +137,7 @@ class SiteBlockingManagerImpl @Inject constructor(
                 )
             }
         } catch (e: Exception) {
+            Log.e("SiteBlockingManager", "Error getting Quranic verse for category: $category", e)
             null
         }
     }
@@ -195,49 +229,72 @@ class SiteBlockingManagerImpl @Inject constructor(
     }
     
     /**
-     * Check URL against blocked sites database
+     * Check URL against blocked sites database with improved error handling
      */
     private suspend fun checkAgainstBlockedSites(domain: String, fullUrl: String): SiteBlockingResult {
-        val blockedSiteDao = database.blockedSiteDao()
-        
-        // First check exact domain match
-        val domainHash = UrlUtils.hashDomainSha256(domain)
-        val exactMatch = blockedSiteDao.getSiteByDomainHash(domainHash)
-        
-        if (exactMatch != null) {
-            return createBlockingResult(exactMatch, domain)
-        }
-        
-        // Check pattern matches (including subdomains)
-        val patternMatches = blockedSiteDao.getSitesByPattern("%$domain%")
-        for (site in patternMatches) {
-            if (matchesPattern(domain, site.pattern, site.isRegex)) {
-                return createBlockingResult(site, site.pattern)
+        return try {
+            val blockedSiteDao = database.blockedSiteDao()
+            
+            // First check exact domain match
+            val domainHash = UrlUtils.hashDomainSha256(domain)
+            val exactMatch = blockedSiteDao.getSiteByDomainHash(domainHash)
+            
+            if (exactMatch != null) {
+                return createBlockingResult(exactMatch, domain)
             }
-        }
-        
-        // Check regex patterns
-        val regexSites = blockedSiteDao.getRegexSites()
-        for (site in regexSites) {
-            if (matchesRegexPattern(fullUrl, site.pattern)) {
-                return createBlockingResult(site, site.pattern)
+            
+            // Check pattern matches (including subdomains)
+            val patternMatches = blockedSiteDao.getSitesByPattern("%$domain%")
+            for (site in patternMatches) {
+                try {
+                    if (matchesPattern(domain, site.pattern, site.isRegex)) {
+                        return createBlockingResult(site, site.pattern)
+                    }
+                } catch (e: Exception) {
+                    Log.w("SiteBlockingManager", "Error matching pattern ${site.pattern} for domain $domain", e)
+                    continue
+                }
             }
+            
+            // Check regex patterns
+            val regexSites = blockedSiteDao.getRegexSites()
+            for (site in regexSites) {
+                try {
+                    if (matchesRegexPattern(fullUrl, site.pattern)) {
+                        return createBlockingResult(site, site.pattern)
+                    }
+                } catch (e: Exception) {
+                    Log.w("SiteBlockingManager", "Error matching regex pattern ${site.pattern} for URL $fullUrl", e)
+                    continue
+                }
+            }
+            
+            // Check for suspicious patterns in URL
+            val suspiciousResult = checkSuspiciousPatterns(fullUrl)
+            if (suspiciousResult.isBlocked) {
+                return suspiciousResult
+            }
+            
+            // Not blocked
+            SiteBlockingResult(
+                isBlocked = false,
+                category = null,
+                confidence = 0.0f,
+                quranicVerse = null,
+                reflectionTimeSeconds = 0
+            )
+        } catch (e: Exception) {
+            Log.e("SiteBlockingManager", "Error checking blocked sites for domain: $domain", e)
+            // Return safe default on database error
+            SiteBlockingResult(
+                isBlocked = false,
+                category = null,
+                confidence = 0.0f,
+                quranicVerse = null,
+                reflectionTimeSeconds = 0,
+                blockingReason = "Database error: ${e.message}"
+            )
         }
-        
-        // Check for suspicious patterns in URL
-        val suspiciousResult = checkSuspiciousPatterns(fullUrl)
-        if (suspiciousResult.isBlocked) {
-            return suspiciousResult
-        }
-        
-        // Not blocked
-        return SiteBlockingResult(
-            isBlocked = false,
-            category = null,
-            confidence = 0.0f,
-            quranicVerse = null,
-            reflectionTimeSeconds = 0
-        )
     }
     
     /**

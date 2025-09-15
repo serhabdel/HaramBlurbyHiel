@@ -11,6 +11,7 @@ object NavRoutes {
     const val LOGS = "logs"
     const val DEBUG = "debug"
     const val SUPPORT = "support"
+    const val DIAGNOSTICS = "diagnostics"
 
     /**
      * Primary routes that show bottom navigation

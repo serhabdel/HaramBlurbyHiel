@@ -116,6 +116,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private var totalFramesSkipped: Long = 0
     private var processingTimes = mutableListOf<Long>()
     private var lastServiceError: String = ""
+    // Single-flight guards and coalescing
+    private var pornClosureInFlight = false
+    private val lastDomainBlockTimestamps = mutableMapOf<String, Long>()
+    private val domainBlockCoalesceWindowMs = 10_000L // 10s coalescing to avoid thrash
 
     // Emergency reset broadcast receiver
     private val emergencyResetReceiver = object : BroadcastReceiver() {
@@ -375,8 +379,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             Log.d(TAG, "Processing screen content: ${bitmap.width}x${bitmap.height} (speed: ${currentSettings.processingSpeed})")
             
             // Check app filtering first - early exit if app should not be monitored
-            if (!shouldMonitorCurrentApp()) {
+            val shouldMonitor = shouldMonitorCurrentApp()
+            if (!shouldMonitor) {
                 Log.d(TAG, "Content monitoring skipped for app: $currentAppPackage (not in monitored categories)")
+                // Hide any existing overlays when switching to unmonitored app
+                blurOverlayManager.hideBlurOverlay()
+                isCurrentlyBlurred = false
                 return
             }
 
@@ -433,6 +441,27 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to emergency hide overlays", e)
         }
+    }
+    
+    /**
+     * Get current service status for diagnostics
+     */
+    fun getServiceStatus(): ServiceStatus {
+        val averageTime = if (processingTimes.isNotEmpty()) {
+            processingTimes.average().toFloat()
+        } else 0f
+        
+        return ServiceStatus(
+            isServiceRunning = isServiceRunning(),
+            isProcessingActive = isProcessingActive,
+            isCapturingActive = screenCaptureManager.isCapturingActive(),
+            isOverlayActive = isCurrentlyBlurred,
+            lastProcessingTime = lastProcessingTime,
+            totalFramesProcessed = totalFramesProcessed,
+            totalFramesSkipped = totalFramesSkipped,
+            averageProcessingTime = averageTime,
+            lastError = lastServiceError
+        )
     }
     
     private fun handleAnalysisResultWithStability(result: ContentDetectionEngine.ContentAnalysisResult, settings: AppSettings): Boolean {
@@ -768,20 +797,28 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
                 // Check app filtering and control screen capture
                 serviceScope.launch {
-                    val shouldMonitor = appFilteringManager.shouldMonitorApp(currentAppPackage)
-                    if (!shouldMonitor) {
-                        // Stop screen capture for non-monitored apps
-                        if (screenCaptureManager.isCapturingActive()) {
-                            Log.d(TAG, "Stopping screen capture for non-monitored app: $currentAppPackage")
-                            screenCaptureManager.stopCapturing()
+                    try {
+                        val shouldMonitor = appFilteringManager.shouldMonitorApp(currentAppPackage)
+                        Log.d(TAG, "App changed to $currentAppPackage, should monitor: $shouldMonitor")
+                        
+                        if (!shouldMonitor) {
+                            // Stop screen capture for non-monitored apps
+                            if (screenCaptureManager.isCapturingActive()) {
+                                Log.d(TAG, "Stopping screen capture for non-monitored app: $currentAppPackage")
+                                screenCaptureManager.stopCapturing()
+                                blurOverlayManager.hideBlurOverlay()
+                                isCurrentlyBlurred = false
+                            }
+                        } else {
+                            // Start screen capture for monitored apps (if needed and service is active)
+                            if (!screenCaptureManager.isCapturingActive() && isProcessingActive) {
+                                Log.d(TAG, "Starting screen capture for monitored app: $currentAppPackage")
+                                startContentMonitoring()
+                            }
                         }
-                    } else {
-                        // Start screen capture for monitored apps (if needed)
-                        if (!screenCaptureManager.isCapturingActive()) {
-                            Log.d(TAG, "Screen capture should be started for monitored app: $currentAppPackage")
-                            // Note: This would need proper initialization with onScreenCaptured callback
-                            Log.i(TAG, "Screen capture start requested but requires proper callback setup")
-                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error handling app change for filtering", e)
+                        // Continue with default behavior on error
                     }
                 }
 
@@ -888,22 +925,6 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Get current service status for debugging
-     */
-    fun getServiceStatus(): ServiceStatus {
-        return ServiceStatus(
-            isServiceRunning = true,
-            isProcessingActive = isProcessingActive,
-            isCapturingActive = screenCaptureManager.isCapturingActive(),
-            isOverlayActive = blurOverlayManager.isOverlayActive(),
-            lastProcessingTime = lastProcessingTime,
-            totalFramesProcessed = totalFramesProcessed,
-            totalFramesSkipped = totalFramesSkipped,
-            averageProcessingTime = if (processingTimes.isNotEmpty()) processingTimes.average().toFloat() else 0f,
-            lastError = lastServiceError
-        )
-    }
     
     private fun getProcessingInterval(settings: AppSettings): Long {
         return when (settings.processingSpeed) {
@@ -932,9 +953,14 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             val packageName = event.packageName?.toString()
 
             // Check app filtering first - skip if app should not be monitored
-            if (!appFilteringManager.shouldMonitorApp(packageName)) {
-                Log.d(TAG, "URL checking skipped for non-monitored app: $packageName")
-                return
+            try {
+                if (!appFilteringManager.shouldMonitorApp(packageName)) {
+                    Log.d(TAG, "URL checking skipped for non-monitored app: $packageName")
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking app monitoring for URL check: $packageName", e)
+                // Continue with URL check on error to prevent missing blocks
             }
 
             // Only check URLs for browser apps and web-based apps
@@ -1200,57 +1226,40 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         Log.w(TAG, "🚫 PORN SITE DETECTED: $url (Category: ${blockingResult.category})")
 
         try {
-            // Log blocking event for analytics
-            logPornBlockingEvent(url, blockingResult, "detection_started")
+            // Debounce per-domain to avoid re-entrant overlays/closures
+            val domain = UrlUtils.extractDomain(url)
+            val lastTs = lastDomainBlockTimestamps[domain] ?: 0L
+            if (System.currentTimeMillis() - lastTs < domainBlockCoalesceWindowMs) {
+                Log.d(TAG, "Coalesced porn block for domain=$domain; recently handled")
+                return
+            }
+            lastDomainBlockTimestamps[domain] = System.currentTimeMillis()
 
-            // Check if this is a high-confidence porn detection
-            val isHighConfidencePorn = blockingResult.confidence >= 0.8f &&
-                                      blockingResult.category == BlockingCategory.EXPLICIT_CONTENT
+            // Always show reflection overlay for porn/adult categories
+            showPornBlockingOverlay(blockingResult)
+            logPornBlockingEvent(url, blockingResult, "overlay_displayed")
 
-            if (isHighConfidencePorn) {
-                // Immediate automatic closure for high-confidence explicit content
-                Log.w(TAG, "🚨 HIGH-CONFIDENCE PORN DETECTED - IMMEDIATE AUTO-CLOSURE")
-                logPornBlockingEvent(url, blockingResult, "immediate_closure_initiated")
-                performImmediatePornSiteClosure(url, blockingResult)
-                logPornBlockingEvent(url, blockingResult, "immediate_closure_completed",
-                    System.currentTimeMillis() - startTime)
-            } else {
-                // Show overlay for medium-confidence detections
-                showPornBlockingOverlay(blockingResult)
-                logPornBlockingEvent(url, blockingResult, "overlay_displayed")
+            // Schedule automatic closure after reflection time + small buffer
+            val reflectionSeconds = when (blockingResult.category) {
+                BlockingCategory.EXPLICIT_CONTENT, BlockingCategory.ADULT_ENTERTAINMENT ->
+                    blockingResult.reflectionTimeSeconds.coerceAtLeast(10)
+                else -> blockingResult.reflectionTimeSeconds
+            }
 
-                // Schedule automatic closure based on severity
-                when (blockingResult.category) {
-                    BlockingCategory.EXPLICIT_CONTENT -> {
-                        // High-risk: Auto-close after Quranic display
-                        serviceScope.launch {
-                            delay(8000) // 8 seconds to see the verse and reflect
-                            if (isShowingBlockedSiteOverlay) {
-                                Log.w(TAG, "Auto-closing explicit content after reflection period")
-                                logPornBlockingEvent(url, blockingResult, "auto_closure_explicit")
-                                performAggressivePornSiteClosure()
-                                logPornBlockingEvent(url, blockingResult, "auto_closure_completed",
-                                    System.currentTimeMillis() - startTime)
-                            }
-                        }
-                    }
-                    BlockingCategory.ADULT_ENTERTAINMENT -> {
-                        // Medium-risk: Auto-close after longer delay
-                        serviceScope.launch {
-                            delay(15000) // 15 seconds for adult entertainment
-                            if (isShowingBlockedSiteOverlay) {
-                                Log.w(TAG, "Auto-closing adult entertainment after extended period")
-                                logPornBlockingEvent(url, blockingResult, "auto_closure_adult")
-                                performAggressivePornSiteClosure()
-                                logPornBlockingEvent(url, blockingResult, "auto_closure_completed",
-                                    System.currentTimeMillis() - startTime)
-                            }
-                        }
-                    }
-                    else -> {
-                        // Standard blocking for other inappropriate content
-                        showBlockedSiteOverlay(blockingResult)
-                        logPornBlockingEvent(url, blockingResult, "standard_blocking_applied")
+            val bufferMs = 1500L
+            serviceScope.launch {
+                val totalWait = (reflectionSeconds * 1000L) + bufferMs
+                Log.d(TAG, "Scheduling aggressive close in ${totalWait}ms for porn category")
+                delay(totalWait)
+                if (isShowingBlockedSiteOverlay && !pornClosureInFlight) {
+                    try {
+                        pornClosureInFlight = true
+                        logPornBlockingEvent(url, blockingResult, "auto_closure_initiated")
+                        performAggressivePornSiteClosure()
+                        logPornBlockingEvent(url, blockingResult, "auto_closure_completed",
+                            System.currentTimeMillis() - startTime)
+                    } finally {
+                        pornClosureInFlight = false
                     }
                 }
             }
@@ -1258,7 +1267,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             Log.e(TAG, "Error handling porn site blocking", e)
             logPornBlockingEvent(url, blockingResult, "error_occurred", error = e.message)
             // Fallback to standard blocking
-            showBlockedSiteOverlay(blockingResult)
+            try { showBlockedSiteOverlay(blockingResult) } catch (_: Exception) {}
         }
     }
 
@@ -2631,6 +2640,14 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      * Check if the current app should be monitored based on app filtering settings
      */
     private suspend fun shouldMonitorCurrentApp(): Boolean {
-        return appFilteringManager.shouldMonitorApp(currentAppPackage)
+        return try {
+            val result = appFilteringManager.shouldMonitorApp(currentAppPackage)
+            Log.v(TAG, "App monitoring check: $currentAppPackage = $result")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking if app should be monitored: $currentAppPackage", e)
+            // Default to monitoring all apps on error to prevent service disruption
+            true
+        }
     }
 }
