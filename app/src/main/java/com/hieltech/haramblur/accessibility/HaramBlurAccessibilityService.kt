@@ -42,6 +42,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         private const val TAG = "HaramBlurAccessibilityService"
         private var instance: HaramBlurAccessibilityService? = null
         private const val EMERGENCY_RESET_ACTION = "com.hieltech.haramblur.EMERGENCY_RESET"
+        private const val WATCHDOG_REASON_DESTROY = "service_destroyed"
+        private const val WATCHDOG_REASON_TASK_REMOVED = "task_removed"
+        private const val WATCHDOG_REASON_ACTIVE = "service_active"
 
         fun getInstance(): HaramBlurAccessibilityService? = instance
 
@@ -283,6 +286,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         instance = this
         Log.d(TAG, "HaramBlur Accessibility Service Created")
 
+        AccessibilityServiceWatchdog.cancel(this, WATCHDOG_REASON_ACTIVE)
+
         // Register emergency reset broadcast receiver
         val filter = IntentFilter(EMERGENCY_RESET_ACTION)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -303,6 +308,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     
     override fun onDestroy() {
         super.onDestroy()
+
+        performTerminationCleanup("onDestroy")
 
         // Unregister emergency reset broadcast receiver
         try {
@@ -325,7 +332,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
         // Clean up all components
         cleanupComponents()
-        
+
         // Clean up dhikr manager
         try {
             dhikrManager.cleanup()
@@ -337,12 +344,16 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         serviceScope.cancel()
         instance = null
         Log.d(TAG, "HaramBlur Accessibility Service Destroyed")
+
+        AccessibilityServiceWatchdog.schedule(this, WATCHDOG_REASON_DESTROY)
     }
-    
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.d(TAG, "HaramBlur Accessibility Service Connected")
-        
+
+        AccessibilityServiceWatchdog.cancel(this, WATCHDOG_REASON_ACTIVE)
+
         serviceScope.launch {
             startContentMonitoring()
 
@@ -373,6 +384,13 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 }
             }
         }
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.w(TAG, "HaramBlur Accessibility Service task removed")
+        performTerminationCleanup("onTaskRemoved")
+        AccessibilityServiceWatchdog.schedule(this, WATCHDOG_REASON_TASK_REMOVED)
+        super.onTaskRemoved(rootIntent)
     }
     
     private suspend fun initializeComponents() {
@@ -989,12 +1007,40 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             stopContentMonitoring()
             contentDetectionEngine.cleanup()
             // blurOverlayManager cleanup is handled in stopContentMonitoring
-            
+
             // Cleanup all enhanced detection services
             serviceLifecycleManager.cleanupServices()
         } catch (e: Exception) {
             Log.e(TAG, "Error during cleanup", e)
         }
+    }
+
+    private fun performTerminationCleanup(reason: String) {
+        Log.w(TAG, "Ensuring overlays and screen capture are stopped ($reason)")
+
+        if (this::blurOverlayManager.isInitialized) {
+            runCatching { hideBlockedSiteOverlay() }.onFailure {
+                Log.e(TAG, "Failed to hide blocked site overlay during $reason", it)
+            }
+
+            runCatching { blurOverlayManager.hideBlurOverlay() }.onFailure {
+                Log.e(TAG, "Failed to hide blur overlay during $reason", it)
+            }
+        } else {
+            Log.w(TAG, "BlurOverlayManager not initialized; skipping overlay cleanup")
+        }
+
+        if (this::screenCaptureManager.isInitialized) {
+            runCatching { screenCaptureManager.stopCapturing() }.onFailure {
+                Log.e(TAG, "Failed to stop screen capture during $reason", it)
+            }
+        } else {
+            Log.w(TAG, "ScreenCaptureManager not initialized; skipping capture stop")
+        }
+
+        isProcessingActive = false
+        isCurrentlyBlurred = false
+        isShowingBlockedSiteOverlay = false
     }
     
     // Public methods for external control

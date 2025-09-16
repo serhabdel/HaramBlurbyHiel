@@ -105,6 +105,10 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <receiver
+            android:name=".accessibility.AccessibilityServiceRestartReceiver"
+            android:exported="false" />
+
         <!-- HaramBlur Device Admin Receiver for enhanced app blocking -->
         <!-- This enables force-closing of blocked apps for stronger enforcement -->
         <!-- Device Admin access is optional and enhances blocking capabilities -->
