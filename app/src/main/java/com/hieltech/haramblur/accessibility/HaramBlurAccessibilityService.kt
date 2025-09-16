@@ -27,6 +27,8 @@ import com.hieltech.haramblur.data.AppCategoryDetector
 import com.hieltech.haramblur.utils.UrlUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -117,7 +119,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private var processingTimes = mutableListOf<Long>()
     private var lastServiceError: String = ""
     // Single-flight guards and coalescing
-    private var pornClosureInFlight = false
+    private val pornClosureMutex = Mutex()
+    private var pornClosureJob: Job? = null
     private val lastDomainBlockTimestamps = mutableMapOf<String, Long>()
     private val domainBlockCoalesceWindowMs = 10_000L // 10s coalescing to avoid thrash
 
@@ -211,6 +214,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             Log.w(TAG, "Error cleaning up DhikrManager: ${e.message}")
         }
 
+        cancelPendingPornClosure("service destroyed")
         serviceScope.cancel()
         instance = null
         Log.d(TAG, "HaramBlur Accessibility Service Destroyed")
@@ -968,6 +972,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 val extractedUrl = extractUrlFromAccessibilityEvent(event)
                 if (extractedUrl != null && extractedUrl != currentUrl) {
                     currentUrl = extractedUrl
+                    cancelPendingPornClosure("new URL detected: $extractedUrl")
 
                     // Detect if likely in private mode for logging
                     val isPrivateMode = isLikelyPrivateMode(packageName, extractedUrl)
@@ -1218,6 +1223,32 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         )
     }
 
+    private fun cancelPendingPornClosure(reason: String? = null) {
+        val job = pornClosureJob ?: return
+
+        if (!job.isActive) {
+            pornClosureJob = null
+            return
+        }
+
+        if (pornClosureMutex.isLocked) {
+            val suffix = reason?.let { ": $it" } ?: ""
+            Log.d(TAG, "Porn closure already running; skipping cancellation$suffix")
+            return
+        }
+
+        val suffix = reason?.let { ": $it" } ?: ""
+        Log.d(TAG, "Cancelling pending porn closure$suffix")
+        job.cancel()
+        pornClosureJob = null
+    }
+
+    private suspend fun runSerializedPornClosure(block: suspend () -> Unit) {
+        pornClosureMutex.withLock {
+            block()
+        }
+    }
+
     /**
      * Handle porn site blocking with enhanced measures and automatic actions
      */
@@ -1247,22 +1278,39 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
             val bufferMs = 1500L
-            serviceScope.launch {
-                val totalWait = (reflectionSeconds * 1000L) + bufferMs
-                Log.d(TAG, "Scheduling aggressive close in ${totalWait}ms for porn category")
-                delay(totalWait)
-                if (isShowingBlockedSiteOverlay && !pornClosureInFlight) {
-                    try {
-                        pornClosureInFlight = true
+            val totalWait = (reflectionSeconds * 1000L) + bufferMs
+            cancelPendingPornClosure("scheduling auto-closure for $url")
+            val job = serviceScope.launch {
+                try {
+                    Log.d(TAG, "Scheduling aggressive close in ${totalWait}ms for porn category")
+                    delay(totalWait)
+                    runSerializedPornClosure {
+                        if (!isShowingBlockedSiteOverlay) {
+                            Log.d(TAG, "Skipping porn auto-closure because overlay is no longer visible")
+                            return@runSerializedPornClosure
+                        }
+
                         logPornBlockingEvent(url, blockingResult, "auto_closure_initiated")
-                        performAggressivePornSiteClosure()
-                        logPornBlockingEvent(url, blockingResult, "auto_closure_completed",
-                            System.currentTimeMillis() - startTime)
-                    } finally {
-                        pornClosureInFlight = false
+                        executeAggressivePornSiteClosure()
+                        logPornBlockingEvent(
+                            url,
+                            blockingResult,
+                            "auto_closure_completed",
+                            System.currentTimeMillis() - startTime
+                        )
+                    }
+                } catch (cancellation: CancellationException) {
+                    Log.d(TAG, "Porn auto-closure job cancelled before execution")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error executing porn auto-closure job", e)
+                } finally {
+                    val currentJob = coroutineContext[Job]
+                    if (pornClosureJob === currentJob) {
+                        pornClosureJob = null
                     }
                 }
             }
+            pornClosureJob = job
         } catch (e: Exception) {
             Log.e(TAG, "Error handling porn site blocking", e)
             logPornBlockingEvent(url, blockingResult, "error_occurred", error = e.message)
@@ -1334,6 +1382,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private suspend fun performImmediatePornSiteClosure(url: String, blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
         try {
             Log.w(TAG, "🚨 IMMEDIATE PORN SITE CLOSURE: $url")
+
+            cancelPendingPornClosure("immediate porn closure triggered")
 
             // Quick Quranic flash (1 second)
             showQuickQuranicWarning(blockingResult)
@@ -1425,6 +1475,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             when (action) {
                 is com.hieltech.haramblur.data.WarningDialogAction.Close -> {
                     Log.d(TAG, "🚫 User chose to close from porn blocking overlay")
+                    cancelPendingPornClosure("user requested porn closure")
                     performAggressivePornSiteClosure()
                 }
                 is com.hieltech.haramblur.data.WarningDialogAction.Continue -> {
@@ -1456,50 +1507,57 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     /**
      * Perform aggressive porn site closure with multiple strategies
      */
-    private fun performAggressivePornSiteClosure() {
-        serviceScope.launch {
+    private suspend fun performAggressivePornSiteClosure() {
+        runSerializedPornClosure {
+            executeAggressivePornSiteClosure()
+        }
+    }
+
+    private suspend fun executeAggressivePornSiteClosure() {
+        try {
+            Log.w(TAG, "🚫 Performing aggressive porn site closure")
+
+            // Strategy 1: Close current tab
+            val closeSuccess = closeCurrentBrowserTab()
+            if (closeSuccess) {
+                Log.d(TAG, "✅ Successfully closed porn tab")
+                delay(1000)
+                openSafePageAfterBlocking()
+                return
+            }
+
+            // Strategy 2: Force back navigation multiple times
+            Log.d(TAG, "🔄 Porn tab close failed, trying back navigation")
+            repeat(3) {
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                delay(500)
+            }
+
+            // Strategy 3: Go to home screen
+            delay(1000)
+            val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
+            if (homeSuccess) {
+                Log.d(TAG, "✅ Forced home screen from porn site")
+            }
+
+            // Clear URL to prevent re-blocking
+            currentUrl = null
+
+            // Hide overlay
+            delay(1000)
+            hideBlockedSiteOverlay()
+
+        } catch (cancellation: CancellationException) {
+            Log.d(TAG, "Porn site closure coroutine cancelled before completion")
+            throw cancellation
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error in aggressive porn site closure", e)
+            // Emergency fallback
             try {
-                Log.w(TAG, "🚫 Performing aggressive porn site closure")
-
-                // Strategy 1: Close current tab
-                val closeSuccess = closeCurrentBrowserTab()
-                if (closeSuccess) {
-                    Log.d(TAG, "✅ Successfully closed porn tab")
-                    delay(1000)
-                    openSafePageAfterBlocking()
-                    return@launch
-                }
-
-                // Strategy 2: Force back navigation multiple times
-                Log.d(TAG, "🔄 Porn tab close failed, trying back navigation")
-                repeat(3) {
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    delay(500)
-                }
-
-                // Strategy 3: Go to home screen
-                delay(1000)
-                val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
-                if (homeSuccess) {
-                    Log.d(TAG, "✅ Forced home screen from porn site")
-                }
-
-                // Clear URL to prevent re-blocking
-                currentUrl = null
-
-                // Hide overlay
-                delay(1000)
+                performGlobalAction(GLOBAL_ACTION_HOME)
                 hideBlockedSiteOverlay()
-
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error in aggressive porn site closure", e)
-                // Emergency fallback
-                try {
-                    performGlobalAction(GLOBAL_ACTION_HOME)
-                    hideBlockedSiteOverlay()
-                } catch (fallbackError: Exception) {
-                    Log.e(TAG, "❌ Emergency fallback also failed", fallbackError)
-                }
+            } catch (fallbackError: Exception) {
+                Log.e(TAG, "❌ Emergency fallback also failed", fallbackError)
             }
         }
     }
