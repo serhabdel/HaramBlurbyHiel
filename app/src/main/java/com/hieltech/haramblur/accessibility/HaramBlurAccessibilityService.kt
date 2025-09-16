@@ -1,13 +1,18 @@
 package com.hieltech.haramblur.accessibility
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityService.GestureResultCallback
+import android.accessibilityservice.GestureDescription
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import android.graphics.Bitmap
+import android.graphics.Path
+import android.graphics.Rect
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -27,6 +32,7 @@ import com.hieltech.haramblur.data.AppCategoryDetector
 import com.hieltech.haramblur.utils.UrlUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
+import java.util.Locale
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -154,6 +160,123 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private var currentUrl: String? = null
     private var lastUrlCheckTime = 0L
     private var isShowingBlockedSiteOverlay = false
+
+    private val knownBrowserPackages = setOf(
+        "com.android.chrome",
+        "com.chrome.beta",
+        "com.chrome.canary",
+        "com.chrome.dev",
+        "org.mozilla.firefox",
+        "org.mozilla.firefox_beta",
+        "com.microsoft.emmx",
+        "com.sec.android.app.sbrowser",
+        "com.opera.browser",
+        "com.brave.browser",
+        "com.duckduckgo.mobile.android",
+        "com.vivaldi.browser",
+        "com.yandex.browser",
+        "org.torproject.torbrowser",
+        "com.kiwibrowser.browser",
+        "com.ecosia.android",
+        "com.qwant.liberty",
+        "com.UCMobile.intl",
+        "com.puffin.browser",
+        "com.adguard.browser"
+    ).map { it.lowercase(Locale.ROOT) }.toSet()
+
+    private val browserPackageKeywords = listOf(
+        "browser",
+        "chrome",
+        "firefox",
+        "edge",
+        "opera",
+        "brave",
+        "duckduckgo",
+        "vivaldi",
+        "yandex",
+        "puffin",
+        "samsung",
+        "kiwi",
+        "tor"
+    )
+
+    private fun getForegroundPackageNameSafely(): String? {
+        val rootNode = rootInActiveWindow
+        return try {
+            rootNode?.packageName?.toString()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error retrieving foreground package name", e)
+            null
+        } finally {
+            try {
+                rootNode?.recycle()
+            } catch (recycleError: Exception) {
+                Log.w(TAG, "Error recycling root node after package lookup", recycleError)
+            }
+        }
+    }
+
+    private fun isBrowserPackage(packageName: String?): Boolean {
+        if (packageName.isNullOrBlank()) return false
+        val normalized = packageName.lowercase(Locale.ROOT)
+        if (knownBrowserPackages.contains(normalized)) {
+            return true
+        }
+        return browserPackageKeywords.any { normalized.contains(it) }
+    }
+
+    private fun isBrowserActionAllowed(foregroundPackage: String?, reason: String): Boolean {
+        if (foregroundPackage.isNullOrBlank()) {
+            Log.w(TAG, "Skipping global action ($reason): no foreground package detected")
+            return false
+        }
+
+        if (foregroundPackage == packageName) {
+            Log.w(TAG, "Skipping global action ($reason): service package ($foregroundPackage) is in the foreground")
+            return false
+        }
+
+        if (!isBrowserPackage(foregroundPackage)) {
+            Log.w(TAG, "Skipping global action ($reason): $foregroundPackage is not recognized as a browser")
+            return false
+        }
+
+        return true
+    }
+
+    private fun describeGlobalAction(action: Int): String = when (action) {
+        GLOBAL_ACTION_BACK -> "GLOBAL_ACTION_BACK"
+        GLOBAL_ACTION_HOME -> "GLOBAL_ACTION_HOME"
+        GLOBAL_ACTION_RECENTS -> "GLOBAL_ACTION_RECENTS"
+        GLOBAL_ACTION_NOTIFICATIONS -> "GLOBAL_ACTION_NOTIFICATIONS"
+        GLOBAL_ACTION_QUICK_SETTINGS -> "GLOBAL_ACTION_QUICK_SETTINGS"
+        else -> "GLOBAL_ACTION_$action"
+    }
+
+    private fun performBrowserAwareGlobalAction(
+        action: Int,
+        reason: String,
+        cachedPackageName: String? = null
+    ): Boolean {
+        val foregroundPackage = cachedPackageName ?: getForegroundPackageNameSafely()
+        if (!isBrowserActionAllowed(foregroundPackage, reason)) {
+            return false
+        }
+
+        val success = performGlobalAction(action)
+        if (success) {
+            Log.d(
+                TAG,
+                "Performed ${describeGlobalAction(action)} for $reason (foreground=$foregroundPackage)"
+            )
+        } else {
+            Log.w(
+                TAG,
+                "Failed to perform ${describeGlobalAction(action)} for $reason (foreground=$foregroundPackage)"
+            )
+        }
+        return success
+    }
     
     override fun onCreate() {
         super.onCreate()
@@ -1472,14 +1595,28 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
                 // Strategy 2: Force back navigation multiple times
                 Log.d(TAG, "🔄 Porn tab close failed, trying back navigation")
-                repeat(3) {
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    delay(500)
+                repeat(3) { attempt ->
+                    val backSuccess = performBrowserAwareGlobalAction(
+                        GLOBAL_ACTION_BACK,
+                        "aggressive porn site closure back attempt ${attempt + 1}"
+                    )
+                    if (backSuccess) {
+                        delay(500)
+                    } else {
+                        Log.w(
+                            TAG,
+                            "Back action attempt ${attempt + 1} skipped or failed during aggressive closure"
+                        )
+                        delay(300)
+                    }
                 }
 
                 // Strategy 3: Go to home screen
                 delay(1000)
-                val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
+                val homeSuccess = performBrowserAwareGlobalAction(
+                    GLOBAL_ACTION_HOME,
+                    "aggressive porn site closure home"
+                )
                 if (homeSuccess) {
                     Log.d(TAG, "✅ Forced home screen from porn site")
                 }
@@ -1495,7 +1632,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 Log.e(TAG, "❌ Error in aggressive porn site closure", e)
                 // Emergency fallback
                 try {
-                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    performBrowserAwareGlobalAction(
+                        GLOBAL_ACTION_HOME,
+                        "aggressive porn site closure emergency home"
+                    )
                     hideBlockedSiteOverlay()
                 } catch (fallbackError: Exception) {
                     Log.e(TAG, "❌ Emergency fallback also failed", fallbackError)
@@ -1689,8 +1829,16 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private fun navigateAwayFromInappropriateContent() {
         try {
             // Try to go back to previous screen
-            performGlobalAction(GLOBAL_ACTION_BACK)
-            Log.d(TAG, "Navigated back from inappropriate content")
+            val backSuccess = performBrowserAwareGlobalAction(
+                GLOBAL_ACTION_BACK,
+                "navigate away from inappropriate content"
+            )
+            if (backSuccess) {
+                Log.d(TAG, "Navigated back from inappropriate content")
+            } else {
+                Log.w(TAG, "Back navigation skipped or failed for inappropriate content")
+                return
+            }
 
             // Schedule overlay hiding after navigation
             serviceScope.launch {
@@ -1766,7 +1914,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 // Strategy 2: Try to go back in browser history
                 Log.d(TAG, "🔄 Strategy 2: Attempting to navigate back in history")
                 try {
-                    val backSuccess = performGlobalAction(GLOBAL_ACTION_BACK)
+                    val backSuccess = performBrowserAwareGlobalAction(
+                        GLOBAL_ACTION_BACK,
+                        "navigate away from blocked site back navigation"
+                    )
                     if (backSuccess) {
                         Log.d(TAG, "✅ Successfully navigated back in browser history")
                         delay(1500) // Increased delay for stability
@@ -1780,11 +1931,11 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                             openSafePageAfterBlocking()
                         }
                     } else {
-                        Log.w(TAG, "⚠️ Global back action failed, trying safe location")
-                        // Strategy 3: Go directly to safe location
-                        navigateToSafeLocation()
-                    }
-                } catch (e: Exception) {
+                    Log.w(TAG, "⚠️ Global back action failed, trying safe location")
+                    // Strategy 3: Go directly to safe location
+                    navigateToSafeLocation()
+                }
+            } catch (e: Exception) {
                     Log.e(TAG, "❌ Error in back navigation strategy", e)
                     // Fallback to safe location
                     navigateToSafeLocation()
@@ -1810,7 +1961,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
                 // Fallback: Force go to home screen (with error handling)
                 try {
-                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    performBrowserAwareGlobalAction(
+                        GLOBAL_ACTION_HOME,
+                        "navigate away from blocked site emergency home"
+                    )
                 } catch (homeError: Exception) {
                     Log.e(TAG, "❌ Error performing home action", homeError)
                 }
@@ -2008,8 +2162,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         try {
             // Method 1: Try to find close button by text/description
             val rootNode = rootInActiveWindow
+            var foregroundPackage: String? = null
             if (rootNode != null) {
                 try {
+                    foregroundPackage = rootNode.packageName?.toString()
                     val closeSuccess = findAndClickCloseButton(rootNode)
                     if (closeSuccess) {
                         Log.d(TAG, "✅ Found and clicked close button by text")
@@ -2022,19 +2178,27 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
             // Method 2: Enhanced back navigation with multiple attempts
             Log.d(TAG, "🔄 Using enhanced back navigation fallback")
-            repeat(2) {
-                val backSuccess = performGlobalAction(GLOBAL_ACTION_BACK)
+            repeat(2) { attempt ->
+                val backSuccess = performBrowserAwareGlobalAction(
+                    GLOBAL_ACTION_BACK,
+                    "tab closing fallback back attempt ${attempt + 1}",
+                    if (attempt == 0) foregroundPackage else null
+                )
                 if (backSuccess) {
-                    Log.d(TAG, "✅ Successfully performed back action (attempt ${it + 1})")
+                    Log.d(TAG, "✅ Successfully performed back action (attempt ${attempt + 1})")
                     Thread.sleep(500) // Brief pause between actions
                 } else {
-                    Log.w(TAG, "Back action failed (attempt ${it + 1})")
+                    Log.w(TAG, "Back action skipped or failed (attempt ${attempt + 1})")
                 }
             }
 
             // Method 3: Try to close app entirely (last resort)
             Log.d(TAG, "🔄 Attempting to close entire browser app")
-            val recentAppsSuccess = performGlobalAction(GLOBAL_ACTION_RECENTS)
+            val recentAppsSuccess = performBrowserAwareGlobalAction(
+                GLOBAL_ACTION_RECENTS,
+                "tab closing fallback open recents",
+                foregroundPackage
+            )
             if (recentAppsSuccess) {
                 Thread.sleep(1000)
                 // Try to swipe away the browser app
@@ -2063,21 +2227,18 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             if (depth > 8) return false // Limit search depth
 
             try {
-                // Check current node
-                val text = node.text?.toString()?.lowercase()
-                val description = node.contentDescription?.toString()?.lowercase()
+                val text = node.text?.toString()?.lowercase(Locale.ROOT)
+                val description = node.contentDescription?.toString()?.lowercase(Locale.ROOT)
 
                 for (keyword in closeKeywords) {
-                    if ((text?.contains(keyword) == true || description?.contains(keyword) == true) &&
-                        node.isClickable) {
-                        if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                            Log.d(TAG, "Found close button by text: '$text' or '$description'")
+                    if (text?.contains(keyword) == true || description?.contains(keyword) == true) {
+                        if (activateCloseNode(node, keyword, depth)) {
+                            Log.d(TAG, "Activated close control via keyword '$keyword' at depth $depth")
                             return true
                         }
                     }
                 }
 
-                // Search child nodes
                 for (i in 0 until node.childCount) {
                     val child = node.getChild(i)
                     if (child != null) {
@@ -2095,6 +2256,72 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
 
         return searchNode(rootNode)
+    }
+
+    private fun activateCloseNode(node: AccessibilityNodeInfo, keyword: String, depth: Int): Boolean {
+        if (depth > 12) {
+            return false
+        }
+
+        if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            Log.d(TAG, "Clicked close candidate using ACTION_CLICK (keyword='$keyword', depth=$depth)")
+            return true
+        }
+
+        val parent = node.parent
+        if (parent != null) {
+            try {
+                if (activateCloseNode(parent, keyword, depth + 1)) {
+                    return true
+                }
+            } finally {
+                parent.recycle()
+            }
+        }
+
+        return performTapGestureOnNode(node, "close keyword '$keyword'")
+    }
+
+    private fun performTapGestureOnNode(node: AccessibilityNodeInfo, reason: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            Log.w(TAG, "Gesture tap not supported on this API level for $reason")
+            return false
+        }
+
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        if (bounds.isEmpty) {
+            Log.w(TAG, "Cannot perform gesture for $reason: empty bounds")
+            return false
+        }
+
+        val tapPath = Path().apply {
+            moveTo(bounds.centerX().toFloat(), bounds.centerY().toFloat())
+        }
+
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(tapPath, 0, 150))
+            .build()
+
+        val accepted = dispatchGesture(
+            gesture,
+            object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    Log.d(TAG, "Gesture tap completed for $reason at bounds=$bounds")
+                }
+
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    Log.w(TAG, "Gesture tap cancelled for $reason at bounds=$bounds")
+                }
+            },
+            null
+        )
+
+        if (!accepted) {
+            Log.w(TAG, "Gesture tap request rejected for $reason at bounds=$bounds")
+        }
+
+        return accepted
     }
 
     /**
@@ -2188,27 +2415,38 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private suspend fun navigateToSafeLocation() {
         try {
             // Strategy 1: Try to go to home screen
-            val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
+            val homeSuccess = performBrowserAwareGlobalAction(
+                GLOBAL_ACTION_HOME,
+                "navigate to safe location - home"
+            )
             if (homeSuccess) {
                 Log.d(TAG, "Navigated to home screen")
                 return
             }
-            
+
             // Strategy 2: Try to close current app/tab
             delay(500)
-            val closeSuccess = performGlobalAction(GLOBAL_ACTION_BACK)
+            val closeSuccess = performBrowserAwareGlobalAction(
+                GLOBAL_ACTION_BACK,
+                "navigate to safe location - back"
+            )
             if (closeSuccess) {
                 Log.d(TAG, "Closed current app/tab")
                 delay(500)
-                
+
                 // Try home again
-                performGlobalAction(GLOBAL_ACTION_HOME)
-                return
+                val secondHomeSuccess = performBrowserAwareGlobalAction(
+                    GLOBAL_ACTION_HOME,
+                    "navigate to safe location - second home"
+                )
+                if (secondHomeSuccess) {
+                    return
+                }
             }
-            
+
             // Strategy 3: Try to navigate to a safe URL (if in browser)
             navigateToSafeUrl()
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Error navigating to safe location", e)
         }
@@ -2230,8 +2468,11 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             // 3. Trigger navigation
             
             // For now, just go back to home
-            performGlobalAction(GLOBAL_ACTION_HOME)
-            
+            performBrowserAwareGlobalAction(
+                GLOBAL_ACTION_HOME,
+                "navigate to safe URL fallback home"
+            )
+
         } catch (e: Exception) {
             Log.e(TAG, "Error navigating to safe URL", e)
         }
@@ -2449,8 +2690,11 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 }
                 
                 isActionInProgress = true
-                
-                val backSuccess = performGlobalAction(GLOBAL_ACTION_BACK)
+
+                val backSuccess = performBrowserAwareGlobalAction(
+                    GLOBAL_ACTION_BACK,
+                    "manual navigate back action"
+                )
                 if (backSuccess) {
                     Log.d(TAG, "✅ Successfully navigated back")
                     delay(1000) // Give time for navigation
@@ -2480,20 +2724,33 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 }
                 
                 isActionInProgress = true
-                
+
                 // Strategy 1: Try to go to home screen
-                val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
+                val homeSuccess = performBrowserAwareGlobalAction(
+                    GLOBAL_ACTION_HOME,
+                    "auto close app - home"
+                )
                 if (homeSuccess) {
                     Log.d(TAG, "✅ Successfully closed app (went to home)")
                 } else {
                     // Strategy 2: Try back button multiple times
                     Log.d(TAG, "🔄 Home failed, trying back navigation")
-                    repeat(3) {
-                        performGlobalAction(GLOBAL_ACTION_BACK)
-                        delay(500)
+                    repeat(3) { attempt ->
+                        val backSuccess = performBrowserAwareGlobalAction(
+                            GLOBAL_ACTION_BACK,
+                            "auto close app - back attempt ${attempt + 1}"
+                        )
+                        if (backSuccess) {
+                            delay(500)
+                        } else {
+                            Log.w(
+                                TAG,
+                                "Back navigation skipped or failed (auto close attempt ${attempt + 1})"
+                            )
+                        }
                     }
                 }
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error performing auto close app action", e)
             } finally {
@@ -2530,18 +2787,27 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     
                     // Hide warning and navigate back
                     blurOverlayManager.hideFullScreenWarning()
-                    
+
                     // Navigate away
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    
-                    Log.d(TAG, "✅ Gentle redirect completed")
-                    
+                    val navigationSuccess = performBrowserAwareGlobalAction(
+                        GLOBAL_ACTION_BACK,
+                        "gentle redirect back navigation"
+                    )
+                    if (navigationSuccess) {
+                        Log.d(TAG, "✅ Gentle redirect completed")
+                    } else {
+                        Log.w(TAG, "❌ Gentle redirect back navigation skipped or failed")
+                    }
+
                 } catch (e: Exception) {
                     Log.e(TAG, "❌ Error showing gentle redirect warning", e)
                     // Fallback to just navigation
-                    performGlobalAction(GLOBAL_ACTION_BACK)
+                    performBrowserAwareGlobalAction(
+                        GLOBAL_ACTION_BACK,
+                        "gentle redirect fallback back"
+                    )
                 }
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error performing gentle redirect action", e)
             } finally {
@@ -2588,18 +2854,59 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      * Perform scroll gesture using accessibility service
      */
     private fun performScrollGesture() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            Log.w(TAG, "Scroll gesture not supported on this API level")
+            performBrowserAwareGlobalAction(
+                GLOBAL_ACTION_BACK,
+                "scroll gesture fallback (legacy)"
+            )
+            return
+        }
+
         try {
-            // This would require gesture dispatch which is available in API 24+
-            // For now, just log the attempt
-            Log.d(TAG, "🖱️ Attempting scroll gesture (fallback)")
-            
-            // In a real implementation, you could use:
-            // dispatchGesture() for API 24+
-            // For now, we'll just try the back action as fallback
-            performGlobalAction(GLOBAL_ACTION_BACK)
-            
+            Log.d(TAG, "🖱️ Attempting scroll gesture via dispatchGesture")
+            val metrics = resources.displayMetrics
+            val startX = metrics.widthPixels / 2f
+            val startY = metrics.heightPixels * 0.7f
+            val endY = metrics.heightPixels * 0.3f
+
+            val path = Path().apply {
+                moveTo(startX, startY)
+                lineTo(startX, endY)
+            }
+
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 300))
+                .build()
+
+            val accepted = dispatchGesture(
+                gesture,
+                object : GestureResultCallback() {
+                    override fun onCompleted(gestureDescription: GestureDescription?) {
+                        Log.d(TAG, "Scroll gesture completed successfully")
+                    }
+
+                    override fun onCancelled(gestureDescription: GestureDescription?) {
+                        Log.w(TAG, "Scroll gesture cancelled by system")
+                    }
+                },
+                null
+            )
+
+            if (!accepted) {
+                Log.w(TAG, "Scroll gesture request rejected, using back action fallback")
+                performBrowserAwareGlobalAction(
+                    GLOBAL_ACTION_BACK,
+                    "scroll gesture fallback (rejected)"
+                )
+            }
+
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error performing scroll gesture", e)
+            performBrowserAwareGlobalAction(
+                GLOBAL_ACTION_BACK,
+                "scroll gesture fallback (error)"
+            )
         }
     }
     
