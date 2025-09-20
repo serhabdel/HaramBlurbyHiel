@@ -692,6 +692,18 @@
     <string name="display_method_notification">Notification</string>
     <string name="display_method_none">Aucune</string>
     <string name="show_dhikr_now">Afficher le Dhikr maintenant</string>
+
+    <!-- Dhikr Sleep/Quiet Hours Settings -->
+    <string name="dhikr_quiet_hours_title">Heures silencieuses</string>
+    <string name="dhikr_quiet_hours_description">Les notifications de dhikr seront suspendues pendant ces heures</string>
+    <string name="dhikr_sleep_time_title">Heure de coucher</string>
+    <string name="dhikr_sleep_time_description">Quand commencer les heures silencieuses</string>
+    <string name="dhikr_wake_time_title">Heure de réveil</string>
+    <string name="dhikr_wake_time_description">Quand terminer les heures silencieuses</string>
+    <string name="dhikr_quiet_hours_crosses_midnight">Heures silencieuses: %1$s - %2$s (jour suivant)</string>
+    <string name="dhikr_quiet_hours_same_day">Heures silencieuses: %1$s - %2$s</string>
+    <string name="dhikr_quiet_hours_validation_error">La période de sommeil doit être entre 1 et 20 heures</string>
+
     <string name="prayer_times">Heures de prière</string>
     <string name="prayer_times_description">Affichez les heures de prière islamiques pour votre localisation</string>
     <string name="prayer_times_settings">Paramètres des heures de prière</string>

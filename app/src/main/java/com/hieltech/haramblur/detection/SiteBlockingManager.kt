@@ -52,7 +52,11 @@ class SiteBlockingManagerImpl @Inject constructor(
     // Cache for frequently checked domains
     private val domainCache = mutableMapOf<String, SiteBlockingResult>()
     private val maxCacheSize = 1000
-    
+
+    // Cache for whitelisted domains (separate from blocked sites)
+    private val whitelistCache = mutableSetOf<String>()
+    private val maxWhitelistCacheSize = 500
+
     // Compiled regex patterns cache
     private val regexCache = mutableMapOf<String, Pattern>()
     
@@ -89,8 +93,18 @@ class SiteBlockingManagerImpl @Inject constructor(
                 return@withContext cachedResult
             }
             
-            // Check against blocked sites
-            val blockingResult = checkAgainstBlockedSites(domain, cleanUrl)
+            // Early exit: Check if domain is whitelisted (should never be blocked)
+            if (isWhitelistedDomain(cleanUrl)) {
+                Log.d("SiteBlockingManager", "Whitelisted domain detected, allowing: $domain")
+                return@withContext SiteBlockingResult(
+                    isBlocked = false,
+                    category = null,
+                    confidence = 0.0f,
+                    quranicVerse = null,
+                    reflectionTimeSeconds = 0,
+                    blockingReason = "Whitelisted domain"
+                )
+            }
             
             // Cache the result if it's valid
             if (blockingResult != null) {
@@ -316,14 +330,14 @@ class SiteBlockingManagerImpl @Inject constructor(
     
     /**
      * Check for suspicious patterns in URL that might indicate inappropriate content
-     * Enhanced with comprehensive porn site detection patterns
+     * Enhanced with comprehensive porn site detection patterns and context awareness
      */
     private fun checkSuspiciousPatterns(url: String): SiteBlockingResult {
         val lowercaseUrl = url.lowercase()
 
-        // High-confidence porn keywords (immediate block)
+        // High-confidence porn keywords (immediate block) - refined for accuracy
         val highConfidencePornKeywords = listOf(
-            "porn", "sex", "xxx", "nude", "naked", "fuck", "pornography",
+            "porn", "xxx", "nude", "naked", "fuck", "pornography",
             "erotica", "nsfw", "adultcontent", "sexvideo", "pornstar",
             "milf", "teenporn", "gayporn", "lesbian", "bdsm", "fetish",
             "hentai", "animeporn", "cartoonporn", "rule34", "onlyfans",
@@ -331,7 +345,7 @@ class SiteBlockingManagerImpl @Inject constructor(
             "adultwebcam", "pornchat", "sextoy", "vibrator", "dildo"
         )
 
-        // Medium-confidence adult keywords
+        // Medium-confidence adult keywords - with context checks
         val mediumConfidenceAdultKeywords = listOf(
             "adult", "escort", "stripper", "massage", "sensual",
             "erotic", "intimate", "seductive", "provocative",
@@ -339,35 +353,48 @@ class SiteBlockingManagerImpl @Inject constructor(
             "playboy", "penthouse", "maxim", "fhm"
         )
 
-        // Gambling keywords
+        // Context indicators that suggest legitimate content
+        val legitimateContextKeywords = listOf(
+            "education", "medical", "health", "science", "research",
+            "university", "edu", "gov", "org", "news", "wikipedia",
+            "dictionary", "encyclopedia", "museum", "library",
+            "academic", "study", "learn", "course", "tutorial"
+        )
+
+        // Check for legitimate context first - if found, reduce suspicion
+        val hasLegitimateContext = legitimateContextKeywords.any { keyword ->
+            lowercaseUrl.contains(keyword)
+        }
+
+        // Check high-confidence porn patterns first
+        for (keyword in highConfidencePornKeywords) {
+            if (lowercaseUrl.contains(keyword)) {
+                // Even high-confidence keywords can be false positives in legitimate contexts
+                if (hasLegitimateContext) {
+                    return createPornBlockingResult(keyword, 0.4f, "High-confidence keyword in legitimate context")
+                }
+                return createPornBlockingResult(keyword, 0.9f, "High-confidence porn keyword detected")
+            }
+        }
+
+        // Check medium-confidence adult patterns with additional context checks
+        for (keyword in mediumConfidenceAdultKeywords) {
+            if (lowercaseUrl.contains(keyword)) {
+                // Additional checks for common false positives
+                if (hasLegitimateContext || isLikelyFalsePositive(lowercaseUrl, keyword)) {
+                    return createPornBlockingResult(keyword, 0.3f, "Adult keyword in legitimate context")
+                }
+                return createPornBlockingResult(keyword, 0.7f, "Adult entertainment keyword detected")
+            }
+        }
+
+        // Check gambling patterns
         val gamblingKeywords = listOf(
             "casino", "bet", "gambling", "poker", "slots", "jackpot",
             "blackjack", "roulette", "lottery", "sportsbet", "betting",
             "odds", "wager", "bookmaker", "lotto"
         )
 
-        // Dating/hookup keywords
-        val datingKeywords = listOf(
-            "hookup", "dating", "singles", "meet", "tinder", "bumble",
-            "match", "okcupid", "plentyoffish", "eharmony", "zoosk",
-            "christiancupid", "jdate", "muslimdating", "halaldate"
-        )
-
-        // Check high-confidence porn patterns first
-        for (keyword in highConfidencePornKeywords) {
-            if (lowercaseUrl.contains(keyword)) {
-                return createPornBlockingResult(keyword, 0.9f, "High-confidence porn keyword detected")
-            }
-        }
-
-        // Check medium-confidence adult patterns
-        for (keyword in mediumConfidenceAdultKeywords) {
-            if (lowercaseUrl.contains(keyword)) {
-                return createPornBlockingResult(keyword, 0.7f, "Adult entertainment keyword detected")
-            }
-        }
-
-        // Check gambling patterns
         for (keyword in gamblingKeywords) {
             if (lowercaseUrl.contains(keyword)) {
                 return SiteBlockingResult(
@@ -383,6 +410,12 @@ class SiteBlockingManagerImpl @Inject constructor(
         }
 
         // Check dating patterns
+        val datingKeywords = listOf(
+            "hookup", "dating", "singles", "meet", "tinder", "bumble",
+            "match", "okcupid", "plentyoffish", "eharmony", "zoosk",
+            "christiancupid", "jdate", "muslimdating", "halaldate"
+        )
+
         for (keyword in datingKeywords) {
             if (lowercaseUrl.contains(keyword)) {
                 return SiteBlockingResult(
@@ -405,7 +438,7 @@ class SiteBlockingManagerImpl @Inject constructor(
             }
         }
 
-        // Check for suspicious URL structures
+        // Check for suspicious URL structures with improved accuracy
         if (isSuspiciousUrlStructure(lowercaseUrl)) {
             return createPornBlockingResult("suspicious_structure", 0.5f, "Suspicious URL structure detected")
         }
@@ -467,12 +500,158 @@ class SiteBlockingManagerImpl @Inject constructor(
             }
         }
 
-        return false
-    }
-    
     /**
-     * Check if domain matches a pattern
+     * Check if a URL is likely a false positive based on common patterns
      */
+    private fun isLikelyFalsePositive(url: String, matchedKeyword: String): Boolean {
+        val lowercaseUrl = url.lowercase()
+
+        // Common false positive patterns
+        val falsePositivePatterns = listOf(
+            // Medical/Health related
+            "breast", "cancer", "screening", "mammogram", "prostate", "testicular",
+            "sexual", "health", "education", "therapy", "reproduction",
+
+            // Geographic locations
+            "essex", "sussex", "wessex", "middlesex", "sexsmith", "sexten",
+
+            // Words containing adult keywords that are legitimate
+            "adulteducation", "adultlearning", "adultliteracy",
+            "sexualassault", "sexualharassment", "sexualabuse",
+            "escortservice", "massagetherapy", "eroticliterature",
+
+            // Technical/IT terms
+            "proxy", "firewall", "router", "switch", "server", "database",
+            "interface", "protocol", "connection", "authentication",
+
+            // Business/Product names
+            "apple", "microsoft", "amazon", "google", "facebook", "twitter",
+            "instagram", "youtube", "linkedin", "github", "stackoverflow"
+        )
+
+        // Check if URL contains any false positive patterns
+        for (pattern in falsePositivePatterns) {
+            if (lowercaseUrl.contains(pattern)) {
+                return true
+            }
+        }
+
+        // Check for specific keyword combinations that are likely legitimate
+        return when (matchedKeyword) {
+            "sex" -> {
+                // Common false positives with "sex"
+                lowercaseUrl.contains("education") ||
+                lowercaseUrl.contains("health") ||
+                lowercaseUrl.contains("medical") ||
+                lowercaseUrl.contains("research") ||
+                lowercaseUrl.contains("university") ||
+                lowercaseUrl.contains("study") ||
+                lowercaseUrl.contains("science")
+            }
+            "adult" -> {
+                // Common false positives with "adult"
+                lowercaseUrl.contains("education") ||
+                lowercaseUrl.contains("learning") ||
+                lowercaseUrl.contains("literacy") ||
+                lowercaseUrl.contains("training") ||
+                lowercaseUrl.contains("development")
+            }
+            "massage" -> {
+                // Common false positives with "massage"
+                lowercaseUrl.contains("therapy") ||
+                lowercaseUrl.contains("medical") ||
+                lowercaseUrl.contains("health") ||
+                lowercaseUrl.contains("spa") ||
+                lowercaseUrl.contains("wellness")
+            }
+            else -> false
+        }
+    }
+
+    /**
+     * Check if URL contains whitelisted domains that should never be blocked
+     * Enhanced with caching for better performance
+     */
+    private fun isWhitelistedDomain(url: String): Boolean {
+        val domain = UrlUtils.extractDomain(url)
+
+        // Check cache first for faster lookups
+        if (whitelistCache.contains(domain)) {
+            return true
+        }
+
+        val lowercaseUrl = url.lowercase()
+
+        // Educational institutions and research organizations
+        val educationalDomains = listOf(
+            "edu", "ac.uk", "ac.in", "edu.au", "edu.ca", "edu.sg",
+            "mit.edu", "harvard.edu", "stanford.edu", "oxford.ac.uk",
+            "cambridge.ac.uk", "yale.edu", "princeton.edu", "columbia.edu"
+        )
+
+        // Government and official organizations
+        val governmentDomains = listOf(
+            "gov", "gov.uk", "gov.au", "gov.ca", "gov.sg", "gov.in",
+            "who.int", "un.org", "worldbank.org", "imf.org", "oecd.org"
+        )
+
+        // Major reputable news organizations
+        val newsDomains = listOf(
+            "bbc.com", "bbc.co.uk", "cnn.com", "nytimes.com", "washingtonpost.com",
+            "reuters.com", "apnews.com", "bloomberg.com", "wsj.com", "ft.com",
+            "theguardian.com", "aljazeera.com", "france24.com", "dw.com"
+        )
+
+        // Medical and health organizations
+        val medicalDomains = listOf(
+            "who.int", "cdc.gov", "nih.gov", "mayoclinic.org", "webmd.com",
+            "healthline.com", "medicalnewstoday.com", "pubmed.ncbi.nlm.nih.gov",
+            "nature.com", "sciencemag.org", "nejm.org", "thelancet.com"
+        )
+
+        // Technology and productivity platforms
+        val techDomains = listOf(
+            "github.com", "stackoverflow.com", "stackexchange.com",
+            "microsoft.com", "apple.com", "google.com", "github.io",
+            "wikipedia.org", "wikimedia.org", "mozilla.org"
+        )
+
+        // All whitelisted domains
+        val whitelistedDomains = educationalDomains + governmentDomains + newsDomains + medicalDomains + techDomains
+
+        // Check for exact domain matches
+        for (whitelistDomain in whitelistedDomains) {
+            if (lowercaseUrl.contains(whitelistDomain)) {
+                // Cache the result for future lookups
+                cacheWhitelistResult(domain)
+                return true
+            }
+        }
+
+        // Check for subdomain matches (e.g., news.bbc.com, research.harvard.edu)
+        val isWhitelisted = whitelistedDomains.any { whitelistDomain ->
+            domain == whitelistDomain || domain.endsWith(".$whitelistDomain")
+        }
+
+        // Cache the result
+        if (isWhitelisted) {
+            cacheWhitelistResult(domain)
+        }
+
+        return isWhitelisted
+    }
+
+    /**
+     * Cache whitelisted domain result for performance
+     */
+    private fun cacheWhitelistResult(domain: String) {
+        if (whitelistCache.size >= maxWhitelistCacheSize) {
+            // Remove oldest entries (simple FIFO - remove first 25%)
+            val toRemove = whitelistCache.take(maxWhitelistCacheSize / 4)
+            toRemove.forEach { whitelistCache.remove(it) }
+        }
+        whitelistCache.add(domain)
+    }
     private fun matchesPattern(domain: String, pattern: String, isRegex: Boolean): Boolean {
         return if (isRegex) {
             matchesRegexPattern(domain, pattern)
@@ -551,6 +730,7 @@ class SiteBlockingManagerImpl @Inject constructor(
     fun clearCache() {
         domainCache.clear()
         regexCache.clear()
+        whitelistCache.clear()
     }
     
     /**
@@ -560,7 +740,9 @@ class SiteBlockingManagerImpl @Inject constructor(
         return mapOf(
             "domainCacheSize" to domainCache.size,
             "regexCacheSize" to regexCache.size,
-            "maxCacheSize" to maxCacheSize
+            "whitelistCacheSize" to whitelistCache.size,
+            "maxCacheSize" to maxCacheSize,
+            "maxWhitelistCacheSize" to maxWhitelistCacheSize
         )
     }
 }

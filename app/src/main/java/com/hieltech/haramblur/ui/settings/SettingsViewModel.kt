@@ -108,21 +108,76 @@ class SettingsViewModel @Inject constructor(
             // Observe system health
             _systemHealth.value = systemHealthMonitor.getSystemHealth()
         }
+
+        viewModelScope.launch {
+            // Observe settings changes and update quick settings reactively
+            settingsRepository.settings.collect { settings ->
+                val currentQuickSettings = _quickSettings.value
+                val protectionEnabled = !settings.isServicePaused
+                val systemHealth = _systemHealth.value
+
+                // Determine if protection can actually operate
+                val accessibilityServiceActive = systemHealth.accessibilityServiceActive
+                val realTimeProcessingEnabled = settings.enableRealTimeProcessing
+
+                // Determine status indicator and description based on system health
+                val (statusIndicator, description) = when {
+                    !protectionEnabled -> StatusIndicator.DISABLED to "Protection is disabled - tap to enable face detection and content blocking"
+                    !accessibilityServiceActive -> StatusIndicator.WARNING to "Protection enabled but Accessibility Service is inactive - enable in device settings"
+                    !realTimeProcessingEnabled -> StatusIndicator.WARNING to "Protection enabled but Real-time processing is disabled - enable in settings"
+                    else -> StatusIndicator.ENABLED to "Protection is active - face detection and content blocking enabled"
+                }
+
+                // Update protection quick setting if it has changed
+                val updatedQuickSettings = currentQuickSettings.map { quickSetting ->
+                    if (quickSetting.id == "protection") {
+                        quickSetting.copy(
+                            currentValue = protectionEnabled,
+                            statusIndicator = statusIndicator,
+                            description = description
+                        )
+                    } else quickSetting
+                }
+
+                if (updatedQuickSettings != currentQuickSettings) {
+                    _quickSettings.value = updatedQuickSettings
+                    android.util.Log.d("SettingsViewModel", "Quick settings updated reactively: protection=$protectionEnabled, canOperate=${accessibilityServiceActive && realTimeProcessingEnabled}")
+                }
+            }
+        }
     }
     
     /**
      * Create quick settings configuration
      */
     private fun createQuickSettings(): List<QuickSetting> {
+        // Read protection state from actual persisted settings (inverse of isServicePaused)
+        val currentSettings = settingsRepository.getCurrentSettings()
+        val protectionEnabled = !currentSettings.isServicePaused
+        val systemHealth = _systemHealth.value
+
+        // Determine if protection can actually operate
+        val accessibilityServiceActive = systemHealth.accessibilityServiceActive
+        val realTimeProcessingEnabled = currentSettings.enableRealTimeProcessing
+        val canOperate = accessibilityServiceActive && realTimeProcessingEnabled
+
+        // Determine status indicator and description based on system health
+        val (statusIndicator, description) = when {
+            !protectionEnabled -> StatusIndicator.DISABLED to "Protection is disabled - tap to enable face detection and content blocking"
+            !accessibilityServiceActive -> StatusIndicator.WARNING to "Protection enabled but Accessibility Service is inactive - enable in device settings"
+            !realTimeProcessingEnabled -> StatusIndicator.WARNING to "Protection enabled but Real-time processing is disabled - enable in settings"
+            else -> StatusIndicator.ENABLED to "Protection is active - face detection and content blocking enabled"
+        }
+
         return listOf(
             QuickSetting(
                 id = "protection",
                 displayName = "Protection Active",
-                currentValue = _systemStatus.value.protectionEnabled,
+                currentValue = protectionEnabled,
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_dialog_alert,
-                statusIndicator = if (_systemStatus.value.protectionEnabled) StatusIndicator.ENABLED else StatusIndicator.DISABLED,
-                description = "Enable/disable face detection and content blocking"
+                statusIndicator = statusIndicator,
+                description = description
             ),
             QuickSetting(
                 id = "prayer_times",
@@ -201,9 +256,35 @@ class SettingsViewModel @Inject constructor(
                         settingId = settingId
                     )
                     
-                    // Update system status if it's the protection setting
+                    // Update system status and persist to repository if it's the protection setting
                     if (settingId == "protection") {
-                        _systemStatus.value = _systemStatus.value.copy(protectionEnabled = newValue)
+                        try {
+                            // Use dedicated repository method for service pause toggle
+                            // Protection "enabled" means service is NOT paused
+                            settingsRepository.toggleServicePause(paused = !newValue)
+
+                            // Update system status after successful persistence
+                            // TODO: Consider deriving protection display directly from settingsRepository.settings.map { !it.isServicePaused }
+                            // or ensure statisticsRepository.getSystemStatusFlow() reflects the persisted value quickly.
+                            // This manual update may be overwritten by repository status flow, creating a race condition.
+                            _systemStatus.value = _systemStatus.value.copy(protectionEnabled = newValue)
+
+                            android.util.Log.d("SettingsViewModel", "Protection setting persisted: enabled=$newValue, isServicePaused=${!newValue}")
+                        } catch (e: Exception) {
+                            android.util.Log.e("SettingsViewModel", "Failed to persist protection setting", e)
+                            // Revert the UI change if persistence failed
+                            val revertedSettings = _quickSettings.value.map { s ->
+                                if (s.id == settingId) {
+                                    s.copy(
+                                        currentValue = !newValue,
+                                        statusIndicator = if (!newValue) StatusIndicator.ENABLED else StatusIndicator.DISABLED
+                                    )
+                                } else s
+                            }
+                            _quickSettings.value = revertedSettings
+                            _error.value = "Failed to save protection setting: ${e.message}"
+                            return@launch
+                        }
                     }
                     
                 }

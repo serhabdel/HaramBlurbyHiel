@@ -23,6 +23,17 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 
+// Helper functions for time conversion
+private fun minutesToTimeString(minutes: Int): String {
+    val hours = minutes / 60
+    val mins = minutes % 60
+    return String.format("%02d:%02d", hours, mins)
+}
+
+private fun timeStringToMinutes(hours: Int, minutes: Int): Int {
+    return hours * 60 + minutes
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IslamicSettingsScreen(
@@ -193,6 +204,68 @@ fun IslamicSettingsScreen(
                     checked = settings.dhikrAnimationEnabled,
                     onCheckedChange = { viewModel.updateDhikrAnimationEnabled(it) }
                 )
+
+                // Quiet Hours Settings
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.dhikr_quiet_hours_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = stringResource(R.string.dhikr_quiet_hours_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Sleep Time Picker
+                        TimePickerSetting(
+                            title = stringResource(R.string.dhikr_sleep_time_title),
+                            description = stringResource(R.string.dhikr_sleep_time_description),
+                            timeInMinutes = settings.dhikrSleepStartMinutes,
+                            onTimeChange = { viewModel.updateDhikrSleepStartTime(it) }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Wake Time Picker
+                        TimePickerSetting(
+                            title = stringResource(R.string.dhikr_wake_time_title),
+                            description = stringResource(R.string.dhikr_wake_time_description),
+                            timeInMinutes = settings.dhikrSleepEndMinutes,
+                            onTimeChange = { viewModel.updateDhikrSleepEndTime(it) }
+                        )
+
+                        // Display current quiet hours window
+                        val sleepTimeString = minutesToTimeString(settings.dhikrSleepStartMinutes)
+                        val wakeTimeString = minutesToTimeString(settings.dhikrSleepEndMinutes)
+                        val crossesMidnight = settings.dhikrSleepStartMinutes > settings.dhikrSleepEndMinutes
+
+                        Text(
+                            text = if (crossesMidnight) {
+                                stringResource(R.string.dhikr_quiet_hours_crosses_midnight, sleepTimeString, wakeTimeString)
+                            } else {
+                                stringResource(R.string.dhikr_quiet_hours_same_day, sleepTimeString, wakeTimeString)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
             }
 
             // Prayer Times & Islamic Calendar Section
@@ -364,4 +437,96 @@ fun IslamicSettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun TimePickerSetting(
+    title: String,
+    description: String,
+    timeInMinutes: Int,
+    onTimeChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    val hours = timeInMinutes / 60
+    val minutes = timeInMinutes % 60
+    val timeString = String.format("%02d:%02d", hours, minutes)
+
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            OutlinedButton(
+                onClick = { showTimePicker = true }
+            ) {
+                Text(timeString)
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            initialHour = hours,
+            initialMinute = minutes,
+            onTimeSelected = { selectedHour, selectedMinute ->
+                val newTimeInMinutes = timeStringToMinutes(selectedHour, selectedMinute)
+                onTimeChange(newTimeInMinutes)
+                showTimePicker = false
+            },
+            onDismiss = { showTimePicker = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onTimeSelected: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val timePickerState = rememberTimePickerState(
+        initialHour = initialHour,
+        initialMinute = initialMinute,
+        is24Hour = true
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Time") },
+        text = {
+            TimePicker(state = timePickerState)
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onTimeSelected(timePickerState.hour, timePickerState.minute)
+                }
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

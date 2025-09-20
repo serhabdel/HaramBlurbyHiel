@@ -119,6 +119,8 @@ data class AppSettings(
     val dhikrPosition: String = "TOP_RIGHT", // Display position on screen
     val dhikrAnimationEnabled: Boolean = true, // Enable slide-in animation
     val dhikrSoundEnabled: Boolean = false, // Enable notification sound
+    val dhikrSleepStartMinutes: Int = 1350, // 22:30 PM in minutes-of-day format
+    val dhikrSleepEndMinutes: Int = 390,    // 6:30 AM in minutes-of-day format
 
     // Islamic Calendar & Prayer Times Settings
     val enableIslamicCalendar: Boolean = true, // Enable Islamic calendar display
@@ -240,8 +242,8 @@ data class AppSettings(
     val lastUsageResetDate: Long? = null, // Epoch day of last usage reset (LocalDate.toEpochDay())
     val usageDefaultsSeeded: Boolean = false, // Whether default app time limits have been prepopulated
 
-    // Settings schema version. Bump to 8 for app-specific detection and usage time settings
-    val settingsVersion: Int = 8 // Configuration version for compatibility tracking
+    // Settings schema version. Bump to 9 for dhikr sleep time settings
+    val settingsVersion: Int = 9 // Configuration version for compatibility tracking
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {

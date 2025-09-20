@@ -446,6 +446,17 @@
     <string name="display_method_none">بدون</string>
     <string name="show_dhikr_now">اعرض الذكر الآن</string>
 
+    <!-- Dhikr Sleep/Quiet Hours Settings -->
+    <string name="dhikr_quiet_hours_title">ساعات الهدوء</string>
+    <string name="dhikr_quiet_hours_description">سيتم إيقاف إشعارات الذكر خلال هذه الساعات</string>
+    <string name="dhikr_sleep_time_title">وقت النوم</string>
+    <string name="dhikr_sleep_time_description">متى تبدأ ساعات الهدوء</string>
+    <string name="dhikr_wake_time_title">وقت الاستيقاظ</string>
+    <string name="dhikr_wake_time_description">متى تنتهي ساعات الهدوء</string>
+    <string name="dhikr_quiet_hours_crosses_midnight">ساعات الهدوء: %1$s - %2$s (اليوم التالي)</string>
+    <string name="dhikr_quiet_hours_same_day">ساعات الهدوء: %1$s - %2$s</string>
+    <string name="dhikr_quiet_hours_validation_error">يجب أن تكون فترة النوم بين ساعة واحدة و 20 ساعة</string>
+
     <!-- Prayer Times & Qibla -->
     <string name="prayer_times_title">🕌 مواقيت الصلاة</string>
     <string name="location_settings_cd">إعدادات الموقع</string>

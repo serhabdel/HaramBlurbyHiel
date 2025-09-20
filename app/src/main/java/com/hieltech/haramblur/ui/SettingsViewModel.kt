@@ -781,6 +781,24 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateDhikrSleepStartTime(minutes: Int) {
+        viewModelScope.launch {
+            settingsRepository.updateDhikrSleepStartTime(minutes)
+        }
+    }
+
+    fun updateDhikrSleepEndTime(minutes: Int) {
+        viewModelScope.launch {
+            settingsRepository.updateDhikrSleepEndTime(minutes)
+        }
+    }
+
+    fun updateDhikrSleepTimes(startMinutes: Int, endMinutes: Int) {
+        viewModelScope.launch {
+            settingsRepository.updateDhikrSleepTimes(startMinutes, endMinutes)
+        }
+    }
+
     // Theme Settings Methods
     fun updateAppTheme(theme: AppTheme) {
         viewModelScope.launch {

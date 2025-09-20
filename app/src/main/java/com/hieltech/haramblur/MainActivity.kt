@@ -42,6 +42,7 @@ import com.hieltech.haramblur.detection.EnhancedSiteBlockingManager
 import com.hieltech.haramblur.utils.LocaleUtils
 import com.hieltech.haramblur.ui.SettingsViewModel
 import com.hieltech.haramblur.detection.Language
+import com.hieltech.haramblur.presentation.InitializationHelper
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -61,6 +62,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var permissionHelper: PermissionHelper
+    
+    @Inject
+    lateinit var initializationHelper: InitializationHelper
 
     override fun attachBaseContext(base: Context) {
         // Wrap base context with saved language before any UI is created
@@ -86,6 +90,23 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Initialize test URLs and fix database issues
+        lifecycleScope.launch {
+            try {
+                android.util.Log.d("MainActivity", "Initializing test URLs and fixing database...")
+                
+                // Fix any database issues first
+                initializationHelper.fixDatabaseIssues()
+                
+                // Initialize test NSFW URLs including nsfw.ma
+                initializationHelper.initializeTestUrls()
+                
+                android.util.Log.d("MainActivity", "✅ Test URLs initialized successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Error initializing test URLs", e)
+            }
+        }
+        
         // Test app detection
         lifecycleScope.launch {
             try {

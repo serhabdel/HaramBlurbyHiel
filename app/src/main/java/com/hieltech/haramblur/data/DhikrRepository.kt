@@ -58,7 +58,9 @@ class DhikrRepository @Inject constructor(
                     showTransliteration = appSettings.dhikrShowTransliteration,
                     showTranslation = appSettings.dhikrShowTranslation,
                     animationEnabled = appSettings.dhikrAnimationEnabled,
-                    soundEnabled = appSettings.dhikrSoundEnabled
+                    soundEnabled = appSettings.dhikrSoundEnabled,
+                    sleepStartMinutes = appSettings.dhikrSleepStartMinutes,
+                    sleepEndMinutes = appSettings.dhikrSleepEndMinutes
                 )
             }
         }
@@ -81,7 +83,9 @@ class DhikrRepository @Inject constructor(
             showTransliteration = appSettings.dhikrShowTransliteration,
             showTranslation = appSettings.dhikrShowTranslation,
             animationEnabled = appSettings.dhikrAnimationEnabled,
-            soundEnabled = appSettings.dhikrSoundEnabled
+            soundEnabled = appSettings.dhikrSoundEnabled,
+            sleepStartMinutes = appSettings.dhikrSleepStartMinutes,
+            sleepEndMinutes = appSettings.dhikrSleepEndMinutes
         )
     }
     
@@ -106,22 +110,43 @@ class DhikrRepository @Inject constructor(
     fun shouldShowDhikr(): Boolean {
         val settings = dhikrSettings.value
         if (!settings.enabled) return false
-        
+
+        // Check if current time is within sleep/quiet hours
+        if (isWithinSleepHours(settings)) {
+            return false
+        }
+
         val currentTime = getCurrentTimeType()
         val timeEnabled = when (currentTime) {
             DhikrTime.MORNING -> settings.morningEnabled
             DhikrTime.EVENING -> settings.eveningEnabled
             DhikrTime.ANYTIME -> settings.anytimeEnabled
         }
-        
+
         if (!timeEnabled) return false
-        
+
         // Check if enough time has passed since last dhikr
         val lastShown = prefs.getLong(LAST_DHIKR_SHOWN, 0)
         val intervalMs = settings.intervalMinutes * 60 * 1000L
         val currentTimeMs = System.currentTimeMillis()
-        
+
         return (currentTimeMs - lastShown) >= intervalMs
+    }
+
+    private fun isWithinSleepHours(settings: DhikrSettings): Boolean {
+        val calendar = Calendar.getInstance()
+        val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
+
+        val sleepStart = settings.sleepStartMinutes
+        val sleepEnd = settings.sleepEndMinutes
+
+        return if (sleepStart < sleepEnd) {
+            // Normal case: sleep window doesn't cross midnight (e.g., 23:00 to 06:00)
+            currentMinutes >= sleepStart && currentMinutes < sleepEnd
+        } else {
+            // Midnight crossing case: sleep window crosses midnight (e.g., 22:30 to 06:30)
+            currentMinutes >= sleepStart || currentMinutes < sleepEnd
+        }
     }
     
     fun getNextDhikr(): Dhikr? {

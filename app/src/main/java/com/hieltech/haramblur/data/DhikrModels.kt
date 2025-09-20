@@ -44,7 +44,9 @@ data class DhikrSettings(
     val showTransliteration: Boolean = true,
     val showTranslation: Boolean = true,
     val animationEnabled: Boolean = true,
-    val soundEnabled: Boolean = false
+    val soundEnabled: Boolean = false,
+    val sleepStartMinutes: Int = 1350, // 22:30 PM in minutes-of-day format
+    val sleepEndMinutes: Int = 390     // 6:30 AM in minutes-of-day format
 )
 
 /**

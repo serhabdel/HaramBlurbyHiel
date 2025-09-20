@@ -1112,8 +1112,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
         val currentTime = System.currentTimeMillis()
 
-        // Throttle URL checking to avoid excessive processing
-        if (currentTime - lastUrlCheckTime < 500) { // Reduced from 1000ms for faster detection
+        // Throttle URL checking to avoid excessive processing (optimized from 500ms to 2000ms)
+        if (currentTime - lastUrlCheckTime < 2000) { // Reduced frequency for better performance
             return
         }
         lastUrlCheckTime = currentTime
@@ -1275,32 +1275,43 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     }
     
     /**
-     * Extract URL from text using pattern matching
+     * Extract URL from text using optimized pattern matching
+     * Enhanced for better performance and accuracy
      */
     private fun extractUrlFromText(text: String?): String? {
         if (text.isNullOrBlank()) return null
-        
-        // Common URL patterns
+
+        // Optimized URL patterns - more specific and efficient
         val urlPatterns = listOf(
+            // Full HTTP/HTTPS URLs (most specific first)
             Regex("https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+", RegexOption.IGNORE_CASE),
+            // WWW URLs (add protocol)
             Regex("www\\.[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+", RegexOption.IGNORE_CASE),
+            // Domain-based URLs
             Regex("[\\w\\-._~]+\\.[a-zA-Z]{2,}[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]*", RegexOption.IGNORE_CASE)
         )
-        
+
+        // Single pass through patterns for better performance
         for (pattern in urlPatterns) {
             val match = pattern.find(text)
             if (match != null) {
                 var url = match.value
-                
-                // Add protocol if missing
+
+                // Add protocol if missing and it's not already there
                 if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                    url = "https://$url"
+                    // Only add protocol for www or domain patterns
+                    if (url.startsWith("www.") || url.contains(".")) {
+                        url = "https://$url"
+                    }
                 }
-                
-                return url
+
+                // Basic validation - must contain at least one dot and be reasonable length
+                if (url.length in 10..2048 && url.contains(".")) {
+                    return url
+                }
             }
         }
-        
+
         return null
     }
     
@@ -2637,26 +2648,38 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     
     /**
      * Find URL in node hierarchy by searching for URL-like patterns
+     * Optimized for better performance with limited recursion
      */
     private fun findUrlInNodeHierarchy(node: AccessibilityNodeInfo?, depth: Int = 0): String? {
-        if (node == null || depth > 5) return null // Limit recursion depth
-        
+        if (node == null || depth > 3) return null // Reduced depth for better performance
+
         try {
-            // Check current node
+            // Check current node text first (most likely to contain URL)
             val nodeText = node.text?.toString()
-            val nodeDescription = node.contentDescription?.toString()
-            
-            extractUrlFromText(nodeText)?.let { return it }
-            extractUrlFromText(nodeDescription)?.let { return it }
-            
-            // Check child nodes
-            for (i in 0 until minOf(node.childCount, 20)) { // Limit children to check
-                val child = node.getChild(i)
-                val childUrl = findUrlInNodeHierarchy(child, depth + 1)
-                child?.recycle()
-                if (childUrl != null) return childUrl
+            if (!nodeText.isNullOrBlank()) {
+                extractUrlFromText(nodeText)?.let { return it }
             }
-            
+
+            // Check content description as secondary option
+            val nodeDescription = node.contentDescription?.toString()
+            if (!nodeDescription.isNullOrBlank()) {
+                extractUrlFromText(nodeDescription)?.let { return it }
+            }
+
+            // Check child nodes with optimized limits
+            val childCount = node.childCount
+            if (childCount > 0) {
+                // Only check first few children that are likely to contain URLs
+                val maxChildrenToCheck = minOf(childCount, 8) // Reduced from 20 for performance
+
+                for (i in 0 until maxChildrenToCheck) {
+                    val child = node.getChild(i)
+                    val childUrl = findUrlInNodeHierarchy(child, depth + 1)
+                    child?.recycle()
+                    if (childUrl != null) return childUrl
+                }
+            }
+
             return null
         } catch (e: Exception) {
             Log.w(TAG, "Error finding URL in node hierarchy", e)
@@ -2953,6 +2976,20 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 GLOBAL_ACTION_BACK,
                 "scroll gesture fallback (error)"
             )
+        }
+    }
+    
+    /**
+     * Check if the service can perform global actions - prevents crashes
+     */
+    private fun canPerformGlobalActions(): Boolean {
+        return try {
+            // Check if service is properly connected and has capabilities
+            serviceInfo != null && 
+            rootInActiveWindow != null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking if can perform global actions", e)
+            false
         }
     }
     

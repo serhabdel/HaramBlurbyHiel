@@ -34,7 +34,7 @@ class SettingsRepository @Inject constructor(
     companion object {
         private const val TAG = "SettingsRepository"
         private const val SETTINGS_VERSION_KEY = "settings_version"
-        private const val CURRENT_SETTINGS_VERSION = 8
+        private const val CURRENT_SETTINGS_VERSION = 9
     }
     
     private val _settings = MutableStateFlow(loadSettingsWithMigration())
@@ -112,6 +112,8 @@ class SettingsRepository @Inject constructor(
             dhikrPosition = prefs.getString("dhikr_position", "TOP_RIGHT") ?: "TOP_RIGHT",
             dhikrAnimationEnabled = prefs.getBoolean("dhikr_animation_enabled", true),
             dhikrSoundEnabled = prefs.getBoolean("dhikr_sound_enabled", false),
+            dhikrSleepStartMinutes = prefs.getInt("dhikr_sleep_start_minutes", 1350),
+            dhikrSleepEndMinutes = prefs.getInt("dhikr_sleep_end_minutes", 390),
 
             // Islamic Calendar & Prayer Times (persist previously missing fields)
             enableIslamicCalendar = prefs.getBoolean("enable_islamic_calendar", true),
@@ -383,6 +385,8 @@ class SettingsRepository @Inject constructor(
             putString("dhikr_position", settings.dhikrPosition)
             putBoolean("dhikr_animation_enabled", settings.dhikrAnimationEnabled)
             putBoolean("dhikr_sound_enabled", settings.dhikrSoundEnabled)
+            putInt("dhikr_sleep_start_minutes", settings.dhikrSleepStartMinutes)
+            putInt("dhikr_sleep_end_minutes", settings.dhikrSleepEndMinutes)
 
             // Islamic Calendar & Prayer Times (persist previously missing fields)
             putBoolean("enable_islamic_calendar", settings.enableIslamicCalendar)
@@ -780,6 +784,32 @@ class SettingsRepository @Inject constructor(
         updateSettings(updated)
     }
 
+    // Dhikr Sleep Time Update Methods
+    fun updateDhikrSleepStartTime(minutes: Int) {
+        require(minutes in 0..1439) { "Sleep start time must be between 0 and 1439 minutes" }
+        val current = _settings.value
+        val updated = current.copy(dhikrSleepStartMinutes = minutes)
+        updateSettings(updated)
+    }
+
+    fun updateDhikrSleepEndTime(minutes: Int) {
+        require(minutes in 0..1439) { "Sleep end time must be between 0 and 1439 minutes" }
+        val current = _settings.value
+        val updated = current.copy(dhikrSleepEndMinutes = minutes)
+        updateSettings(updated)
+    }
+
+    fun updateDhikrSleepTimes(startMinutes: Int, endMinutes: Int) {
+        require(startMinutes in 0..1439) { "Sleep start time must be between 0 and 1439 minutes" }
+        require(endMinutes in 0..1439) { "Sleep end time must be between 0 and 1439 minutes" }
+        val current = _settings.value
+        val updated = current.copy(
+            dhikrSleepStartMinutes = startMinutes,
+            dhikrSleepEndMinutes = endMinutes
+        )
+        updateSettings(updated)
+    }
+
     // Settings Migration
     private fun loadSettingsWithMigration(): AppSettings {
         val currentVersion = prefs.getInt(SETTINGS_VERSION_KEY, 1)
@@ -897,6 +927,15 @@ class SettingsRepository @Inject constructor(
                     putString("custom_app_time_limits", saveCustomAppTimeLimits(emptyMap()))
                     putInt("usage_notification_frequency", 30)
                     putBoolean("enable_daily_usage_reset", true)
+                    apply()
+                }
+            }
+            8 -> {
+                // Migration to version 9: Add dhikr sleep time settings
+                Log.i(TAG, "Migrating from version 8: Adding dhikr sleep time settings")
+                prefs.edit().apply {
+                    putInt("dhikr_sleep_start_minutes", 1350) // 22:30 PM
+                    putInt("dhikr_sleep_end_minutes", 390)    // 6:30 AM
                     apply()
                 }
             }

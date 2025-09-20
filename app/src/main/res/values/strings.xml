@@ -628,6 +628,17 @@
     <string name="display_method_none">None</string>
     <string name="show_dhikr_now">Show Dhikr Now</string>
 
+    <!-- Dhikr Sleep/Quiet Hours Settings -->
+    <string name="dhikr_quiet_hours_title">Quiet Hours</string>
+    <string name="dhikr_quiet_hours_description">Dhikr notifications will be paused during these hours</string>
+    <string name="dhikr_sleep_time_title">Sleep Time</string>
+    <string name="dhikr_sleep_time_description">When to start quiet hours</string>
+    <string name="dhikr_wake_time_title">Wake Time</string>
+    <string name="dhikr_wake_time_description">When to end quiet hours</string>
+    <string name="dhikr_quiet_hours_crosses_midnight">Quiet hours: %1$s - %2$s (next day)</string>
+    <string name="dhikr_quiet_hours_same_day">Quiet hours: %1$s - %2$s</string>
+    <string name="dhikr_quiet_hours_validation_error">Sleep window must be between 1 and 20 hours</string>
+
     <!-- Prayer Times & Qibla -->
     <string name="prayer_times_title">🕌 Prayer Times</string>
     <string name="location_settings_cd">Location Settings</string>
