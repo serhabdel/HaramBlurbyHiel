@@ -71,27 +71,20 @@ class PermissionWizardViewModel @Inject constructor(
         ),
         WizardStep(
             stepNumber = 3,
-            title = "Device Admin (Optional)",
-            description = "Force-close blocked apps for stronger enforcement",
-            permissionType = "DEVICE_ADMIN",
-            isRequired = false
-        ),
-        WizardStep(
-            stepNumber = 4,
             title = "Location Permission",
             description = "Enable accurate prayer times and Islamic calendar",
             permissionType = "LOCATION_PERMISSION",
-            isRequired = false
+            isRequired = true
         ),
         WizardStep(
-            stepNumber = 5,
+            stepNumber = 4,
             title = "Notifications",
             description = "Allow dhikr reminders and important alerts",
             permissionType = "NOTIFICATION_PERMISSION",
-            isRequired = false
+            isRequired = true
         ),
         WizardStep(
-            stepNumber = 6,
+            stepNumber = 5,
             title = "Islamic Features",
             description = "Set up prayer times, Islamic calendar, and spiritual features",
             permissionType = "ISLAMIC_FEATURES",

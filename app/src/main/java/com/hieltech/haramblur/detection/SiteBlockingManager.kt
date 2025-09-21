@@ -106,12 +106,8 @@ class SiteBlockingManagerImpl @Inject constructor(
                 )
             }
             
-            // Cache the result if it's valid
-            if (blockingResult != null) {
-                cacheResult(domain, blockingResult)
-            }
-            
-            blockingResult ?: SiteBlockingResult(
+            // Default result for non-blocked sites
+            SiteBlockingResult(
                 isBlocked = false,
                 category = null,
                 confidence = 0.0f,
@@ -500,6 +496,9 @@ class SiteBlockingManagerImpl @Inject constructor(
             }
         }
 
+        return false
+    }
+
     /**
      * Check if a URL is likely a false positive based on common patterns
      */
@@ -652,6 +651,10 @@ class SiteBlockingManagerImpl @Inject constructor(
         }
         whitelistCache.add(domain)
     }
+
+    /**
+     * Check if domain matches a pattern (regex or wildcard)
+     */
     private fun matchesPattern(domain: String, pattern: String, isRegex: Boolean): Boolean {
         return if (isRegex) {
             matchesRegexPattern(domain, pattern)
