@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 
 /**
  * Modern Islamic-inspired navigation bar with smooth animations
@@ -34,7 +36,7 @@ fun ModernNavigationBar(
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
-    val showLabels = configuration.screenWidthDp > 400 // Show labels on most phones too
+    val showLabels = true // Always show labels for better UX
 
     val navigationItems = listOf(
         NavigationItem(
@@ -60,35 +62,38 @@ fun ModernNavigationBar(
         )
     )
 
-    NavigationBar(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .height(84.dp) // Slightly taller for better Material Design 3 proportions
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-            ),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 2.dp,
-        windowInsets = WindowInsets.systemBars
+            .navigationBarsPadding(),
+        tonalElevation = 3.dp,
+        shadowElevation = 8.dp,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        color = MaterialTheme.colorScheme.surface
     ) {
-        navigationItems.forEach { item ->
-            val isSelected = currentRoute == item.route
+        NavigationBar(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(88.dp),
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp
+        ) {
+            navigationItems.forEach { item ->
+                val isSelected = currentRoute == item.route
 
-            ModernNavigationBarItem(
-                item = item,
-                isSelected = isSelected,
-                showLabel = showLabels,
-                onClick = {
-                    when (item.route) {
-                        NavRoutes.HOME -> onNavigateToHome()
-                        NavRoutes.BLOCK_APPS_SITES -> onNavigateToBlockAppsSites()
-                        NavRoutes.SETTINGS -> onNavigateToSettings()
+                ModernNavigationBarItem(
+                    item = item,
+                    isSelected = isSelected,
+                    showLabel = showLabels,
+                    onClick = {
+                        when (item.route) {
+                            NavRoutes.HOME -> onNavigateToHome()
+                            NavRoutes.BLOCK_APPS_SITES -> onNavigateToBlockAppsSites()
+                            NavRoutes.SETTINGS -> onNavigateToSettings()
+                        }
                     }
-                }
-            )
+                )
+            }
         }
     }
 }
@@ -104,7 +109,7 @@ private fun RowScope.ModernNavigationBarItem(
     onClick: () -> Unit
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.08f else 1f,
+        targetValue = if (isSelected) 1.12f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -116,19 +121,19 @@ private fun RowScope.ModernNavigationBarItem(
         targetValue = if (isSelected) {
             MaterialTheme.colorScheme.primary
         } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         },
-        animationSpec = tween(300, easing = EaseOut),
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
         label = "iconColor"
     )
 
     val backgroundColor by animateColorAsState(
         targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.24f)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
         } else {
             Color.Transparent
         },
-        animationSpec = tween(250, easing = EaseInOut),
+        animationSpec = tween(350, easing = FastOutSlowInEasing),
         label = "backgroundColor"
     )
 
@@ -143,35 +148,52 @@ private fun RowScope.ModernNavigationBarItem(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp) // Larger touch target for better accessibility
+                        .size(56.dp) // Even larger touch target for accessibility
                         .graphicsLayer(scaleX = scale, scaleY = scale)
-                        .clip(RoundedCornerShape(16.dp)) // More modern rounded corners
-                        .background(backgroundColor),
+                        .clip(RoundedCornerShape(20.dp)) // Smoother rounded corners
+                        .background(
+                            if (isSelected) {
+                                Brush.radialGradient(
+                                    listOf(
+                                        backgroundColor,
+                                        backgroundColor.copy(alpha = 0.1f)
+                                    )
+                                )
+                            } else {
+                                Brush.radialGradient(
+                                    listOf(
+                                        Color.Transparent,
+                                        Color.Transparent
+                                    )
+                                )
+                            }
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isSelected) item.selectedIcon else item.icon,
                         contentDescription = item.description,
                         tint = iconColor,
-                        modifier = Modifier.size(26.dp) // Slightly larger for better visibility
+                        modifier = Modifier.size(28.dp) // Optimal size for visibility
                     )
                 }
             }
         },
         label = {
             if (showLabel) {
-                AnimatedFadeIn(visible = isSelected) {
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
-                }
-            } else null
+                Text(
+                    text = item.label,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                    ),
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    },
+                    maxLines = 1
+                )
+            }
         },
         colors = NavigationBarItemDefaults.colors(
             selectedIconColor = Color.Transparent, // Handled by our custom icon

@@ -11,6 +11,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +30,12 @@ import com.hieltech.haramblur.R
 import androidx.compose.runtime.DisposableEffect
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.components.IslamicOnboardingStep
-import com.hieltech.haramblur.ui.components.LocationPermissionHandler
+import com.hieltech.haramblur.ui.components.LanguageSelectionStep
+import com.hieltech.haramblur.ui.components.GenderSelectionStep
+import com.hieltech.haramblur.ui.components.SimpleLocationPermissionStep
+import com.hieltech.haramblur.ui.components.SimpleNotificationPermissionStep
+import com.hieltech.haramblur.ui.components.SimplifiedWizardStepCard
+import android.util.Log
 import kotlinx.coroutines.launch
 
 /**
@@ -116,106 +122,82 @@ fun PermissionWizardScreen(
                 modifier = Modifier.padding(paddingValues)
             )
         } else {
-            // Main wizard interface
+            // Main wizard interface - simplified layout without header
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(responsiveContentPadding()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 16.dp, medium = 20.dp, expanded = 24.dp))
+                    .padding(paddingValues),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Welcome header
-                AnimatedFadeIn(visible = true, durationMillis = 600) {
-                    ModernCard(
-                        modifier = responsiveMaxContentWidth(),
-                        gradientColors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.05f)
-                        ),
-                        contentPadding = responsiveCardPadding()
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 8.dp, medium = 10.dp, expanded = 12.dp))
-                        ) {
-                            Text(
-                                text = "🔐",
-                                fontSize = responsiveEmojiSize()
-                            )
-                            Text(
-                                text = stringResource(R.string.welcome_to_haramblur_setup),
-                                fontSize = responsiveHeadlineSize(),
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                text = stringResource(R.string.setup_permissions_description),
-                                style = MaterialTheme.typography.bodyLarge,
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                // Progress indicator
-                AnimatedFadeIn(visible = true, durationMillis = 800) {
+                // Compact header with title and progress
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.welcome_to_haramblur_setup),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Progress indicator
                     WizardProgressIndicator(
                         currentStepIndex = wizardState.currentStepIndex,
                         totalSteps = wizardState.steps.size
                     )
                 }
 
-                // Step pager
-                AnimatedFadeIn(visible = true, durationMillis = 1000) {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier
-                            .weight(1f)
-                            .then(responsiveMaxContentWidth()),
-                        userScrollEnabled = false // Disable manual scrolling
-                    ) { page ->
-                        val step = wizardState.steps.getOrNull(page)
-                        step?.let {
-                            StepPage(
-                                step = it,
-                                viewModel = viewModel,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
+                // Step pager - takes all available space
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    userScrollEnabled = false // Disable manual scrolling
+                ) { page ->
+                    val step = wizardState.steps.getOrNull(page)
+                    step?.let {
+                        SimplifiedStepPage(
+                            step = it,
+                            viewModel = viewModel,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 }
 
-                // Navigation buttons
-                AnimatedFadeIn(visible = true, durationMillis = 1200) {
-                    WizardNavigationButtons(
-                        currentStepIndex = wizardState.currentStepIndex,
-                        totalSteps = wizardState.steps.size,
-                        canProceed = wizardState.canProceed,
-                        isOptionalStep = wizardState.steps.getOrNull(wizardState.currentStepIndex)?.isRequired == false,
-                        isLoading = wizardState.isLoading,
-                        onPreviousClick = {
-                            viewModel.goToPreviousStep()
-                        },
-                        onNextClick = {
-                            viewModel.proceedToNextStep()
-                        },
-                        onSkipClick = if (wizardState.steps.getOrNull(wizardState.currentStepIndex)?.isRequired == false) {
-                            {
-                                viewModel.skipOptionalPermissions()
-                                onComplete()
-                            }
-                        } else null,
-                        onCompleteClick = {
-                            viewModel.completeWizard()
+                // Navigation buttons at bottom
+                WizardNavigationButtons(
+                    currentStepIndex = wizardState.currentStepIndex,
+                    totalSteps = wizardState.steps.size,
+                    canProceed = wizardState.canProceed,
+                    isOptionalStep = wizardState.steps.getOrNull(wizardState.currentStepIndex)?.isRequired == false,
+                    isLoading = wizardState.isLoading,
+                    onPreviousClick = {
+                        viewModel.goToPreviousStep()
+                    },
+                    onNextClick = {
+                        viewModel.proceedToNextStep()
+                    },
+                    onSkipClick = if (wizardState.steps.getOrNull(wizardState.currentStepIndex)?.isRequired == false) {
+                        {
+                            viewModel.skipOptionalPermissions()
                             onComplete()
                         }
-                    )
-                }
+                    } else null,
+                    onCompleteClick = {
+                        viewModel.completeWizard()
+                        onComplete()
+                    },
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                )
 
                 // Error display with refresh option
-                wizardState.error?.let { error ->
+                if (wizardState.error != null) {
                     AnimatedFadeIn(visible = true, durationMillis = 400) {
                         ModernCard(
                             modifier = Modifier.fillMaxWidth(),
@@ -238,7 +220,7 @@ fun PermissionWizardScreen(
                                         tint = Color(0xFFF44336)
                                     )
                                     Text(
-                                        text = error,
+                                        text = wizardState.error ?: "",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = Color(0xFFC62828),
                                         modifier = Modifier.weight(1f)
@@ -268,101 +250,87 @@ fun PermissionWizardScreen(
 }
 
 /**
- * Individual step page composable
+ * Simplified individual step page - much cleaner and less overwhelming
  */
 @Composable
-private fun StepPage(
+private fun SimplifiedStepPage(
     step: PermissionWizardViewModel.WizardStep,
     viewModel: PermissionWizardViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val permissionHelper = remember { PermissionHelper(context) }
-    val scrollState = rememberScrollState()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(scrollState),
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 16.dp, medium = 20.dp, expanded = 24.dp))
+        verticalArrangement = Arrangement.Center
     ) {
-        // Step card
-        val showGrantButton = step.permissionType !in setOf("LOCATION_PERMISSION", "NOTIFICATION_PERMISSION")
-
-        WizardStepCard(
-            step = step,
-            permissionHelper = permissionHelper,
-            onGrantClick = {
-                viewModel.requestCurrentPermission(context as android.app.Activity)
-            },
-            onSkipClick = if (!step.isRequired) {
-                { viewModel.skipOptionalPermissions() }
-            } else null,
-            onRefreshClick = {
-                viewModel.refreshCurrentStep()
-            },
-            showGrantButton = showGrantButton
-        )
-
-        // Permission explanation
-        PermissionExplanationSection(
-            permissionType = step.permissionType,
-            permissionHelper = permissionHelper
-        )
-
-        // Help section for denied permissions
-        if (step.status == PermissionWizardViewModel.PermissionStatus.DENIED) {
-            PermissionDeniedHelp(
-                permissionType = step.permissionType
-            )
-        }
-
-        // Status-specific instructions
+        // Handle different step types with clean, focused UI
         when (step.permissionType) {
-            "ACCESSIBILITY_SERVICE" -> {
-                AccessibilityServiceInstructions(step.status)
+            "LANGUAGE_SELECTION" -> {
+                // Clean language selection - no confusing "grant permission" button
+                LanguageSelectionStep(
+                    viewModel = viewModel,
+                    onLanguageSelected = {
+                        // Language change is handled automatically
+                    }
+                )
             }
-            "PACKAGE_USAGE_STATS" -> {
-                UsageStatsInstructions(step.status)
-            }
-            "DEVICE_ADMIN" -> {
-                DeviceAdminInstructions(step.status)
+            "GENDER_SELECTION" -> {
+                // Gender selection for Islamic-compliant content filtering
+                GenderSelectionStep(
+                    viewModel = viewModel,
+                    onGenderSelected = {
+                        // Gender-based blur settings are applied automatically
+                    }
+                )
             }
             "LOCATION_PERMISSION" -> {
-                // Location permission step with integrated handler
-                LocationPermissionHandler(
-                    onPermissionGranted = {
-                        // Permission granted - mark as completed and proceed
-                        viewModel.proceedToNextStep()
-                    },
-                    onPermissionDenied = {
-                        // Permission denied - still proceed but mark as skipped
-                        viewModel.proceedToNextStep()
+                // Simple location permission request
+                SimpleLocationPermissionStep(
+                    viewModel = viewModel,
+                    onPermissionResult = { granted ->
+                        if (granted) {
+                            viewModel.refreshCurrentStep()
+                        }
                     }
-                ) {
-                    LocationPermissionInstructions(step.status)
-                }
+                )
             }
             "NOTIFICATION_PERMISSION" -> {
-                // Notification permission step with integrated handler
-                NotificationPermissionHandler(
-                    onPermissionGranted = {
-                        viewModel.proceedToNextStep()
-                    },
-                    onPermissionDenied = {
-                        // proceed but mark as skipped
-                        viewModel.proceedToNextStep()
+                // Simple notification permission request
+                SimpleNotificationPermissionStep(
+                    viewModel = viewModel,
+                    onPermissionResult = { granted ->
+                        if (granted) {
+                            viewModel.refreshCurrentStep()
+                        }
                     }
-                ) {
-                    NotificationPermissionInstructions(step.status)
-                }
+                )
             }
             "ISLAMIC_FEATURES" -> {
-                // Islamic features onboarding step
+                // Islamic features configuration step
                 IslamicOnboardingStep(
-                    onNext = { viewModel.proceedToNextStep() },
-                    onSkip = { viewModel.proceedToNextStep() }
+                    onNext = { 
+                        viewModel.completeIslamicFeaturesConfiguration()
+                    },
+                    onSkip = { 
+                        viewModel.completeIslamicFeaturesConfiguration()
+                    }
+                )
+            }
+            else -> {
+                // For complex permissions (Accessibility, Usage Stats, etc.) - use simplified card
+                SimplifiedWizardStepCard(
+                    step = step,
+                    onGrantClick = {
+                        viewModel.requestCurrentPermission(context as android.app.Activity)
+                    },
+                    onSkipClick = if (!step.isRequired) {
+                        { viewModel.skipOptionalPermissions() }
+                    } else null,
+                    showGrantButton = true
                 )
             }
         }
@@ -479,7 +447,7 @@ private fun CompletionScreen(
             ) {
                 Text(stringResource(R.string.continue_to_haramblur))
                 Icon(
-                    Icons.Default.ArrowForward,
+                    Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "Continue"
                 )
             }

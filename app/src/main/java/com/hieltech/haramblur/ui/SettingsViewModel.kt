@@ -17,13 +17,15 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import javax.inject.Inject
+import com.hieltech.haramblur.utils.AutoCalculationMethodDetector
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     @ApplicationContext private val context: Context,
     private val logRepository: LogRepository,
-    private val prayerTimesRepository: PrayerTimesRepository
+    private val prayerTimesRepository: PrayerTimesRepository,
+    private val autoCalculationMethodDetector: AutoCalculationMethodDetector
 ) : ViewModel() {
     
     val settings: StateFlow<AppSettings> = settingsRepository.settings
@@ -223,6 +225,44 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val current = settings.value
             settingsRepository.updateSettings(current.copy(enableQuranicGuidance = enabled))
+        }
+    }
+    
+    fun updateLanguage(language: com.hieltech.haramblur.detection.Language) {
+        updatePreferredLanguage(language)
+    }
+
+    fun updateGenderSettings(gender: com.hieltech.haramblur.data.UserGender) {
+        viewModelScope.launch {
+            val current = settings.value
+            
+            // Smart blur settings based on gender for Islamic compliance
+            val (blurMale, blurFemale) = when (gender) {
+                com.hieltech.haramblur.data.UserGender.MALE -> {
+                    // Males should have female faces blurred, but may see male faces
+                    false to true
+                }
+                com.hieltech.haramblur.data.UserGender.FEMALE -> {
+                    // Females should have male faces blurred, but may see female faces
+                    true to false
+                }
+                com.hieltech.haramblur.data.UserGender.NOT_SPECIFIED -> {
+                    // Safest option: blur all faces
+                    true to true
+                }
+            }
+            
+            settingsRepository.updateSettings(current.copy(
+                userGender = gender,
+                blurMaleFaces = blurMale,
+                blurFemaleFaces = blurFemale,
+                // Ensure detection is enabled
+                enableFaceDetection = true,
+                enableNSFWDetection = true,
+                detectionSensitivity = 0.8f
+            ))
+            
+            logRepository.logInfo("Gender settings updated: $gender, blur male: $blurMale, blur female: $blurFemale", "SettingsViewModel")
         }
     }
     
@@ -864,6 +904,39 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Automatically detect and set the optimal calculation method based on current location
+     */
+    fun autoDetectCalculationMethod() {
+        viewModelScope.launch {
+            val current = settings.value
+            val lat = current.locationLatitude
+            val lon = current.locationLongitude
+
+            if (lat != null && lon != null) {
+                val recommendation = autoCalculationMethodDetector.getRecommendation(lat, lon)
+                if (recommendation.confidence != AutoCalculationMethodDetector.ConfidenceLevel.LOW) {
+                    updateCalculationMethod(recommendation.method.id)
+                    Log.d("SettingsViewModel", "Auto-detected calculation method: ${recommendation.method.displayName} (${recommendation.reason})")
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if current calculation method is optimal for location
+     */
+    fun isCalculationMethodOptimal(): Boolean {
+        return autoCalculationMethodDetector.isOptimalForLocation(settings.value)
+    }
+
+    /**
+     * Get suggestion message for better calculation method
+     */
+    fun getCalculationMethodSuggestion(): String? {
+        return autoCalculationMethodDetector.getSuggestionMessage(settings.value)
+    }
+
     fun updateNotificationAdvanceTime(minutes: Int) {
         viewModelScope.launch {
             val current = settings.value
@@ -937,18 +1010,33 @@ class SettingsViewModel @Inject constructor(
             val loc = locationHelper.getBestLocation()
             val updated = if (loc != null) {
                 val ts = System.currentTimeMillis()
+
+                // Auto-detect calculation method for new location
+                val recommendedMethod = autoCalculationMethodDetector.detectCalculationMethod(loc.latitude, loc.longitude)
+                val shouldUpdateMethod = current.prayerCalculationMethod != recommendedMethod.id
+
                 current.copy(
                     locationLatitude = loc.latitude,
                     locationLongitude = loc.longitude,
                     // Keep existing city/country if we don't have reverse geocode here
                     locationAccuracy = loc.accuracy,
                     locationLastUpdated = ts,
-                    locationPermissionStatus = LocationPermissionStatus.GRANTED
+                    locationPermissionStatus = LocationPermissionStatus.GRANTED,
+                    // Auto-update calculation method if it's different and recommended
+                    prayerCalculationMethod = if (shouldUpdateMethod) recommendedMethod.id else current.prayerCalculationMethod
                 )
             } else {
                 current.copy(locationPermissionStatus = permission)
             }
             settingsRepository.updateSettings(updated)
+
+            // Log the auto-detection if method was changed
+            if (loc != null) {
+                val recommendedMethod = autoCalculationMethodDetector.detectCalculationMethod(loc.latitude, loc.longitude)
+                if (current.prayerCalculationMethod != recommendedMethod.id) {
+                    Log.d("SettingsViewModel", "Auto-updated calculation method to ${recommendedMethod.displayName} based on location")
+                }
+            }
         }
     }
 

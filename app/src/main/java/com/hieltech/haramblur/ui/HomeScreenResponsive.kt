@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -116,7 +117,8 @@ private fun CompactHomeScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(responsiveLayoutMargins())
-            .widthIn(max = 600.dp), // Constrain max width for better readability
+            .widthIn(max = 600.dp) // Constrain max width for better readability
+            .wrapContentWidth(Alignment.CenterHorizontally), // Center the constrained content
         verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = if (isLandscape) 16.dp else 20.dp, medium = 24.dp, expanded = 28.dp)),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -1083,13 +1085,22 @@ private fun CompactQuickActionCard(
 ) {
     ModernCard(
         modifier = modifier.clickable(onClick = onClick),
-        contentPadding = PaddingValues(12.dp)
+        contentPadding = responsiveCardPadding(),
+        gradientColors = listOf(
+            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
+            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+        )
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 4.dp, medium = 6.dp, expanded = 8.dp))
         ) {
-            Text(text = icon, style = MaterialTheme.typography.headlineSmall)
+            Text(
+                text = icon,
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontSize = responsiveEmojiSize()
+                )
+            )
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium,
@@ -1100,7 +1111,9 @@ private fun CompactQuickActionCard(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -1143,13 +1156,22 @@ private fun MediumQuickActionCard(
 ) {
     ModernCard(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = responsiveCardPadding(),
+        gradientColors = listOf(
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        )
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(responsiveSpacing())
         ) {
-            Text(text = icon, style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = icon,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = responsiveEmojiSize()
+                )
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
@@ -1159,7 +1181,9 @@ private fun MediumQuickActionCard(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -1203,13 +1227,22 @@ private fun ExpandedQuickActionCard(
 ) {
     ModernCard(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        contentPadding = PaddingValues(20.dp)
+        contentPadding = responsiveCardPadding(),
+        gradientColors = listOf(
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f),
+            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+        )
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 12.dp, medium = 16.dp, expanded = 20.dp))
         ) {
-            Text(text = icon, style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = icon,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = responsiveEmojiSize()
+                )
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
@@ -1219,7 +1252,9 @@ private fun ExpandedQuickActionCard(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

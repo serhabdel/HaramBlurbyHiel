@@ -5,13 +5,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -54,7 +53,7 @@ fun LogsViewerScreen(
                 title = { Text(stringResource(R.string.application_logs)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -144,7 +143,7 @@ fun LogsFilterSection(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    StatChip(stringResource(R.string.total), statistics.totalLogs.toString(), Icons.Default.List)
+                    StatChip(stringResource(R.string.total), statistics.totalLogs.toString(), Icons.AutoMirrored.Filled.List)
                     StatChip(stringResource(R.string.errors), statistics.errorCount.toString(), Icons.Default.Warning, MaterialTheme.colorScheme.error)
                     StatChip(stringResource(R.string.warnings), statistics.warnCount.toString(), Icons.Default.Warning, MaterialTheme.colorScheme.tertiary)
                     StatChip(stringResource(R.string.info), statistics.infoCount.toString(), Icons.Default.Info, MaterialTheme.colorScheme.secondary)
@@ -249,7 +248,7 @@ fun LogsList(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    Icons.Default.List,
+                    Icons.AutoMirrored.Filled.List,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant

@@ -12,6 +12,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.hieltech.haramblur.data.BlurIntensity
 import com.hieltech.haramblur.data.BlurStyle
 import com.hieltech.haramblur.data.IslamicGuidance
@@ -38,7 +46,7 @@ import javax.inject.Singleton
 class BlurOverlayManager @Inject constructor(
     private val warningDialogManager: WarningDialogManager,
     private val settingsRepository: com.hieltech.haramblur.data.SettingsRepository
-) {
+) : LifecycleOwner, SavedStateRegistryOwner {
     
     private val enhancedBlurEffects = EnhancedBlurEffects()
     
@@ -47,6 +55,13 @@ class BlurOverlayManager @Inject constructor(
         private const val DEFAULT_BLUR_INTENSITY = 50f
         private const val STRONG_BLUR_ALPHA = 220 // More opaque
     }
+    
+    // Lifecycle management for ComposeView overlays
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    
+    override val lifecycle: Lifecycle get() = lifecycleRegistry
+    override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
     
     private var windowManager: WindowManager? = null
     private var context: Context? = null
@@ -66,11 +81,47 @@ class BlurOverlayManager @Inject constructor(
     
     // Callback for warning dialog actions
     var onWarningAction: ((WarningDialogAction) -> Unit)? = null
-    
+
+    /**
+     * Safe execution wrapper to prevent crashes from taking down the accessibility service
+     */
+    private fun safeExecute(operation: String, action: () -> Unit): Boolean {
+        return try {
+            action()
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Safe execution failed for operation: $operation", e)
+            false
+        }
+    }
+
+    /**
+     * Clean up all overlays safely
+     */
+    fun cleanupAllOverlays() {
+        safeExecute("cleanupAllOverlays") {
+            if (isOverlayVisible) {
+                hideBlurOverlay()
+            }
+            if (isWarningVisible) {
+                hideWarningDialog()
+            }
+            if (isBlockedSiteOverlayVisible) {
+                hideBlockedSiteOverlay()
+            }
+        }
+    }
+
     fun initialize(context: Context) {
         this.context = context
         windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        Log.d(TAG, "Blur overlay manager initialized")
+        
+        // Initialize lifecycle components
+        savedStateRegistryController.performAttach()
+        savedStateRegistryController.performRestore(null)
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        
+        Log.d(TAG, "Blur overlay manager initialized with lifecycle support")
     }
     
     fun showBlurOverlay(
@@ -530,10 +581,18 @@ class BlurOverlayManager @Inject constructor(
                 val actualVerse = quranicVerse ?: verse
                 val actualReflectionTime = reflectionTimeSeconds ?: warningDialogManager.getReflectionTimeForCategory(category)
                 
+                // Move to RESUMED state for active overlay
+                lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+                
                 warningOverlayView = ComposeView(context!!).apply {
-                    // Use DisposeOnDetachedFromWindow for overlay views since they don't have a proper lifecycle owner
-                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-                     setContent {
+                    // Set lifecycle owners for proper Compose management
+                    setViewTreeLifecycleOwner(this@BlurOverlayManager)
+                    setViewTreeSavedStateRegistryOwner(this@BlurOverlayManager)
+                    
+                    // Use proper composition strategy
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
+                    
+                    setContent {
                          HaramBlurTheme(preferredLanguage = Language.ENGLISH) {
                              var dialogState by remember {
                                 mutableStateOf(
@@ -607,7 +666,7 @@ class BlurOverlayManager @Inject constructor(
                 windowManager!!.addView(warningOverlayView, params)
                 isWarningVisible = true
                 
-                Log.d(TAG, "Warning dialog overlay shown")
+                Log.d(TAG, "Warning dialog overlay shown with lifecycle support")
             } catch (e: Exception) {
                 Log.e(TAG, "Error showing warning dialog", e)
             }
@@ -624,6 +683,12 @@ class BlurOverlayManager @Inject constructor(
                     windowManager!!.removeView(warningOverlayView)
                     isWarningVisible = false
                     warningOverlayView = null
+                    
+                    // Move back to STARTED state when overlay is hidden
+                    if (!isOverlayVisible && !isBlockedSiteOverlayVisible) {
+                        lifecycleRegistry.currentState = Lifecycle.State.STARTED
+                    }
+                    
                     Log.d(TAG, "Warning dialog overlay hidden")
                 }
             } catch (e: Exception) {
@@ -648,6 +713,27 @@ class BlurOverlayManager @Inject constructor(
      * Check if warning dialog is currently visible
      */
     fun isWarningVisible(): Boolean = isWarningVisible
+    
+    /**
+     * Cleanup lifecycle when service is destroyed
+     */
+    fun cleanup() {
+        try {
+            // Emergency hide all overlays first
+            emergencyHideAllOverlays()
+            
+            // Move lifecycle to destroyed state
+            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+            
+            // Clear all references
+            context = null
+            windowManager = null
+            
+            Log.d(TAG, "BlurOverlayManager cleaned up with proper lifecycle teardown")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during cleanup", e)
+        }
+    }
     
     /**
      * Show blocked site overlay with Quranic verse display
@@ -693,9 +779,17 @@ class BlurOverlayManager @Inject constructor(
     ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                // Move to RESUMED state for active overlay
+                lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+                
                 blockedSiteOverlayView = ComposeView(context!!).apply {
-                    // Use DisposeOnDetachedFromWindow for overlay views since they don't have a proper lifecycle owner
-                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                    // Set lifecycle owners for proper Compose management
+                    setViewTreeLifecycleOwner(this@BlurOverlayManager)
+                    setViewTreeSavedStateRegistryOwner(this@BlurOverlayManager)
+                    
+                    // Use proper composition strategy
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
+                    
                     setContent {
                         HaramBlurTheme(preferredLanguage = Language.ENGLISH) {
                             var selectedLanguage by remember {
@@ -739,7 +833,7 @@ class BlurOverlayManager @Inject constructor(
                 windowManager!!.addView(blockedSiteOverlayView, params)
                 isBlockedSiteOverlayVisible = true
                 
-                Log.d(TAG, "Blocked site dialog overlay shown")
+                Log.d(TAG, "Blocked site dialog overlay shown with lifecycle support")
             } catch (e: Exception) {
                 Log.e(TAG, "Error showing blocked site dialog", e)
             }
@@ -755,6 +849,11 @@ class BlurOverlayManager @Inject constructor(
                 if (isBlockedSiteOverlayVisible && blockedSiteOverlayView != null && windowManager != null) {
                     windowManager!!.removeView(blockedSiteOverlayView)
                     isBlockedSiteOverlayVisible = false
+                    
+                    // Move back to STARTED state when overlay is hidden
+                    if (!isOverlayVisible && !isWarningVisible) {
+                        lifecycleRegistry.currentState = Lifecycle.State.STARTED
+                    }
                     blockedSiteOverlayView = null
                     Log.d(TAG, "Blocked site overlay hidden")
                 }

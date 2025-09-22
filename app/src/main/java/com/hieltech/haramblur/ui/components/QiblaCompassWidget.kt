@@ -33,6 +33,10 @@ import androidx.compose.ui.semantics.semantics
 import com.hieltech.haramblur.data.LocationMethod
 import com.hieltech.haramblur.data.LocationPermissionStatus
 import com.hieltech.haramblur.ui.SettingsViewModel
+import com.hieltech.haramblur.ui.components.responsiveSpacing
+import com.hieltech.haramblur.ui.components.responsiveCardPadding
+import com.hieltech.haramblur.ui.components.getScreenSize
+import com.hieltech.haramblur.ui.components.ScreenSize
 
 /**
  * Interactive Qibla Compass Widget
@@ -80,17 +84,32 @@ fun QiblaCompassWidget(
         settingsViewModel.syncLocationPermissionStatus()
         onRetry?.invoke()
     }) {
-        Card(modifier = modifier.clip(RoundedCornerShape(16.dp))) {
+        Card(
+            modifier = modifier.clip(RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            )
+        ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(responsiveSpacing()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(responsiveCardPadding())
             ) {
-                Text(
-                    text = stringResource(id = R.string.qibla_direction_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                // Enhanced header with icon
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "🧭",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Text(
+                        text = stringResource(id = R.string.qibla_direction_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
                 if (showLoading) {
                     QiblaCompassLoadingSkeleton(modifier = Modifier.fillMaxWidth())
@@ -101,11 +120,7 @@ fun QiblaCompassWidget(
                         hapticOnAligned = hapticOnAligned,
                         alignmentToleranceDeg = alignmentToleranceDeg,
                         animationSpeed = animationSpeed,
-                        dialSize = when (preferredSize) {
-                            CompassSize.SMALL -> 160.dp
-                            CompassSize.MEDIUM -> 220.dp
-                            CompassSize.LARGE -> 280.dp
-                        }
+                        dialSize = getResponsiveCompassSize(preferredSize)
                     )
                 }
 
@@ -269,6 +284,32 @@ private fun CompassDial(
             }
             // Accessibility announcement when aligned
             IslamicFeaturesAccessibility.announce(stringResource(R.string.qibla_aligned))
+        }
+    }
+}
+
+/**
+ * Get responsive compass size based on screen size and user preference
+ */
+@Composable
+private fun getResponsiveCompassSize(preferredSize: CompassSize): Dp {
+    val screenSize = getScreenSize()
+
+    return when (preferredSize) {
+        CompassSize.SMALL -> when (screenSize) {
+            ScreenSize.COMPACT -> 140.dp
+            ScreenSize.MEDIUM -> 160.dp
+            ScreenSize.EXPANDED -> 180.dp
+        }
+        CompassSize.MEDIUM -> when (screenSize) {
+            ScreenSize.COMPACT -> 180.dp
+            ScreenSize.MEDIUM -> 220.dp
+            ScreenSize.EXPANDED -> 260.dp
+        }
+        CompassSize.LARGE -> when (screenSize) {
+            ScreenSize.COMPACT -> 220.dp
+            ScreenSize.MEDIUM -> 280.dp
+            ScreenSize.EXPANDED -> 340.dp
         }
     }
 }

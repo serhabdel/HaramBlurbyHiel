@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,49 +54,71 @@ class PermissionWizardViewModel @Inject constructor(
         val error: String? = null
     )
 
-    // Initialize wizard steps
-    private val initialSteps = listOf(
-        WizardStep(
-            stepNumber = 1,
-            title = "Accessibility Service",
-            description = "Enable real-time content detection across all apps",
-            permissionType = "ACCESSIBILITY_SERVICE",
-            isRequired = true
-        ),
-        WizardStep(
-            stepNumber = 2,
-            title = "Usage Stats Access",
-            description = "Monitor app usage for enhanced blocking capabilities",
-            permissionType = "PACKAGE_USAGE_STATS",
-            isRequired = true
-        ),
-        WizardStep(
-            stepNumber = 3,
-            title = "Location Permission",
-            description = "Enable accurate prayer times and Islamic calendar",
-            permissionType = "LOCATION_PERMISSION",
-            isRequired = true
-        ),
-        WizardStep(
-            stepNumber = 4,
-            title = "Notifications",
-            description = "Allow dhikr reminders and important alerts",
-            permissionType = "NOTIFICATION_PERMISSION",
-            isRequired = true
-        ),
-        WizardStep(
-            stepNumber = 5,
-            title = "Islamic Features",
-            description = "Set up prayer times, Islamic calendar, and spiritual features",
-            permissionType = "ISLAMIC_FEATURES",
-            isRequired = false,
-            isCompleted = true
+    // Define the setup steps in order - language first, then permissions
+    private fun createInitialSteps(): List<WizardStep> {
+        return listOf(
+            WizardStep(
+                stepNumber = 0,
+                title = context.getString(R.string.wizard_step_language_title),
+                description = context.getString(R.string.wizard_step_language_description),
+                permissionType = "LANGUAGE_SELECTION",
+                isRequired = true
+            ),
+            WizardStep(
+                stepNumber = 1,
+                title = context.getString(R.string.wizard_step_gender_title),
+                description = context.getString(R.string.wizard_step_gender_description),
+                permissionType = "GENDER_SELECTION",
+                isRequired = true
+            ),
+            WizardStep(
+                stepNumber = 2,
+                title = context.getString(R.string.wizard_step_accessibility_title),
+                description = context.getString(R.string.wizard_step_accessibility_description),
+                permissionType = "ACCESSIBILITY_SERVICE",
+                isRequired = true
+            ),
+            WizardStep(
+                stepNumber = 3,
+                title = context.getString(R.string.wizard_step_usage_stats_title),
+                description = context.getString(R.string.wizard_step_usage_stats_description),
+                permissionType = "PACKAGE_USAGE_STATS",
+                isRequired = true
+            ),
+            WizardStep(
+                stepNumber = 4,
+                title = context.getString(R.string.wizard_step_overlay_title),
+                description = context.getString(R.string.wizard_step_overlay_description),
+                permissionType = "OVERLAY_PERMISSION",
+                isRequired = true
+            ),
+            WizardStep(
+                stepNumber = 5,
+                title = context.getString(R.string.wizard_step_location_title),
+                description = context.getString(R.string.wizard_step_location_description),
+                permissionType = "LOCATION_PERMISSION",
+                isRequired = false
+            ),
+            WizardStep(
+                stepNumber = 6,
+                title = context.getString(R.string.wizard_step_notification_title),
+                description = context.getString(R.string.wizard_step_notification_description),
+                permissionType = "NOTIFICATION_PERMISSION",
+                isRequired = false
+            ),
+            WizardStep(
+                stepNumber = 7,
+                title = context.getString(R.string.wizard_step_islamic_features_title),
+                description = context.getString(R.string.wizard_step_islamic_features_description),
+                permissionType = "ISLAMIC_FEATURES",
+                isRequired = false // This is a configuration step, not a permission step
+            )
         )
-    )
+    }
 
     // Current wizard state
     private val _wizardState = MutableStateFlow(
-        WizardState(steps = initialSteps, isLoading = true)
+        WizardState(steps = createInitialSteps(), isLoading = true)
     )
     val wizardState: StateFlow<WizardState> = _wizardState.asStateFlow()
 
@@ -115,22 +138,43 @@ class PermissionWizardViewModel @Inject constructor(
                 // Update permissions with retry for critical permissions
                 permissionHelper.updatePermissionStatuses()
 
-                val updatedSteps = initialSteps.map { step ->
-                    // Use retry logic for critical permissions
-                    val permissionResult = if (step.isRequired && step.permissionType == "ACCESSIBILITY_SERVICE") {
-                        permissionHelper.retryPermissionCheck(step.permissionType, maxRetries = 3, delayMs = 1500)
+                val updatedSteps = createInitialSteps().map { step ->
+                    // Handle configuration steps differently from permission steps
+                    if (step.permissionType == "LANGUAGE_SELECTION") {
+                        // Language selection is a configuration step
+                        step.copy(
+                            status = PermissionStatus.PENDING,
+                            isCompleted = false // Will be marked complete when user selects language
+                        )
+                    } else if (step.permissionType == "GENDER_SELECTION") {
+                        // Gender selection is a configuration step
+                        step.copy(
+                            status = PermissionStatus.PENDING,
+                            isCompleted = false // Will be marked complete when user selects gender
+                        )
+                    } else if (step.permissionType == "ISLAMIC_FEATURES") {
+                        // Islamic features is a configuration step, always show as pending until user completes it
+                        step.copy(
+                            status = PermissionStatus.PENDING,
+                            isCompleted = false // Will be marked complete when user finishes configuration
+                        )
                     } else {
-                        permissionHelper.permissionStatusFlow.value[step.permissionType] ?: PermissionResult.Denied(step.permissionType)
-                    }
+                        // Use retry logic for critical permissions
+                        val permissionResult = if (step.isRequired && step.permissionType == "ACCESSIBILITY_SERVICE") {
+                            permissionHelper.retryPermissionCheck(step.permissionType, maxRetries = 3, delayMs = 1500)
+                        } else {
+                            permissionHelper.permissionStatusFlow.value[step.permissionType] ?: PermissionResult.Denied(step.permissionType)
+                        }
 
-                    step.copy(
-                        status = when (permissionResult) {
-                            is PermissionResult.Granted -> PermissionStatus.GRANTED
-                            is PermissionResult.Denied -> PermissionStatus.DENIED
-                            else -> PermissionStatus.PENDING
-                        },
-                        isCompleted = permissionResult is PermissionResult.Granted
-                    )
+                        step.copy(
+                            status = when (permissionResult) {
+                                is PermissionResult.Granted -> PermissionStatus.GRANTED
+                                is PermissionResult.Denied -> PermissionStatus.DENIED
+                                else -> PermissionStatus.PENDING
+                            },
+                            isCompleted = permissionResult is PermissionResult.Granted
+                        )
+                    }
                 }
 
                 val currentStepIndex = updatedSteps.indexOfFirst { !it.isCompleted }
@@ -220,6 +264,7 @@ class PermissionWizardViewModel @Inject constructor(
         }
     }
 
+
     /**
      * Go to the previous step
      */
@@ -248,6 +293,10 @@ class PermissionWizardViewModel @Inject constructor(
             "PACKAGE_USAGE_STATS" -> {
                 permissionHelper.requestUsageStatsPermission(activity)
             }
+            "OVERLAY_PERMISSION" -> {
+                // Request overlay permission using PermissionHelper
+                permissionHelper.requestOverlayPermission(activity)
+            }
             "DEVICE_ADMIN" -> {
                 permissionHelper.requestDeviceAdminPermission(activity)
             }
@@ -268,7 +317,26 @@ class PermissionWizardViewModel @Inject constructor(
     fun completeWizard() {
         viewModelScope.launch {
             try {
+                // Mark onboarding as completed
                 settingsRepository.markOnboardingCompleted()
+                
+                // CRUCIAL: Ensure content detection is enabled after wizard completion
+                val currentSettings = settingsRepository.getCurrentSettings()
+                settingsRepository.updateSettings(currentSettings.copy(
+                    // Ensure detection is enabled
+                    enableFaceDetection = true,
+                    enableNSFWDetection = true,
+                    enableRealTimeProcessing = true,
+                    isServicePaused = false, // Make sure service is not paused
+                    // High sensitivity for better detection
+                    detectionSensitivity = 0.8f,
+                    nsfwConfidenceThreshold = 0.5f,
+                    genderConfidenceThreshold = 0.4f
+                ))
+                
+                // Update permission statuses one final time
+                permissionHelper.updatePermissionStatuses()
+                
                 _wizardState.value = _wizardState.value.copy(
                     isComplete = true,
                     error = null
@@ -422,6 +490,87 @@ class PermissionWizardViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    /**
+     * Complete language selection step
+     */
+    fun completeLanguageSelection() {
+        val currentState = _wizardState.value
+        val updatedSteps = currentState.steps.map { step ->
+            if (step.permissionType == "LANGUAGE_SELECTION") {
+                step.copy(
+                    status = PermissionStatus.GRANTED,
+                    isCompleted = true
+                )
+            } else {
+                step
+            }
+        }
+
+        val currentStepIndex = updatedSteps.indexOfFirst { !it.isCompleted }
+        val isComplete = updatedSteps.all { !it.isRequired || it.isCompleted }
+
+        _wizardState.value = currentState.copy(
+            currentStepIndex = if (currentStepIndex == -1) 0 else currentStepIndex,
+            steps = updatedSteps,
+            isComplete = isComplete,
+            canProceed = true
+        )
+    }
+
+    /**
+     * Complete gender selection step
+     */
+    fun completeGenderSelection() {
+        val currentState = _wizardState.value
+        val updatedSteps = currentState.steps.map { step ->
+            if (step.permissionType == "GENDER_SELECTION") {
+                step.copy(
+                    status = PermissionStatus.GRANTED,
+                    isCompleted = true
+                )
+            } else {
+                step
+            }
+        }
+
+        val currentStepIndex = updatedSteps.indexOfFirst { !it.isCompleted }
+        val isComplete = updatedSteps.all { !it.isRequired || it.isCompleted }
+
+        _wizardState.value = currentState.copy(
+            currentStepIndex = if (currentStepIndex == -1) 0 else currentStepIndex,
+            steps = updatedSteps,
+            isComplete = isComplete,
+            canProceed = true
+        )
+    }
+
+    /**
+     * Complete Islamic features configuration step
+     */
+    fun completeIslamicFeaturesConfiguration() {
+        val currentState = _wizardState.value
+        val updatedSteps = currentState.steps.map { step ->
+            if (step.permissionType == "ISLAMIC_FEATURES") {
+                step.copy(
+                    status = PermissionStatus.GRANTED,
+                    isCompleted = true
+                )
+            } else {
+                step
+            }
+        }
+
+        val currentStepIndex = updatedSteps.indexOfFirst { !it.isCompleted }
+        val isComplete = updatedSteps.all { !it.isRequired || it.isCompleted }
+
+        _wizardState.value = currentState.copy(
+            currentStepIndex = if (currentStepIndex == -1) 0 else currentStepIndex,
+            steps = updatedSteps,
+            isComplete = isComplete,
+            canProceed = true
+        )
     }
 
     /**

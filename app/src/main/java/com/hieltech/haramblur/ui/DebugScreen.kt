@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 
 import androidx.compose.material.icons.filled.PlayArrow
@@ -94,7 +94,7 @@ private fun CompactDebugScreen(
                 title = { Text("🔧 Debug & System Status") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -245,7 +245,7 @@ private fun CompactDebugScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LinearProgressIndicator(
-                        progress = debugState.performance.cpuUsage,
+                        progress = { debugState.performance.cpuUsage },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text("${stringResource(R.string.cpu_usage)}: ${(debugState.performance.cpuUsage * 100).toInt()}%")
@@ -253,7 +253,7 @@ private fun CompactDebugScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LinearProgressIndicator(
-                        progress = debugState.performance.memoryUsage,
+                        progress = { debugState.performance.memoryUsage },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text("${stringResource(R.string.memory_usage)}: ${(debugState.performance.memoryUsage * 100).toInt()}%")
@@ -391,7 +391,7 @@ private fun MediumDebugScreen(
                 title = { Text("🔧 Debug & System Status") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -570,7 +570,7 @@ private fun MediumDebugScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             LinearProgressIndicator(
-                                progress = debugState.performance.cpuUsage,
+                                progress = { debugState.performance.cpuUsage },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Text(
@@ -581,7 +581,7 @@ private fun MediumDebugScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             LinearProgressIndicator(
-                                progress = debugState.performance.memoryUsage,
+                                progress = { debugState.performance.memoryUsage },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Text(
@@ -720,7 +720,7 @@ private fun ExpandedDebugScreen(
                 title = { Text("🔧 Debug & System Status") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -911,7 +911,7 @@ private fun ExpandedDebugScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     LinearProgressIndicator(
-                                        progress = debugState.performance.cpuUsage,
+                                        progress = { debugState.performance.cpuUsage },
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     Text(
@@ -922,7 +922,7 @@ private fun ExpandedDebugScreen(
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     LinearProgressIndicator(
-                                        progress = debugState.performance.memoryUsage,
+                                        progress = { debugState.performance.memoryUsage },
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     Text(

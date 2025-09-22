@@ -8,7 +8,12 @@ import androidx.compose.ui.*
 import androidx.compose.ui.text.style.*
 import androidx.compose.ui.unit.*
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.hieltech.haramblur.ui.settings.*
+import com.hieltech.haramblur.ui.newsettings.ModernAdvancedSettingsScreen
+import com.hieltech.haramblur.ui.newsettings.ModernDetectionSettingsScreen
+import com.hieltech.haramblur.ui.newsettings.ModernGeneralSettingsScreen
+import com.hieltech.haramblur.ui.newsettings.ModernIslamicSettingsScreen
+import com.hieltech.haramblur.ui.newsettings.ModernPerformanceSettingsScreen
+import com.hieltech.haramblur.ui.newsettings.ModernSettingsHomeScreen
 import com.hieltech.haramblur.data.SettingsCategory
 import com.hieltech.haramblur.ui.components.*
 
@@ -26,64 +31,45 @@ fun SettingsScreen(
 
     when (currentScreen) {
         null -> {
-            // Show navigation screen with modern enhancements
             AnimatedFadeIn(visible = true) {
-                SettingsNavigationScreen(
-                    onNavigateToCategory = { categoryName: String ->
-                        // Map string back to SettingsCategory
-                        val category = when (categoryName) {
-                            "ESSENTIAL" -> SettingsCategory.ESSENTIAL
-                            "DETECTION" -> SettingsCategory.DETECTION
-                            "PERFORMANCE" -> SettingsCategory.PERFORMANCE
-                            "ISLAMIC" -> SettingsCategory.ISLAMIC
-                            else -> SettingsCategory.ESSENTIAL
-                        }
-                        currentScreen = category
-                    },
-                    onNavigateBack = onNavigateBack
+                ModernSettingsHomeScreen(
+                    onNavigateBack = onNavigateBack,
+                    onNavigateToCategory = { category -> currentScreen = category },
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { searchQuery = it },
+                    settingsMode = settingsMode,
+                    onSettingsModeChange = { settingsMode = it }
                 )
             }
         }
         SettingsCategory.ESSENTIAL -> {
             AnimatedSlideIn(visible = true) {
-                GeneralSettingsScreen(
-                    onNavigateBack = { currentScreen = null }
-                )
+                ModernGeneralSettingsScreen(onNavigateBack = { currentScreen = null })
             }
         }
         SettingsCategory.DETECTION -> {
             AnimatedSlideIn(visible = true) {
-                DetectionSettingsScreen(
-                    onNavigateBack = { currentScreen = null }
-                )
+                ModernDetectionSettingsScreen(onNavigateBack = { currentScreen = null })
             }
         }
         SettingsCategory.PERFORMANCE -> {
             AnimatedSlideIn(visible = true) {
-                PerformanceSettingsScreen(
-                    onNavigateBack = { currentScreen = null }
-                )
+                ModernPerformanceSettingsScreen(onNavigateBack = { currentScreen = null })
             }
         }
         SettingsCategory.ISLAMIC -> {
             AnimatedSlideIn(visible = true) {
-                IslamicSettingsScreen(
-                    onNavigateBack = { currentScreen = null }
-                )
+                ModernIslamicSettingsScreen(onNavigateBack = { currentScreen = null })
             }
         }
         SettingsCategory.AI -> {
             AnimatedSlideIn(visible = true) {
-                AdvancedSettingsScreen(
-                    onNavigateBack = { currentScreen = null }
-                )
+                ModernAdvancedSettingsScreen(onNavigateBack = { currentScreen = null })
             }
         }
         SettingsCategory.DEVELOPER -> {
             AnimatedSlideIn(visible = true) {
-                AdvancedSettingsScreen(
-                    onNavigateBack = { currentScreen = null }
-                )
+                ModernAdvancedSettingsScreen(onNavigateBack = { currentScreen = null })
             }
         }
     }

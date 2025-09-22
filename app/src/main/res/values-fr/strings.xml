@@ -756,4 +756,20 @@
      <string name="direction_west">Ouest</string>
      <string name="direction_northwest">Nord-Ouest</string>
      <string name="direction_unknown">Inconnu</string>
+
+    <!-- Wizard Step Titles and Descriptions -->
+    <string name="wizard_step_language_title">Sélectionner la langue</string>
+    <string name="wizard_step_language_description">Choisissez votre langue préférée pour l\'application</string>
+    <string name="wizard_step_accessibility_title">Service d\'accessibilité</string>
+    <string name="wizard_step_accessibility_description">Activer la détection de contenu en temps réel dans toutes les applications</string>
+    <string name="wizard_step_usage_stats_title">Accès aux statistiques d\'utilisation</string>
+    <string name="wizard_step_usage_stats_description">Surveiller l\'utilisation des applications pour des capacités de blocage améliorées</string>
+    <string name="wizard_step_overlay_title">Permission de superposition</string>
+    <string name="wizard_step_overlay_description">Permettre à HaramBlur de flouter le contenu sensible sur votre écran</string>
+    <string name="wizard_step_location_title">Permission de localisation</string>
+    <string name="wizard_step_location_description">Activer les heures de prière précises et le calendrier islamique</string>
+    <string name="wizard_step_notification_title">Permission de notification</string>
+    <string name="wizard_step_notification_description">Afficher les rappels de dhikr et les alertes islamiques</string>
+    <string name="wizard_step_islamic_features_title">Fonctionnalités islamiques</string>
+    <string name="wizard_step_islamic_features_description">Configurer les heures de prière, le calendrier islamique et les fonctionnalités spirituelles</string>
  </resources>

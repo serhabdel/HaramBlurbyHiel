@@ -10,6 +10,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import android.app.NotificationManager
 import androidx.core.app.NotificationCompat
 import com.hieltech.haramblur.data.Dhikr
@@ -34,7 +42,7 @@ class DhikrManager @Inject constructor(
     private val dhikrRepository: DhikrRepository,
     private val permissionHelper: DhikrPermissionHelper,
     private val notificationManager: DhikrNotificationManager
-) {
+) : LifecycleOwner, SavedStateRegistryOwner {
     
     companion object {
         private const val TAG = "DhikrManager"
@@ -48,44 +56,37 @@ class DhikrManager @Inject constructor(
     
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     
+    // Lifecycle management for ComposeView overlays
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    
+    override val lifecycle: Lifecycle get() = lifecycleRegistry
+    override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+    
     fun initialize(context: Context) {
         this.context = context
         windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        Log.d(TAG, "DhikrManager initialized")
-
-        // Start the enhanced scheduler
-        startEnhancedScheduler()
+        
+        // Initialize lifecycle components
+        savedStateRegistryController.performAttach()
+        savedStateRegistryController.performRestore(null)
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        
+        Log.d(TAG, "DhikrManager initialized with lifecycle support")
     }
     
-    private fun startScheduler() {
+    fun startScheduler() {
         schedulerJob?.cancel()
         schedulerJob = serviceScope.launch {
             while (true) {
-                try {
-                    val settings = dhikrRepository.dhikrSettings.value
-                    if (settings.enabled && dhikrRepository.shouldShowDhikr()) {
-                        val dhikr = dhikrRepository.getNextDhikr()
-                        if (dhikr != null && !isOverlayVisible) {
-                            showDhikrOverlay(dhikr, settings)
-                        }
-                    }
-                    // Check every minute
-                    delay(60_000L)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in dhikr scheduler", e)
-                    delay(60_000L) // Wait before retrying
-                }
+                delay(60000) // Check every minute
+                checkAndShowDhikr()
             }
         }
         Log.d(TAG, "Dhikr scheduler started")
     }
     
     fun showDhikrOverlay(dhikr: Dhikr, settings: DhikrSettings) {
-        if (isOverlayVisible) {
-            Log.d(TAG, "Dhikr overlay already visible, skipping")
-            return
-        }
-        
         serviceScope.launch {
             try {
                 if (windowManager == null || context == null) {
@@ -93,28 +94,30 @@ class DhikrManager @Inject constructor(
                     return@launch
                 }
                 
-                dhikrOverlayView = ComposeView(context!!).apply {
-                    // Use DisposeOnDetachedFromWindow for overlay views since they don't have a proper lifecycle owner
-                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                if (isOverlayVisible) {
+                    hideDhikrOverlay()
+                    delay(500)
+                }
+                
+                // Move to RESUMED state for active overlay
+                lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+                
+                val dhikrOverlay = ComposeView(context!!).apply {
+                    // Set lifecycle owners for proper Compose management
+                    setViewTreeLifecycleOwner(this@DhikrManager)
+                    setViewTreeSavedStateRegistryOwner(this@DhikrManager)
+                    
+                    // Use proper composition strategy
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
+                    
                     setContent {
                         HaramBlurTheme(preferredLanguage = Language.ENGLISH) {
-                            var remainingTime by remember { mutableIntStateOf(settings.displayDurationSeconds) }
-                            
-                            // Countdown timer
-                            LaunchedEffect(dhikr) {
-                                while (remainingTime > 0) {
-                                    delay(1000)
-                                    remainingTime--
-                                }
-                            }
-                            
                             DhikrOverlay(
                                 dhikr = dhikr,
                                 settings = settings,
-                                onDismiss = { 
+                                onDismiss = {
                                     hideDhikrOverlay()
-                                },
-                                modifier = Modifier.fillMaxSize()
+                                }
                             )
                         }
                     }
@@ -122,22 +125,20 @@ class DhikrManager @Inject constructor(
                 
                 val params = createWindowLayoutParams(settings.displayPosition)
                 
-                windowManager!!.addView(dhikrOverlayView, params)
+                windowManager!!.addView(dhikrOverlay, params)
+                dhikrOverlayView = dhikrOverlay
                 isOverlayVisible = true
                 
-                // Update repository state
                 dhikrRepository.showDhikr(dhikr)
-                
-                Log.d(TAG, "Dhikr overlay shown: ${dhikr.id}")
+                Log.d(TAG, "Dhikr overlay shown with lifecycle support: ${dhikr.arabicText}")
                 
                 // Auto-hide after duration
                 serviceScope.launch {
-                    delay(settings.displayDurationSeconds * 1000L + 500L) // Small buffer
+                    delay(settings.displayDurationSeconds * 1000L)
                     if (isOverlayVisible) {
                         hideDhikrOverlay()
                     }
                 }
-                
             } catch (e: Exception) {
                 Log.e(TAG, "Error showing dhikr overlay", e)
             }
@@ -149,17 +150,22 @@ class DhikrManager @Inject constructor(
             try {
                 if (isOverlayVisible && dhikrOverlayView != null && windowManager != null) {
                     windowManager!!.removeView(dhikrOverlayView)
+                    // Always reset state regardless of view removal success
                     isOverlayVisible = false
                     dhikrOverlayView = null
-                    
+
                     // Update repository state
-                    dhikrRepository.hideDhikr()
-                    
+                    try {
+                        dhikrRepository.hideDhikr()
+                    } catch (repoException: Exception) {
+                        Log.w(TAG, "Error updating repository state", repoException)
+                    }
+
                     Log.d(TAG, "Dhikr overlay hidden")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error hiding dhikr overlay", e)
-                // Force reset state
+                // Force reset state to prevent stuck overlays
                 isOverlayVisible = false
                 dhikrOverlayView = null
             }
@@ -213,7 +219,15 @@ class DhikrManager @Inject constructor(
             if (isOverlayVisible) {
                 hideDhikrOverlay()
             }
-            Log.d(TAG, "DhikrManager cleaned up")
+            
+            // Move lifecycle to destroyed state
+            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+            
+            // Clear all references
+            context = null
+            windowManager = null
+            
+            Log.d(TAG, "DhikrManager cleaned up with proper lifecycle teardown")
         } catch (e: Exception) {
             Log.e(TAG, "Error during cleanup", e)
         }

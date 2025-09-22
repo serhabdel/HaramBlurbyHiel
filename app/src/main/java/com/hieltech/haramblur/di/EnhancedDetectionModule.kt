@@ -65,7 +65,7 @@ abstract class EnhancedDetectionModule {
     @Binds
     @Singleton
     abstract fun bindSiteBlockingManager(
-        siteBlockingManagerImpl: SiteBlockingManagerImpl
+        unifiedSiteBlockingManager: com.hieltech.haramblur.detection.UnifiedSiteBlockingManager
     ): SiteBlockingManager
     
     @Binds

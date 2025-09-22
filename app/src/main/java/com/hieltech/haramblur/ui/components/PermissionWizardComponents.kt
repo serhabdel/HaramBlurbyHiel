@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,23 +25,20 @@ import com.hieltech.haramblur.ui.PermissionHelper
 import com.hieltech.haramblur.ui.PermissionWizardViewModel
 
 /**
- * Wizard step card component displaying step information with status
+ * Simplified wizard step card component - much cleaner and less overwhelming
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WizardStepCard(
+fun SimplifiedWizardStepCard(
     step: PermissionWizardViewModel.WizardStep,
-    permissionHelper: PermissionHelper,
     modifier: Modifier = Modifier,
     onGrantClick: () -> Unit,
     onSkipClick: (() -> Unit)? = null,
-    onRefreshClick: (() -> Unit)? = null,
     showGrantButton: Boolean = true
 ) {
-    val explanation = permissionHelper.getPermissionExplanation(step.permissionType)
 
     ModernCard(
-        modifier = modifier.then(responsiveMaxContentWidth()),
+        modifier = modifier.fillMaxWidth(),
         gradientColors = when (step.status) {
             PermissionWizardViewModel.PermissionStatus.GRANTED -> listOf(
                 Color(0xFF4CAF50).copy(alpha = 0.1f),
@@ -49,190 +48,80 @@ fun WizardStepCard(
                 Color(0xFFF44336).copy(alpha = 0.1f),
                 Color(0xFFC62828).copy(alpha = 0.05f)
             )
-            PermissionWizardViewModel.PermissionStatus.REQUESTING -> listOf(
-                Color(0xFFFF9800).copy(alpha = 0.1f),
-                Color(0xFFF57C00).copy(alpha = 0.05f)
-            )
             else -> null
         },
-        contentPadding = responsiveCardPadding()
+        contentPadding = PaddingValues(24.dp)
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(responsiveSpacing())
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Step header with number and status
+            // Simple header with icon and title
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 8.dp, medium = 10.dp, expanded = 12.dp))
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Step number indicator
-                Box(
-                    modifier = Modifier
-                        .size(responsiveIconSize())
-                        .clip(CircleShape)
-                        .background(
-                            when (step.status) {
-                                PermissionWizardViewModel.PermissionStatus.GRANTED ->
-                                    Color(0xFF4CAF50)
-                                PermissionWizardViewModel.PermissionStatus.DENIED ->
-                                    Color(0xFFF44336)
-                                PermissionWizardViewModel.PermissionStatus.REQUESTING ->
-                                    Color(0xFFFF9800)
-                                else -> MaterialTheme.colorScheme.primary
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (step.status == PermissionWizardViewModel.PermissionStatus.REQUESTING) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(responsiveIconSize() * 0.6f),
-                            strokeWidth = 2.dp,
-                            color = Color.White
-                        )
-                    } else {
-                        Text(
-                            text = step.stepNumber.toString(),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                // Status icon
+                val (icon, iconColor) = when (step.status) {
+                    PermissionWizardViewModel.PermissionStatus.GRANTED -> 
+                        Icons.Default.CheckCircle to Color(0xFF4CAF50)
+                    PermissionWizardViewModel.PermissionStatus.DENIED -> 
+                        Icons.Default.Warning to Color(0xFFF44336)
+                    else -> Icons.Default.Info to MaterialTheme.colorScheme.primary
                 }
+                
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(32.dp)
+                )
 
-                // Step title and status
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = step.title,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 8.dp, medium = 10.dp, expanded = 12.dp))
-                    ) {
-                        Text(
-                            text = when (step.status) {
-                                PermissionWizardViewModel.PermissionStatus.GRANTED -> "✓ Granted"
-                                PermissionWizardViewModel.PermissionStatus.DENIED -> "✗ Denied"
-                                PermissionWizardViewModel.PermissionStatus.REQUESTING -> "Requesting..."
-                                else -> if (step.isRequired) "Required" else "Optional"
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = when (step.status) {
-                                PermissionWizardViewModel.PermissionStatus.GRANTED ->
-                                    Color(0xFF4CAF50)
-                                PermissionWizardViewModel.PermissionStatus.DENIED ->
-                                    Color(0xFFF44336)
-                                PermissionWizardViewModel.PermissionStatus.REQUESTING ->
-                                    Color(0xFFFF9800)
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-
-                        if (!step.isRequired) {
-                            Text(
-                                text = "(Optional)",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Step description
-            Text(
-                text = step.description,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            // Permission benefits
-            if (explanation.benefits.isNotEmpty()) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 6.dp, medium = 7.dp, expanded = 8.dp))
-                ) {
+                    
                     Text(
-                        text = "Benefits:",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                        text = step.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    explanation.benefits.forEach { benefit ->
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            horizontalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 8.dp, medium = 10.dp, expanded = 12.dp))
-                        ) {
-                            Text(
-                                text = "•",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = benefit,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
                 }
             }
 
-            // Action buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(responsiveSpacing())
-            ) {
-                if (showGrantButton && step.status != PermissionWizardViewModel.PermissionStatus.GRANTED) {
-                    OutlinedButton(
-                        onClick = onGrantClick,
-                        modifier = Modifier.weight(1f),
-                        enabled = step.status != PermissionWizardViewModel.PermissionStatus.REQUESTING
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(responsiveSpacing(compact = 8.dp, medium = 10.dp, expanded = 12.dp))
-                        ) {
-                            Icon(
-                                Icons.Default.Settings,
-                                contentDescription = "Grant Permission"
-                            )
-                            Text(
-                                if (step.status == PermissionWizardViewModel.PermissionStatus.REQUESTING)
-                                    "Requesting..."
-                                else
-                                    "Grant Permission"
-                            )
-                        }
-                    }
-                }
-
-                // Refresh button for better reliability
-                if (onRefreshClick != null && step.status != PermissionWizardViewModel.PermissionStatus.REQUESTING) {
-                    IconButton(
-                        onClick = onRefreshClick,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Refresh Permission Status",
-                            tint = MaterialTheme.colorScheme.primary
+            // Simple action button
+            if (showGrantButton && step.status != PermissionWizardViewModel.PermissionStatus.GRANTED) {
+                Button(
+                    onClick = onGrantClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = step.status != PermissionWizardViewModel.PermissionStatus.REQUESTING
+                ) {
+                    if (step.status == PermissionWizardViewModel.PermissionStatus.REQUESTING) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Requesting...")
+                    } else {
+                        Icon(Icons.Default.Settings, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Grant Permission")
                     }
                 }
-
-                if (!step.isRequired && onSkipClick != null &&
-                    step.status != PermissionWizardViewModel.PermissionStatus.GRANTED) {
-                    TextButton(
-                        onClick = onSkipClick,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Skip")
-                    }
+            }
+            
+            // Optional skip button
+            if (!step.isRequired && onSkipClick != null && 
+                step.status != PermissionWizardViewModel.PermissionStatus.GRANTED) {
+                TextButton(
+                    onClick = onSkipClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Skip for now")
                 }
             }
         }
@@ -365,7 +254,7 @@ fun WizardNavigationButtons(
                     enabled = !isLoading
                 ) {
                     Icon(
-                        Icons.Default.ArrowBack,
+                        Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Previous"
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -398,7 +287,7 @@ fun WizardNavigationButtons(
                     Text("Continue")
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
-                        Icons.Default.ArrowForward,
+                        Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Next"
                     )
                 }

@@ -63,7 +63,7 @@ fun ProgressBarAnimation(
     )
 
     LinearProgressIndicator(
-        progress = animatedProgress,
+        progress = { animatedProgress },
         modifier = modifier,
         color = color
     )

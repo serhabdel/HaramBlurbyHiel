@@ -21,6 +21,10 @@ import com.hieltech.haramblur.data.LocationPermissionStatus
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
+import com.hieltech.haramblur.data.prayer.PrayerCalculationMethod
+import com.hieltech.haramblur.utils.MoroccanLocationHelper
+import androidx.compose.ui.platform.LocalContext
+import com.hieltech.haramblur.utils.MoroccanLocationHelper.toCitySelection
 
 /**
  * Islamic Features Onboarding Step
@@ -39,6 +43,27 @@ fun IslamicOnboardingStep(
     var locationMethod by remember { mutableStateOf(settings.locationMethod) }
     var selectedSelection by remember { mutableStateOf<CitySelection?>(null) }
     var showCitySelector by remember { mutableStateOf(false) }
+
+    // Morocco detection
+    val isInMorocco = remember(settings.locationLatitude, settings.locationLongitude) {
+        settings.locationLatitude?.let { lat ->
+            settings.locationLongitude?.let { lon ->
+                MoroccanLocationHelper.isInMorocco(lat, lon)
+            }
+        } ?: false
+    }
+
+    // Suggested Moroccan cities
+    val suggestedMoroccanCities = remember(settings.locationLatitude, settings.locationLongitude) {
+        if (isInMorocco && settings.locationLatitude != null && settings.locationLongitude != null) {
+            MoroccanLocationHelper.getSuggestedMoroccanCities(
+                settings.locationLatitude!!,
+                settings.locationLongitude!!
+            )
+        } else {
+            emptyList()
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -194,6 +219,62 @@ fun IslamicOnboardingStep(
                 }
             }
 
+            // Morocco-specific section
+            if (isInMorocco) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text("🇲🇦", style = MaterialTheme.typography.titleLarge)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Morocco Detected",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Using Muslim World League method (18° Fajr, 17° Isha) - same as Morocco's official calculation",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+
+                        if (suggestedMoroccanCities.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Suggested Cities:",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                suggestedMoroccanCities.take(3).forEach { city ->
+                                    AssistChip(
+                                        onClick = {
+                                            selectedSelection = city.toCitySelection()
+                                            locationMethod = LocationMethod.MANUAL_CITY
+                                        },
+                                        label = { Text(city.name, style = MaterialTheme.typography.bodySmall) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Location Setup
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -341,6 +422,11 @@ fun IslamicOnboardingStep(
                         settingsViewModel.updateIslamicCalendarEnabled(true)
                         settingsViewModel.updateQiblaDirectionEnabled(true)
 
+                        // Set Muslim World League method if user is in Morocco (same as Morocco's official method)
+                        if (isInMorocco) {
+                            settingsViewModel.updateCalculationMethod(PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE.id)
+                        }
+
                         // Save location settings using LocationMethod
                         settingsViewModel.updateLocationMethod(locationMethod)
                         settingsViewModel.syncLocationPermissionStatus()
@@ -355,6 +441,8 @@ fun IslamicOnboardingStep(
                         settingsViewModel.updateQiblaDirectionEnabled(false)
                     }
 
+                    // Mark the Islamic features configuration as completed
+                    viewModel.completeIslamicFeaturesConfiguration()
                     onNext()
                 },
                 modifier = Modifier.weight(1f)

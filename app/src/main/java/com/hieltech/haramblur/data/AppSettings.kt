@@ -9,12 +9,15 @@ data class AppSettings(
     // Theme Settings
     val appTheme: AppTheme = AppTheme.ISLAMIC_LIGHT, // Default to Islamic Light theme
 
-    // Detection Settings - Female-focused with maximum performance defaults
+    // Detection Settings - Smart gender-based detection with maximum performance defaults
     val enableFaceDetection: Boolean = true,
     val enableNSFWDetection: Boolean = true, // Enabled with improved error handling
-    val blurMaleFaces: Boolean = false, // Disabled - focus on female content only
-    val blurFemaleFaces: Boolean = true,
-    val detectionSensitivity: Float = 0.8f, // Higher sensitivity for better female detection
+    val blurMaleFaces: Boolean = false, // Will be set based on user gender
+    val blurFemaleFaces: Boolean = true, // Will be set based on user gender
+    val detectionSensitivity: Float = 0.8f, // Higher sensitivity for better detection
+    
+    // NEW: Gender-based Settings for Islamic Compliance
+    val userGender: UserGender = UserGender.NOT_SPECIFIED, // User's gender for appropriate content filtering
 
     // Blur Settings - Enhanced privacy by default
     val blurIntensity: BlurIntensity = BlurIntensity.STRONG,

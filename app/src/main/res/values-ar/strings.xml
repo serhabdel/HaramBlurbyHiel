@@ -480,4 +480,20 @@
     <string name="direction_west">غرب</string>
     <string name="direction_northwest">شمال غرب</string>
     <string name="direction_unknown">غير معروف</string>
+
+    <!-- Wizard Step Titles and Descriptions -->
+    <string name="wizard_step_language_title">اختيار اللغة</string>
+    <string name="wizard_step_language_description">اختر لغتك المفضلة للتطبيق</string>
+    <string name="wizard_step_accessibility_title">خدمة إمكانية الوصول</string>
+    <string name="wizard_step_accessibility_description">تمكين كشف المحتوى في الوقت الفعلي عبر جميع التطبيقات</string>
+    <string name="wizard_step_usage_stats_title">الوصول إلى إحصائيات الاستخدام</string>
+    <string name="wizard_step_usage_stats_description">مراقبة استخدام التطبيق لقدرات الحظر المحسنة</string>
+    <string name="wizard_step_overlay_title">إذن التراكب</string>
+    <string name="wizard_step_overlay_description">السماح لحرم بلور بطمس المحتوى الحساس على شاشتك</string>
+    <string name="wizard_step_location_title">إذن الموقع</string>
+    <string name="wizard_step_location_description">تمكين أوقات الصلاة الدقيقة والتقويم الإسلامي</string>
+    <string name="wizard_step_notification_title">إذن الإشعارات</string>
+    <string name="wizard_step_notification_description">إظهار تذكيرات الذكر والتنبيهات الإسلامية</string>
+    <string name="wizard_step_islamic_features_title">الميزات الإسلامية</string>
+    <string name="wizard_step_islamic_features_description">إعداد أوقات الصلاة والتقويم الإسلامي والميزات الروحية</string>
 </resources>

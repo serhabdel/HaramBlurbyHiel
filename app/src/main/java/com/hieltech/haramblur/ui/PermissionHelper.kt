@@ -296,6 +296,23 @@ class PermissionHelper @Inject constructor(
     }
 
     /**
+     * Check Overlay permission status (Display over other apps)
+     */
+    fun checkOverlayPermission(): PermissionResult {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val granted = Settings.canDrawOverlays(context)
+            if (granted) {
+                PermissionResult.Granted("OVERLAY_PERMISSION")
+            } else {
+                PermissionResult.Denied("OVERLAY_PERMISSION")
+            }
+        } else {
+            // For older Android versions, overlay permission is not required
+            PermissionResult.Granted("OVERLAY_PERMISSION")
+        }
+    }
+
+    /**
      * Request Notification permission with improved navigation
      */
     fun requestNotificationPermission(activity: Activity) {
@@ -335,6 +352,34 @@ class PermissionHelper @Inject constructor(
     }
 
     /**
+     * Request Overlay permission (Display over other apps)
+     */
+    fun requestOverlayPermission(activity: Activity) {
+        try {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+            intent.data = Uri.parse("package:${context.packageName}")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            activity.startActivity(intent)
+
+            Log.d("PermissionHelper", "Opened overlay permission settings for package: ${context.packageName}")
+        } catch (e: Exception) {
+            Log.e("PermissionHelper", "Failed to open overlay permission settings", e)
+            try {
+                // Fallback to app settings
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                intent.data = Uri.parse("package:${context.packageName}")
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                activity.startActivity(intent)
+
+                Log.d("PermissionHelper", "Opened app settings for overlay permission as fallback")
+            } catch (fallbackException: Exception) {
+                Log.e("PermissionHelper", "Failed to open app settings for overlay permission", fallbackException)
+                showPermissionError(activity, "Unable to open settings. Please manually enable Display over other apps permission in Android Settings > Apps > HaramBlur > Advanced features.")
+            }
+        }
+    }
+
+    /**
      * Update all permission statuses
      */
     fun updatePermissionStatuses() {
@@ -342,6 +387,7 @@ class PermissionHelper @Inject constructor(
             "PACKAGE_USAGE_STATS" to checkUsageStatsPermission(),
             "DEVICE_ADMIN" to checkDeviceAdminPermission(),
             "ACCESSIBILITY_SERVICE" to checkAccessibilityServiceEnabled(),
+            "OVERLAY_PERMISSION" to checkOverlayPermission(),
             "LOCATION_PERMISSION" to checkLocationPermission(),
             "NOTIFICATION_PERMISSION" to checkNotificationPermission()
         )

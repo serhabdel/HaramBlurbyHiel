@@ -206,7 +206,7 @@ fun DhikrProgressIndicator(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         LinearProgressIndicator(
-            progress = progress,
+            progress = { progress },
             color = Color(0xFF2E7D32),
             trackColor = Color(0xFF2E7D32).copy(alpha = 0.2f),
             modifier = Modifier

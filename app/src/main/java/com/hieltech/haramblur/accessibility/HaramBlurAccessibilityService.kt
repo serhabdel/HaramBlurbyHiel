@@ -13,6 +13,7 @@ import android.graphics.Path
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -105,6 +106,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
     @Inject
     lateinit var appCategoryDetector: AppCategoryDetector
+
+    @Inject
+    lateinit var errorRecovery: com.hieltech.haramblur.detection.ComprehensiveErrorRecovery
 
 
 
@@ -922,8 +926,30 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
     }
     
+    /**
+     * Safe execution wrapper to prevent crashes from taking down the accessibility service
+     */
+    private fun safeExecute(operation: String, action: () -> Unit): Boolean {
+        return try {
+            action()
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Safe execution failed for operation: $operation", e)
+            // Don't let exceptions bubble up and crash the service
+            false
+        }
+    }
+
+    /**
+     * Check if the given package name is a browser app
+     */
+    private fun isBrowserApp(packageName: String): Boolean {
+        return knownBrowserPackages.contains(packageName.lowercase(Locale.ROOT))
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        when (event?.eventType) {
+        safeExecute("onAccessibilityEvent") {
+            when (event?.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 val newPackageName = event.packageName?.toString()
 
@@ -932,6 +958,14 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     val oldApp = currentAppPackage
                     currentAppPackage = newPackageName
                     Log.d(TAG, "App changed from: $oldApp to: $currentAppPackage")
+
+                    // Clean up overlays when switching away from monitored apps
+                    safeExecute("cleanupOverlaysOnAppChange") {
+                        if (oldApp != null && isBrowserApp(oldApp)) {
+                            Log.d(TAG, "🧹 Cleaning up overlays after leaving browser: $oldApp")
+                            blurOverlayManager.cleanupAllOverlays()
+                        }
+                    }
                 }
 
                 Log.d(TAG, "Window state changed: ${event.packageName}")
@@ -968,7 +1002,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
                 // Check for URL changes in browser apps
                 serviceScope.launch {
-                    checkForUrlChanges(event)
+                    safeExecute("checkForUrlChanges") {
+                        runBlocking { checkForUrlChanges(event) }
+                    }
                 }
 
                 // Trigger immediate content analysis when window changes
@@ -983,7 +1019,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
                 // Check for URL changes in content updates
                 serviceScope.launch {
-                    checkForUrlChanges(event)
+                    safeExecute("checkForUrlChanges") {
+                        runBlocking { checkForUrlChanges(event) }
+                    }
                 }
             }
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
@@ -993,6 +1031,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 if (isProcessingActive && !screenCaptureManager.isCapturingActive()) {
                     startContentMonitoring()
                 }
+            }
             }
         }
     }
@@ -1006,7 +1045,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         try {
             stopContentMonitoring()
             contentDetectionEngine.cleanup()
-            // blurOverlayManager cleanup is handled in stopContentMonitoring
+            
+            // Proper cleanup of blur overlay manager with lifecycle teardown
+            if (this::blurOverlayManager.isInitialized) {
+                blurOverlayManager.cleanup()
+                Log.d(TAG, "BlurOverlayManager cleaned up with lifecycle support")
+            }
 
             // Cleanup all enhanced detection services
             serviceLifecycleManager.cleanupServices()
@@ -1133,7 +1177,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
             // Only check URLs for browser apps and web-based apps
-            if (isBrowserApp(packageName)) {
+            if (packageName != null && isBrowserApp(packageName)) {
                 val extractedUrl = extractUrlFromAccessibilityEvent(event)
                 if (extractedUrl != null && extractedUrl != currentUrl) {
                     currentUrl = extractedUrl
@@ -1223,20 +1267,24 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
     }
     
+    // Initialize resilient URL extractor
+    private val resilientUrlExtractor = ResilientUrlExtractor()
+
     /**
-     * Extract URL from accessibility node info
+     * Extract URL from accessibility event using resilient extraction with error recovery
      */
-    private fun extractUrlFromAccessibilityEvent(event: AccessibilityEvent?): String? {
+    private suspend fun extractUrlFromAccessibilityEvent(event: AccessibilityEvent?): String? {
         if (event?.source == null) return null
-        
-        return try {
-            // Try to find URL in various ways
-            extractUrlFromNodeInfo(event.source) ?: 
-            extractUrlFromText(event.text?.toString()) ?: 
-            extractUrlFromContentDescription(event.contentDescription?.toString())
-        } catch (e: Exception) {
-            Log.w(TAG, "Error extracting URL from accessibility event", e)
-            null
+
+        val packageName = event.packageName?.toString()
+
+        return errorRecovery.executeUrlExtraction(packageName) {
+            // Use resilient URL extractor as primary method
+            resilientUrlExtractor.extractUrl(event.source, packageName)
+                ?: // Fallback to legacy methods
+                extractUrlFromNodeInfo(event.source)
+                ?: extractUrlFromText(event.text?.toString())
+                ?: extractUrlFromContentDescription(event.contentDescription?.toString())
         }
     }
     
@@ -1322,13 +1370,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         return extractUrlFromText(description)
     }
     
-    /**
-     * Check if the package is a browser or web-based app
-     */
-    private fun isBrowserApp(packageName: String?): Boolean {
-        if (packageName == null) return false
-        return appCategoryDetector.isBrowserApp(packageName)
-    }
+
 
     /**
      * Detect if browser is likely in private/incognito mode
@@ -1415,32 +1457,25 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
             lastDomainBlockTimestamps[domain] = System.currentTimeMillis()
 
-            // Always show reflection overlay for porn/adult categories
-            showPornBlockingOverlay(blockingResult)
-            logPornBlockingEvent(url, blockingResult, "overlay_displayed")
-
-            // Schedule automatic closure after reflection time + small buffer
-            val reflectionSeconds = when (blockingResult.category) {
-                BlockingCategory.EXPLICIT_CONTENT, BlockingCategory.ADULT_ENTERTAINMENT ->
-                    blockingResult.reflectionTimeSeconds.coerceAtLeast(10)
-                else -> blockingResult.reflectionTimeSeconds
-            }
-
-            val bufferMs = 1500L
+            // TEMPORARY: Skip overlay and go directly to aggressive closure
+            Log.w(TAG, "🚀 IMMEDIATE PORN SITE CLOSURE - Skipping overlay, closing tab directly")
+            logPornBlockingEvent(url, blockingResult, "immediate_closure_initiated")
+            
+            // Immediate aggressive closure without overlay or delay
             serviceScope.launch {
-                val totalWait = (reflectionSeconds * 1000L) + bufferMs
-                Log.d(TAG, "Scheduling aggressive close in ${totalWait}ms for porn category")
-                delay(totalWait)
-                if (isShowingBlockedSiteOverlay && !pornClosureInFlight) {
-                    try {
-                        pornClosureInFlight = true
-                        logPornBlockingEvent(url, blockingResult, "auto_closure_initiated")
-                        performAggressivePornSiteClosure()
-                        logPornBlockingEvent(url, blockingResult, "auto_closure_completed",
-                            System.currentTimeMillis() - startTime)
-                    } finally {
-                        pornClosureInFlight = false
-                    }
+                try {
+                    pornClosureInFlight = true
+                    
+                    // Direct call to our enhanced aggressive closure
+                    navigateAwayFromBlockedSite()
+                    
+                    logPornBlockingEvent(url, blockingResult, "immediate_closure_completed",
+                        System.currentTimeMillis() - startTime)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in immediate porn site closure", e)
+                    logPornBlockingEvent(url, blockingResult, "immediate_closure_error", error = e.message)
+                } finally {
+                    pornClosureInFlight = false
                 }
             }
         } catch (e: Exception) {
@@ -1641,61 +1676,100 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             try {
                 Log.w(TAG, "🚫 Performing aggressive porn site closure")
 
+                // Ensure overlay state is managed properly during closure
+                var closureSuccessful = false
+
                 // Strategy 1: Close current tab
-                val closeSuccess = closeCurrentBrowserTab()
-                if (closeSuccess) {
-                    Log.d(TAG, "✅ Successfully closed porn tab")
-                    delay(1000)
-                    openSafePageAfterBlocking()
-                    return@launch
+                try {
+                    val closeSuccess = closeCurrentBrowserTab()
+                    if (closeSuccess) {
+                        Log.d(TAG, "✅ Successfully closed porn tab")
+                        closureSuccessful = true
+                        delay(1000)
+                        openSafePageAfterBlocking()
+                        return@launch
+                    }
+                } catch (tabCloseError: Exception) {
+                    Log.w(TAG, "❌ Error closing browser tab", tabCloseError)
                 }
 
                 // Strategy 2: Force back navigation multiple times
-                Log.d(TAG, "🔄 Porn tab close failed, trying back navigation")
-                repeat(3) { attempt ->
-                    val backSuccess = performBrowserAwareGlobalAction(
-                        GLOBAL_ACTION_BACK,
-                        "aggressive porn site closure back attempt ${attempt + 1}"
-                    )
-                    if (backSuccess) {
-                        delay(500)
-                    } else {
-                        Log.w(
-                            TAG,
-                            "Back action attempt ${attempt + 1} skipped or failed during aggressive closure"
-                        )
-                        delay(300)
+                if (!closureSuccessful) {
+                    Log.d(TAG, "🔄 Porn tab close failed, trying back navigation")
+                    try {
+                        repeat(3) { attempt ->
+                            val backSuccess = performBrowserAwareGlobalAction(
+                                GLOBAL_ACTION_BACK,
+                                "aggressive porn site closure back attempt ${attempt + 1}"
+                            )
+                            if (backSuccess) {
+                                delay(500)
+                                closureSuccessful = true
+                            } else {
+                                Log.w(
+                                    TAG,
+                                    "Back action attempt ${attempt + 1} skipped or failed during aggressive closure"
+                                )
+                                delay(300)
+                            }
+                        }
+                    } catch (backNavError: Exception) {
+                        Log.w(TAG, "❌ Error during back navigation", backNavError)
                     }
                 }
 
                 // Strategy 3: Go to home screen
-                delay(1000)
-                val homeSuccess = performBrowserAwareGlobalAction(
-                    GLOBAL_ACTION_HOME,
-                    "aggressive porn site closure home"
-                )
-                if (homeSuccess) {
-                    Log.d(TAG, "✅ Forced home screen from porn site")
+                if (!closureSuccessful) {
+                    try {
+                        delay(1000)
+                        val homeSuccess = performBrowserAwareGlobalAction(
+                            GLOBAL_ACTION_HOME,
+                            "aggressive porn site closure home"
+                        )
+                        if (homeSuccess) {
+                            Log.d(TAG, "✅ Forced home screen from porn site")
+                            closureSuccessful = true
+                        }
+                    } catch (homeError: Exception) {
+                        Log.w(TAG, "❌ Error going to home screen", homeError)
+                    }
                 }
 
                 // Clear URL to prevent re-blocking
                 currentUrl = null
 
-                // Hide overlay
+                // Hide overlay with safety delay
                 delay(1000)
-                hideBlockedSiteOverlay()
+                try {
+                    hideBlockedSiteOverlay()
+                } catch (overlayError: Exception) {
+                    Log.w(TAG, "❌ Error hiding blocked site overlay", overlayError)
+                }
+
+                if (closureSuccessful) {
+                    Log.d(TAG, "✅ Aggressive porn site closure completed successfully")
+                } else {
+                    Log.w(TAG, "⚠️ Aggressive porn site closure completed with partial success")
+                }
 
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error in aggressive porn site closure", e)
-                // Emergency fallback
+                Log.e(TAG, "❌ Critical error in aggressive porn site closure", e)
+                // Emergency fallback with enhanced error handling
                 try {
+                    Log.w(TAG, "🚨 Executing emergency fallback procedures")
                     performBrowserAwareGlobalAction(
                         GLOBAL_ACTION_HOME,
                         "aggressive porn site closure emergency home"
                     )
+                    delay(500)
                     hideBlockedSiteOverlay()
+                    currentUrl = null
+                    Log.d(TAG, "✅ Emergency fallback completed")
                 } catch (fallbackError: Exception) {
-                    Log.e(TAG, "❌ Emergency fallback also failed", fallbackError)
+                    Log.e(TAG, "❌ Emergency fallback also failed - system may be in unstable state", fallbackError)
+                    // Force reset critical state variables
+                    currentUrl = null
+                    isShowingBlockedSiteOverlay = false
                 }
             }
         }
@@ -1958,14 +2032,44 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 delay(1000)
 
                 // Strategy 1: Close the current tab (more aggressive for porn sites)
-                Log.d(TAG, "🔄 Strategy 1: Attempting to close current tab")
-                val closeTabSuccess = closeCurrentBrowserTab()
-                if (closeTabSuccess) {
-                    Log.d(TAG, "✅ Successfully closed browser tab")
-                    delay(1000) // Increased delay
-                    // Check if we need to open a safe page
-                    openSafePageAfterBlocking()
-                    return@launch // Use return@launch for coroutine scope
+                Log.d(TAG, "🔄 Strategy 1: Attempting to close current tab (AGGRESSIVE MODE for porn sites)")
+                val isPornSite = currentUrl?.contains(Regex("(porn|xxx|sex|adult|nsfw|xvideos|pornhub|xhamster|redtube|xnxx)", RegexOption.IGNORE_CASE)) == true
+                
+                if (isPornSite) {
+                    Log.w(TAG, "⚠️ PORN SITE DETECTED - Using aggressive close strategy")
+                    // Try multiple times to ensure the tab is closed
+                    for (attempt in 1..3) {
+                        Log.d(TAG, "Close attempt #$attempt for porn site")
+                        val closeTabSuccess = closeCurrentBrowserTab()
+                        if (closeTabSuccess) {
+                            Log.d(TAG, "✅ Successfully closed porn site tab on attempt #$attempt")
+                            delay(500)
+                            // Immediately hide overlays after closing porn tab
+                            blurOverlayManager.emergencyHideAllOverlays()
+                            delay(500)
+                            // Check if we need to open a safe page
+                            openSafePageAfterBlocking()
+                            return@launch
+                        }
+                        delay(300) // Short delay between attempts
+                    }
+                    
+                    // If tab close failed, force navigation to home
+                    Log.w(TAG, "❌ Failed to close porn tab after 3 attempts, forcing HOME action")
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    delay(500)
+                    blurOverlayManager.emergencyHideAllOverlays()
+                    return@launch
+                } else {
+                    // Regular close for non-porn sites
+                    val closeTabSuccess = closeCurrentBrowserTab()
+                    if (closeTabSuccess) {
+                        Log.d(TAG, "✅ Successfully closed browser tab")
+                        delay(1000) // Increased delay
+                        // Check if we need to open a safe page
+                        openSafePageAfterBlocking()
+                        return@launch // Use return@launch for coroutine scope
+                    }
                 }
 
                 // Strategy 2: Try to go back in browser history
@@ -2047,42 +2151,352 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             val packageName = rootNode.packageName?.toString()
             Log.d(TAG, "Detected browser package: $packageName")
 
+            var closeSuccess = false
             try {
-                val closeSuccess = when {
-                    packageName?.contains("firefox", ignoreCase = true) == true ->
-                        closeFirefoxTab(rootNode)
-                    packageName?.contains("chrome", ignoreCase = true) == true ->
-                        closeChromeTab(rootNode)
-                    packageName?.contains("edge", ignoreCase = true) == true ->
-                        closeEdgeTab(rootNode)
-                    packageName?.contains("samsung", ignoreCase = true) == true ->
-                        closeSamsungBrowserTab(rootNode)
-                    packageName?.contains("opera", ignoreCase = true) == true ->
-                        closeOperaTab(rootNode)
-                    packageName?.contains("brave", ignoreCase = true) == true ->
-                        closeBraveTab(rootNode)
-                    packageName?.contains("duckduckgo", ignoreCase = true) == true ->
-                        closeDuckDuckGoTab(rootNode)
-                    else -> closeGenericBrowserTab(rootNode)
+                closeSuccess = when {
+                    packageName?.contains("firefox", ignoreCase = true) == true -> {
+                        try {
+                            closeFirefoxTab(rootNode)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error closing Firefox tab", e)
+                            false
+                        }
+                    }
+                    packageName?.contains("chrome", ignoreCase = true) == true -> {
+                        try {
+                            closeChromeTab(rootNode)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error closing Chrome tab", e)
+                            false
+                        }
+                    }
+                    packageName?.contains("edge", ignoreCase = true) == true -> {
+                        try {
+                            closeEdgeTab(rootNode)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error closing Edge tab", e)
+                            false
+                        }
+                    }
+                    packageName?.contains("samsung", ignoreCase = true) == true -> {
+                        try {
+                            closeSamsungBrowserTab(rootNode)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error closing Samsung Browser tab", e)
+                            false
+                        }
+                    }
+                    packageName?.contains("opera", ignoreCase = true) == true -> {
+                        try {
+                            closeOperaTab(rootNode)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error closing Opera tab", e)
+                            false
+                        }
+                    }
+                    packageName?.contains("brave", ignoreCase = true) == true -> {
+                        try {
+                            closeBraveTab(rootNode)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error closing Brave tab", e)
+                            false
+                        }
+                    }
+                    packageName?.contains("duckduckgo", ignoreCase = true) == true -> {
+                        try {
+                            closeDuckDuckGoTab(rootNode)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error closing DuckDuckGo tab", e)
+                            false
+                        }
+                    }
+                    else -> {
+                        try {
+                            closeGenericBrowserTab(rootNode)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error closing generic browser tab", e)
+                            false
+                        }
+                    }
                 }
 
                 if (closeSuccess) {
                     Log.d(TAG, "✅ Successfully closed tab in $packageName")
                     return true
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error in browser-specific close logic", e)
             } finally {
-                rootNode.recycle()
+                try {
+                    rootNode.recycle()
+                } catch (recycleError: Exception) {
+                    Log.w(TAG, "Error recycling root node", recycleError)
+                }
             }
 
             Log.d(TAG, "⚠️ Browser-specific close failed, using fallback method")
 
             // Enhanced fallback methods
-            return closeTabFallback()
+            return closeTabWithMultipleStrategies(rootNode, packageName)
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error closing browser tab", e)
             return false
         }
+    }
+
+    /**
+     * Enhanced tab closing with multiple fallback strategies
+     */
+    private fun closeTabWithMultipleStrategies(rootNode: AccessibilityNodeInfo, packageName: String?): Boolean {
+        Log.d(TAG, "🔄 Trying multiple tab closing strategies")
+
+        // Strategy 1: Find any close button or X button
+        if (safeExecute("findCloseButton") { findAndClickAnyCloseButton(rootNode) }) {
+            Log.d(TAG, "✅ Closed tab using close button detection")
+            return true
+        }
+
+        // Strategy 2: Keyboard shortcut (Ctrl+W)
+        if (safeExecute("keyboardShortcut") { sendKeyboardShortcut() }) {
+            Log.d(TAG, "✅ Closed tab using keyboard shortcut")
+            return true
+        }
+
+        // Strategy 3: Multiple back actions
+        if (safeExecute("multipleBackActions") { performMultipleBackActions() }) {
+            Log.d(TAG, "✅ Closed tab using multiple back actions")
+            return true
+        }
+
+        // Strategy 4: Navigate to safe website instead of closing
+        if (safeExecute("navigateToSafeWebsite") { navigateToIslamicWebsite() }) {
+            Log.d(TAG, "✅ Navigated to Islamic website instead of closing tab")
+            return true
+        }
+
+        // Strategy 5: Force home screen as last resort
+        if (safeExecute("forceHomeScreen") { performGlobalAction(GLOBAL_ACTION_HOME) }) {
+            Log.d(TAG, "✅ Forced home screen as last resort")
+            return true
+        }
+
+        return false
+    }
+
+    /**
+     * Find and click any close button (X, close, etc.)
+     */
+    private fun findAndClickAnyCloseButton(rootNode: AccessibilityNodeInfo): Boolean {
+        val closeTexts = listOf("close", "x", "✕", "×", "⨯", "dismiss", "cancel")
+        val closeDescriptions = listOf("close", "close tab", "dismiss", "cancel")
+
+        // Search for clickable nodes with close-related text or content description
+        return findAndClickNodeByText(rootNode, closeTexts) ||
+               findAndClickNodeByDescription(rootNode, closeDescriptions) ||
+               findAndClickNodeByClassName(rootNode, "android.widget.ImageButton") ||
+               findAndClickNodeByClassName(rootNode, "android.widget.Button")
+    }
+
+    /**
+     * Send keyboard shortcut Ctrl+W to close tab
+     */
+    private fun sendKeyboardShortcut(): Boolean {
+        // This is a simplified approach - actual implementation would need
+        // to inject key events, which requires additional permissions
+        Log.d(TAG, "Keyboard shortcut not implemented - would need INJECT_EVENTS permission")
+        return false
+    }
+
+    /**
+     * Perform multiple back actions to navigate away
+     */
+    private fun performMultipleBackActions(): Boolean {
+        var success = false
+        repeat(3) { attempt ->
+            if (performGlobalAction(GLOBAL_ACTION_BACK)) {
+                success = true
+                Log.d(TAG, "Back action ${attempt + 1} successful")
+                Thread.sleep(500) // Small delay between actions
+            } else {
+                Log.w(TAG, "Back action ${attempt + 1} failed")
+            }
+        }
+        return success
+    }
+
+    /**
+     * Navigate to Islamic website instead of closing tab
+     */
+    private fun navigateToIslamicWebsite(): Boolean {
+        val islamicWebsites = listOf(
+            "https://quran.com",
+            "https://islamqa.info",
+            "https://sunnah.com",
+            "https://islamhouse.com",
+            "https://islamweb.net",
+            "https://islamicity.org"
+        )
+
+        val selectedWebsite = islamicWebsites.random()
+        Log.d(TAG, "🕌 Redirecting to Islamic website: $selectedWebsite")
+
+        return navigateToUrl(selectedWebsite)
+    }
+
+    /**
+     * Navigate to a specific URL in the current browser
+     */
+    private fun navigateToUrl(url: String): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
+
+        try {
+            // Strategy 1: Find address bar and type URL
+            val addressBar = findAddressBar(rootNode)
+            if (addressBar != null) {
+                if (addressBar.isFocusable) {
+                    addressBar.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                }
+
+                // Clear existing text and type new URL
+                val arguments = Bundle()
+                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, url)
+                if (addressBar.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
+                    // Press Enter to navigate
+                    Thread.sleep(500)
+                    return performGlobalAction(GLOBAL_ACTION_BACK) // This might trigger navigation
+                }
+            }
+
+            // Strategy 2: Use Intent to open URL in browser
+            return openUrlWithIntent(url)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error navigating to URL: $url", e)
+            return false
+        } finally {
+            rootNode.recycle()
+        }
+    }
+
+    /**
+     * Find the address bar in the browser
+     */
+    private fun findAddressBar(rootNode: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        // Common address bar identifiers
+        val addressBarIds = listOf(
+            "url_bar", "address_bar", "omnibox", "location_bar",
+            "search_box", "url_field", "address_field"
+        )
+
+        val addressBarTexts = listOf(
+            "address", "url", "search", "location", "omnibox"
+        )
+
+        // Search by resource ID
+        for (id in addressBarIds) {
+            val nodes = rootNode.findAccessibilityNodeInfosByViewId(id)
+            if (nodes.isNotEmpty()) {
+                return nodes[0]
+            }
+        }
+
+        // Search by text content
+        for (text in addressBarTexts) {
+            val nodes = rootNode.findAccessibilityNodeInfosByText(text)
+            for (node in nodes) {
+                if (node.isEditable || node.className == "android.widget.EditText") {
+                    return node
+                }
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * Open URL using Intent (fallback method)
+     */
+    private fun openUrlWithIntent(url: String): Boolean {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            Log.d(TAG, "✅ Opened URL with Intent: $url")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open URL with Intent: $url", e)
+            false
+        }
+    }
+
+    /**
+     * Find and click node by text content
+     */
+    private fun findAndClickNodeByText(rootNode: AccessibilityNodeInfo, texts: List<String>): Boolean {
+        for (text in texts) {
+            val nodes = rootNode.findAccessibilityNodeInfosByText(text)
+            for (node in nodes) {
+                if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    Log.d(TAG, "✅ Clicked node with text: $text")
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * Find and click node by content description
+     */
+    private fun findAndClickNodeByDescription(rootNode: AccessibilityNodeInfo, descriptions: List<String>): Boolean {
+        fun searchNode(node: AccessibilityNodeInfo): Boolean {
+            val description = node.contentDescription?.toString()?.lowercase()
+            if (description != null) {
+                for (desc in descriptions) {
+                    if (description.contains(desc.lowercase()) && node.isClickable) {
+                        if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                            Log.d(TAG, "✅ Clicked node with description: $description")
+                            return true
+                        }
+                    }
+                }
+            }
+
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i)
+                if (child != null && searchNode(child)) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        return searchNode(rootNode)
+    }
+
+    /**
+     * Find and click node by class name
+     */
+    private fun findAndClickNodeByClassName(rootNode: AccessibilityNodeInfo, className: String): Boolean {
+        fun searchNode(node: AccessibilityNodeInfo): Boolean {
+            if (node.className?.toString() == className && node.isClickable) {
+                if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    Log.d(TAG, "✅ Clicked node with class: $className")
+                    return true
+                }
+            }
+
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i)
+                if (child != null && searchNode(child)) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        return searchNode(rootNode)
     }
 
     /**

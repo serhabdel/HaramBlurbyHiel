@@ -23,6 +23,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.ui.SettingsViewModel
 import com.hieltech.haramblur.data.compass.CompassSize
 import com.hieltech.haramblur.data.LocationMethod
+import com.hieltech.haramblur.utils.MoroccanLocationHelper
+import com.hieltech.haramblur.data.prayer.PrayerCalculationMethod
+import com.hieltech.haramblur.ui.components.responsiveSpacing
+import com.hieltech.haramblur.ui.components.responsiveCardPadding
+import com.hieltech.haramblur.ui.components.responsiveIconSize
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
 
 /**
  * Prayer Times Widget for displaying Islamic prayer times
@@ -40,8 +48,8 @@ fun PrayerTimesWidget(
 
     ModernCard(modifier = modifier) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(16.dp)
+            verticalArrangement = Arrangement.spacedBy(responsiveSpacing()),
+            modifier = Modifier.padding(responsiveCardPadding())
         ) {
             // Header with Islamic Calendar
             Row(
@@ -50,38 +58,26 @@ fun PrayerTimesWidget(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.prayer_times_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    // City, Country display
-                    val cityCountry: String? = remember(settings) {
-                        if (settings.locationMethod == LocationMethod.MANUAL_CITY) {
-                            // Use selected city/country (fallback to preferred)
-                            val city = settings.selectedCityName ?: settings.preferredCity
-                            val country = settings.selectedCountry ?: settings.preferredCountry
-                            
-                            if (!city.isNullOrBlank() && !country.isNullOrBlank()) {
-                                "$city, $country"
-                            } else city ?: country
-                        } else {
-                            // GPS method - use location city/country
-                            val city = settings.locationCity
-                            val country = settings.locationCountry
-                            
-                            if (!city.isNullOrBlank() && !country.isNullOrBlank()) {
-                                "$city, $country"
-                            } else city ?: country
-                        }
-                    }
-                    if (!cityCountry.isNullOrBlank()) {
+                    // Enhanced header with icon
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text(
-                            text = cityCountry!!,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "🕌",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Text(
+                            text = stringResource(R.string.prayer_times_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Enhanced location and calculation method display
+                    LocationAndMethodInfo(settings = settings)
                 }
 
                 Row(
@@ -170,8 +166,8 @@ fun PrayerTimesWidget(
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(responsiveSpacing()),
+                    verticalArrangement = Arrangement.spacedBy(responsiveSpacing()),
                     modifier = Modifier.height(200.dp)
                 ) {
                     items(prayers) { (name, time) ->
@@ -444,5 +440,105 @@ private fun getDirectionText(degrees: Double): String {
         degrees >= 247.5 && degrees < 292.5 -> stringResource(R.string.direction_west)
         degrees >= 292.5 && degrees < 337.5 -> stringResource(R.string.direction_northwest)
         else -> stringResource(R.string.direction_unknown)
+    }
+}
+
+/**
+ * Enhanced location and calculation method info display
+ */
+@Composable
+private fun LocationAndMethodInfo(settings: com.hieltech.haramblur.data.AppSettings) {
+    // Location info
+    val locationInfo = remember(settings) {
+        when (settings.locationMethod) {
+            LocationMethod.MANUAL_CITY -> {
+                val city = settings.selectedCityName ?: settings.preferredCity
+                val country = settings.selectedCountry ?: settings.preferredCountry
+
+                when {
+                    !city.isNullOrBlank() && !country.isNullOrBlank() -> "$city, $country"
+                    !city.isNullOrBlank() -> city
+                    !country.isNullOrBlank() -> country
+                    else -> "Manual location"
+                }
+            }
+            LocationMethod.GPS -> {
+                val city = settings.locationCity
+                val country = settings.locationCountry
+
+                when {
+                    !city.isNullOrBlank() && !country.isNullOrBlank() -> "$city, $country"
+                    !city.isNullOrBlank() -> city
+                    !country.isNullOrBlank() -> country
+                    else -> "GPS location"
+                }
+            }
+        }
+    }
+
+    // Calculation method info
+    val calculationMethod = remember(settings) {
+        PrayerCalculationMethod.values().find { it.id == settings.prayerCalculationMethod }?.displayName
+            ?: "Unknown method"
+    }
+
+    // Morocco detection
+    val isInMorocco = remember(settings.locationLatitude, settings.locationLongitude) {
+        settings.locationLatitude?.let { lat ->
+            settings.locationLongitude?.let { lon ->
+                MoroccanLocationHelper.isInMorocco(lat, lon)
+            }
+        } ?: false
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        // Location row
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                Icons.Default.LocationOn,
+                contentDescription = "Location",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = locationInfo,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (isInMorocco) {
+                Text(
+                    text = "🇲🇦",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
+        // Calculation method row
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                Icons.Default.Info,
+                contentDescription = "Calculation method",
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = calculationMethod,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (isInMorocco && settings.prayerCalculationMethod == PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE.id) {
+                Text(
+                    text = "✓",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     }
 }

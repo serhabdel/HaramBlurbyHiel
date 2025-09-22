@@ -299,6 +299,24 @@
     <string name="usage_stats_description">Usage Stats permission allows better app blocking by detecting app launches, enabling faster response times.</string>
     <string name="please_grant_permission">⚠️ Please grant permission in settings to continue</string>
 
+    <!-- Wizard Step Titles and Descriptions -->
+    <string name="wizard_step_language_title">Select Language</string>
+    <string name="wizard_step_language_description">Choose your preferred language for the app</string>
+    <string name="wizard_step_gender_title">Gender Selection</string>
+    <string name="wizard_step_gender_description">Help us provide Islamic-compliant content filtering</string>
+    <string name="wizard_step_accessibility_title">Accessibility Service</string>
+    <string name="wizard_step_accessibility_description">Enable real-time content detection across all apps</string>
+    <string name="wizard_step_usage_stats_title">Usage Stats Access</string>
+    <string name="wizard_step_usage_stats_description">Monitor app usage for enhanced blocking capabilities</string>
+    <string name="wizard_step_overlay_title">Overlay Permission</string>
+    <string name="wizard_step_overlay_description">Allow HaramBlur to blur sensitive content on your screen</string>
+    <string name="wizard_step_location_title">Location Permission</string>
+    <string name="wizard_step_location_description">Enable accurate prayer times and Islamic calendar</string>
+    <string name="wizard_step_notification_title">Notification Permission</string>
+    <string name="wizard_step_notification_description">Show dhikr reminders and Islamic alerts</string>
+    <string name="wizard_step_islamic_features_title">Islamic Features</string>
+    <string name="wizard_step_islamic_features_description">Set up prayer times, Islamic calendar, and spiritual features</string>
+
     <!-- Missing English Strings -->
     <string name="accessibility_description">The accessibility service allows HaramBlur to monitor content across all applications in real-time, enabling automatic detection and blur application.</string>
     <string name="islamic_settings_title">Islamic Settings</string>
@@ -847,6 +865,10 @@
     <string name="remove">Remove</string>
     <string name="save">Save</string>
     <string name="search">Search</string>
+    <string name="search_settings">Search settings</string>
+    <string name="clear">Clear</string>
+    <string name="got_it">Got it</string>
+    <string name="learn_more">Learn more</string>
     <string name="severity_label">Severity</string>
     <string name="severity_level">Severity Level</string>
     <string name="share_app">Share App</string>
