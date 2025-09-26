@@ -1,0 +1,148 @@
+```mermaid
+flowchart TD
+    subgraph "📲 Installation & Setup Journey"
+        A[📱 User Downloads App] --> B[🚀 First Launch]
+        B --> C[📋 Welcome & Permissions]
+        C --> D{Grant Accessibility?}
+        D -->|No| E[❌ Explain Importance]
+        E --> D
+        D -->|Yes| F[✅ Accessibility Enabled]
+        
+        F --> G[📍 Grant Overlay Permission]
+        G --> H[🔔 Notification Permission]
+        H --> I[📍 Location Permission - Optional]
+        I --> J[⚙️ Basic Configuration]
+        
+        J --> K{Islamic Features?}
+        K -->|Yes| L[🕌 Configure Islamic Settings]
+        K -->|Skip| M[🎯 Content Detection Setup]
+        
+        L --> N[📖 Select Verse Categories]
+        N --> O[💎 Configure Dhikr Times]
+        O --> P[🕐 Set Prayer Notifications]
+        P --> M
+        
+        M --> Q[🎨 Customize Blur Preferences]
+        Q --> R[✨ Setup Complete]
+    end
+
+    subgraph "🏠 Daily Usage Flow"
+        S[📱 User Opens Phone] --> T{HaramBlur Active?}
+        T -->|No| U[⚠️ Service Inactive Alert]
+        U --> V[🔧 Restart Service]
+        V --> W[✅ Service Active]
+        T -->|Yes| W
+        
+        W --> X[👤 User Browsing Content]
+        X --> Y[📸 Screen Capture Triggered]
+        Y --> Z{Inappropriate Content?}
+        Z -->|No| AA[✅ Continue Browsing]
+        Z -->|Yes| BB[🚫 Apply Blur Overlay]
+        
+        BB --> CC{Show Islamic Guidance?}
+        CC -->|Yes| DD[📖 Display Quranic Verse]
+        CC -->|No| EE[📊 Update Statistics Only]
+        
+        DD --> FF[🤲 User Reads Guidance]
+        FF --> GG{User Action}
+        GG -->|Dismiss| HH[📱 Return to App]
+        GG -->|Share| II[📤 Share Verse]
+        GG -->|Learn More| JJ[📚 Open Full Verse]
+        
+        II --> HH
+        JJ --> KK[📖 Quranic Context]
+        KK --> HH
+        EE --> HH
+        
+        HH --> LL[🔄 Continue Monitoring]
+        AA --> LL
+        LL --> X
+    end
+
+    subgraph "🕐 Islamic Features Usage"
+        MM[⏰ Prayer Time Approaching] --> NN[🔔 Prayer Notification]
+        NN --> OO{User Response}
+        OO -->|Pray Now| PP[🕌 Redirect to Qibla]
+        OO -->|Remind Later| QQ[⏳ Snooze 5 Minutes]
+        OO -->|Dismiss| RR[📱 Continue Activity]
+        
+        PP --> SS[🧭 Qibla Compass Display]
+        SS --> TT[🤲 Prayer Complete]
+        QQ --> UU[🔔 Prayer Reminder Again]
+        UU --> OO
+        
+        VV[💎 Dhikr Time Triggered] --> WW[✨ Show Dhikr Overlay]
+        WW --> XX{Display Method}
+        XX -->|Overlay| YY[📱 Screen Overlay Display]
+        XX -->|Notification| ZZ[🔔 Push Notification]
+        
+        YY --> AAA[👁️ User Views Dhikr]
+        ZZ --> AAA
+        AAA --> BBB[🕐 Auto-Dismiss After Duration]
+        BBB --> CCC[📈 Track Dhikr Interaction]
+    end
+
+    subgraph "⚙️ Customization Journey"
+        DDD[👤 User Opens Settings] --> EEE{What to Configure?}
+        EEE -->|Detection| FFF[🎯 Adjust Sensitivity]
+        EEE -->|Performance| GGG[⚡ Change Performance Mode]
+        EEE -->|Islamic| HHH[🕌 Configure Islamic Features]
+        EEE -->|Apps| III[📱 Manage App Whitelist]
+        EEE -->|Visual| JJJ[🎨 Customize Blur Style]
+        
+        FFF --> KKK[🔧 Test New Settings]
+        GGG --> KKK
+        HHH --> LLL[🕌 Preview Islamic Content]
+        III --> MMM[📱 Select/Deselect Apps]
+        JJJ --> NNN[🎨 Preview Blur Effects]
+        
+        KKK --> OOO[✅ Save Settings]
+        LLL --> OOO
+        MMM --> OOO
+        NNN --> OOO
+        
+        OOO --> PPP[🔄 Apply Changes]
+        PPP --> QQQ[📊 Monitor Performance]
+    end
+
+    subgraph "🚨 Emergency & Troubleshooting"
+        RRR[⚠️ User Needs Emergency Stop] --> SSS[🔴 Emergency Button]
+        SSS --> TTT[⏸️ Temporary Disable]
+        TTT --> UUU[⏰ Auto Re-enable Timer]
+        UUU --> VVV[✅ Service Restored]
+        
+        WWW[🐛 Performance Issues] --> XXX{Issue Type}
+        XXX -->|Battery Drain| YYY[🔋 Switch to Ultra-Fast Mode]
+        XXX -->|App Crashes| ZZZ[📱 Restart Service]
+        XXX -->|False Positives| AAAA[🎯 Adjust Sensitivity]
+        XXX -->|Slow Performance| BBBB[⚡ Lower Detection Quality]
+        
+        YYY --> CCCC[📊 Monitor Improvement]
+        ZZZ --> CCCC
+        AAAA --> CCCC
+        BBBB --> CCCC
+    end
+
+    %% Cross-connections between subgraphs
+    R --> S
+    LL --> MM
+    LL --> VV
+    TT --> X
+    CCC --> LL
+    PPP --> LL
+    VVV --> LL
+    CCCC --> LL
+
+    %% Styling
+    classDef setup fill:#e3f2fd
+    classDef daily fill:#f3e5f5
+    classDef islamic fill:#e8f5e8
+    classDef settings fill:#fff3e0
+    classDef emergency fill:#ffebee
+
+    class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R setup
+    class S,T,U,V,W,X,Y,Z,AA,BB,CC,DD,EE,FF,GG,HH,II,JJ,KK,LL daily
+    class MM,NN,OO,PP,QQ,RR,SS,TT,UU,VV,WW,XX,YY,ZZ,AAA,BBB,CCC islamic
+    class DDD,EEE,FFF,GGG,HHH,III,JJJ,KKK,LLL,MMM,NNN,OOO,PPP,QQQ settings
+    class RRR,SSS,TTT,UUU,VVV,WWW,XXX,YYY,ZZZ,AAAA,BBBB,CCCC emergency
+```

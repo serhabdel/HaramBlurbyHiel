@@ -880,4 +880,30 @@
     <string name="violation_rate">Violation Rate</string>
     <string name="warning">Warning</string>
     <string name="yes">Yes</string>
+    
+    <!-- Prayer Notification Channel and Reminder Strings -->
+    <string name="prayer_time_notification_channel_name">Prayer Time Notifications</string>
+    <string name="prayer_time_notification_channel_description">Important notifications for prayer times</string>
+    <string name="prayer_reminder_channel_name">Prayer Reminders</string>
+    <string name="prayer_reminder_channel_description">Follow-up reminders for prayer completion</string>
+    <string name="prayer_time_notification_title">🕌 Time for %s Prayer</string>
+    <string name="prayer_time_notification_text">The time for %s prayer has arrived. Answer the call of Allah.</string>
+    <string name="prayer_reminder_notification_title">⏰ Prayer Reminder - %s</string>
+    <string name="prayer_reminder_notification_text">10 minutes ago, the time for %s arrived. Have you prayed?</string>
+    <string name="prayer_reminder_yes">Yes, I prayed</string>
+    <string name="prayer_reminder_no">No, not yet</string>
+    <string name="prayer_final_reminder_title">🤲 Final Reminder - %s</string>
+    <string name="prayer_final_reminder_text">Don\'t forget your %s prayer. Timeliness in prayer is blessed.</string>
+    <string name="prayer_already_prayed">Already Prayed</string>
+    <string name="prayer_will_pray_now">I Will Pray Now</string>
+    
+    <!-- Quranic Guidance Activity -->
+    <string name="quranic_guidance_dialog_title">🌟 Divine Guidance</string>
+    <string name="quranic_guidance_subtitle">Let us listen to the words of Allah</string>
+    <string name="quranic_verse_about_prayer">"Guard strictly your prayers, especially the middle prayer, and stand before Allah in devout obedience." \n(Quran 2:238)</string>
+    <string name="prayer_importance_message">Prayer on time is among the most beloved deeds to Allah. Do not delay what brings you closer to your Creator.</string>
+    <string name="pray_now">🤲 Pray Now</string>
+    <string name="already_prayed">✅ Already Prayed</string>
+    <string name="remind_later">⏰ Remind Later</string>
+    
 </resources>

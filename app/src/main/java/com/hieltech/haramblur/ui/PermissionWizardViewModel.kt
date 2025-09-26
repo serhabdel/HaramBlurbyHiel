@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.SettingsRepository
+import com.hieltech.haramblur.data.QualityMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -320,16 +321,24 @@ class PermissionWizardViewModel @Inject constructor(
                 // Mark onboarding as completed
                 settingsRepository.markOnboardingCompleted()
                 
-                // CRUCIAL: Ensure content detection is enabled after wizard completion
+                // CRUCIAL: Ensure content detection is enabled after wizard completion with High Quality mode
                 val currentSettings = settingsRepository.getCurrentSettings()
                 settingsRepository.updateSettings(currentSettings.copy(
-                    // Ensure detection is enabled
+                    // Ensure detection is enabled with High Quality defaults
                     enableFaceDetection = true,
                     enableNSFWDetection = true,
                     enableRealTimeProcessing = true,
                     isServicePaused = false, // Make sure service is not paused
-                    // High sensitivity for better detection
-                    detectionSensitivity = 0.8f,
+                    // Apply High Quality mode settings automatically using the enum values
+                    qualityMode = QualityMode.HIGH_QUALITY,
+                    detectionSensitivity = QualityMode.HIGH_QUALITY.detectionSensitivity,
+                    processingSpeed = QualityMode.HIGH_QUALITY.processingSpeed,
+                    blurIntensity = QualityMode.HIGH_QUALITY.blurIntensity,
+                    maxProcessingTimeMs = QualityMode.HIGH_QUALITY.maxProcessingTimeMs,
+                    frameSkipThreshold = QualityMode.HIGH_QUALITY.frameSkipThreshold,
+                    imageDownscaleRatio = QualityMode.HIGH_QUALITY.imageDownscaleRatio,
+                    enableGPUAcceleration = QualityMode.HIGH_QUALITY.enableGPUAcceleration,
+                    // Use the optimized confidence thresholds from AppSettings defaults
                     nsfwConfidenceThreshold = 0.5f,
                     genderConfidenceThreshold = 0.4f
                 ))

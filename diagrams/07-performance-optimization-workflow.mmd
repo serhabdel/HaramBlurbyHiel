@@ -1,0 +1,168 @@
+```mermaid
+stateDiagram-v2
+    [*] --> AppInitialization
+    
+    AppInitialization --> PerformanceAssessment : Start Performance Monitor
+    
+    PerformanceAssessment --> DeviceCapabilityCheck
+    DeviceCapabilityCheck --> InitialModeSelection
+    
+    InitialModeSelection --> UltraFastMode : Low-end Device
+    InitialModeSelection --> FastMode : Mid-range Device
+    InitialModeSelection --> BalancedMode : High-end Device
+    InitialModeSelection --> HighQualityMode : Premium Device
+    
+    state UltraFastMode {
+        [*] --> QuarterResolution
+        QuarterResolution --> BasicFaceDetection
+        BasicFaceDetection --> MinimalProcessing
+        MinimalProcessing --> LowBatteryUsage
+        LowBatteryUsage --> PerformanceMonitoring
+    }
+    
+    state FastMode {
+        [*] --> HalfResolution
+        HalfResolution --> FaceDetection
+        FaceDetection --> BasicNSFWDetection
+        BasicNSFWDetection --> ModerateBatteryUsage
+        ModerateBatteryUsage --> PerformanceMonitoring
+    }
+    
+    state BalancedMode {
+        [*] --> FullResolution
+        FullResolution --> CompleteFaceDetection
+        CompleteFaceDetection --> FullNSFWDetection
+        FullNSFWDetection --> GenderClassification
+        GenderClassification --> OptimalBatteryUsage
+        OptimalBatteryUsage --> PerformanceMonitoring
+    }
+    
+    state HighQualityMode {
+        [*] --> EnhancedResolution
+        EnhancedResolution --> AdvancedFaceDetection
+        AdvancedFaceDetection --> EnhancedNSFWDetection
+        EnhancedNSFWDetection --> DetailedGenderClassification
+        DetailedGenderClassification --> ContentDensityAnalysis
+        ContentDensityAnalysis --> HighBatteryUsage
+        HighBatteryUsage --> PerformanceMonitoring
+    }
+    
+    PerformanceMonitoring --> ContinuousMonitoring
+    
+    state ContinuousMonitoring {
+        [*] --> CPUUsageCheck
+        CPUUsageCheck --> MemoryUsageCheck
+        MemoryUsageCheck --> BatteryLevelCheck
+        BatteryLevelCheck --> ThermalStateCheck
+        ThermalStateCheck --> NetworkLatencyCheck
+        NetworkLatencyCheck --> PerformanceDecision
+    }
+    
+    PerformanceDecision --> MaintainCurrentMode : Performance Good
+    PerformanceDecision --> DegradePerformance : Performance Issues
+    PerformanceDecision --> ImprovePerformance : Resources Available
+    
+    state DegradePerformance {
+        [*] --> ReduceDetectionFrequency
+        ReduceDetectionFrequency --> LowerResolution
+        LowerResolution --> DisableNonEssentialFeatures
+        DisableNonEssentialFeatures --> IncreaseCacheUsage
+        IncreaseCacheUsage --> OptimizeMemoryUsage
+    }
+    
+    state ImprovePerformance {
+        [*] --> IncreaseDetectionQuality
+        IncreaseDetectionQuality --> HigherResolution
+        HigherResolution --> EnableAdditionalFeatures
+        EnableAdditionalFeatures --> ReduceCacheDependency
+        ReduceCacheDependency --> EnhancePrecision
+    }
+    
+    DegradePerformance --> AdaptiveAdjustment
+    ImprovePerformance --> AdaptiveAdjustment
+    MaintainCurrentMode --> AdaptiveAdjustment
+    
+    state AdaptiveAdjustment {
+        [*] --> ApplyChanges
+        ApplyChanges --> TestNewSettings
+        TestNewSettings --> ValidatePerformance
+        ValidatePerformance --> UpdateConfiguration
+    }
+    
+    AdaptiveAdjustment --> ContinuousMonitoring : Return to Monitoring
+    
+    %% Emergency scenarios
+    ContinuousMonitoring --> EmergencyMode : Critical Performance Issue
+    
+    state EmergencyMode {
+        [*] --> MinimalDetection
+        MinimalDetection --> CriticalFeaturesOnly
+        CriticalFeaturesOnly --> MaximumCaching
+        MaximumCaching --> EmergencyOptimization
+        EmergencyOptimization --> GradualRecovery
+    }
+    
+    EmergencyMode --> ContinuousMonitoring : Performance Recovered
+    
+    %% User-triggered changes
+    ContinuousMonitoring --> UserModeChange : User Changes Settings
+    
+    state UserModeChange {
+        [*] --> ValidateUserChoice
+        ValidateUserChoice --> ApplyUserSettings
+        ApplyUserSettings --> WarnIfIncompatible
+        WarnIfIncompatible --> AcceptOverride
+    }
+    
+    UserModeChange --> ContinuousMonitoring : Settings Applied
+    
+    %% Battery-specific optimizations
+    ContinuousMonitoring --> BatteryOptimization : Low Battery Detected
+    
+    state BatteryOptimization {
+        [*] --> ReduceProcessingFrequency
+        ReduceProcessingFrequency --> DisableBackgroundFeatures
+        DisableBackgroundFeatures --> MinimizeCPUIntensiveTasks
+        MinimizeCPUIntensiveTasks --> EnableDeepCaching
+        EnableDeepCaching --> BatterySaveMode
+    }
+    
+    BatteryOptimization --> ContinuousMonitoring : Battery Level Improved
+    
+    %% Thermal management
+    ContinuousMonitoring --> ThermalThrottling : Overheating Detected
+    
+    state ThermalThrottling {
+        [*] --> ReduceProcessorUsage
+        ReduceProcessorUsage --> IncreaseProcessingIntervals
+        IncreaseProcessingIntervals --> DisableGPUAcceleration
+        DisableGPUAcceleration --> CooldownPause
+        CooldownPause --> ThermalRecovery
+    }
+    
+    ThermalThrottling --> ContinuousMonitoring : Temperature Normal
+    
+    note right of UltraFastMode
+        Basic protection with minimal resource usage
+        - Face detection only
+        - 224x224 resolution
+        - 500ms intervals
+        - ~2% battery/hour
+    end note
+    
+    note right of BalancedMode
+        Recommended mode for most users
+        - Full feature set
+        - Native resolution
+        - 2000ms intervals
+        - ~5-8% battery/hour
+    end note
+    
+    note right of HighQualityMode
+        Maximum accuracy and features
+        - Enhanced processing
+        - Content density analysis
+        - 3000ms intervals
+        - ~12-15% battery/hour
+    end note
+```

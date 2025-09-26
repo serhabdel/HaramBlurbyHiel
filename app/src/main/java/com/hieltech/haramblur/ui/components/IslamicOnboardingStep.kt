@@ -402,53 +402,41 @@ fun IslamicOnboardingStep(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Action Buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            OutlinedButton(
-                onClick = onSkip,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Skip Islamic Features")
-            }
+        // Complete Button
+        Button(
+            onClick = {
+                // Save Islamic settings
+                if (enableIslamicFeatures) {
+                    settingsViewModel.updatePrayerTimesEnabled(true)
+                    settingsViewModel.updateIslamicCalendarEnabled(true)
+                    settingsViewModel.updateQiblaDirectionEnabled(true)
 
-            Button(
-                onClick = {
-                    // Save Islamic settings
-                    if (enableIslamicFeatures) {
-                        settingsViewModel.updatePrayerTimesEnabled(true)
-                        settingsViewModel.updateIslamicCalendarEnabled(true)
-                        settingsViewModel.updateQiblaDirectionEnabled(true)
-
-                        // Set Muslim World League method if user is in Morocco (same as Morocco's official method)
-                        if (isInMorocco) {
-                            settingsViewModel.updateCalculationMethod(PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE.id)
-                        }
-
-                        // Save location settings using LocationMethod
-                        settingsViewModel.updateLocationMethod(locationMethod)
-                        settingsViewModel.syncLocationPermissionStatus()
-                        if (locationMethod == LocationMethod.GPS) {
-                            settingsViewModel.refreshLocation()
-                        } else if (selectedSelection != null) {
-                            settingsViewModel.updateSelectedCity(selectedSelection!!)
-                        }
-                    } else {
-                        settingsViewModel.updatePrayerTimesEnabled(false)
-                        settingsViewModel.updateIslamicCalendarEnabled(false)
-                        settingsViewModel.updateQiblaDirectionEnabled(false)
+                    // Set Muslim World League method if user is in Morocco (same as Morocco's official method)
+                    if (isInMorocco) {
+                        settingsViewModel.updateCalculationMethod(PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE.id)
                     }
 
-                    // Mark the Islamic features configuration as completed
-                    viewModel.completeIslamicFeaturesConfiguration()
-                    onNext()
-                },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(if (enableIslamicFeatures) "Continue" else "Skip")
-            }
+                    // Save location settings using LocationMethod
+                    settingsViewModel.updateLocationMethod(locationMethod)
+                    settingsViewModel.syncLocationPermissionStatus()
+                    if (locationMethod == LocationMethod.GPS) {
+                        settingsViewModel.refreshLocation()
+                    } else if (selectedSelection != null) {
+                        settingsViewModel.updateSelectedCity(selectedSelection!!)
+                    }
+                } else {
+                    settingsViewModel.updatePrayerTimesEnabled(false)
+                    settingsViewModel.updateIslamicCalendarEnabled(false)
+                    settingsViewModel.updateQiblaDirectionEnabled(false)
+                }
+
+                // Mark the Islamic features configuration as completed
+                viewModel.completeIslamicFeaturesConfiguration()
+                onNext()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Complete")
         }
     }
 

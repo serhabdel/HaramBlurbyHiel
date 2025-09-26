@@ -91,8 +91,19 @@ private fun UnifiedBlockingScreenSimple(
                             socialMediaStats = appBlockingManager?.getSocialMediaBlockingStats()
                         }
                         1 -> {
-                            // Only load website data when on websites tab
-                            customBlockedSites = siteBlockingManager?.getCustomBlockedWebsites() ?: emptyList()
+                            // Only load website data when on websites tab - filter to show ONLY user-added sites
+                            val allSites = siteBlockingManager?.getCustomBlockedWebsites() ?: emptyList()
+                            // Extra filtering to ensure only user-added sites are shown
+                            customBlockedSites = allSites.filter { site ->
+                                site.addedByUser && 
+                                site.source == "user_added" && 
+                                !site.pattern.contains("porn", ignoreCase = true) &&
+                                !site.pattern.contains("sex", ignoreCase = true) &&
+                                !site.pattern.contains("adult", ignoreCase = true) &&
+                                !site.pattern.contains("xxx", ignoreCase = true) &&
+                                !site.pattern.contains("+18", ignoreCase = true) &&
+                                !site.pattern.contains("nsfw", ignoreCase = true)
+                            }
                         }
                     }
                     dataLoaded = true
@@ -125,8 +136,19 @@ private fun UnifiedBlockingScreenSimple(
                     socialMediaStats = appBlockingManager?.getSocialMediaBlockingStats()
                 }
                 1 -> {
-                    // Only load website data when on websites tab
-                    customBlockedSites = siteBlockingManager?.getCustomBlockedWebsites() ?: emptyList()
+                    // Only load website data when on websites tab - filter to show ONLY user-added sites
+                    val allSites = siteBlockingManager?.getCustomBlockedWebsites() ?: emptyList()
+                    // Extra filtering to ensure only user-added sites are shown
+                    customBlockedSites = allSites.filter { site ->
+                        site.addedByUser && 
+                        site.source == "user_added" && 
+                        !site.pattern.contains("porn", ignoreCase = true) &&
+                        !site.pattern.contains("sex", ignoreCase = true) &&
+                        !site.pattern.contains("adult", ignoreCase = true) &&
+                        !site.pattern.contains("xxx", ignoreCase = true) &&
+                        !site.pattern.contains("+18", ignoreCase = true) &&
+                        !site.pattern.contains("nsfw", ignoreCase = true)
+                    }
                 }
             }
             dataLoaded = true

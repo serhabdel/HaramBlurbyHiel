@@ -24,97 +24,51 @@ object HapticFeedback {
     }
 
     /**
-     * Light feedback for button presses and interactions
+     * Light feedback for button presses and interactions - DISABLED
      */
     fun performLightFeedback(context: Context) {
-        val vibrator = getVibrator(context)
-        if (vibrator?.hasVibrator() == true) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.EFFECT_TICK))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(50)
-            }
-        }
+        // Vibration disabled - no haptic feedback
+        return
     }
 
     /**
-     * Medium feedback for important actions
+     * Medium feedback for important actions - DISABLED
      */
     fun performMediumFeedback(context: Context) {
-        val vibrator = getVibrator(context)
-        if (vibrator?.hasVibrator() == true) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(100)
-            }
-        }
+        // Vibration disabled - no haptic feedback
+        return
     }
 
     /**
-     * Heavy feedback for critical actions
+     * Heavy feedback for critical actions - DISABLED
      */
     fun performHeavyFeedback(context: Context) {
-        val vibrator = getVibrator(context)
-        if (vibrator?.hasVibrator() == true) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(150, VibrationEffect.EFFECT_HEAVY_CLICK))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(150)
-            }
-        }
+        // Vibration disabled - no haptic feedback
+        return
     }
 
     /**
-     * Success feedback pattern
+     * Success feedback pattern - DISABLED
      */
     fun performSuccessFeedback(context: Context) {
-        val vibrator = getVibrator(context)
-        if (vibrator?.hasVibrator() == true) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val pattern = longArrayOf(0, 50, 50, 50)
-                vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(longArrayOf(0, 50, 50, 50), -1)
-            }
-        }
+        // Vibration disabled - no haptic feedback
+        return
     }
 
     /**
-     * Error feedback pattern
+     * Error feedback pattern - DISABLED
      */
     fun performErrorFeedback(context: Context) {
-        val vibrator = getVibrator(context)
-        if (vibrator?.hasVibrator() == true) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val pattern = longArrayOf(0, 100, 50, 100)
-                vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(longArrayOf(0, 100, 50, 100), -1)
-            }
-        }
+        // Vibration disabled - no haptic feedback
+        return
     }
 
     /**
-     * Custom pattern for Islamic-themed feedback
+     * Custom pattern for Islamic-themed feedback - DISABLED
      */
     fun performIslamicPatternFeedback(context: Context) {
-        val vibrator = getVibrator(context)
-        if (vibrator?.hasVibrator() == true) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Pattern inspired by Islamic geometric rhythm
-                val pattern = longArrayOf(0, 80, 40, 80, 40, 120)
-                vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(longArrayOf(0, 80, 40, 80, 40, 120), -1)
-            }
-        }
+        // Vibration disabled - no haptic feedback
+        return
     }
 }
 

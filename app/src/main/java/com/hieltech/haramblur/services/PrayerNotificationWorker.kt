@@ -13,6 +13,7 @@ import com.hieltech.haramblur.MainActivity
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.PrayerTimesRepository
 import com.hieltech.haramblur.data.SettingsRepository
+import com.hieltech.haramblur.data.prayer.PrayerName
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -26,7 +27,8 @@ class PrayerNotificationWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
     private val prayerTimesRepository: PrayerTimesRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val prayerTimeNotificationManager: PrayerTimeNotificationManager
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -35,21 +37,31 @@ class PrayerNotificationWorker @AssistedInject constructor(
         private const val NOTIFICATION_ID = 1001
 
         fun schedulePrayerNotifications(context: Context) {
-            val workRequest = PeriodicWorkRequestBuilder<PrayerNotificationWorker>(
-                1, TimeUnit.HOURS // Check every hour
-            )
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
+            // Get settings to check if prayer notifications are enabled
+            val prefs = context.getSharedPreferences("haramblur_settings", Context.MODE_PRIVATE)
+            val enablePrayerNotifications = prefs.getBoolean("enable_prayer_notifications", true)
+            val enablePrayerTimes = prefs.getBoolean("enable_prayer_times", true)
+            
+            if (enablePrayerNotifications && enablePrayerTimes) {
+                val workRequest = PeriodicWorkRequestBuilder<PrayerNotificationWorker>(
+                    1, TimeUnit.HOURS // Check every hour
                 )
-                .build()
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
 
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                "prayer_notifications",
-                ExistingPeriodicWorkPolicy.REPLACE,
-                workRequest
-            )
+                WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                    "prayer_notifications",
+                    ExistingPeriodicWorkPolicy.REPLACE,
+                    workRequest
+                )
+            } else {
+                // Cancel prayer notifications if disabled
+                cancelPrayerNotifications(context)
+            }
         }
 
         fun cancelPrayerNotifications(context: Context) {
@@ -76,7 +88,16 @@ class PrayerNotificationWorker @AssistedInject constructor(
                     val timeUntilMs = calculateTimeUntil(prayerInfo.timestamp)
 
                     if (timeUntilMs <= advanceTimeMs && timeUntilMs > 0) {
-                        sendPrayerNotification(prayerInfo)
+                        // Convert prayer name to PrayerName enum
+                        val prayerName = try {
+                            PrayerName.valueOf(prayerInfo.name.uppercase())
+                        } catch (e: IllegalArgumentException) {
+                            // Default to Fajr if conversion fails
+                            PrayerName.FAJR
+                        }
+                        
+                        // Use PrayerTimeNotificationManager to send the notification
+                        prayerTimeNotificationManager.sendPrayerTimeNotification(prayerName, prayerInfo.time)
                     }
                 }
             }.onFailure { error ->
@@ -91,56 +112,6 @@ class PrayerNotificationWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun sendPrayerNotification(prayerInfo: com.hieltech.haramblur.data.prayer.NextPrayerInfo) {
-        createNotificationChannel()
-
-        val settings = settingsRepository.settings.value
-        val advanceMinutes = settings.prayerNotificationAdvanceTime
-
-        val title = "${prayerInfo.name} Prayer"
-        val message = "${prayerInfo.name} prayer is at ${prayerInfo.time} (${prayerInfo.timeUntil} remaining)"
-
-        val intent = Intent(applicationContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-
-        val pendingIntent = PendingIntent.getActivity(
-            applicationContext,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .build()
-
-        val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, notification)
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifications for Islamic prayer times"
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 250, 250, 250)
-            }
-
-            val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
 
     private fun calculateTimeUntil(prayerTimestamp: Long): Long {
         return prayerTimestamp - System.currentTimeMillis()

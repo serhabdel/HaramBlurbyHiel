@@ -38,11 +38,52 @@ class LogsViewerViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             try {
-                refreshLogs()
+                setupRealtimeLogging()
             } catch (e: Exception) {
                 logRepository.logError("LogsViewerViewModel", "Failed to initialize logs", e)
                 _logs.value = emptyList()
                 _isLoading.value = false
+            }
+        }
+    }
+    
+    private fun setupRealtimeLogging() {
+        // Combine filters and search to create a reactive query
+        viewModelScope.launch {
+            combine(
+                _selectedLevels,
+                _searchQuery
+            ) { levels, query ->
+                _isLoading.value = true
+                Pair(levels, query)
+            }.collect { (levels, query) ->
+                try {
+                    if (query.isNotEmpty()) {
+                        // Search mode
+                        logRepository.searchLogs(query).collect { searchResults ->
+                            _logs.value = searchResults.filter { log ->
+                                levels.contains(log.level)
+                            }
+                            _isLoading.value = false
+                        }
+                    } else if (levels.isNotEmpty()) {
+                        // Filter by levels
+                        logRepository.getLogsWithLevels(levels.toList(), limit = 500).collect { filteredLogs ->
+                            _logs.value = filteredLogs
+                            _isLoading.value = false
+                        }
+                    } else {
+                        // Get recent logs
+                        logRepository.getRecentLogs(500).collect { recentLogs ->
+                            _logs.value = recentLogs
+                            _isLoading.value = false
+                        }
+                    }
+                } catch (e: Exception) {
+                    logRepository.logError("LogsViewerViewModel", "Failed to update logs", e)
+                    _logs.value = emptyList()
+                    _isLoading.value = false
+                }
             }
         }
     }

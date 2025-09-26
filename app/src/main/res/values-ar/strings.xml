@@ -198,6 +198,7 @@
     <string name="app_language">لغة التطبيق</string>
     <string name="select_language">اختر اللغة</string>
     <string name="language_changed_restart">تم تغيير اللغة. يرجى إعادة تشغيل التطبيق لتطبيق التغييرات.</string>
+    
     <string name="language_english">English</string>
     <string name="language_arabic">العربية (Arabic)</string>
     <string name="language_french">Français (French)</string>
@@ -496,4 +497,30 @@
     <string name="wizard_step_notification_description">إظهار تذكيرات الذكر والتنبيهات الإسلامية</string>
     <string name="wizard_step_islamic_features_title">الميزات الإسلامية</string>
     <string name="wizard_step_islamic_features_description">إعداد أوقات الصلاة والتقويم الإسلامي والميزات الروحية</string>
+
+    <!-- Prayer Notification Strings for New System -->
+    <string name="prayer_time_notification_channel_name">إشعارات مواقيت الصلاة</string>
+    <string name="prayer_time_notification_channel_description">إشعارات مهمة لمواقيت الصلاة</string>
+    <string name="prayer_reminder_channel_name">تذكيرات الصلاة</string>
+    <string name="prayer_reminder_channel_description">تذكيرات متابعة لإكمال الصلاة</string>
+    <string name="prayer_time_notification_title">🕌 حان وقت صلاة %s</string>
+    <string name="prayer_time_notification_text">حان وقت صلاة %s، أجيبوا نداء الله.</string>
+    <string name="prayer_reminder_notification_title">⏰ تذكير بالصلاة - %s</string>
+    <string name="prayer_reminder_notification_text">قبل 10 دقائق، حان وقت %s. هل صليت؟</string>
+    <string name="prayer_reminder_yes">نعم، صليت</string>
+    <string name="prayer_reminder_no">لا، لم أصل بعد</string>
+    <string name="prayer_final_reminder_title">🤲 تذكير أخير - %s</string>
+    <string name="prayer_final_reminder_text">لا تنسوا صلاة %s. الصلاة في وقتها مباركة.</string>
+    <string name="prayer_already_prayed">صليت بالفعل</string>
+    <string name="prayer_will_pray_now">سأصلي الآن</string>
+
+    <!-- Quranic Guidance Activity -->
+    <string name="quranic_guidance_dialog_title">🌟 الهداية الإلهية</string>
+    <string name="quranic_guidance_subtitle">فلنستمع إلى كلام الله</string>
+    <string name="quranic_verse_about_prayer">«حافظوا على الصلوات والصلاة الوسطى وقوموا لله قانتين» \n(سورة البقرة 2:238)</string>
+    <string name="prayer_importance_message">الصلاة في وقتها من أحب الأعمال إلى الله. لا تؤخروا ما يقربكم من خالقكم.</string>
+    <string name="pray_now">🤲 صلي الآن</string>
+    <string name="already_prayed">✅ صليت بالفعل</string>
+    <string name="remind_later">⏰ ذكرني لاحقاً</string>
+
 </resources>

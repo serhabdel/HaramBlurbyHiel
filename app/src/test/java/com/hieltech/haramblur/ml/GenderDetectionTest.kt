@@ -4,6 +4,8 @@ import com.hieltech.haramblur.detection.Gender
 import com.hieltech.haramblur.detection.EnhancedGenderDetectorImpl
 import com.hieltech.haramblur.detection.FacialFeatureAnalysis
 import com.hieltech.haramblur.detection.BlurAction
+import com.hieltech.haramblur.detection.GenderDetectionResult
+import com.hieltech.haramblur.detection.GenderModelProvider
 import org.junit.Before
 import org.junit.Test
 import org.junit.Assert.*
@@ -14,10 +16,12 @@ import org.junit.Assert.*
 class GenderDetectionTest {
     
     private lateinit var genderDetector: EnhancedGenderDetectorImpl
+    private lateinit var provider: FakeGenderModelProvider
     
     @Before
     fun setup() {
-        genderDetector = EnhancedGenderDetectorImpl()
+        provider = FakeGenderModelProvider()
+        genderDetector = EnhancedGenderDetectorImpl(provider)
     }
     
     @Test
@@ -27,6 +31,7 @@ class GenderDetectionTest {
         
         // Test model update - this should work even in test environment
         try {
+            provider.ready = true
             val success = genderDetector.updateGenderModel("test_model.tflite")
             assertTrue("Should successfully update model path", success)
             assertTrue("Should be ready after model update", genderDetector.isReady())
@@ -76,4 +81,22 @@ class GenderDetectionTest {
         assertTrue("Should contain FEMALE", genders.contains(Gender.FEMALE))
         assertTrue("Should contain UNKNOWN", genders.contains(Gender.UNKNOWN))
     }
+}
+
+private class FakeGenderModelProvider : GenderModelProvider {
+    var ready: Boolean = false
+
+    override suspend fun detectGender(
+        face: com.google.mlkit.vision.face.Face,
+        bitmap: android.graphics.Bitmap
+    ): GenderDetectionResult {
+        return GenderDetectionResult(
+            gender = Gender.UNKNOWN,
+            confidence = 0.0f,
+            facialFeatures = FacialFeatureAnalysis.default(),
+            processingTimeMs = 0L
+        )
+    }
+
+    override fun isGenderModelReady(): Boolean = ready
 }

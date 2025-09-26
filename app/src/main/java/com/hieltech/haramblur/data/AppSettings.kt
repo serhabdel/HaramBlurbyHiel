@@ -9,6 +9,9 @@ data class AppSettings(
     // Theme Settings
     val appTheme: AppTheme = AppTheme.ISLAMIC_LIGHT, // Default to Islamic Light theme
 
+    // Quality Mode - Simple selection for users (defaults to High Quality for first install)
+    val qualityMode: QualityMode = QualityMode.HIGH_QUALITY,
+    
     // Detection Settings - Smart gender-based detection with maximum performance defaults
     val enableFaceDetection: Boolean = true,
     val enableNSFWDetection: Boolean = true, // Enabled with improved error handling
@@ -115,7 +118,7 @@ data class AppSettings(
     val dhikrMorningEnd: Int = 10, // Morning dhikr end time
     val dhikrEveningStart: Int = 17, // Evening dhikr start time
     val dhikrEveningEnd: Int = 22, // Evening dhikr end time
-    val dhikrIntervalMinutes: Int = 15, // Interval between dhikr displays
+    val dhikrIntervalMinutes: Int = 5, // Interval between dhikr displays (5 minutes)
     val dhikrDisplayDuration: Int = 30, // How long to display each dhikr (seconds)
     val dhikrShowTransliteration: Boolean = true, // Show transliteration
     val dhikrShowTranslation: Boolean = true, // Show English translation
@@ -296,6 +299,63 @@ enum class ProcessingSpeed(val displayName: String, val intervalMs: Long, val de
     BALANCED("Balanced", 800L, "Good balance of speed and efficiency"),
     BATTERY_SAVER("Battery Saver", 1500L, "Slower detection, better battery life"),
     ULTRA_FAST("Ultra Fast", 300L, "Maximum responsiveness, highest battery usage")
+}
+
+/**
+ * Simple quality modes for easy user selection - replaces complex individual settings
+ */
+enum class QualityMode(
+    val displayName: String, 
+    val description: String,
+    val icon: String,
+    val detectionSensitivity: Float,
+    val processingSpeed: ProcessingSpeed,
+    val blurIntensity: BlurIntensity,
+    val maxProcessingTimeMs: Long,
+    val frameSkipThreshold: Int,
+    val imageDownscaleRatio: Float,
+    val enableGPUAcceleration: Boolean,
+    val enableRealTimeProcessing: Boolean
+) {
+    HIGH_QUALITY(
+        displayName = "High Quality",
+        description = "Maximum protection and detection accuracy",
+        icon = "🛡️",
+        detectionSensitivity = 0.8f,
+        processingSpeed = ProcessingSpeed.BALANCED,
+        blurIntensity = BlurIntensity.STRONG,
+        maxProcessingTimeMs = 100L,
+        frameSkipThreshold = 1,
+        imageDownscaleRatio = 0.7f,
+        enableGPUAcceleration = true,
+        enableRealTimeProcessing = true
+    ),
+    BALANCED(
+        displayName = "Balanced",
+        description = "Good protection with optimal performance",
+        icon = "⚖️",
+        detectionSensitivity = 0.7f,
+        processingSpeed = ProcessingSpeed.BALANCED,
+        blurIntensity = BlurIntensity.MEDIUM,
+        maxProcessingTimeMs = 75L,
+        frameSkipThreshold = 2,
+        imageDownscaleRatio = 0.5f,
+        enableGPUAcceleration = true,
+        enableRealTimeProcessing = true
+    ),
+    BATTERY_SAVER(
+        displayName = "Battery Saver",
+        description = "Essential protection with minimal battery usage",
+        icon = "🔋",
+        detectionSensitivity = 0.6f,
+        processingSpeed = ProcessingSpeed.BATTERY_SAVER,
+        blurIntensity = BlurIntensity.LIGHT,
+        maxProcessingTimeMs = 50L,
+        frameSkipThreshold = 3,
+        imageDownscaleRatio = 0.4f,
+        enableGPUAcceleration = false,
+        enableRealTimeProcessing = false
+    )
 }
 
 enum class GenderAccuracy(val confidenceThreshold: Float, val description: String) {

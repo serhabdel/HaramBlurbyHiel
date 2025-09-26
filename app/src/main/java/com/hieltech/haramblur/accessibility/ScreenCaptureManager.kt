@@ -39,19 +39,51 @@ class ScreenCaptureManager @Inject constructor() {
         
         isCapturing = true
         captureJob = CoroutineScope(Dispatchers.Main).launch {
+            var consecutiveFailures = 0
+            val maxFailures = 5
+            
             while (isCapturing) {
                 try {
                     val screenshot = captureScreen()
-                    screenshot?.let { bitmap ->
-                        Log.d(TAG, "Screenshot captured: ${bitmap.width}x${bitmap.height}")
-                        onScreenCaptured(bitmap)
+                    if (screenshot != null && !screenshot.isRecycled) {
+                        Log.d(TAG, "Screenshot captured: ${screenshot.width}x${screenshot.height}")
+                        
+                        // Validate bitmap before passing to callback
+                        if (screenshot.width > 0 && screenshot.height > 0 && screenshot.config != null) {
+                            onScreenCaptured(screenshot)
+                            consecutiveFailures = 0 // Reset on success
+                        } else {
+                            Log.w(TAG, "Invalid screenshot - dimensions or config null")
+                            screenshot.recycle()
+                        }
+                    } else {
+                        Log.w(TAG, "Screenshot is null or recycled")
                     }
                     delay(captureDelay)
+                } catch (e: OutOfMemoryError) {
+                    Log.e(TAG, "Out of memory during screen capture", e)
+                    consecutiveFailures++
+                    System.gc() // Force garbage collection
+                    delay(captureDelay * 3) // Wait longer on OOM
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Security exception during screen capture - stopping", e)
+                    break // Don't continue if we lose permissions
                 } catch (e: Exception) {
                     Log.e(TAG, "Error capturing screen", e)
+                    consecutiveFailures++
                     delay(captureDelay * 2) // Wait longer on error
                 }
+                
+                // Stop if too many consecutive failures
+                if (consecutiveFailures >= maxFailures) {
+                    Log.e(TAG, "Too many consecutive screen capture failures ($consecutiveFailures), stopping")
+                    break
+                }
             }
+            
+            // Clean up when exiting
+            isCapturing = false
+            Log.d(TAG, "Screen capture loop ended")
         }
         Log.d(TAG, "Screen capture started with ${captureDelay}ms interval")
     }
@@ -79,6 +111,7 @@ class ScreenCaptureManager @Inject constructor() {
     }
     
     private suspend fun captureScreen(): Bitmap? = withContext(Dispatchers.IO) {
+        var bitmap: Bitmap? = null
         return@withContext try {
             val service = HaramBlurAccessibilityService.getInstance()
             if (service == null) {
@@ -87,7 +120,7 @@ class ScreenCaptureManager @Inject constructor() {
             }
             
             // Use AccessibilityService screenshot capability (API 30+)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                 withTimeout(CAPTURE_TIMEOUT) {
                     service.takeScreenshot()
                 }
@@ -95,11 +128,27 @@ class ScreenCaptureManager @Inject constructor() {
                 // For older versions, create a simulated screenshot
                 createSimulatedScreenshot(service)
             }
+            
+            // Validate bitmap before returning
+            if (bitmap != null && !bitmap.isRecycled && bitmap.width > 0 && bitmap.height > 0) {
+                bitmap
+            } else {
+                Log.w(TAG, "Invalid bitmap captured")
+                bitmap?.recycle() // Clean up invalid bitmap
+                null
+            }
+            
         } catch (e: TimeoutCancellationException) {
             Log.w(TAG, "Screenshot capture timed out")
+            bitmap?.recycle() // Clean up on timeout
             null
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "Out of memory during screenshot capture", e)
+            bitmap?.recycle() // Clean up on OOM
+            throw e // Re-throw to trigger memory cleanup
         } catch (e: Exception) {
             Log.e(TAG, "Failed to capture screen", e)
+            bitmap?.recycle() // Clean up on error
             null
         }
     }

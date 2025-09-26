@@ -3,6 +3,7 @@ package com.hieltech.haramblur.ui.components
 import androidx.compose.animation.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,8 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+// Removed Dialog imports - using overlay approach instead
 import com.hieltech.haramblur.data.QuranicVerse
 import com.hieltech.haramblur.data.WarningDialogAction
 import com.hieltech.haramblur.data.WarningDialogState
@@ -51,18 +51,13 @@ fun WarningDialog(
         }
     }
     
-    Dialog(
-        onDismissRequest = { 
-            // Prevent dismissal by clicking outside during reflection period
-            if (state.canContinue) {
-                onAction(WarningDialogAction.Dismiss)
-            }
-        },
-        properties = DialogProperties(
-            dismissOnBackPress = state.canContinue,
-            dismissOnClickOutside = false,
-            usePlatformDefaultWidth = false
-        )
+    // Use full-screen overlay instead of system Dialog to avoid window token issues
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f))
+            .clickable(enabled = false) { /* Prevent click-through */ },
+        contentAlignment = Alignment.Center
     ) {
         Card(
             modifier = modifier

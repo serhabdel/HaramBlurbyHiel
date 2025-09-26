@@ -1,6 +1,7 @@
 package com.hieltech.haramblur.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,8 +25,7 @@ import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+// Removed Dialog imports - using overlay approach instead
 import androidx.compose.ui.res.stringResource
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.IslamicGuidance
@@ -66,17 +66,13 @@ fun PornBlockingDialog(
         canContinue = true
     }
 
-    Dialog(
-        onDismissRequest = {
-            if (canContinue) {
-                onDismiss()
-            }
-        },
-        properties = DialogProperties(
-            dismissOnBackPress = false, // Prevent dismissal for porn sites
-            dismissOnClickOutside = false, // Must interact with dialog
-            usePlatformDefaultWidth = false
-        )
+    // Use full-screen overlay instead of system Dialog to avoid window token issues
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.9f)) // Darker overlay for porn sites
+            .clickable(enabled = false) { /* Prevent click-through */ },
+        contentAlignment = Alignment.Center
     ) {
         Card(
             modifier = Modifier

@@ -76,6 +76,16 @@ class BlurOverlayManager @Inject constructor(
     private var fullScreenBlurJob: kotlinx.coroutines.Job? = null
     private val FULL_SCREEN_BLUR_TIMEOUT = 10000L // 10 seconds (reduced from 30)
     
+    // Stuck overlay detection
+    private var stuckOverlayDetectionJob: kotlinx.coroutines.Job? = null
+    private var lastOverlayCheckTime = 0L
+    private var consecutiveStuckDetections = 0
+    
+    // Overlay health monitoring
+    private var overlayHealthMonitorJob: kotlinx.coroutines.Job? = null
+    private var overlayCreationTime = 0L
+    private var overlayHealthCheckCount = 0
+    
     // Navigation callback for automatic actions
     var onNavigateAwayAction: (() -> Unit)? = null
     
@@ -89,10 +99,149 @@ class BlurOverlayManager @Inject constructor(
         return try {
             action()
             true
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "Out of memory during operation: $operation", e)
+            // Emergency cleanup on OOM
+            emergencyMemoryCleanup()
+            false
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security exception during operation: $operation", e)
+            false
+        } catch (e: WindowManager.BadTokenException) {
+            Log.e(TAG, "Bad token during operation: $operation - service likely stopping", e)
+            false
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "Illegal state during operation: $operation", e)
+            false
         } catch (e: Exception) {
             Log.e(TAG, "Safe execution failed for operation: $operation", e)
             false
         }
+    }
+    
+    /**
+     * Safe execution with retry capability
+     */
+    private fun safeExecuteWithRetry(operation: String, maxRetries: Int = 2, action: () -> Unit): Boolean {
+        repeat(maxRetries) { attempt ->
+            val success = safeExecute("$operation (attempt ${attempt + 1})", action)
+            if (success) return true
+            
+            if (attempt < maxRetries - 1) {
+                Thread.sleep(100) // Brief delay before retry
+            }
+        }
+        Log.e(TAG, "All retry attempts failed for operation: $operation")
+        return false
+    }
+    
+    /**
+     * Emergency memory cleanup for overlay manager
+     */
+    private fun emergencyMemoryCleanup() {
+        Log.w(TAG, "🧹 Emergency memory cleanup in overlay manager")
+        try {
+            // Force immediate cleanup of all overlays
+            overlayView = null
+            warningOverlayView = null
+            blockedSiteOverlayView = null
+            
+            // Reset all state flags
+            isOverlayVisible = false
+            isWarningVisible = false
+            isBlockedSiteOverlayVisible = false
+            
+            // Cancel timers
+            cancelFullScreenBlurTimer()
+            stuckOverlayDetectionJob?.cancel()
+            
+            // Force GC
+            System.gc()
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during emergency memory cleanup", e)
+        }
+    }
+    
+    /**
+     * Start overlay health monitoring to detect issues early
+     */
+    private fun startOverlayHealthMonitoring() {
+        overlayHealthMonitorJob?.cancel()
+        overlayCreationTime = System.currentTimeMillis()
+        overlayHealthCheckCount = 0
+        
+        overlayHealthMonitorJob = CoroutineScope(Dispatchers.Main).launch {
+            while (isOverlayVisible) {
+                try {
+                    delay(5000L) // Check every 5 seconds
+                    performOverlayHealthCheck()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in overlay health monitoring", e)
+                    delay(10000L) // Wait longer on error
+                }
+            }
+        }
+    }
+    
+    /**
+     * Perform health check on active overlay
+     */
+    private fun performOverlayHealthCheck() {
+        overlayHealthCheckCount++
+        val currentTime = System.currentTimeMillis()
+        val overlayAge = currentTime - overlayCreationTime
+        
+        try {
+            // Check if overlay view still exists and is valid
+            val view = overlayView
+            if (view == null) {
+                Log.w(TAG, "⚠️ Overlay health check: view is null but state says visible")
+                isOverlayVisible = false
+                return
+            }
+            
+            // Check if view is attached to window
+            val isAttached = view.isAttachedToWindow
+            if (!isAttached) {
+                Log.w(TAG, "⚠️ Overlay health check: view is not attached to window")
+                // Try to recover
+                hideBlurOverlay()
+                return
+            }
+            
+            // Check for stuck overlay (visible too long)
+            if (overlayAge > 300000L) { // 5 minutes
+                Log.w(TAG, "⚠️ Overlay health check: overlay has been visible for ${overlayAge/1000}s - potentially stuck")
+                emergencyHideAllOverlays()
+                return
+            }
+            
+            // Validate window manager state
+            if (windowManager == null) {
+                Log.w(TAG, "⚠️ Overlay health check: window manager is null")
+                isOverlayVisible = false
+                overlayView = null
+                return
+            }
+            
+            Log.v(TAG, "✅ Overlay health check #$overlayHealthCheckCount passed - age: ${overlayAge/1000}s")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during overlay health check", e)
+            // On error, try emergency cleanup
+            emergencyHideAllOverlays()
+        }
+    }
+    
+    /**
+     * Stop overlay health monitoring
+     */
+    private fun stopOverlayHealthMonitoring() {
+        overlayHealthMonitorJob?.cancel()
+        overlayHealthMonitorJob = null
+        overlayHealthCheckCount = 0
+        Log.v(TAG, "Overlay health monitoring stopped")
     }
 
     /**
@@ -121,7 +270,10 @@ class BlurOverlayManager @Inject constructor(
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
         
-        Log.d(TAG, "Blur overlay manager initialized with lifecycle support")
+        // Start proactive stuck overlay detection
+        startStuckOverlayDetection()
+        
+        Log.d(TAG, "Blur overlay manager initialized with lifecycle support and stuck detection")
     }
     
     fun showBlurOverlay(
@@ -197,10 +349,22 @@ class BlurOverlayManager @Inject constructor(
                 
                 params.gravity = Gravity.TOP or Gravity.START
                 
-                windowManager!!.addView(overlayView, params)
-                isOverlayVisible = true
+                val success = safeExecuteWithRetry("add_blur_overlay") {
+                    windowManager!!.addView(overlayView, params)
+                }
                 
-                Log.d(TAG, "🎯 PRECISION BLUR: ${scaledRegions.size} regions on ${screenWidth}x${screenHeight} screen")
+                if (success) {
+                    isOverlayVisible = true
+                    Log.d(TAG, "🎯 PRECISION BLUR: ${scaledRegions.size} regions on ${screenWidth}x${screenHeight} screen")
+                    
+                    // Start overlay health monitoring
+                    startOverlayHealthMonitoring()
+                } else {
+                    Log.e(TAG, "Failed to add blur overlay after retries")
+                    isOverlayVisible = false
+                    overlayView = null
+                    return@launch
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error showing blur overlay", e)
             }
@@ -228,23 +392,36 @@ class BlurOverlayManager @Inject constructor(
             try {
                 Log.d(TAG, "Attempting to hide blur overlay - isVisible: $isOverlayVisible, overlayView: ${overlayView != null}")
 
-                // Force hide any visible overlay
+                // Force hide any visible overlay with safety wrapper
                 if (isOverlayVisible && overlayView != null && windowManager != null) {
-                    try {
+                    val success = safeExecuteWithRetry("remove_blur_overlay") {
                         windowManager!!.removeView(overlayView)
-                        Log.d(TAG, "Blur overlay view removed from window")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Error removing overlay view (might already be removed)", e)
+                    }
+                    
+                    if (success) {
+                        Log.d(TAG, "✅ Blur overlay view removed from window")
+                    } else {
+                        Log.w(TAG, "⚠️ Failed to remove overlay view safely - attempting emergency cleanup")
+                        // Try more aggressive cleanup
+                        try {
+                            windowManager?.removeViewImmediate(overlayView)
+                            Log.d(TAG, "✅ Blur overlay removed immediately")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "❌ Emergency overlay removal also failed", e)
+                        }
                     }
                 }
 
                 // Also try to hide full-screen blur if it exists
                 hideFullScreenBlur()
 
+                // Stop health monitoring
+                stopOverlayHealthMonitoring()
+                
                 // Reset all state
                 isOverlayVisible = false
                 overlayView = null
-                Log.d(TAG, "Blur overlay hidden and state reset")
+                Log.d(TAG, "✅ Blur overlay hidden and state reset")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Critical error hiding blur overlay", e)
@@ -331,60 +508,175 @@ class BlurOverlayManager @Inject constructor(
      * Call this if overlays get stuck or appear on lock screen
      */
     fun emergencyHideAllOverlays() {
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                Log.w(TAG, "EMERGENCY: Force hiding all overlays")
+        try {
+            Log.w(TAG, "🚨 EMERGENCY: Force hiding all overlays - IMMEDIATE EXECUTION")
 
-                // Cancel any running timers first
-                cancelFullScreenBlurTimer()
+            // Cancel any running timers first
+            cancelFullScreenBlurTimer()
 
+            // AGGRESSIVE CLEANUP - Remove all views immediately
+            windowManager?.let { wm ->
                 // Hide main blur overlay
-                if (overlayView != null && windowManager != null) {
+                overlayView?.let { view ->
                     try {
-                        windowManager!!.removeView(overlayView)
+                        wm.removeViewImmediate(view)
+                        Log.d(TAG, "✅ Main overlay removed immediately")
                     } catch (e: Exception) {
-                        Log.w(TAG, "Error in emergency hide", e)
+                        try {
+                            wm.removeView(view)
+                            Log.d(TAG, "✅ Main overlay removed normally after immediate failed")
+                        } catch (e2: Exception) {
+                            Log.w(TAG, "❌ Failed to remove main overlay: ${e2.message}")
+                        }
                     }
                 }
 
                 // Hide warning overlay
-                if (warningOverlayView != null && windowManager != null) {
+                warningOverlayView?.let { view ->
                     try {
-                        windowManager!!.removeView(warningOverlayView)
+                        wm.removeViewImmediate(view)
+                        Log.d(TAG, "✅ Warning overlay removed immediately")
                     } catch (e: Exception) {
-                        Log.w(TAG, "Error hiding warning overlay in emergency", e)
+                        try {
+                            wm.removeView(view)
+                            Log.d(TAG, "✅ Warning overlay removed normally after immediate failed")
+                        } catch (e2: Exception) {
+                            Log.w(TAG, "❌ Failed to remove warning overlay: ${e2.message}")
+                        }
                     }
                 }
 
                 // Hide blocked site overlay
-                if (blockedSiteOverlayView != null && windowManager != null) {
+                blockedSiteOverlayView?.let { view ->
                     try {
-                        windowManager!!.removeView(blockedSiteOverlayView)
+                        wm.removeViewImmediate(view)
+                        Log.d(TAG, "✅ Blocked site overlay removed immediately")
                     } catch (e: Exception) {
-                        Log.w(TAG, "Error hiding blocked site overlay in emergency", e)
+                        try {
+                            wm.removeView(view)
+                            Log.d(TAG, "✅ Blocked site overlay removed normally after immediate failed")
+                        } catch (e2: Exception) {
+                            Log.w(TAG, "❌ Failed to remove blocked site overlay: ${e2.message}")
+                        }
                     }
                 }
-
-                // Reset all states
-                isOverlayVisible = false
-                isWarningVisible = false
-                isBlockedSiteOverlayVisible = false
-                overlayView = null
-                warningOverlayView = null
-                blockedSiteOverlayView = null
-
-                Log.w(TAG, "EMERGENCY: All overlays hidden and states reset")
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Critical error in emergency hide", e)
-                // Force reset states even on critical error
-                isOverlayVisible = false
-                isWarningVisible = false
-                isBlockedSiteOverlayVisible = false
-                overlayView = null
-                warningOverlayView = null
-                blockedSiteOverlayView = null
             }
+
+            // FORCE RESET ALL STATES IMMEDIATELY
+            isOverlayVisible = false
+            isWarningVisible = false
+            isBlockedSiteOverlayVisible = false
+            overlayView = null
+            warningOverlayView = null
+            blockedSiteOverlayView = null
+
+            // Move lifecycle to STARTED to prevent stuck composition
+            try {
+                lifecycleRegistry.currentState = Lifecycle.State.STARTED
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to reset lifecycle state: ${e.message}")
+            }
+
+            Log.w(TAG, "🚨 EMERGENCY CLEANUP COMPLETED - All overlays forcibly removed")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 CRITICAL ERROR in emergency hide", e)
+            // ABSOLUTE FALLBACK - Force reset all states
+            isOverlayVisible = false
+            isWarningVisible = false
+            isBlockedSiteOverlayVisible = false
+            overlayView = null
+            warningOverlayView = null
+            blockedSiteOverlayView = null
+        }
+    }
+
+    /**
+     * Manual emergency cleanup trigger - can be called from accessibility service
+     * This should be called when the service detects the app is stuck/unresponsive
+     */
+    fun forceEmergencyCleanup() {
+        try {
+            Log.e(TAG, "🚨 MANUAL EMERGENCY CLEANUP TRIGGERED - Forcing immediate overlay removal")
+            
+            // Reset stuck detection counters
+            lastOverlayCheckTime = 0L
+            consecutiveStuckDetections = 0
+            
+            // Force emergency cleanup
+            emergencyHideAllOverlays()
+            
+            // Restart stuck detection
+            startStuckOverlayDetection()
+            
+            Log.w(TAG, "🚨 Manual emergency cleanup completed - System should be responsive now")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 CRITICAL: Manual emergency cleanup failed", e)
+        }
+    }
+
+    /**
+     * Start proactive stuck overlay detection - runs every 5 seconds
+     * This is our insurance policy against stuck overlays
+     */
+    private fun startStuckOverlayDetection() {
+        stuckOverlayDetectionJob?.cancel()
+        stuckOverlayDetectionJob = CoroutineScope(Dispatchers.Main).launch {
+            while (true) {
+                try {
+                    delay(5000L) // Check every 5 seconds
+                    detectAndCleanStuckOverlays()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in stuck overlay detection loop", e)
+                    delay(10000L) // Wait longer on error
+                }
+            }
+        }
+        Log.d(TAG, "🛡️ Stuck overlay detection started - checking every 5 seconds")
+    }
+
+    /**
+     * Detect and clean stuck overlays - aggressive detection logic
+     */
+    private fun detectAndCleanStuckOverlays() {
+        try {
+            val currentTime = System.currentTimeMillis()
+            val hasAnyOverlay = isOverlayVisible || isWarningVisible || isBlockedSiteOverlayVisible
+            
+            if (hasAnyOverlay) {
+                // Check if overlay has been visible for too long
+                if (lastOverlayCheckTime == 0L) {
+                    lastOverlayCheckTime = currentTime
+                    consecutiveStuckDetections = 0
+                } else {
+                    val overlayDuration = currentTime - lastOverlayCheckTime
+                    
+                    // If overlay has been visible for more than 30 seconds, it's likely stuck
+                    if (overlayDuration > 30000L) {
+                        consecutiveStuckDetections++
+                        Log.w(TAG, "⚠️ Detected potentially stuck overlay - duration: ${overlayDuration}ms, detections: $consecutiveStuckDetections")
+                        
+                        // If we've detected this for 3+ consecutive checks (15+ seconds), force cleanup
+                        if (consecutiveStuckDetections >= 3) {
+                            Log.e(TAG, "🚨 STUCK OVERLAY CONFIRMED - Forcing emergency cleanup!")
+                            emergencyHideAllOverlays()
+                            lastOverlayCheckTime = 0L
+                            consecutiveStuckDetections = 0
+                        }
+                    } else {
+                        // Overlay duration is reasonable, reset counters
+                        consecutiveStuckDetections = 0
+                    }
+                }
+            } else {
+                // No overlays visible, reset tracking
+                lastOverlayCheckTime = 0L
+                consecutiveStuckDetections = 0
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in stuck overlay detection", e)
         }
     }
     
@@ -719,8 +1011,15 @@ class BlurOverlayManager @Inject constructor(
      */
     fun cleanup() {
         try {
-            // Emergency hide all overlays first
+            // Stop stuck overlay detection first
+            stuckOverlayDetectionJob?.cancel()
+            stuckOverlayDetectionJob = null
+            
+            // Emergency hide all overlays
             emergencyHideAllOverlays()
+            
+            // Cancel full screen blur timer
+            cancelFullScreenBlurTimer()
             
             // Move lifecycle to destroyed state
             lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
@@ -729,7 +1028,7 @@ class BlurOverlayManager @Inject constructor(
             context = null
             windowManager = null
             
-            Log.d(TAG, "BlurOverlayManager cleaned up with proper lifecycle teardown")
+            Log.d(TAG, "BlurOverlayManager cleaned up with stuck detection stopped and lifecycle teardown")
         } catch (e: Exception) {
             Log.e(TAG, "Error during cleanup", e)
         }
@@ -915,8 +1214,16 @@ class BlurOverlayManager @Inject constructor(
     ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                // Move lifecycle to RESUMED state for active overlay
+                lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+                
                 blockedSiteOverlayView = ComposeView(context!!).apply {
-                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                    // Set lifecycle owners for proper Compose management
+                    setViewTreeLifecycleOwner(this@BlurOverlayManager)
+                    setViewTreeSavedStateRegistryOwner(this@BlurOverlayManager)
+                    
+                    // Use proper composition strategy
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
                     setContent {
                         HaramBlurTheme(preferredLanguage = Language.ENGLISH) {
                             var selectedLanguage by remember {

@@ -90,10 +90,13 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Initialize test URLs and fix database issues
+        // Initialize test URLs, fix database issues, and apply first-time defaults
         lifecycleScope.launch {
             try {
-                android.util.Log.d("MainActivity", "Initializing test URLs and fixing database...")
+                android.util.Log.d("MainActivity", "Initializing app and applying first-time defaults...")
+                
+                // Apply first-time defaults (High Quality mode) - skips performance assessment
+                settingsRepository.applyFirstTimeDefaults()
                 
                 // Fix any database issues first
                 initializationHelper.fixDatabaseIssues()
@@ -101,9 +104,9 @@ class MainActivity : ComponentActivity() {
                 // Initialize test NSFW URLs including nsfw.ma
                 initializationHelper.initializeTestUrls()
                 
-                android.util.Log.d("MainActivity", "✅ Test URLs initialized successfully")
+                android.util.Log.d("MainActivity", "✅ App initialization completed with High Quality defaults")
             } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Error initializing test URLs", e)
+                android.util.Log.e("MainActivity", "Error during app initialization", e)
             }
         }
         

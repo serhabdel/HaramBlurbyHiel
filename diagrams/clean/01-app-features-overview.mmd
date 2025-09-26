@@ -1,0 +1,75 @@
+graph TD
+    subgraph "🛡️ Smart Content Protection"
+        A[Real-time Screen Capture] --> B[AI-Powered Analysis]
+        B --> C[Face Detection]
+        B --> D[NSFW Detection]
+        B --> E[Gender Classification]
+        C --> F[Intelligent Blurring]
+        D --> F
+        E --> F
+        F --> G[Selective Overlay Application]
+    end
+
+    subgraph "🕌 Islamic Integration"
+        H[Quranic Verse Database] --> I[Contextual Guidance]
+        J[Dhikr System] --> K[Scheduled Reminders]
+        L[Prayer Times API] --> M[Prayer Notifications]
+        I --> N[Spiritual Support]
+        K --> N
+        M --> N
+    end
+
+    subgraph "🔒 Privacy & Security"
+        O[On-Device Processing] --> P[Zero Data Upload]
+        Q[Local AI Models] --> R[Offline Capability]
+        S[Secure Storage] --> T[Encrypted Settings]
+        P --> U[Complete Privacy]
+        R --> U
+        T --> U
+    end
+
+    subgraph "⚡ Performance Features"
+        V[GPU Acceleration] --> W[Optimized Processing]
+        X[Adaptive Performance] --> Y[Battery Optimization]
+        Z[Memory Management] --> AA[Resource Efficiency]
+        W --> BB[Seamless Experience]
+        Y --> BB
+        AA --> BB
+    end
+
+    subgraph "🎨 User Experience"
+        CC[Material Design 3] --> DD[Modern UI]
+        EE[Intuitive Controls] --> FF[Easy Configuration]
+        GG[Real-time Feedback] --> HH[Live Statistics]
+        DD --> II[User-Friendly Interface]
+        FF --> II
+        HH --> II
+    end
+
+    subgraph "🔧 Customization"
+        JJ[Detection Sensitivity] --> KK[Personalized Settings]
+        LL[App Whitelisting] --> MM[Selective Monitoring]
+        NN[Visual Customization] --> OO[Blur Preferences]
+        KK --> PP[Tailored Experience]
+        MM --> PP
+        OO --> PP
+    end
+
+    G --> N
+    N --> BB
+    U --> II
+    BB --> PP
+
+    classDef protection fill:#e1f5fe
+    classDef islamic fill:#f3e5f5
+    classDef privacy fill:#e8f5e8
+    classDef performance fill:#fff3e0
+    classDef ux fill:#fce4ec
+    classDef customization fill:#f1f8e9
+
+    class A,B,C,D,E,F,G protection
+    class H,I,J,K,L,M,N islamic
+    class O,P,Q,R,S,T,U privacy
+    class V,W,X,Y,Z,AA,BB performance
+    class CC,DD,EE,FF,GG,HH,II ux
+    class JJ,KK,LL,MM,NN,OO,PP customization

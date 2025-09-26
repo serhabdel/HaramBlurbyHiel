@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieltech.haramblur.data.*
+import com.hieltech.haramblur.data.QualityMode
 import com.hieltech.haramblur.utils.LocationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -1411,6 +1412,23 @@ class SettingsViewModel @Inject constructor(
 
     fun isAppCategoryMonitored(category: com.hieltech.haramblur.data.models.AppCategory): Boolean {
         return settings.value.monitoredAppCategories.contains(category)
+    }
+
+    /**
+     * Update quality mode - applies all related settings automatically
+     */
+    fun updateQualityMode(qualityMode: QualityMode) {
+        viewModelScope.launch {
+            settingsRepository.updateQualityMode(qualityMode)
+            Log.d("SettingsViewModel", "Quality mode updated to: ${qualityMode.displayName}")
+        }
+    }
+
+    /**
+     * Get current quality mode
+     */
+    fun getCurrentQualityMode(): QualityMode {
+        return settings.value.qualityMode
     }
 
 }

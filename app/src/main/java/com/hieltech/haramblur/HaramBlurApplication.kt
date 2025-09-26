@@ -8,6 +8,7 @@ import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.detection.AppBlockingManager
 import com.hieltech.haramblur.services.DhikrManager
 import com.hieltech.haramblur.services.DhikrNotificationManager
+import com.hieltech.haramblur.services.PrayerNotificationWorker
 import com.hieltech.haramblur.utils.LocaleUtils
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -91,6 +92,14 @@ class HaramBlurApplication : Application() {
     private fun initializeComponents() {
         // Initialize any app-level components
         Log.d(TAG, "Initializing app components")
+        
+        // Schedule prayer notifications worker
+        try {
+            PrayerNotificationWorker.schedulePrayerNotifications(this)
+            Log.d(TAG, "Prayer notification worker scheduled successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to schedule prayer notification worker", e)
+        }
     }
 
     private fun performCleanup() {

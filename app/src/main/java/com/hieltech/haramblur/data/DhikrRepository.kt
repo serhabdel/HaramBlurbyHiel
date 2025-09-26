@@ -109,10 +109,16 @@ class DhikrRepository @Inject constructor(
     
     fun shouldShowDhikr(): Boolean {
         val settings = dhikrSettings.value
-        if (!settings.enabled) return false
+        Log.d(TAG, "Checking if should show dhikr - enabled: ${settings.enabled}")
+        
+        if (!settings.enabled) {
+            Log.d(TAG, "Dhikr is disabled")
+            return false
+        }
 
         // Check if current time is within sleep/quiet hours
         if (isWithinSleepHours(settings)) {
+            Log.d(TAG, "Currently within sleep/quiet hours")
             return false
         }
 
@@ -122,15 +128,25 @@ class DhikrRepository @Inject constructor(
             DhikrTime.EVENING -> settings.eveningEnabled
             DhikrTime.ANYTIME -> settings.anytimeEnabled
         }
-
-        if (!timeEnabled) return false
+        
+        Log.d(TAG, "Current time type: $currentTime, enabled for this time: $timeEnabled")
+        if (!timeEnabled) {
+            Log.d(TAG, "Dhikr disabled for current time period")
+            return false
+        }
 
         // Check if enough time has passed since last dhikr
         val lastShown = prefs.getLong(LAST_DHIKR_SHOWN, 0)
         val intervalMs = settings.intervalMinutes * 60 * 1000L
         val currentTimeMs = System.currentTimeMillis()
-
-        return (currentTimeMs - lastShown) >= intervalMs
+        val timeSinceLastMs = currentTimeMs - lastShown
+        
+        Log.d(TAG, "Time check - interval: ${settings.intervalMinutes}min (${intervalMs}ms), time since last: ${timeSinceLastMs}ms (${timeSinceLastMs/1000/60}min)")
+        
+        val shouldShow = (timeSinceLastMs >= intervalMs)
+        Log.d(TAG, "Should show dhikr: $shouldShow")
+        
+        return shouldShow
     }
 
     private fun isWithinSleepHours(settings: DhikrSettings): Boolean {

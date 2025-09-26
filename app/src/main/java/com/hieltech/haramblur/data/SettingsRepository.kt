@@ -34,20 +34,40 @@ class SettingsRepository @Inject constructor(
     companion object {
         private const val TAG = "SettingsRepository"
         private const val SETTINGS_VERSION_KEY = "settings_version"
-        private const val CURRENT_SETTINGS_VERSION = 9
+        private const val CURRENT_SETTINGS_VERSION = 10
     }
     
     private val _settings = MutableStateFlow(loadSettingsWithMigration())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
     
+    /**
+     * Helper function to safely get nullable string from JSONObject
+     */
+    private fun getNullableString(jsonObject: JSONObject, key: String): String? {
+        return if (jsonObject.has(key) && !jsonObject.isNull(key)) {
+            val value = jsonObject.getString(key)
+            if (value.isNullOrBlank()) null else value
+        } else {
+            null
+        }
+    }
+    
     private fun loadSettings(): AppSettings {
         return AppSettings(
+            // Quality Mode
+            qualityMode = try {
+                val modeName = prefs.getString("quality_mode", QualityMode.HIGH_QUALITY.name)
+                if (modeName != null) QualityMode.valueOf(modeName) else QualityMode.HIGH_QUALITY
+            } catch (e: Exception) {
+                QualityMode.HIGH_QUALITY // Default to high quality on error
+            },
+            
             // Basic Detection Settings
             enableFaceDetection = prefs.getBoolean("enable_face_detection", true),
             enableNSFWDetection = prefs.getBoolean("enable_nsfw_detection", true),
             blurMaleFaces = prefs.getBoolean("blur_male_faces", true),
             blurFemaleFaces = prefs.getBoolean("blur_female_faces", true),
-            detectionSensitivity = prefs.getFloat("detection_sensitivity", 0.5f),
+            detectionSensitivity = prefs.getFloat("detection_sensitivity", 0.8f),
             
             // Blur Settings
             blurIntensity = BlurIntensity.valueOf(prefs.getString("blur_intensity", BlurIntensity.MEDIUM.name)!!),
@@ -91,7 +111,7 @@ class SettingsRepository @Inject constructor(
             customReflectionTime = prefs.getInt("custom_reflection_time", 15),
             
             // Advanced Detection Settings
-            genderConfidenceThreshold = prefs.getFloat("gender_confidence_threshold", 0.8f),
+            genderConfidenceThreshold = prefs.getFloat("gender_confidence_threshold", 0.4f),
             nsfwConfidenceThreshold = prefs.getFloat("nsfw_confidence_threshold", 0.7f),
             enableFallbackDetection = prefs.getBoolean("enable_fallback_detection", true),
             enablePerformanceMonitoring = prefs.getBoolean("enable_performance_monitoring", true),
@@ -319,6 +339,9 @@ class SettingsRepository @Inject constructor(
         try {
             Log.v(TAG, "Saving settings to SharedPreferences")
             prefs.edit().apply {
+            // Quality Mode
+            putString("quality_mode", settings.qualityMode.name)
+            
             // Basic Detection Settings
             putBoolean("enable_face_detection", settings.enableFaceDetection)
             putBoolean("enable_nsfw_detection", settings.enableNSFWDetection)
@@ -842,7 +865,7 @@ class SettingsRepository @Inject constructor(
                     putInt("verse_display_duration", 10)
                     putBoolean("enable_arabic_text", true)
                     putInt("custom_reflection_time", 15)
-                    putFloat("gender_confidence_threshold", 0.8f)
+                    putFloat("gender_confidence_threshold", 0.4f)
                     putFloat("nsfw_confidence_threshold", 0.7f)
                     putBoolean("enable_fallback_detection", true)
                     putBoolean("enable_performance_monitoring", true)
@@ -939,6 +962,16 @@ class SettingsRepository @Inject constructor(
                     apply()
                 }
             }
+            9 -> {
+                // Migration to version 10: Lower gender threshold for reliable female detection
+                Log.i(TAG, "Migrating from version 9: Adjusting gender detection thresholds")
+                val currentThreshold = prefs.getFloat("gender_confidence_threshold", 0.8f)
+                val adjustedThreshold = if (currentThreshold > 0.5f) 0.4f else currentThreshold
+                prefs.edit().apply {
+                    putFloat("gender_confidence_threshold", adjustedThreshold)
+                    apply()
+                }
+            }
         }
     }
     
@@ -953,7 +986,7 @@ class SettingsRepository @Inject constructor(
             imageDownscaleRatio = settings.imageDownscaleRatio.coerceIn(0.25f, 1.0f),
             verseDisplayDuration = settings.verseDisplayDuration.coerceIn(5, 30),
             customReflectionTime = settings.customReflectionTime.coerceIn(5, 60),
-            genderConfidenceThreshold = settings.genderConfidenceThreshold.coerceIn(0.5f, 0.95f),
+            genderConfidenceThreshold = settings.genderConfidenceThreshold.coerceIn(0.3f, 0.9f),
             nsfwConfidenceThreshold = settings.nsfwConfidenceThreshold.coerceIn(0.5f, 0.95f),
             expandBlurArea = settings.expandBlurArea.coerceIn(0, 100),
             // Prayer enhancement ranges
@@ -1184,9 +1217,9 @@ class SettingsRepository @Inject constructor(
                 prayerNotificationAdvanceTime = jsonObject.optInt("prayerNotificationAdvanceTime", 15),
                 locationLatitude = if (jsonObject.has("locationLatitude")) jsonObject.optDouble("locationLatitude").let { if (it.isNaN()) null else it } else null,
                 locationLongitude = if (jsonObject.has("locationLongitude")) jsonObject.optDouble("locationLongitude").let { if (it.isNaN()) null else it } else null,
-                locationCity = jsonObject.optString("locationCity", null).takeIf { it.isNotBlank() },
-                locationCountry = jsonObject.optString("locationCountry", null).takeIf { it.isNotBlank() },
-                locationCountryCode = jsonObject.optString("locationCountryCode", null).takeIf { it.isNotBlank() },
+                locationCity = getNullableString(jsonObject, "locationCity"),
+                locationCountry = getNullableString(jsonObject, "locationCountry"),
+                locationCountryCode = getNullableString(jsonObject, "locationCountryCode"),
                 enableQiblaDirection = jsonObject.optBoolean("enableQiblaDirection", true),
                 prayerTimesUpdateInterval = jsonObject.optInt("prayerTimesUpdateInterval", 30),
                 islamicCalendarUpdateInterval = jsonObject.optInt("islamicCalendarUpdateInterval", 60),
@@ -1201,9 +1234,9 @@ class SettingsRepository @Inject constructor(
                 } catch (e: IllegalArgumentException) { LocationPermissionStatus.UNKNOWN }
                 ,
                 // New city selection fields
-                selectedCityName = jsonObject.optString("selectedCityName", null).takeIf { it.isNotBlank() },
-                selectedCountry = jsonObject.optString("selectedCountry", null).takeIf { it.isNotBlank() },
-                selectedCountryCode = jsonObject.optString("selectedCountryCode", null).takeIf { it.isNotBlank() },
+                selectedCityName = getNullableString(jsonObject, "selectedCityName"),
+                selectedCountry = getNullableString(jsonObject, "selectedCountry"),
+                selectedCountryCode = getNullableString(jsonObject, "selectedCountryCode"),
                 selectedLatitude = if (jsonObject.has("selectedLatitude")) jsonObject.optDouble("selectedLatitude").let { if (it.isNaN()) null else it } else null,
                 selectedLongitude = if (jsonObject.has("selectedLongitude")) jsonObject.optDouble("selectedLongitude").let { if (it.isNaN()) null else it } else null,
                 enableCitySearchCache = jsonObject.optBoolean("enableCitySearchCache", true),
@@ -1905,5 +1938,76 @@ class SettingsRepository @Inject constructor(
         // This would typically query recent changes from database
         // For now, return empty list
         return emptyList<RecentSetting>()
+    }
+
+    /**
+     * Update quality mode - applies all related settings automatically
+     */
+    suspend fun updateQualityMode(qualityMode: QualityMode) {
+        val currentSettings = getCurrentSettings()
+        val updatedSettings = currentSettings.copy(
+            qualityMode = qualityMode,
+            detectionSensitivity = qualityMode.detectionSensitivity,
+            processingSpeed = qualityMode.processingSpeed,
+            blurIntensity = qualityMode.blurIntensity,
+            maxProcessingTimeMs = qualityMode.maxProcessingTimeMs,
+            frameSkipThreshold = qualityMode.frameSkipThreshold,
+            imageDownscaleRatio = qualityMode.imageDownscaleRatio,
+            enableGPUAcceleration = qualityMode.enableGPUAcceleration,
+            enableRealTimeProcessing = qualityMode.enableRealTimeProcessing,
+            // Ensure detection is enabled when applying quality mode
+            enableFaceDetection = true,
+            enableNSFWDetection = true,
+            isServicePaused = false
+        )
+        updateSettings(updatedSettings)
+        Log.d(TAG, "Quality mode updated to: ${qualityMode.displayName}")
+    }
+
+    /**
+     * Get current quality mode
+     */
+    fun getCurrentQualityMode(): QualityMode {
+        return getCurrentSettings().qualityMode
+    }
+
+    /**
+     * Check if this is a first-time install (no settings saved yet)
+     */
+    fun isFirstTimeInstall(): Boolean {
+        return !prefs.contains("onboarding_completed")
+    }
+
+    /**
+     * Apply optimal first-time defaults (High Quality mode)
+     */
+    suspend fun applyFirstTimeDefaults() {
+        if (isFirstTimeInstall()) {
+            val defaultSettings = AppSettings(
+                qualityMode = QualityMode.HIGH_QUALITY,
+                // Apply High Quality mode settings
+                detectionSensitivity = QualityMode.HIGH_QUALITY.detectionSensitivity,
+                processingSpeed = QualityMode.HIGH_QUALITY.processingSpeed,
+                blurIntensity = QualityMode.HIGH_QUALITY.blurIntensity,
+                maxProcessingTimeMs = QualityMode.HIGH_QUALITY.maxProcessingTimeMs,
+                frameSkipThreshold = QualityMode.HIGH_QUALITY.frameSkipThreshold,
+                imageDownscaleRatio = QualityMode.HIGH_QUALITY.imageDownscaleRatio,
+                enableGPUAcceleration = QualityMode.HIGH_QUALITY.enableGPUAcceleration,
+                enableRealTimeProcessing = QualityMode.HIGH_QUALITY.enableRealTimeProcessing,
+                
+                // Other optimized first-time defaults
+                enableFaceDetection = true,
+                enableNSFWDetection = true,
+                blurFemaleFaces = true,
+                enableQuranicGuidance = true,
+                enableSiteBlocking = true,
+                isServicePaused = false,
+                // Use optimized confidence thresholds for better detection
+                nsfwConfidenceThreshold = 0.5f,
+                genderConfidenceThreshold = 0.4f
+            )
+            updateSettings(defaultSettings)
+            Log.d(TAG, "Applied first-time defaults with High Quality mode")
+        }
     }
 }

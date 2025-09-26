@@ -12,7 +12,7 @@ import com.hieltech.haramblur.ui.newsettings.ModernAdvancedSettingsScreen
 import com.hieltech.haramblur.ui.newsettings.ModernDetectionSettingsScreen
 import com.hieltech.haramblur.ui.newsettings.ModernGeneralSettingsScreen
 import com.hieltech.haramblur.ui.newsettings.ModernIslamicSettingsScreen
-import com.hieltech.haramblur.ui.newsettings.ModernPerformanceSettingsScreen
+import com.hieltech.haramblur.ui.newsettings.SimpleQualitySettingsScreen
 import com.hieltech.haramblur.ui.newsettings.ModernSettingsHomeScreen
 import com.hieltech.haramblur.data.SettingsCategory
 import com.hieltech.haramblur.ui.components.*
@@ -54,7 +54,7 @@ fun SettingsScreen(
         }
         SettingsCategory.PERFORMANCE -> {
             AnimatedSlideIn(visible = true) {
-                ModernPerformanceSettingsScreen(onNavigateBack = { currentScreen = null })
+                SimpleQualitySettingsScreen(onNavigateBack = { currentScreen = null })
             }
         }
         SettingsCategory.ISLAMIC -> {

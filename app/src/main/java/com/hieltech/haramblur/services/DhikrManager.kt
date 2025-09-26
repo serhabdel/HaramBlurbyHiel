@@ -1,32 +1,12 @@
 package com.hieltech.haramblur.services
 
 import android.content.Context
-import android.graphics.PixelFormat
 import android.util.Log
-import android.view.Gravity
-import android.view.WindowManager
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.savedstate.SavedStateRegistry
-import androidx.savedstate.SavedStateRegistryController
-import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import android.app.NotificationManager
 import androidx.core.app.NotificationCompat
 import com.hieltech.haramblur.data.Dhikr
-import com.hieltech.haramblur.data.DhikrPosition
 import com.hieltech.haramblur.data.DhikrRepository
 import com.hieltech.haramblur.data.DhikrSettings
-import com.hieltech.haramblur.ui.components.DhikrOverlay
-import com.hieltech.haramblur.ui.theme.HaramBlurTheme
-import com.hieltech.haramblur.detection.Language
 import com.hieltech.haramblur.utils.DhikrPermissionHelper
 import com.hieltech.haramblur.utils.DhikrDisplayMethod
 import kotlinx.coroutines.CoroutineScope
@@ -42,192 +22,94 @@ class DhikrManager @Inject constructor(
     private val dhikrRepository: DhikrRepository,
     private val permissionHelper: DhikrPermissionHelper,
     private val notificationManager: DhikrNotificationManager
-) : LifecycleOwner, SavedStateRegistryOwner {
+) {
     
     companion object {
         private const val TAG = "DhikrManager"
     }
     
-    private var windowManager: WindowManager? = null
     private var context: Context? = null
-    private var dhikrOverlayView: ComposeView? = null
-    private var isOverlayVisible = false
     private var schedulerJob: Job? = null
     
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     
-    // Lifecycle management for ComposeView overlays
-    private val lifecycleRegistry = LifecycleRegistry(this)
-    private val savedStateRegistryController = SavedStateRegistryController.create(this)
-    
-    override val lifecycle: Lifecycle get() = lifecycleRegistry
-    override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
-    
     fun initialize(context: Context) {
         this.context = context
-        windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        Log.d(TAG, "DhikrManager initialized (notification-only mode)")
         
-        // Initialize lifecycle components
-        savedStateRegistryController.performAttach()
-        savedStateRegistryController.performRestore(null)
-        lifecycleRegistry.currentState = Lifecycle.State.CREATED
-        
-        Log.d(TAG, "DhikrManager initialized with lifecycle support")
+        // Check if dhikr should be shown immediately on startup
+        serviceScope.launch {
+            try {
+                val settings = dhikrRepository.dhikrSettings.value
+                if (settings.enabled) {
+                    Log.d(TAG, "Dhikr is enabled, checking if should show dhikr immediately")
+                    checkAndShowDhikr()
+                } else {
+                    Log.d(TAG, "Dhikr is disabled in settings")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during initialization dhikr check", e)
+            }
+        }
     }
     
     fun startScheduler() {
         schedulerJob?.cancel()
         schedulerJob = serviceScope.launch {
+            Log.d(TAG, "Starting dhikr scheduler loop...")
             while (true) {
-                delay(60000) // Check every minute
-                checkAndShowDhikr()
+                try {
+                    val settings = dhikrRepository.dhikrSettings.value
+                    if (settings.enabled) {
+                        checkAndShowDhikr()
+                        
+                        // Log status for debugging
+                        val timeUntil = dhikrRepository.getTimeUntilNextDhikr()
+                        if (timeUntil > 0) {
+                            val minutesUntil = timeUntil / 1000 / 60
+                            Log.d(TAG, "Next dhikr in $minutesUntil minutes")
+                        } else {
+                            Log.d(TAG, "Dhikr ready to be shown")
+                        }
+                    } else {
+                        Log.v(TAG, "Dhikr disabled, skipping check")
+                    }
+                    
+                    delay(60000) // Check every minute
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in dhikr scheduler loop", e)
+                    delay(60000) // Wait before retrying on error
+                }
             }
         }
         Log.d(TAG, "Dhikr scheduler started")
     }
     
+    // Overlay functionality removed - using notifications only
+    @Deprecated("Overlay functionality removed, use showDhikrNotification instead")
     fun showDhikrOverlay(dhikr: Dhikr, settings: DhikrSettings) {
-        serviceScope.launch {
-            try {
-                if (windowManager == null || context == null) {
-                    Log.w(TAG, "WindowManager or Context not initialized")
-                    return@launch
-                }
-                
-                if (isOverlayVisible) {
-                    hideDhikrOverlay()
-                    delay(500)
-                }
-                
-                // Move to RESUMED state for active overlay
-                lifecycleRegistry.currentState = Lifecycle.State.RESUMED
-                
-                val dhikrOverlay = ComposeView(context!!).apply {
-                    // Set lifecycle owners for proper Compose management
-                    setViewTreeLifecycleOwner(this@DhikrManager)
-                    setViewTreeSavedStateRegistryOwner(this@DhikrManager)
-                    
-                    // Use proper composition strategy
-                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
-                    
-                    setContent {
-                        HaramBlurTheme(preferredLanguage = Language.ENGLISH) {
-                            DhikrOverlay(
-                                dhikr = dhikr,
-                                settings = settings,
-                                onDismiss = {
-                                    hideDhikrOverlay()
-                                }
-                            )
-                        }
-                    }
-                }
-                
-                val params = createWindowLayoutParams(settings.displayPosition)
-                
-                windowManager!!.addView(dhikrOverlay, params)
-                dhikrOverlayView = dhikrOverlay
-                isOverlayVisible = true
-                
-                dhikrRepository.showDhikr(dhikr)
-                Log.d(TAG, "Dhikr overlay shown with lifecycle support: ${dhikr.arabicText}")
-                
-                // Auto-hide after duration
-                serviceScope.launch {
-                    delay(settings.displayDurationSeconds * 1000L)
-                    if (isOverlayVisible) {
-                        hideDhikrOverlay()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error showing dhikr overlay", e)
-            }
-        }
+        Log.d(TAG, "Overlay display disabled, falling back to notification")
+        showDhikrNotification(dhikr, settings)
     }
     
+    // Overlay functionality removed
+    @Deprecated("Overlay functionality removed")
     fun hideDhikrOverlay() {
-        serviceScope.launch {
-            try {
-                if (isOverlayVisible && dhikrOverlayView != null && windowManager != null) {
-                    windowManager!!.removeView(dhikrOverlayView)
-                    // Always reset state regardless of view removal success
-                    isOverlayVisible = false
-                    dhikrOverlayView = null
-
-                    // Update repository state
-                    try {
-                        dhikrRepository.hideDhikr()
-                    } catch (repoException: Exception) {
-                        Log.w(TAG, "Error updating repository state", repoException)
-                    }
-
-                    Log.d(TAG, "Dhikr overlay hidden")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error hiding dhikr overlay", e)
-                // Force reset state to prevent stuck overlays
-                isOverlayVisible = false
-                dhikrOverlayView = null
-            }
-        }
+        Log.d(TAG, "hideDhikrOverlay called but overlay functionality is disabled")
     }
     
-    private fun createWindowLayoutParams(position: DhikrPosition): WindowManager.LayoutParams {
-        val gravity = when (position) {
-            DhikrPosition.TOP_RIGHT -> Gravity.TOP or Gravity.END
-            DhikrPosition.TOP_LEFT -> Gravity.TOP or Gravity.START
-            DhikrPosition.BOTTOM_RIGHT -> Gravity.BOTTOM or Gravity.END
-            DhikrPosition.BOTTOM_LEFT -> Gravity.BOTTOM or Gravity.START
-            DhikrPosition.CENTER -> Gravity.CENTER
-        }
-        
-        return WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            this.gravity = gravity
-            // Add margins based on position
-            when (position) {
-                DhikrPosition.TOP_RIGHT, DhikrPosition.TOP_LEFT -> {
-                    y = 100 // Top margin
-                }
-                DhikrPosition.BOTTOM_RIGHT, DhikrPosition.BOTTOM_LEFT -> {
-                    y = -100 // Bottom margin
-                }
-                else -> {
-                    // Center position
-                }
-            }
-            x = when {
-                position == DhikrPosition.TOP_RIGHT || position == DhikrPosition.BOTTOM_RIGHT -> -20
-                position == DhikrPosition.TOP_LEFT || position == DhikrPosition.BOTTOM_LEFT -> 20
-                else -> 0
-            }
-        }
-    }
+    // Window layout params removed - overlay functionality disabled
     
-    fun isOverlayActive(): Boolean = isOverlayVisible
+    fun isOverlayActive(): Boolean = false // Overlay functionality disabled
     
     fun cleanup() {
         try {
             schedulerJob?.cancel()
-            if (isOverlayVisible) {
-                hideDhikrOverlay()
-            }
-            
-            // Move lifecycle to destroyed state
-            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
             
             // Clear all references
             context = null
-            windowManager = null
             
-            Log.d(TAG, "DhikrManager cleaned up with proper lifecycle teardown")
+            Log.d(TAG, "DhikrManager cleaned up (notification-only mode)")
         } catch (e: Exception) {
             Log.e(TAG, "Error during cleanup", e)
         }
@@ -258,7 +140,7 @@ class DhikrManager @Inject constructor(
                 
                 val dhikr = dhikrRepository.getNextDhikr()
                 if (dhikr != null) {
-                    showDhikrOverlay(dhikr, settings)
+                    showDhikrNotification(dhikr, settings)
                 } else {
                     Log.d(TAG, "No dhikr available for current time")
                 }
@@ -269,13 +151,11 @@ class DhikrManager @Inject constructor(
     }
     
     /**
-     * Force hide any visible dhikr overlay
+     * Force hide any visible dhikr (notification-only mode)
      */
     fun forceHide() {
-        if (isOverlayVisible) {
-            hideDhikrOverlay()
-            Log.d(TAG, "Dhikr overlay force hidden")
-        }
+        notificationManager.cancelDhikrNotification()
+        Log.d(TAG, "Dhikr notification force hidden")
     }
     
     /**
@@ -285,10 +165,10 @@ class DhikrManager @Inject constructor(
         serviceScope.launch {
             try {
                 val settings = dhikrRepository.dhikrSettings.value
-                if (settings.enabled && dhikrRepository.shouldShowDhikr() && !isOverlayVisible) {
+                if (settings.enabled && dhikrRepository.shouldShowDhikr()) {
                     val dhikr = dhikrRepository.getNextDhikr()
                     if (dhikr != null) {
-                        showDhikrOverlay(dhikr, settings)
+                        showDhikrNotification(dhikr, settings)
                     }
                 }
             } catch (e: Exception) {
@@ -301,7 +181,6 @@ class DhikrManager @Inject constructor(
         val settings = dhikrRepository.dhikrSettings.value
         return when {
             !settings.enabled -> "Dhikr disabled"
-            isOverlayVisible -> "Dhikr currently displayed"
             dhikrRepository.shouldShowDhikr() -> "Ready to show dhikr"
             else -> {
                 val timeUntil = dhikrRepository.getTimeUntilNextDhikr() / 1000 / 60
@@ -313,29 +192,15 @@ class DhikrManager @Inject constructor(
     // ===== ENHANCED METHODS =====
 
     /**
-     * Enhanced method that tries overlay first, then falls back to notification
+     * Show dhikr using notification (overlay functionality removed)
      */
     fun showDhikrWithFallback(dhikr: Dhikr, settings: DhikrSettings) {
-        val displayMethod = permissionHelper.getRecommendedDisplayMethod()
-
-        when (displayMethod) {
-            DhikrDisplayMethod.OVERLAY -> {
-                Log.d(TAG, "Using overlay display method for dhikr: ${dhikr.id}")
-                try {
-                    showDhikrOverlay(dhikr, settings)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Overlay display failed, falling back to notification", e)
-                    showDhikrNotification(dhikr, settings)
-                }
-            }
-            DhikrDisplayMethod.NOTIFICATION -> {
-                Log.d(TAG, "Using notification display method for dhikr: ${dhikr.id}")
-                showDhikrNotification(dhikr, settings)
-            }
-            DhikrDisplayMethod.NONE -> {
-                Log.w(TAG, "No display method available for dhikr: ${dhikr.id}")
-                showErrorNotification("Dhikr display unavailable - check permissions")
-            }
+        Log.d(TAG, "Using notification display method for dhikr: ${dhikr.id}")
+        if (permissionHelper.canShowNotification()) {
+            showDhikrNotification(dhikr, settings)
+        } else {
+            Log.w(TAG, "No notification permission available for dhikr: ${dhikr.id}")
+            showErrorNotification("Dhikr display unavailable - check permissions")
         }
     }
 
@@ -394,13 +259,13 @@ class DhikrManager @Inject constructor(
                     val settings = dhikrRepository.dhikrSettings.value
                     if (settings.enabled && dhikrRepository.shouldShowDhikr()) {
                         val dhikr = dhikrRepository.getNextDhikr()
-                        if (dhikr != null && !isOverlayVisible) {
+                        if (dhikr != null) {
                             showDhikrWithFallback(dhikr, settings)
                         }
                     }
 
-                    // Update status notification periodically
-                    updateStatusNotification()
+                    // Status notification updates disabled to prevent stuck notifications
+                    // updateStatusNotification() - DISABLED
 
                     // Check every minute
                     delay(60_000L)
@@ -454,7 +319,7 @@ class DhikrManager @Inject constructor(
             overlayPermissionGranted = permissionStatus.overlayGranted,
             notificationPermissionGranted = permissionStatus.notificationGranted,
             accessibilityServiceRunning = permissionStatus.accessibilityEnabled,
-            isOverlayVisible = isOverlayVisible,
+            isOverlayVisible = false, // Overlay functionality disabled
             dailyDhikrCount = dailyCount,
             timeUntilNextDhikr = timeUntil,
             currentTimeWindow = dhikrRepository.getCurrentTimeType(),
@@ -471,11 +336,8 @@ class DhikrManager @Inject constructor(
                 val settings = dhikrRepository.dhikrSettings.value
                 val dhikr = dhikrRepository.getNextDhikr() ?: return@launch
 
-                when (displayMethod) {
-                    DhikrDisplayMethod.OVERLAY -> showDhikrOverlay(dhikr, settings)
-                    DhikrDisplayMethod.NOTIFICATION -> showDhikrNotification(dhikr, settings)
-                    DhikrDisplayMethod.NONE -> Log.d(TAG, "No display method available")
-                }
+                // Only notification method available now
+                showDhikrNotification(dhikr, settings)
             } catch (e: Exception) {
                 Log.e(TAG, "Error testing dhikr display", e)
             }
@@ -507,11 +369,8 @@ class DhikrManager @Inject constructor(
     fun enhancedCleanup() {
         try {
             schedulerJob?.cancel()
-            if (isOverlayVisible) {
-                hideDhikrOverlay()
-            }
             notificationManager.cancelAllNotifications()
-            Log.d(TAG, "Enhanced DhikrManager cleaned up")
+            Log.d(TAG, "Enhanced DhikrManager cleaned up (notification-only mode)")
         } catch (e: Exception) {
             Log.e(TAG, "Error during enhanced cleanup", e)
         }
@@ -529,6 +388,43 @@ class DhikrManager @Inject constructor(
      */
     fun getCurrentSettings(): com.hieltech.haramblur.data.DhikrSettings {
         return dhikrRepository.dhikrSettings.value
+    }
+    
+    /**
+     * Debug method to test dhikr notifications immediately (bypasses timing checks)
+     */
+    fun testDhikrNotificationNow() {
+        serviceScope.launch {
+            try {
+                val settings = dhikrRepository.dhikrSettings.value
+                Log.d(TAG, "Testing dhikr notification now - enabled: ${settings.enabled}")
+                
+                if (!settings.enabled) {
+                    Log.w(TAG, "Dhikr is disabled, cannot test notification")
+                    showErrorNotification("Dhikr is disabled in settings")
+                    return@launch
+                }
+                
+                val dhikr = dhikrRepository.getNextDhikr() ?: run {
+                    // Try to get any dhikr for testing
+                    val allDhikr = dhikrRepository.getAllDhikr()
+                    if (allDhikr.isNotEmpty()) {
+                        allDhikr.random()
+                    } else {
+                        Log.w(TAG, "No dhikr available for testing")
+                        showErrorNotification("No dhikr available for current time")
+                        return@launch
+                    }
+                }
+                
+                Log.d(TAG, "Showing test dhikr: ${dhikr.id} - ${dhikr.time}")
+                showDhikrNotification(dhikr, settings)
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Error testing dhikr notification", e)
+                showErrorNotification("Error testing dhikr: ${e.message}")
+            }
+        }
     }
 }
 

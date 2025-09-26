@@ -19,6 +19,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.max
 
 @Singleton
 class FaceDetectionManager @Inject constructor(
@@ -28,6 +29,8 @@ class FaceDetectionManager @Inject constructor(
     
     companion object {
         private const val TAG = "FaceDetectionManager"
+        private const val FEMALE_CONFIDENCE_MIN = 0.35f
+        private const val UNKNOWN_CONFIDENCE_MAX = 0.45f
     }
     
     private val faceDetector: FaceDetector by lazy {
@@ -78,6 +81,7 @@ class FaceDetectionManager @Inject constructor(
                 val faceInfo = coroutineScope {
                     faces.map { face ->
                         async {
+                            val trackingId = face.trackingId ?: face.hashCode()
                             val rect = Rect(
                                 face.boundingBox.left,
                                 face.boundingBox.top,
@@ -88,38 +92,56 @@ class FaceDetectionManager @Inject constructor(
                             // Enhanced gender detection using multiple indicators
                             val genderResult = enhancedGenderDetector.detectGender(face, bitmap)
                             val isFemale = genderResult.gender == Gender.FEMALE
-                            Log.v(TAG, "  Face #${faces.indexOf(face)}: confidence=${(face.trackingId ?: 0)}, female=$isFemale (${(genderResult.confidence * 100).toInt()}%)")
+                            Log.d(TAG, "  Face @$trackingId -> gender=${genderResult.gender} (${"%.2f".format(genderResult.confidence)})")
 
                             DetectedFace(rect, genderResult.gender, genderResult.confidence, genderResult)
                         }
                     }.map { it.await() }
                 }
 
-                // Apply immediate female-only filtering for precision
-                val femaleFaces = faceInfo.filter { face ->
-                    when {
-                        // High confidence female - always keep
-                        face.estimatedGender.toString().contains("FEMALE", ignoreCase = true) && 
-                        face.genderConfidence >= 0.4f -> {
-                            Log.v(TAG, "✅ FEMALE KEPT: confidence=${face.genderConfidence}")
-                            true
-                        }
-                        // Possible female (unknown with low confidence)
-                        face.estimatedGender.toString().contains("UNKNOWN", ignoreCase = true) && 
-                        face.genderConfidence < 0.4f -> {
-                            Log.v(TAG, "❓ POSSIBLE FEMALE: confidence=${face.genderConfidence}")
-                            appSettings?.detectionSensitivity ?: 0.5f > 0.7f
-                        }
-                        // STRICT EXCLUSION: All males and confident unknowns
-                        else -> {
-                            Log.v(TAG, "❌ EXCLUDED: ${face.estimatedGender}, confidence=${face.genderConfidence}")
-                            false
+                val detectionSensitivity = appSettings?.detectionSensitivity ?: 0.5f
+                val femaleBlurEnabled = appSettings?.blurFemaleFaces ?: true
+                val configuredThreshold = appSettings?.genderConfidenceThreshold ?: 0.4f
+                val femaleConfidenceThreshold = max(FEMALE_CONFIDENCE_MIN, configuredThreshold - 0.1f)
+
+                val detectedFaces = if (femaleBlurEnabled) {
+                    faceInfo.filter { face ->
+                        when (face.estimatedGender) {
+                            Gender.FEMALE -> {
+                                val keep = face.genderConfidence >= femaleConfidenceThreshold ||
+                                        (detectionSensitivity > 0.85f && face.genderConfidence >= FEMALE_CONFIDENCE_MIN)
+                                if (keep) {
+                                    Log.d(TAG, "✅ FEMALE KEPT: confidence=${"%.2f".format(face.genderConfidence)}")
+                                } else {
+                                    Log.d(TAG, "⛔ FEMALE DROPPED (low confidence=${"%.2f".format(face.genderConfidence)})")
+                                }
+                                keep
+                            }
+                            Gender.UNKNOWN -> {
+                                val keep = detectionSensitivity > 0.75f && face.genderConfidence < UNKNOWN_CONFIDENCE_MAX
+                                if (keep) {
+                                    Log.d(TAG, "❓ POSSIBLE FEMALE (unknown, confidence=${"%.2f".format(face.genderConfidence)})")
+                                } else {
+                                    Log.d(TAG, "⛔ UNKNOWN EXCLUDED: confidence=${"%.2f".format(face.genderConfidence)}")
+                                }
+                                keep
+                            }
+                            Gender.MALE -> {
+                                Log.d(TAG, "🚫 MALE EXCLUDED: confidence=${"%.2f".format(face.genderConfidence)}")
+                                false
+                            }
                         }
                     }
+                } else {
+                    Log.d(TAG, "♀️ Female face blurring disabled in settings; skipping detected faces")
+                    emptyList()
                 }
-                
-                val detectedFaces = femaleFaces
-                Log.d(TAG, "🎯 PRECISION FILTERING: ${detectedFaces.size} female faces from ${faceInfo.size} total")
+
+                val femaleCount = faceInfo.count { it.estimatedGender == Gender.FEMALE }
+                val maleCount = faceInfo.count { it.estimatedGender == Gender.MALE }
+                val unknownCount = faceInfo.count { it.estimatedGender == Gender.UNKNOWN }
+                Log.d(TAG, "📊 Gender detection summary - total:${faceInfo.size}, female:$femaleCount, male:$maleCount, unknown:$unknownCount")
+                Log.d(TAG, "🎯 FILTERED FOR BLUR: ${detectedFaces.size} female faces retained")
                 
                 val processingTime = System.currentTimeMillis() - startTime
                 Log.d(TAG, "✅ PRECISION detection completed in ${processingTime}ms")

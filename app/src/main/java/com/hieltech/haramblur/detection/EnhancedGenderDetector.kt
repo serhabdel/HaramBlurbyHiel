@@ -35,10 +35,20 @@ interface EnhancedGenderDetector {
 }
 
 /**
+ * Provides gender model inference capabilities
+ */
+interface GenderModelProvider {
+    suspend fun detectGender(face: Face, bitmap: Bitmap): GenderDetectionResult
+    fun isGenderModelReady(): Boolean
+}
+
+/**
  * Implementation of enhanced gender detection with improved algorithms
  */
 @Singleton
-class EnhancedGenderDetectorImpl @Inject constructor() : EnhancedGenderDetector {
+class EnhancedGenderDetectorImpl @Inject constructor(
+    private val genderModelProvider: GenderModelProvider
+) : EnhancedGenderDetector {
     
     companion object {
         private const val TAG = "EnhancedGenderDetector"
@@ -54,43 +64,46 @@ class EnhancedGenderDetectorImpl @Inject constructor() : EnhancedGenderDetector 
         val startTime = System.currentTimeMillis()
         
         try {
-            Log.d(TAG, "Starting enhanced gender detection for face: ${face.trackingId}")
-            
+            val cacheKey = face.trackingId ?: face.hashCode()
+
+            Log.d(TAG, "Starting enhanced gender detection for face: $cacheKey")
+
             // Check cache first for performance
-            face.trackingId?.let { trackingId ->
-                genderCache[trackingId]?.let { cachedResult ->
-                    Log.d(TAG, "Using cached gender result for face: $trackingId")
-                    return@withContext cachedResult.copy(
-                        processingTimeMs = System.currentTimeMillis() - startTime
-                    )
+            genderCache[cacheKey]?.let { cachedResult ->
+                Log.d(TAG, "Using cached gender result for face: $cacheKey")
+                return@withContext cachedResult.copy(
+                    processingTimeMs = System.currentTimeMillis() - startTime
+                )
+            }
+
+            val modelReady = genderModelProvider.isGenderModelReady()
+            var usedModel = false
+
+            val result = if (modelReady) {
+                Log.d(TAG, "Using TensorFlow Lite gender model for face: $cacheKey")
+                try {
+                    val modelResult = genderModelProvider.detectGender(face, bitmap)
+                    usedModel = true
+                    isInitialized = true
+                    modelResult.copy(processingTimeMs = System.currentTimeMillis() - startTime)
+                } catch (e: Exception) {
+                    Log.w(TAG, "ML gender model inference failed, falling back to heuristics", e)
+                    isInitialized = false
+                    detectGenderWithHeuristics(face, bitmap, startTime)
                 }
-            }
-            
-            // Perform facial feature analysis
-            val facialFeatures = if (FACIAL_FEATURE_ANALYSIS_ENABLED) {
-                analyzeFacialFeatures(face, bitmap)
             } else {
-                FacialFeatureAnalysis.default()
+                Log.w(TAG, "Gender model not ready, using heuristic detection for face: $cacheKey")
+                isInitialized = false
+                detectGenderWithHeuristics(face, bitmap, startTime)
             }
-            
-            // Enhanced gender classification using multiple indicators
-            val genderClassification = performEnhancedGenderClassification(face, bitmap, facialFeatures)
-            
-            val result = GenderDetectionResult(
-                gender = genderClassification.gender,
-                confidence = genderClassification.confidence,
-                facialFeatures = facialFeatures,
-                processingTimeMs = System.currentTimeMillis() - startTime
-            )
-            
+
             // Cache result for future frames
-            face.trackingId?.let { trackingId ->
-                genderCache[trackingId] = result
-            }
-            
-            Log.d(TAG, "Gender detection completed: ${result.gender} (confidence: ${result.confidence})")
+            genderCache[cacheKey] = result
+
+            val detectionSource = if (usedModel) "ML" else "heuristic"
+            Log.d(TAG, "Gender detection completed ($detectionSource): ${result.gender} (confidence: ${result.confidence})")
             return@withContext result
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Enhanced gender detection failed", e)
             return@withContext GenderDetectionResult(
@@ -154,7 +167,7 @@ class EnhancedGenderDetectorImpl @Inject constructor() : EnhancedGenderDetector 
             Log.d(TAG, "Updating gender model: $modelPath")
             this.modelPath = modelPath
             // TODO: Load TensorFlow Lite model in task 2.2
-            isInitialized = true
+            isInitialized = genderModelProvider.isGenderModelReady()
             Log.d(TAG, "Gender model updated successfully")
             true
         } catch (e: Exception) {
@@ -163,7 +176,32 @@ class EnhancedGenderDetectorImpl @Inject constructor() : EnhancedGenderDetector 
         }
     }
     
-    override fun isReady(): Boolean = isInitialized
+    override fun isReady(): Boolean = isInitialized || genderModelProvider.isGenderModelReady()
+
+    private fun detectGenderWithHeuristics(
+        face: Face,
+        bitmap: Bitmap,
+        startTime: Long
+    ): GenderDetectionResult {
+        val facialFeatures = if (FACIAL_FEATURE_ANALYSIS_ENABLED) {
+            analyzeFacialFeatures(face, bitmap)
+        } else {
+            FacialFeatureAnalysis.default()
+        }
+
+        // Enhanced gender classification using multiple indicators
+        val genderClassification = performEnhancedGenderClassification(face, bitmap, facialFeatures)
+
+        val result = GenderDetectionResult(
+            gender = genderClassification.gender,
+            confidence = genderClassification.confidence,
+            facialFeatures = facialFeatures,
+            processingTimeMs = System.currentTimeMillis() - startTime
+        )
+
+        Log.d(TAG, "Heuristic gender detection: ${result.gender} (confidence: ${result.confidence})")
+        return result
+    }
     
     /**
      * Analyze facial features for improved gender classification

@@ -64,7 +64,7 @@ data class QiblaCompassData(
  * User preferences for compass behavior and UI.
  */
 data class CompassSettings(
-    val enableVibration: Boolean = true,
+    val enableVibration: Boolean = false,
     val showDegreeMarkings: Boolean = true,
     val compassSensitivity: Float = 1.0f,
     val accuracyThreshold: Float = 20.0f,

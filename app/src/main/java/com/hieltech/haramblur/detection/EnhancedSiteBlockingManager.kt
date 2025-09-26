@@ -209,7 +209,12 @@ class EnhancedSiteBlockingManager @Inject constructor(
                 Log.e(TAG, "Error getting custom blocked websites count", e)
                 emit(0) // Emit 0 on error instead of crashing
             }
-            delay(2000) // Update every 2 seconds
+            try {
+                delay(2000) // Update every 2 seconds
+            } catch (e: CancellationException) {
+                Log.d(TAG, "Flow collection cancelled, stopping count updates")
+                break // Exit gracefully when flow is cancelled
+            }
         }
     }
 

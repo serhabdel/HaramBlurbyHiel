@@ -25,7 +25,7 @@ import javax.inject.Singleton
 class MLModelManager @Inject constructor(
     private val gpuAccelerationManager: GPUAccelerationManager,
     private val performanceMonitor: PerformanceMonitor
-) {
+): GenderModelProvider {
     
     companion object {
         private const val TAG = "MLModelManager"
@@ -467,7 +467,7 @@ class MLModelManager @Inject constructor(
     /**
      * Detect gender for a face using TensorFlow Lite model with caching
      */
-    suspend fun detectGender(face: Face, bitmap: Bitmap): GenderDetectionResult = withContext(Dispatchers.IO) {
+    override suspend fun detectGender(face: Face, bitmap: Bitmap): GenderDetectionResult = withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
         
         try {
@@ -749,14 +749,14 @@ class MLModelManager @Inject constructor(
                     inputBuffer.putFloat(pixel)
                 }
 
-                // Prepare output buffer (assuming single output with NSFW probability)
-                outputBuffer = ByteBuffer.allocateDirect(4 * 1) // 1 output value
+                // Prepare output buffer (model outputs 5 floats = 20 bytes)
+                outputBuffer = ByteBuffer.allocateDirect(20) // 5 output values (20 bytes)
                 outputBuffer.order(ByteOrder.nativeOrder())
 
                 // Run inference
                 interpreter.run(inputBuffer, outputBuffer)
 
-                // Get result
+                // Get result - use the first float as NSFW probability
                 outputBuffer.rewind()
                 val nsfwProbability = outputBuffer.getFloat()
 
@@ -1080,7 +1080,7 @@ class MLModelManager @Inject constructor(
     /**
      * Check if gender model is ready
      */
-    fun isGenderModelReady(): Boolean = isGenderModelReady
+    override fun isGenderModelReady(): Boolean = isGenderModelReady
     
     /**
      * Clear all caches for memory management

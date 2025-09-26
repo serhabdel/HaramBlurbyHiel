@@ -56,8 +56,8 @@ class DhikrNotificationManager @Inject constructor(
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Islamic remembrance notifications"
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 300, 200, 300, 200, 300) // Islamic-inspired pattern
+                enableVibration(false)
+                // Vibration disabled as per user request
                 enableLights(true)
                 lightColor = 0xFF4CAF50.toInt() // Islamic green color
                 setShowBadge(true)
@@ -152,11 +152,12 @@ class DhikrNotificationManager @Inject constructor(
             .setSmallIcon(R.drawable.ic_shield_islamic)
             .setContentTitle("${dhikr.time.displayName} Dhikr")
             .setContentText(dhikr.arabicText)
-            .setPriority(NotificationCompat.PRIORITY_MAX) // MAX priority for guaranteed heads-up
+            .setPriority(NotificationCompat.PRIORITY_HIGH) // Reduced from MAX to prevent sticking
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
-            .setTimeoutAfter(settings.displayDurationSeconds * 1000L) // Auto-dismiss after duration
+            .setTimeoutAfter(settings.displayDurationSeconds * 1000L) // Use settings duration
             .setContentIntent(pendingIntent)
+            .setOngoing(false) // Ensure notification is not persistent
             .addAction(R.drawable.ic_launcher_background, "Dismiss", dismissPendingIntent)
             .addAction(R.drawable.ic_launcher_background, "Next", nextPendingIntent)
 
@@ -207,15 +208,16 @@ class DhikrNotificationManager @Inject constructor(
     }
 
     /**
-     * Show persistent status notification
+     * Show persistent status notification (DISABLED - was causing stuck notifications)
      */
     fun showStatusNotification(
         nextDhikrTime: String,
         dailyCount: Int,
         isEnabled: Boolean
     ) {
-        val notification = createStatusNotification(nextDhikrTime, dailyCount, isEnabled)
-        notificationManager.notify(STATUS_NOTIFICATION_ID, notification)
+        // Status notifications disabled to prevent stuck notifications
+        android.util.Log.d(TAG, "Status notification disabled to prevent stuck notifications")
+        // Don't show persistent status notifications - they cause issues
     }
 
     /**

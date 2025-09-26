@@ -1,0 +1,124 @@
+```mermaid
+graph TD
+    subgraph "🕌 Islamic Content Database"
+        A[📖 Quranic Verses Database] --> B[500+ Categorized Verses]
+        B --> C[Arabic Text + Translations]
+        C --> D[English, French, Indonesian]
+        
+        E[💎 Dhikr Collection] --> F[Time-Based Remembrance]
+        F --> G[Prayer Time Specific Dhikr]
+        G --> H[General Daily Reminders]
+        
+        I[🕐 Prayer Times Data] --> J[Location-Based Calculations]
+        J --> K[Aladhan API Integration]
+        K --> L[5 Daily Prayer Times]
+    end
+
+    subgraph "🎯 Content-Aware Integration"
+        M[Content Detection Result] --> N{Content Category}
+        N -->|Face Content| O[👁️ Lower Gaze Guidance]
+        N -->|NSFW Content| P[🚫 Purity & Modesty]
+        N -->|Inappropriate Sites| Q[🌐 Digital Ethics]
+        N -->|General Blocking| R[⚠️ General Guidance]
+        
+        O --> S[Select Relevant Verses]
+        P --> S
+        Q --> S
+        R --> S
+    end
+
+    subgraph "⏰ Time-Based Dhikr System"
+        T[Dhikr Manager] --> U{Current Time Window}
+        U -->|Fajr Time| V[🌅 Morning Dhikr]
+        U -->|Dhuhr Time| W[☀️ Noon Remembrance]
+        U -->|Asr Time| X[🌤️ Afternoon Dhikr]
+        U -->|Maghrib Time| Y[🌅 Evening Gratitude]
+        U -->|Isha Time| Z[🌙 Night Reflection]
+        U -->|General Time| AA[🔄 Daily Reminders]
+        
+        V --> BB[Display Dhikr Overlay]
+        W --> BB
+        X --> BB
+        Y --> BB
+        Z --> BB
+        AA --> BB
+    end
+
+    subgraph "🔔 Prayer Time Notifications"
+        CC[Prayer Notification Worker] --> DD[Location Service]
+        DD --> EE[Calculate Prayer Times]
+        EE --> FF{Prayer Approaching?}
+        FF -->|Yes| GG[📱 Send Notification]
+        FF -->|No| HH[⏳ Wait for Next Check]
+        
+        GG --> II[🕌 Prayer Reminder]
+        II --> JJ[Qibla Direction Helper]
+        II --> KK[Prayer Time Display]
+    end
+
+    subgraph "📱 UI Integration Points"
+        LL[Quranic Verse Dialog] --> MM[Contextual Display]
+        NN[Dhikr Overlay] --> OO[Non-Intrusive Reminder]
+        PP[Prayer Times Widget] --> QQ[Home Screen Integration]
+        RR[Qibla Compass] --> SS[Prayer Direction Aid]
+        
+        MM --> TT{Display Method}
+        TT -->|Dialog| UU[Modal Verse Display]
+        TT -->|Notification| VV[Push Notification]
+        TT -->|Overlay| WW[Screen Overlay]
+    end
+
+    subgraph "⚙️ Configuration & Personalization"
+        XX[Islamic Settings] --> YY{Feature Enabled?}
+        YY -->|Verses| ZZ[Verse Categories Selection]
+        YY -->|Dhikr| AAA[Dhikr Time Preferences]
+        YY -->|Prayer| BBB[Prayer Notification Settings]
+        
+        ZZ --> CCC[Content Category Mapping]
+        AAA --> DDD[Display Duration & Style]
+        BBB --> EEE[Advance Time & Sound]
+    end
+
+    %% Main Integration Flow
+    M --> A
+    S --> LL
+    T --> E
+    CC --> I
+    
+    %% UI Connections
+    LL --> TT
+    BB --> NN
+    GG --> PP
+    JJ --> RR
+    
+    %% Configuration Connections
+    XX --> CCC
+    XX --> DDD
+    XX --> EEE
+    
+    CCC --> S
+    DDD --> BB
+    EEE --> GG
+    
+    %% Feedback Loop
+    UU --> FFF[📊 Usage Analytics]
+    VV --> FFF
+    WW --> FFF
+    FFF --> GGG[📈 Personalization Engine]
+    GGG --> XX
+
+    %% Styling
+    classDef database fill:#e8f5e8
+    classDef content fill:#f3e5f5
+    classDef dhikr fill:#fff3e0
+    classDef prayer fill:#e3f2fd
+    classDef ui fill:#fce4ec
+    classDef config fill:#f1f8e9
+
+    class A,B,C,D,E,F,G,H,I,J,K,L database
+    class M,N,O,P,Q,R,S content
+    class T,U,V,W,X,Y,Z,AA,BB dhikr
+    class CC,DD,EE,FF,GG,HH,II,JJ,KK prayer
+    class LL,MM,NN,OO,PP,QQ,RR,SS,TT,UU,VV,WW ui
+    class XX,YY,ZZ,AAA,BBB,CCC,DDD,EEE,FFF,GGG config
+```

@@ -772,4 +772,30 @@
     <string name="wizard_step_notification_description">Afficher les rappels de dhikr et les alertes islamiques</string>
     <string name="wizard_step_islamic_features_title">Fonctionnalités islamiques</string>
     <string name="wizard_step_islamic_features_description">Configurer les heures de prière, le calendrier islamique et les fonctionnalités spirituelles</string>
- </resources>
+
+    <!-- Prayer Notification Strings -->
+    <string name="prayer_time_notification_channel_name">Notifications de l\'heure de prière</string>
+    <string name="prayer_time_notification_channel_description">Notifications importantes pour les heures de prière</string>
+    <string name="prayer_reminder_channel_name">Rappels de prière</string>
+    <string name="prayer_reminder_channel_description">Rappels de suivi pour l\'achèvement de la prière</string>
+    <string name="prayer_time_notification_title">🕌 Il est temps de prier %s</string>
+    <string name="prayer_time_notification_text">L\'heure de prière de %s est arrivée. Répondez à l\'appel d\'Allah.</string>
+    <string name="prayer_reminder_notification_title">⏰ Rappel de prière - %s</string>
+    <string name="prayer_reminder_notification_text">Il y a 10 minutes, l\'heure de %s est arrivée. Avez-vous prié ?</string>
+    <string name="prayer_reminder_yes">Oui, j\'ai prié</string>
+    <string name="prayer_reminder_no">Non, pas encore</string>
+    <string name="prayer_final_reminder_title">🤲 Dernier rappel - %s</string>
+    <string name="prayer_final_reminder_text">N\'oubliez pas votre prière de %s. La ponctualité dans la prière est bénie.</string>
+    <string name="prayer_already_prayed">J\'ai déjà prié</string>
+    <string name="prayer_will_pray_now">Je vais prier maintenant</string>
+
+    <!-- Quranic Guidance Activity -->
+    <string name="quranic_guidance_dialog_title">🌟 Guidance divine</string>
+    <string name="quranic_guidance_subtitle">Écoutons les paroles d\'Allah</string>
+    <string name="quranic_verse_about_prayer">« Observez strictement les prières, surtout la prière du milieu, et tenez-vous debout devant Allah en toute soumission. » \n(Coran 2:238)</string>
+    <string name="prayer_importance_message">La prière à l\'heure est l\'une des actions les plus aimées d\'Allah. Ne retardez pas ce qui vous rapproche de votre Créateur.</string>
+    <string name="pray_now">🤲 Prier maintenant</string>
+    <string name="already_prayed">✅ J\'ai déjà prié</string>
+    <string name="remind_later">⏰ Rappeler plus tard</string>
+
+</resources>

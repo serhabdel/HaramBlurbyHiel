@@ -1,0 +1,121 @@
+```mermaid
+flowchart TD
+    A[📱 Accessibility Service Triggered] --> B{Service Active?}
+    B -->|No| C[⏸️ Service Inactive]
+    B -->|Yes| D[📸 Screen Capture Request]
+    
+    D --> E[🖼️ Bitmap Captured]
+    E --> F{Performance Mode Check}
+    
+    F -->|Ultra-Fast| G[⚡ Quarter Resolution]
+    F -->|Fast| H[🚀 Half Resolution]
+    F -->|Balanced| I[⚖️ Full Resolution]
+    F -->|High Quality| J[💎 Enhanced Processing]
+    
+    G --> K[🔍 Content Analysis Pipeline]
+    H --> K
+    I --> K
+    J --> K
+    
+    K --> L[👤 Face Detection - ML Kit]
+    K --> M[🚫 NSFW Detection - TensorFlow]
+    K --> N[⚧️ Gender Classification - AI]
+    
+    L --> O{Faces Found?}
+    M --> P{NSFW Content?}
+    N --> Q{Gender Specific?}
+    
+    O -->|Yes| R[📍 Calculate Face Regions]
+    O -->|No| S[✅ Face Check Complete]
+    
+    P -->|Yes| T[🚨 Mark NSFW Regions]
+    P -->|No| U[✅ Content Safe]
+    
+    Q -->|Yes| V[⚠️ Mark Gender Regions]
+    Q -->|No| W[✅ Gender Neutral]
+    
+    R --> X[🎯 Combine Detection Results]
+    T --> X
+    V --> X
+    S --> X
+    U --> X
+    W --> X
+    
+    X --> Y{Any Content to Blur?}
+    Y -->|No| Z[✨ Display Normal Content]
+    Y -->|Yes| AA[🎨 Calculate Blur Overlays]
+    
+    AA --> BB[🔧 Apply Blur Effects]
+    BB --> CC{Blur Style}
+    
+    CC -->|Rectangle| DD[⬛ Rectangle Overlay]
+    CC -->|Gaussian| EE[🌫️ Gaussian Blur]
+    CC -->|Pixelate| FF[🟦 Pixelated Effect]
+    CC -->|Mosaic| GG[🎲 Mosaic Pattern]
+    
+    DD --> HH[📊 Update Statistics]
+    EE --> HH
+    FF --> HH
+    GG --> HH
+    
+    HH --> II{Show Quranic Guidance?}
+    II -->|Yes| JJ[📖 Display Relevant Verse]
+    II -->|No| KK[🔄 Continue Monitoring]
+    
+    JJ --> LL[🕌 Contextual Islamic Guidance]
+    LL --> MM{Content Category}
+    
+    MM -->|Face Content| NN[👁️ Lower Gaze Verses]
+    MM -->|NSFW Content| OO[🚫 Purity Verses]
+    MM -->|General| PP[🌟 General Guidance]
+    
+    NN --> QQ[📱 Show Verse Dialog]
+    OO --> QQ
+    PP --> QQ
+    
+    QQ --> KK
+    KK --> RR[⏱️ Wait for Next Scan]
+    Z --> RR
+    RR --> D
+    
+    %% Performance Monitoring Branch
+    K --> SS[📈 Performance Monitor]
+    SS --> TT{Device Performance}
+    TT -->|High Load| UU[⬇️ Reduce Detection Frequency]
+    TT -->|Normal| VV[⚖️ Maintain Current Settings]
+    TT -->|Low Load| WW[⬆️ Increase Detection Quality]
+    
+    UU --> KK
+    VV --> KK
+    WW --> KK
+    
+    %% Error Handling
+    E --> XX{Capture Failed?}
+    XX -->|Yes| YY[⚠️ Error Handler]
+    YY --> ZZ[📝 Log Error]
+    ZZ --> RR
+    XX -->|No| K
+    
+    %% Site Blocking Integration
+    AA --> AAA{URL Detected?}
+    AAA -->|Yes| BBB[🌐 Site Blocking Check]
+    BBB --> CCC{Site Blocked?}
+    CCC -->|Yes| DDD[🚫 Block Entire Screen]
+    CCC -->|No| BB
+    DDD --> JJ
+    AAA -->|No| BB
+
+    classDef capture fill:#e3f2fd
+    classDef detection fill:#f3e5f5
+    classDef processing fill:#e8f5e8
+    classDef blurring fill:#fff3e0
+    classDef islamic fill:#fce4ec
+    classDef monitoring fill:#f1f8e9
+
+    class A,B,D,E,XX,YY,ZZ capture
+    class F,G,H,I,J,K,L,M,N,SS,TT,UU,VV,WW detection
+    class O,P,Q,R,S,T,U,V,W,X,Y processing
+    class AA,BB,CC,DD,EE,FF,GG,HH blurring
+    class II,JJ,LL,MM,NN,OO,PP,QQ islamic
+    class KK,RR,C,Z monitoring
+```

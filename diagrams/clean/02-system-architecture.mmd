@@ -1,0 +1,120 @@
+graph TB
+    subgraph "📱 User Interface Layer"
+        A[MainActivity] --> B[Navigation Controller]
+        B --> C[HomeScreenResponsive]
+        B --> D[SettingsScreen]
+        B --> E[DebugScreen]
+        B --> F[BlockAppsAndSitesScreen]
+        B --> G[IslamicFeaturesScreen]
+        
+        C --> H[MainViewModel]
+        C --> I[StatsViewModel]
+        G --> J[QuranicVerseDialogViewModel]
+        G --> K[WarningDialogViewModel]
+    end
+
+    subgraph "🔧 UI Components Layer"
+        L[QuranicVerseDialog]
+        M[DhikrOverlay]
+        N[PrayerTimesWidget]
+        O[QiblaCompassWidget]
+        P[ModernNavigationBar]
+        Q[NotificationPermissionHandler]
+        R[UsageTimeComponents]
+    end
+
+    subgraph "🛠️ Service Layer"
+        S[HaramBlurAccessibilityService] --> T[ScreenCaptureManager]
+        S --> U[BlurOverlayManager]
+        S --> V[ContentDetectionEngine]
+        S --> W[DhikrManager]
+        S --> X[PrayerNotificationWorker]
+        
+        W --> Y[DhikrNotificationManager]
+        W --> Z[DhikrNotificationReceiver]
+    end
+
+    subgraph "🔍 Detection Layer"
+        V --> AA[MLModelManager]
+        V --> BB[FaceDetectionManager]
+        V --> CC[FastContentDetector]
+        V --> DD[PerformanceMonitor]
+        V --> EE[SiteBlockingManager]
+        
+        AA --> FF[TensorFlow Lite Models]
+        BB --> GG[Google ML Kit]
+        EE --> HH[BlockingCategory]
+    end
+
+    subgraph "💾 Data Layer"
+        II[SettingsRepository] --> JJ[AppSettings]
+        II --> KK[ProcessingSpeed]
+        LL[QuranicRepository] --> MM[QuranicVerseDao]
+        NN[DhikrRepository] --> OO[Dhikr Database]
+        PP[PrayerTimesRepository] --> QQ[LocationSettings]
+        RR[SiteBlockingDatabase] --> SS[BlockedSiteDao]
+    end
+
+    subgraph "🌐 External Integrations"
+        TT[Aladhan Prayer API]
+        UU[OpenRouter LLM Service]
+        VV[Local ML Models]
+        WW[GPS Location Service]
+    end
+
+    subgraph "📦 Data Models"
+        XX[QuranicContent]
+        YY[DhikrSettings]
+        ZZ[PrayerSettings]
+        AAA[ContentCategory]
+        BBB[DetectionConfig]
+    end
+
+    %% Connections between layers
+    C --> L
+    G --> M
+    G --> N
+    G --> O
+    
+    H --> II
+    I --> II
+    J --> LL
+    K --> RR
+    
+    S --> II
+    T --> V
+    U --> V
+    
+    V --> II
+    AA --> VV
+    BB --> GG
+    
+    LL --> MM
+    LL --> XX
+    NN --> OO
+    NN --> YY
+    PP --> TT
+    PP --> WW
+    PP --> ZZ
+    RR --> SS
+    RR --> AAA
+    
+    V --> UU
+    II --> BBB
+
+    %% Styling
+    classDef ui fill:#e3f2fd
+    classDef components fill:#f3e5f5
+    classDef services fill:#e8f5e8
+    classDef detection fill:#fff3e0
+    classDef data fill:#fce4ec
+    classDef external fill:#f1f8e9
+    classDef models fill:#ede7f6
+
+    class A,B,C,D,E,F,G,H,I,J,K ui
+    class L,M,N,O,P,Q,R components
+    class S,T,U,V,W,X,Y,Z services
+    class AA,BB,CC,DD,EE,FF,GG,HH detection
+    class II,JJ,KK,LL,MM,NN,OO,PP,QQ,RR,SS data
+    class TT,UU,VV,WW external
+    class XX,YY,ZZ,AAA,BBB models

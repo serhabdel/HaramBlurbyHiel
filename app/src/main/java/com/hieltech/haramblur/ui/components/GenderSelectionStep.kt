@@ -138,43 +138,6 @@ fun GenderSelectionStep(
                     }
                 }
             }
-            
-            // Prefer not to say option
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (selectedGender == UserGender.NOT_SPECIFIED) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    }
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = selectedGender == UserGender.NOT_SPECIFIED,
-                        onClick = { selectedGender = UserGender.NOT_SPECIFIED }
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "❓ Prefer not to say",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = "Will blur all faces and NSFW content (safest option)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
         }
         
         Spacer(modifier = Modifier.height(32.dp))
@@ -192,20 +155,6 @@ fun GenderSelectionStep(
             enabled = selectedGender != null
         ) {
             Text("Continue")
-        }
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        TextButton(
-            onClick = {
-                // Skip gender selection - use safest defaults
-                settingsViewModel.updateGenderSettings(UserGender.NOT_SPECIFIED)
-                viewModel.completeGenderSelection()
-                onGenderSelected()
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Skip (use safest settings)")
         }
     }
 }

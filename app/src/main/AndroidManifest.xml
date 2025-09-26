@@ -174,12 +174,31 @@
             </intent-filter>
         </receiver>
 
+        <!-- Prayer Notification Receiver -->
+        <receiver
+            android:name=".services.PrayerNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.hieltech.haramblur.PRAYER_COMPLETED" />
+                <action android:name="com.hieltech.haramblur.PRAYER_NOT_COMPLETED" />
+                <action android:name="com.hieltech.haramblur.PRAYER_WILL_DO_NOW" />
+                <action android:name="com.hieltech.haramblur.PRAYER_ALREADY_DONE" />
+                <action android:name="com.hieltech.haramblur.SHOW_QURANIC_GUIDANCE" />
+            </intent-filter>
+        </receiver>
+
         <!-- Reflection dialog activity opened from notifications -->
         <activity
             android:name=".ui.ReflectionActivity"
             android:exported="false"
             android:theme="@style/Theme.HaramBlur">
         </activity>
+
+        <!-- Prayer Guidance Activity -->
+        <activity
+            android:name=".services.PrayerGuidanceActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HaramBlur" />
 
         <!-- Diagnostics activity for troubleshooting -->
         <activity

@@ -1,0 +1,151 @@
+```mermaid
+flowchart LR
+    subgraph "📱 Input Sources"
+        A[Screen Capture Service] --> B[Bitmap Data Stream]
+        C[User Interactions] --> D[Settings Changes]
+        E[Location Services] --> F[GPS Coordinates]
+        G[Time Services] --> H[Current Time Data]
+        I[External APIs] --> J[API Response Data]
+    end
+
+    subgraph "🔄 Data Processing Pipeline"
+        B --> K[Image Preprocessing]
+        K --> L{Resolution Scaling}
+        L -->|Ultra-Fast| M[224x224]
+        L -->|Fast| N[448x448]
+        L -->|Balanced| O[Native Resolution]
+        L -->|High Quality| P[Enhanced Resolution]
+        
+        M --> Q[ML Analysis Pipeline]
+        N --> Q
+        O --> Q
+        P --> Q
+        
+        Q --> R[Face Detection Results]
+        Q --> S[NSFW Analysis Results]
+        Q --> T[Gender Classification Results]
+        Q --> U[Content Categorization]
+    end
+
+    subgraph "💾 Data Storage Layer"
+        V[(Settings Database)] --> W[App Preferences]
+        X[(Quranic Database)] --> Y[Verse Content]
+        Z[(Dhikr Database)] --> AA[Remembrance Text]
+        BB[(Site Blocking Database)] --> CC[Blocked URLs]
+        DD[(Statistics Database)] --> EE[Usage Analytics]
+        FF[(Cache Storage)] --> GG[Temporary Data]
+    end
+
+    subgraph "🧠 Business Logic Layer"
+        D --> HH[Settings Repository]
+        HH --> V
+        
+        R --> II[Detection Engine]
+        S --> II
+        T --> II
+        U --> II
+        
+        II --> JJ{Content Analysis}
+        JJ -->|Safe| KK[Allow Content]
+        JJ -->|Inappropriate| LL[Apply Filtering]
+        
+        LL --> MM[Blur Calculation Engine]
+        MM --> NN[Overlay Generation]
+        
+        F --> OO[Prayer Times Calculator]
+        H --> PP[Dhikr Scheduler]
+        
+        II --> QQ[Islamic Content Matcher]
+        QQ --> X
+        QQ --> Z
+    end
+
+    subgraph "🌐 External Services"
+        RR[Aladhan Prayer API] --> SS[Prayer Times Data]
+        TT[OpenRouter LLM] --> UU[Enhanced Analysis]
+        VV[Google ML Kit] --> WW[Face Detection Data]
+        XX[TensorFlow Lite] --> YY[AI Model Results]
+    end
+
+    subgraph "📊 Analytics & Monitoring"
+        ZZ[Performance Monitor] --> AAA[Resource Usage Data]
+        BBB[Statistics Collector] --> CCC[Usage Metrics]
+        DDD[Error Logger] --> EEE[Error Reports]
+        
+        AAA --> DD
+        CCC --> DD
+        EEE --> FF
+    end
+
+    subgraph "📱 Output Interfaces"
+        NN --> FFF[Blur Overlay Display]
+        KK --> GGG[Normal Content Display]
+        
+        HHH[Quranic Verse Dialog] --> III[Spiritual Guidance UI]
+        JJJ[Dhikr Overlay] --> KKK[Remembrance Display]
+        LLL[Prayer Notification] --> MMM[Prayer Alert UI]
+        NNN[Statistics Dashboard] --> OOO[Analytics UI]
+    end
+
+    %% Data Flow Connections
+    HH --> W
+    W --> II
+    
+    SS --> OO
+    OO --> LLL
+    
+    PP --> AA
+    AA --> JJJ
+    
+    Y --> HHH
+    QQ --> HHH
+    
+    CC --> QQQ[URL Blocking Engine]
+    QQQ --> LL
+    
+    UU --> II
+    WW --> R
+    YY --> S
+    YY --> T
+    
+    II --> BBB
+    MM --> ZZ
+    
+    %% Caching Flow
+    R --> FF
+    S --> FF
+    T --> FF
+    GG --> II
+    
+    %% Statistics Flow
+    FFF --> CCC
+    III --> CCC
+    KKK --> CCC
+    MMM --> CCC
+    
+    %% Error Handling
+    K --> RRR{Processing Error?}
+    RRR -->|Yes| DDD
+    RRR -->|No| Q
+    
+    II --> SSS{Analysis Error?}
+    SSS -->|Yes| DDD
+    SSS -->|No| JJ
+
+    %% Styling
+    classDef input fill:#e3f2fd
+    classDef processing fill:#f3e5f5
+    classDef storage fill:#e8f5e8
+    classDef logic fill:#fff3e0
+    classDef external fill:#fce4ec
+    classDef monitoring fill:#f1f8e9
+    classDef output fill:#ede7f6
+
+    class A,B,C,D,E,F,G,H,I,J input
+    class K,L,M,N,O,P,Q,R,S,T,U processing
+    class V,W,X,Y,Z,AA,BB,CC,DD,EE,FF,GG storage
+    class HH,II,JJ,KK,LL,MM,NN,OO,PP,QQ,QQQ logic
+    class RR,SS,TT,UU,VV,WW,XX,YY external
+    class ZZ,AAA,BBB,CCC,DDD,EEE,RRR,SSS monitoring
+    class FFF,GGG,HHH,III,JJJ,KKK,LLL,MMM,NNN,OOO output
+```

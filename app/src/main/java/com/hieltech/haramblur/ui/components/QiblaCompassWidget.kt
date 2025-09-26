@@ -47,7 +47,7 @@ fun QiblaCompassWidget(
     modifier: Modifier = Modifier,
     // Settings-driven behavior
     showDegreeMarkings: Boolean = true,
-    hapticOnAligned: Boolean = true,
+    hapticOnAligned: Boolean = false,
     alignmentToleranceDeg: Float = 5f,
     animationSpeed: Float = 1.0f,
     preferredSize: CompassSize = CompassSize.MEDIUM,
@@ -163,13 +163,11 @@ private fun CompassDial(
         ), label = "angleAnim"
     )
 
-    // Haptic feedback when aligned within tolerance (with simple debounce)
+    // Haptic feedback disabled - no vibration feedback
     var wasAligned by remember { mutableStateOf(false) }
-    LaunchedEffect(angleTo, alignmentToleranceDeg, hapticOnAligned) {
+    LaunchedEffect(angleTo, alignmentToleranceDeg) {
         val aligned = kotlin.math.abs(angleTo) <= alignmentToleranceDeg
-        if (hapticOnAligned && aligned && !wasAligned) {
-            runCatching { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
-        }
+        // Haptic feedback removed to disable vibrations
         wasAligned = aligned
     }
 

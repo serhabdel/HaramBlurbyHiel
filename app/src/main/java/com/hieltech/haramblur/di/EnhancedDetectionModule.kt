@@ -123,6 +123,14 @@ abstract class EnhancedDetectionModule {
         ): MLModelManager {
             return MLModelManager(gpuAccelerationManager, performanceMonitor)
         }
+
+        @Provides
+        @Singleton
+        fun provideGenderModelProvider(
+            mlModelManager: MLModelManager
+        ): GenderModelProvider {
+            return mlModelManager
+        }
         
         // Enhanced face detection with gender detection
         @Provides

@@ -7,6 +7,12 @@ import androidx.test.core.app.ApplicationProvider
 import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.ml.FaceDetectionManager
 import com.hieltech.haramblur.ml.MLModelManager
+import com.hieltech.haramblur.detection.Gender
+import com.hieltech.haramblur.detection.ContentType
+import com.hieltech.haramblur.detection.WarningLevel
+import com.hieltech.haramblur.detection.GenderDetectionResult
+import com.hieltech.haramblur.detection.FacialFeatureAnalysis
+import com.hieltech.haramblur.data.DetectionPerformanceMetrics
 import io.mockk.*
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -128,8 +134,8 @@ class EnhancedDetectionIntegrationTest {
     fun `test complete detection pipeline with gender detection integration`() = runBlocking {
         // Arrange
         val mockFaceResult = FaceDetectionManager.FaceDetectionResult(
-            faceCount = 2,
-            faces = listOf(
+            facesDetected = 2,
+            detectedFaces = listOf(
                 createMockFace(Rect(50, 50, 150, 150), Gender.MALE, 0.9f),
                 createMockFace(Rect(200, 100, 300, 200), Gender.FEMALE, 0.8f)
             ),
@@ -140,7 +146,7 @@ class EnhancedDetectionIntegrationTest {
         val mockNsfwResult = MLModelManager.DetectionResult(
             isNSFW = false,
             confidence = 0.2f,
-            message = "Clean content"
+            details = "Clean content"
         )
         
         val mockDensityResult = DensityAnalysisResult(
@@ -159,7 +165,9 @@ class EnhancedDetectionIntegrationTest {
         coEvery { fullScreenBlurTrigger.shouldTriggerFullScreenBlur(any(), any()) } returns FullScreenBlurDecision(
             shouldTrigger = false,
             reason = "Density below threshold",
-            confidence = 0.3f
+            warningLevel = WarningLevel.LOW,
+            recommendedAction = ContentAction.SELECTIVE_BLUR,
+            reflectionTimeSeconds = 0
         )
         
         // Act
@@ -194,7 +202,17 @@ class EnhancedDetectionIntegrationTest {
             blurRegions = listOf(Rect(0, 0, 100, 100)),
             contentType = ContentType.SUSPICIOUS,
             processingTimeMs = 30L,
-            confidenceScore = 0.7f
+            confidenceScore = 0.7f,
+            performanceMetrics = DetectionPerformanceMetrics(
+                processingTimeMs = 30L,
+                memoryUsageMB = 12f,
+                cpuUsagePercent = 0.35f,
+                gpuAccelerationUsed = true,
+                frameSkipped = false,
+                qualityReduced = false
+            ),
+            qualityReduced = false,
+            frameSkipped = false
         )
         
         coEvery { frameOptimizationManager.shouldProcessFrame() } returns FrameDecision(
@@ -453,31 +471,18 @@ class EnhancedDetectionIntegrationTest {
     }
     
     private fun createMockFace(boundingBox: Rect, gender: Gender, confidence: Float): FaceDetectionManager.DetectedFace {
-        return mockk<FaceDetectionManager.DetectedFace>().apply {
-            every { this@apply.boundingBox } returns boundingBox
-            every { this@apply.gender } returns gender
-            every { this@apply.genderConfidence } returns confidence
-        }
+        val detectionResult = GenderDetectionResult(
+            gender = gender,
+            confidence = confidence,
+            facialFeatures = FacialFeatureAnalysis.default(),
+            processingTimeMs = 0L
+        )
+
+        return FaceDetectionManager.DetectedFace(
+            boundingBox = boundingBox,
+            estimatedGender = gender,
+            genderConfidence = confidence,
+            genderDetectionResult = detectionResult
+        )
     }
-}
-
-/**
- * Mock gender enum for testing
- */
-enum class Gender {
-    MALE, FEMALE, UNKNOWN
-}
-
-/**
- * Mock content type for testing
- */
-enum class ContentType {
-    CLEAN, SUSPICIOUS, INAPPROPRIATE
-}
-
-/**
- * Mock warning level for testing
- */
-enum class WarningLevel {
-    NONE, LOW, MEDIUM, HIGH, CRITICAL
 }

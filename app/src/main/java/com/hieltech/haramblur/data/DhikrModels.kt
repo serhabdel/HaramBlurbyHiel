@@ -38,7 +38,7 @@ data class DhikrSettings(
     val morningEndTime: Int = 10, // 10 AM in 24-hour format
     val eveningStartTime: Int = 17, // 5 PM in 24-hour format
     val eveningEndTime: Int = 22, // 10 PM in 24-hour format
-    val intervalMinutes: Int = 15, // Show dhikr every 15 minutes during active times
+    val intervalMinutes: Int = 5, // Show dhikr every 5 minutes during active times
     val displayDurationSeconds: Int = 30,
     val displayPosition: DhikrPosition = DhikrPosition.TOP_RIGHT,
     val showTransliteration: Boolean = true,

@@ -84,20 +84,17 @@ class DhikrPermissionHelper @Inject constructor(
     }
 
     /**
-     * Get recommended display method based on permissions
+     * Get recommended display method based on permissions (overlay disabled)
      */
     fun getRecommendedDisplayMethod(): DhikrDisplayMethod {
-        val overlay = canShowOverlay()
         val notification = canShowNotification()
-        val accessibility = isAccessibilityServiceRunning()
 
-        android.util.Log.d("DhikrPermissionHelper", "Display method check - Overlay: $overlay, Notification: $notification, Accessibility: $accessibility")
+        android.util.Log.d("DhikrPermissionHelper", "Display method check (overlay disabled) - Notification: $notification")
 
         return when {
-            overlay -> DhikrDisplayMethod.OVERLAY
             notification -> DhikrDisplayMethod.NOTIFICATION
             else -> {
-                android.util.Log.w("DhikrPermissionHelper", "No display method available - Overlay: $overlay, Notification: $notification, Accessibility: $accessibility")
+                android.util.Log.w("DhikrPermissionHelper", "No display method available - Notification: $notification")
                 DhikrDisplayMethod.NONE
             }
         }
@@ -113,11 +110,10 @@ data class DhikrPermissionStatus(
     val accessibilityEnabled: Boolean
 ) {
     val canShowAnything: Boolean
-        get() = overlayGranted || notificationGranted
+        get() = notificationGranted // Only notifications supported now
 
     val preferredMethod: DhikrDisplayMethod
         get() = when {
-            overlayGranted && accessibilityEnabled -> DhikrDisplayMethod.OVERLAY
             notificationGranted -> DhikrDisplayMethod.NOTIFICATION
             else -> DhikrDisplayMethod.NONE
         }
