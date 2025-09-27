@@ -34,7 +34,7 @@ class SettingsRepository @Inject constructor(
     companion object {
         private const val TAG = "SettingsRepository"
         private const val SETTINGS_VERSION_KEY = "settings_version"
-        private const val CURRENT_SETTINGS_VERSION = 10
+        private const val CURRENT_SETTINGS_VERSION = 11
     }
     
     private val _settings = MutableStateFlow(loadSettingsWithMigration())
@@ -221,7 +221,13 @@ class SettingsRepository @Inject constructor(
             customAppTimeLimits = loadCustomAppTimeLimits(),
             usageNotificationFrequency = prefs.getInt("usage_notification_frequency", 30),
             enableDailyUsageReset = prefs.getBoolean("enable_daily_usage_reset", true),
-            lastUsageResetDate = prefs.getLong("last_usage_reset_date", 0L).let { if (it <= 0L) null else it }
+            lastUsageResetDate = prefs.getLong("last_usage_reset_date", 0L).let { if (it <= 0L) null else it },
+            
+            // Local Prayer Calculation Settings
+            enableLocalCalculations = prefs.getBoolean("enable_local_calculations", false),
+            preferLocalOverApi = prefs.getBoolean("prefer_local_over_api", false),
+            showCalculationMethod = prefs.getBoolean("show_calculation_method", true),
+            moroccoSpecificAdjustments = prefs.getBoolean("morocco_specific_adjustments", true)
         )
     }
 
@@ -490,6 +496,12 @@ class SettingsRepository @Inject constructor(
             putLong("last_usage_reset_date", settings.lastUsageResetDate ?: 0L)
             putBoolean("usage_defaults_seeded", settings.usageDefaultsSeeded)
             putInt("settings_version", settings.settingsVersion)
+            
+            // Local Prayer Calculation Settings
+            putBoolean("enable_local_calculations", settings.enableLocalCalculations)
+            putBoolean("prefer_local_over_api", settings.preferLocalOverApi)
+            putBoolean("show_calculation_method", settings.showCalculationMethod)
+            putBoolean("morocco_specific_adjustments", settings.moroccoSpecificAdjustments)
 
             // Force immediate commit to prevent data loss
             apply()
@@ -833,6 +845,47 @@ class SettingsRepository @Inject constructor(
         updateSettings(updated)
     }
 
+    // Local Prayer Calculation Settings Helper Methods
+    fun updateEnableLocalCalculations(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(enableLocalCalculations = enabled)
+        updateSettings(updated)
+    }
+
+    fun updatePreferLocalOverApi(preferLocal: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(preferLocalOverApi = preferLocal)
+        updateSettings(updated)
+    }
+
+    fun updateShowCalculationMethod(show: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(showCalculationMethod = show)
+        updateSettings(updated)
+    }
+
+    fun updateMoroccoSpecificAdjustments(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(moroccoSpecificAdjustments = enabled)
+        updateSettings(updated)
+    }
+
+    fun updateAllLocalCalculationSettings(
+        enableLocal: Boolean,
+        preferLocal: Boolean,
+        showMethod: Boolean,
+        moroccoAdjustments: Boolean
+    ) {
+        val current = _settings.value
+        val updated = current.copy(
+            enableLocalCalculations = enableLocal,
+            preferLocalOverApi = preferLocal,
+            showCalculationMethod = showMethod,
+            moroccoSpecificAdjustments = moroccoAdjustments
+        )
+        updateSettings(updated)
+    }
+
     // Settings Migration
     private fun loadSettingsWithMigration(): AppSettings {
         val currentVersion = prefs.getInt(SETTINGS_VERSION_KEY, 1)
@@ -969,6 +1022,17 @@ class SettingsRepository @Inject constructor(
                 val adjustedThreshold = if (currentThreshold > 0.5f) 0.4f else currentThreshold
                 prefs.edit().apply {
                     putFloat("gender_confidence_threshold", adjustedThreshold)
+                    apply()
+                }
+            }
+            10 -> {
+                // Migration to version 11: Add local prayer calculation settings
+                Log.i(TAG, "Migrating from version 10: Adding local prayer calculation settings")
+                prefs.edit().apply {
+                    putBoolean("enable_local_calculations", false)
+                    putBoolean("prefer_local_over_api", false)
+                    putBoolean("show_calculation_method", true)
+                    putBoolean("morocco_specific_adjustments", true)
                     apply()
                 }
             }

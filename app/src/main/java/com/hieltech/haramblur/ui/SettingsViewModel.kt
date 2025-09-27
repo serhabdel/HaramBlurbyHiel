@@ -1431,4 +1431,53 @@ class SettingsViewModel @Inject constructor(
         return settings.value.qualityMode
     }
 
+    // Local Prayer Calculation Settings Methods
+    fun updateEnableLocalCalculations(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateEnableLocalCalculations(enabled)
+            // Invalidate prayer times cache to ensure recalculation with new settings
+            prayerTimesRepository.invalidateCache()
+        }
+    }
+
+    fun updatePreferLocalOverApi(preferLocal: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updatePreferLocalOverApi(preferLocal)
+            // Invalidate prayer times cache to ensure recalculation with new settings
+            prayerTimesRepository.invalidateCache()
+        }
+    }
+
+    fun updateShowCalculationMethod(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateShowCalculationMethod(show)
+        }
+    }
+
+    fun updateMoroccoSpecificAdjustments(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateMoroccoSpecificAdjustments(enabled)
+            // Invalidate prayer times cache to ensure recalculation with new settings
+            prayerTimesRepository.invalidateCache()
+        }
+    }
+
+    fun updateAllLocalCalculationSettings(
+        enableLocal: Boolean,
+        preferLocal: Boolean,
+        showMethod: Boolean,
+        moroccoAdjustments: Boolean
+    ) {
+        viewModelScope.launch {
+            settingsRepository.updateAllLocalCalculationSettings(
+                enableLocal = enableLocal,
+                preferLocal = preferLocal,
+                showMethod = showMethod,
+                moroccoAdjustments = moroccoAdjustments
+            )
+            // Invalidate prayer times cache to ensure recalculation with new settings
+            prayerTimesRepository.invalidateCache()
+        }
+    }
+
 }

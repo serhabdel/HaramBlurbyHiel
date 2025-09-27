@@ -24,7 +24,10 @@ import android.Manifest
 import com.hieltech.haramblur.data.prayer.PrayerCalculationMethod
 import com.hieltech.haramblur.utils.MoroccanLocationHelper
 import androidx.compose.ui.platform.LocalContext
-import com.hieltech.haramblur.utils.MoroccanLocationHelper.toCitySelection
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 
 /**
  * Islamic Features Onboarding Step
@@ -44,11 +47,17 @@ fun IslamicOnboardingStep(
     var selectedSelection by remember { mutableStateOf<CitySelection?>(null) }
     var showCitySelector by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    val moroccanLocationHelper = remember {
+        EntryPointAccessors.fromApplication(context, MoroccanLocationHelperEntryPoint::class.java)
+            .getMoroccanLocationHelper()
+    }
+
     // Morocco detection
     val isInMorocco = remember(settings.locationLatitude, settings.locationLongitude) {
         settings.locationLatitude?.let { lat ->
             settings.locationLongitude?.let { lon ->
-                MoroccanLocationHelper.isInMorocco(lat, lon)
+                moroccanLocationHelper.isInMorocco(lat, lon)
             }
         } ?: false
     }
@@ -56,7 +65,7 @@ fun IslamicOnboardingStep(
     // Suggested Moroccan cities
     val suggestedMoroccanCities = remember(settings.locationLatitude, settings.locationLongitude) {
         if (isInMorocco && settings.locationLatitude != null && settings.locationLongitude != null) {
-            MoroccanLocationHelper.getSuggestedMoroccanCities(
+            moroccanLocationHelper.getSuggestedMoroccanCities(
                 settings.locationLatitude!!,
                 settings.locationLongitude!!
             )
@@ -263,7 +272,7 @@ fun IslamicOnboardingStep(
                                 suggestedMoroccanCities.take(3).forEach { city ->
                                     AssistChip(
                                         onClick = {
-                                            selectedSelection = city.toCitySelection()
+                                            selectedSelection = CitySelection(city.name, "Morocco", "", 0.0, 0.0)
                                             locationMethod = LocationMethod.MANUAL_CITY
                                         },
                                         label = { Text(city.name, style = MaterialTheme.typography.bodySmall) }
@@ -429,7 +438,7 @@ fun IslamicOnboardingStep(
                     settingsViewModel.updateIslamicCalendarEnabled(false)
                     settingsViewModel.updateQiblaDirectionEnabled(false)
                 }
-
+                
                 // Mark the Islamic features configuration as completed
                 viewModel.completeIslamicFeaturesConfiguration()
                 onNext()
@@ -438,6 +447,7 @@ fun IslamicOnboardingStep(
         ) {
             Text("Complete")
         }
+        
     }
 
     // City Selector Dialog

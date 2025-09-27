@@ -206,6 +206,16 @@ data class AppSettings(
     val gpsAccuracyMediumThresholdM: Float = 100f,
     val gpsAccuracyLowThresholdM: Float = 300f,
 
+    // Local Prayer Calculation Settings
+    /** Enable local prayer time calculations without API calls */
+    val enableLocalCalculations: Boolean = false,
+    /** Prefer local calculations over API calls when both are available */
+    val preferLocalOverApi: Boolean = false,
+    /** Show calculation method source (API vs Local) in the UI */
+    val showCalculationMethod: Boolean = true,
+    /** Enable Morocco-specific adjustments for prayer times */
+    val moroccoSpecificAdjustments: Boolean = true,
+
     // Qibla Compass Settings
     /** Enable/disable the interactive Qibla compass feature */
     val qiblaCompassEnabled: Boolean = true,
@@ -248,8 +258,8 @@ data class AppSettings(
     val lastUsageResetDate: Long? = null, // Epoch day of last usage reset (LocalDate.toEpochDay())
     val usageDefaultsSeeded: Boolean = false, // Whether default app time limits have been prepopulated
 
-    // Settings schema version. Bump to 9 for dhikr sleep time settings
-    val settingsVersion: Int = 9 // Configuration version for compatibility tracking
+    // Settings schema version. Bump to 10 for local prayer calculation settings
+    val settingsVersion: Int = 10 // Configuration version for compatibility tracking
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {

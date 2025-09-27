@@ -20,10 +20,15 @@ import com.hieltech.haramblur.data.prayer.*
 import androidx.compose.ui.res.stringResource
 import com.hieltech.haramblur.R
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
 import com.hieltech.haramblur.ui.SettingsViewModel
 import com.hieltech.haramblur.data.compass.CompassSize
 import com.hieltech.haramblur.data.LocationMethod
 import com.hieltech.haramblur.utils.MoroccanLocationHelper
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import com.hieltech.haramblur.data.prayer.PrayerCalculationMethod
 import com.hieltech.haramblur.ui.components.responsiveSpacing
 import com.hieltech.haramblur.ui.components.responsiveCardPadding
@@ -448,6 +453,12 @@ private fun getDirectionText(degrees: Double): String {
  */
 @Composable
 private fun LocationAndMethodInfo(settings: com.hieltech.haramblur.data.AppSettings) {
+    val context = LocalContext.current
+    val moroccanLocationHelper = remember {
+        EntryPointAccessors.fromApplication(context, MoroccanLocationHelperEntryPoint::class.java)
+            .getMoroccanLocationHelper()
+    }
+
     // Location info
     val locationInfo = remember(settings) {
         when (settings.locationMethod) {
@@ -486,9 +497,20 @@ private fun LocationAndMethodInfo(settings: com.hieltech.haramblur.data.AppSetti
     val isInMorocco = remember(settings.locationLatitude, settings.locationLongitude) {
         settings.locationLatitude?.let { lat ->
             settings.locationLongitude?.let { lon ->
-                MoroccanLocationHelper.isInMorocco(lat, lon)
+                moroccanLocationHelper.isInMorocco(lat, lon)
             }
         } ?: false
+    }
+
+    // Calculation source info (API vs Local)
+    val calculationSource = remember(settings) {
+        if (!settings.enableLocalCalculations) {
+            "API" to "Online"
+        } else if (settings.preferLocalOverApi) {
+            "Local" to "Offline"
+        } else {
+            "API+Local" to "Online with offline fallback"
+        }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -532,13 +554,47 @@ private fun LocationAndMethodInfo(settings: com.hieltech.haramblur.data.AppSetti
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (isInMorocco && settings.prayerCalculationMethod == PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE.id) {
+            if (isInMorocco && settings.prayerCalculationMethod == PrayerCalculationMethod.MOROCCO_MINISTRY.id) {
                 Text(
-                    text = "✓",
+                    text = "🇲🇦",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
         }
+
+        // Calculation source row (only if showCalculationMethod is enabled)
+        if (settings.showCalculationMethod) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Calculation source",
+                    tint = if (calculationSource.first == "Local") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = calculationSource.first,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (calculationSource.first == "Local") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "(${calculationSource.second})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
+}
+
+/**
+ * Entry point for accessing MoroccanLocationHelper from Composable
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface MoroccanLocationHelperEntryPoint {
+    fun getMoroccanLocationHelper(): MoroccanLocationHelper
 }

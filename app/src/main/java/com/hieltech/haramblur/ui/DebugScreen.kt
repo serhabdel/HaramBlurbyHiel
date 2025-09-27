@@ -365,6 +365,99 @@ private fun CompactDebugScreen(
                 }
             }
 
+            // Prayer Notification Testing
+            Card {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "🕌 Prayer Notification Testing",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        "Test the prayer notification and Quranic guidance system",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Prayer Test Buttons
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { viewModel.testPrayerNotification("Fajr") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Test Fajr Notification")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testPrayerNotification("Dhuhr") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Test Dhuhr Notification")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testPrayerNotification("Asr") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Test Asr Notification")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testPrayerNotification("Maghrib") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Test Maghrib Notification")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testPrayerNotification("Isha") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Test Isha Notification")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Quranic Guidance Test
+                        Button(
+                            onClick = { viewModel.testQuranicGuidance("Dhuhr") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text("Test Quranic Guidance Dialog")
+                        }
+
+                        // Test All Notifications
+                        Button(
+                            onClick = { viewModel.testAllPrayerNotifications() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary
+                            )
+                        ) {
+                            Text("Test All Prayer Notifications")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        "Last Prayer Test Result:",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = debugState.lastActionResult ?: "No prayer tests yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
@@ -691,6 +784,92 @@ private fun MediumDebugScreen(
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
+                }
+            }
+
+            // Prayer Notification Testing
+            Card {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        "🕌 Prayer Notification Testing",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        "Test the prayer notification and Quranic guidance system",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Prayer Test Buttons in grid
+                    val prayers = listOf(
+                        "Fajr" to "🌅 Fajr",
+                        "Dhuhr" to "☀️ Dhuhr",
+                        "Asr" to "🌤️ Asr",
+                        "Maghrib" to "🌅 Maghrib",
+                        "Isha" to "🌙 Isha"
+                    )
+
+                    prayers.chunked(3).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            row.forEach { (prayer, label) ->
+                                Button(
+                                    onClick = { viewModel.testPrayerNotification(prayer) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(label)
+                                }
+                            }
+                            repeat(3 - row.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // Special Test Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.testQuranicGuidance("Dhuhr") },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text("📖 Quranic Guidance")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testAllPrayerNotifications() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary
+                            )
+                        ) {
+                            Text("🕌 Test All")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        "Last Prayer Test Result:",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = debugState.lastActionResult ?: "No prayer tests yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
 
@@ -1050,6 +1229,92 @@ private fun ExpandedDebugScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // Prayer Notification Testing
+            Card {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        "🕌 Prayer Notification Testing",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        "Test the prayer notification and Quranic guidance system",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Prayer Test Buttons in grid
+                    val prayers = listOf(
+                        "Fajr" to "🌅 Fajr",
+                        "Dhuhr" to "☀️ Dhuhr",
+                        "Asr" to "🌤️ Asr",
+                        "Maghrib" to "🌅 Maghrib",
+                        "Isha" to "🌙 Isha"
+                    )
+
+                    prayers.chunked(3).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            row.forEach { (prayer, label) ->
+                                Button(
+                                    onClick = { viewModel.testPrayerNotification(prayer) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(label)
+                                }
+                            }
+                            repeat(3 - row.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // Special Test Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.testQuranicGuidance("Dhuhr") },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text("📖 Quranic Guidance")
+                        }
+
+                        Button(
+                            onClick = { viewModel.testAllPrayerNotifications() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary
+                            )
+                        ) {
+                            Text("🕌 Test All")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        "Last Prayer Test Result:",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = debugState.lastActionResult ?: "No prayer tests yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
 

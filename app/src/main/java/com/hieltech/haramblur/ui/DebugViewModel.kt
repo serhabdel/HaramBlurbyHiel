@@ -2,14 +2,21 @@ package com.hieltech.haramblur.ui
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.Intent
+import android.app.PendingIntent
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
 import com.hieltech.haramblur.detection.ContentDetectionEngine
 import com.hieltech.haramblur.ml.FaceDetectionManager
 import com.hieltech.haramblur.ml.MLModelManager
 import com.hieltech.haramblur.data.SettingsRepository
+import com.hieltech.haramblur.services.PrayerTimeNotificationManager
+import com.hieltech.haramblur.data.prayer.PrayerName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +33,8 @@ class DebugViewModel @Inject constructor(
     private val contentDetectionEngine: ContentDetectionEngine,
     private val faceDetectionManager: FaceDetectionManager,
     private val mlModelManager: MLModelManager,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val prayerTimeNotificationManager: PrayerTimeNotificationManager
 ) : ViewModel() {
     
     companion object {
@@ -309,6 +317,196 @@ class DebugViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 addDebugLog(TAG, "Failed to emergency hide overlays: ${e.message}", "ERROR")
+            }
+        }
+    }
+
+    /**
+     * Test prayer time notification for a specific prayer
+     */
+    fun testPrayerNotification(prayerName: String) {
+        addDebugLog(TAG, "Testing prayer notification with buttons for: $prayerName")
+        viewModelScope.launch {
+            try {
+                val prayerEnum = PrayerName.valueOf(prayerName.uppercase())
+                val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                
+                // Send basic prayer time notification first
+                prayerTimeNotificationManager.sendPrayerTimeNotification(prayerEnum, currentTime)
+                
+                // Wait a moment then send reminder notification with buttons immediately for testing
+                kotlinx.coroutines.delay(1000) // 1 second delay
+                
+                // Send reminder notification with buttons directly
+                sendPrayerReminderNotificationWithButtons(prayerEnum, currentTime)
+                
+                addDebugLog(TAG, "Prayer notification with buttons sent for $prayerName")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Prayer notification with buttons sent for $prayerName"
+                )
+            } catch (e: Exception) {
+                addDebugLog(TAG, "Failed to send prayer notification: ${e.message}")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Failed: ${e.message}"
+                )
+            }
+        }
+    }
+    
+    /**
+     * Send reminder notification with buttons directly for testing
+     */
+    private fun sendPrayerReminderNotificationWithButtons(prayerName: PrayerName, prayerTime: String) {
+        try {
+            val prayerKey = "${prayerName.name}_${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())}"
+            
+            // Use reflection to access the private method
+            val method = PrayerTimeNotificationManager::class.java.getDeclaredMethod(
+                "sendPrayerReminderNotification",
+                PrayerName::class.java,
+                String::class.java,
+                String::class.java
+            )
+            method.isAccessible = true
+            method.invoke(prayerTimeNotificationManager, prayerName, prayerTime, prayerKey)
+            
+        } catch (e: Exception) {
+            // Fallback: create a simple notification with buttons
+            createSimpleNotificationWithButtons(prayerName, prayerTime)
+        }
+    }
+    
+    /**
+     * Create a simple notification with buttons as fallback
+     */
+    private fun createSimpleNotificationWithButtons(prayerName: PrayerName, prayerTime: String) {
+        try {
+            val notificationManager = NotificationManagerCompat.from(context)
+            
+            val title = "Have you prayed ${prayerName.name}?"
+            val message = "It's time for ${prayerName.name} prayer at $prayerTime"
+            
+            // Create Yes button intent
+            val yesIntent = Intent(PrayerTimeNotificationManager.ACTION_PRAYER_COMPLETED).apply {
+                putExtra(PrayerTimeNotificationManager.EXTRA_PRAYER_NAME, prayerName.name)
+                putExtra(PrayerTimeNotificationManager.EXTRA_PRAYER_TIME, prayerTime)
+                setPackage(context.packageName)
+            }
+            val yesPendingIntent = PendingIntent.getBroadcast(
+                context,
+                prayerName.ordinal * 10 + 1,
+                yesIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            // Create No button intent
+            val noIntent = Intent(PrayerTimeNotificationManager.ACTION_PRAYER_NOT_COMPLETED).apply {
+                putExtra(PrayerTimeNotificationManager.EXTRA_PRAYER_NAME, prayerName.name)
+                putExtra(PrayerTimeNotificationManager.EXTRA_PRAYER_TIME, prayerTime)
+                setPackage(context.packageName)
+            }
+            val noPendingIntent = PendingIntent.getBroadcast(
+                context,
+                prayerName.ordinal * 10 + 2,
+                noIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            // Create notification with buttons
+            val notification = NotificationCompat.Builder(context, "prayer_reminder_channel")
+                .setSmallIcon(R.drawable.ic_shield_islamic)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .addAction(R.drawable.ic_launcher_background, "Yes, I prayed", yesPendingIntent)
+                .addAction(R.drawable.ic_launcher_background, "Not yet", noPendingIntent)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                .build()
+            
+            notificationManager.notify(prayerName.ordinal + 1000, notification)
+            
+        } catch (e: Exception) {
+            // Log error but don't fail
+            println("Error creating simple notification with buttons: ${e.message}")
+        }
+    }
+
+    /**
+     * Test Quranic guidance dialog
+     */
+    fun testQuranicGuidance(prayerName: String) {
+        addDebugLog(TAG, "Testing Quranic guidance for: $prayerName")
+        viewModelScope.launch {
+            try {
+                val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                
+                // Simulate user indicating they haven't prayed
+                prayerTimeNotificationManager.handlePrayerNotCompleted(prayerName, currentTime)
+                
+                addDebugLog(TAG, "Quranic guidance triggered for $prayerName")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Quranic guidance shown for $prayerName"
+                )
+            } catch (e: Exception) {
+                addDebugLog(TAG, "Failed to show Quranic guidance: ${e.message}")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Failed: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Test prayer reminder notification
+     */
+    fun testPrayerReminder(prayerName: String) {
+        addDebugLog(TAG, "Testing prayer reminder for: $prayerName")
+        viewModelScope.launch {
+            try {
+                val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                
+                // Simulate reminder notification
+                prayerTimeNotificationManager.handlePrayerNotCompleted(prayerName, currentTime)
+                
+                addDebugLog(TAG, "Prayer reminder sent for $prayerName")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Prayer reminder sent for $prayerName"
+                )
+            } catch (e: Exception) {
+                addDebugLog(TAG, "Failed to send prayer reminder: ${e.message}")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Failed: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Test all prayer notifications in sequence
+     */
+    fun testAllPrayerNotifications() {
+        addDebugLog(TAG, "Testing all prayer notifications")
+        viewModelScope.launch {
+            try {
+                val prayers = listOf("FAJR", "DHUHR", "ASR", "MAGHRIB", "ISHA")
+                val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                
+                prayers.forEach { prayerName ->
+                    val prayerEnum = PrayerName.valueOf(prayerName)
+                    prayerTimeNotificationManager.sendPrayerTimeNotification(prayerEnum, currentTime)
+                    kotlinx.coroutines.delay(2000) // 2 second delay between notifications
+                }
+                
+                addDebugLog(TAG, "All prayer notifications sent successfully")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "All 5 prayer notifications sent"
+                )
+            } catch (e: Exception) {
+                addDebugLog(TAG, "Failed to send all prayer notifications: ${e.message}")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Failed: ${e.message}"
+                )
             }
         }
     }

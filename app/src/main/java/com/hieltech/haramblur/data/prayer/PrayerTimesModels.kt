@@ -184,5 +184,6 @@ enum class PrayerCalculationMethod(val id: Int, val displayName: String) {
     MAJLIS_UGAMA_ISLAM_SINGAPURA(11, "Majlis Ugama Islam Singapura, Singapore"),
     UNION_ORGANIZATION_ISLAMIC_DE_COOPERATION(12, "Union Organization Islamic de Coopération"),
     DIYANET_ISLERI_BASKANLIGI_TURKEY(13, "Diyanet İşleri Başkanlığı, Turkey"),
-    SPIRITUAL_ADMINISTRATION_OF_MUSLIMS_OF_RUSSIA(14, "Spiritual Administration of Muslims of Russia")
+    SPIRITUAL_ADMINISTRATION_OF_MUSLIMS_OF_RUSSIA(14, "Spiritual Administration of Muslims of Russia"),
+    MOROCCO_MINISTRY(15, "Morocco Ministry of Islamic Affairs")
 }

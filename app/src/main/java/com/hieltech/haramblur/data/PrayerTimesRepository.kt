@@ -5,6 +5,8 @@ import android.util.Log
 import com.hieltech.haramblur.data.api.AladhanApiService
 import com.hieltech.haramblur.data.prayer.*
 import com.hieltech.haramblur.utils.LocationHelper
+import com.hieltech.haramblur.utils.LocalPrayerCalculator
+import com.hieltech.haramblur.utils.MoroccanLocationHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
@@ -23,6 +25,8 @@ class PrayerTimesRepository @Inject constructor(
     private val apiService: AladhanApiService,
     private val settingsRepository: SettingsRepository,
     private val locationHelper: LocationHelper,
+    private val localPrayerCalculator: LocalPrayerCalculator,
+    private val moroccanLocationHelper: MoroccanLocationHelper,
     @ApplicationContext private val context: Context
 ) {
 
@@ -46,6 +50,46 @@ class PrayerTimesRepository @Inject constructor(
                     cachedPrayerData?.let { return@withContext Result.success(it) }
                 }
 
+                val settings = settingsRepository.settings.value
+                
+                // Check if local calculations are enabled and preferred
+                if (settings.enableLocalCalculations) {
+                    if (settings.preferLocalOverApi) {
+                        // Try local first, then fallback to API
+                        val localResult = getPrayerTimesLocally()
+                        if (localResult.isSuccess) {
+                            return@withContext localResult
+                        } else {
+                            Log.w(TAG, "Local calculation failed, falling back to API: ${localResult.exceptionOrNull()?.message}")
+                            // Fall through to API fallback
+                        }
+                    } else {
+                        // Try API first, then fallback to local
+                        val apiResult = getPrayerTimesFromAPI()
+                        if (apiResult.isSuccess) {
+                            return@withContext apiResult
+                        } else {
+                            Log.w(TAG, "API failed, falling back to local calculation: ${apiResult.exceptionOrNull()?.message}")
+                            return@withContext getPrayerTimesLocally()
+                        }
+                    }
+                }
+                
+                // Default: API only mode
+                getPrayerTimesFromAPI()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching prayer times", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * Get prayer times from API (helper method)
+     */
+    private suspend fun getPrayerTimesFromAPI(): Result<PrayerData> {
+        return withContext(Dispatchers.IO) {
+            try {
                 val settings = settingsRepository.settings.value
                 val tz = TimeZone.getDefault().id
 
@@ -110,9 +154,6 @@ class PrayerTimesRepository @Inject constructor(
                 val location = getCurrentLocation()
                 val method = settings.prayerCalculationMethod
 
-                // Prefer API for accuracy; local fallback is disabled for now
-
-                // Fallback to API if local calc was not possible
                 val timestamp = System.currentTimeMillis() / 1000
                 val response = apiService.getPrayerTimes(
                     timestamp = timestamp,
@@ -133,7 +174,7 @@ class PrayerTimesRepository @Inject constructor(
                     Result.failure(Exception("API Error: ${response.status}"))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching prayer times", e)
+                Log.e(TAG, "Error fetching prayer times from API", e)
                 Result.failure(e)
             }
         }
@@ -186,9 +227,197 @@ class PrayerTimesRepository @Inject constructor(
     }
 
     /**
+     * Get prayer times using local calculation (offline)
+     */
+    suspend fun getPrayerTimesLocally(): Result<PrayerData> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val settings = settingsRepository.settings.value
+                val location = getCurrentLocation()
+                
+                Log.d(TAG, "Calculating prayer times locally for: ${location.latitude}, ${location.longitude}")
+                
+                // Determine calculation method
+                val calculationMethod = if (settings.moroccoSpecificAdjustments &&
+                    moroccanLocationHelper.isInMorocco(location.latitude, location.longitude)) {
+                    PrayerCalculationMethod.MOROCCO_MINISTRY
+                } else {
+                    PrayerCalculationMethod.values().find { it.id == settings.prayerCalculationMethod }
+                        ?: PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE
+                }
+                
+                // Get city adjustments if in Morocco
+                val cityAdjustments = if (settings.moroccoSpecificAdjustments &&
+                    moroccanLocationHelper.isInMorocco(location.latitude, location.longitude)) {
+                    localPrayerCalculator.getMoroccanAdjustmentsForCoordinates(location.latitude, location.longitude)
+                } else {
+                    emptyMap()
+                }
+                
+                // Calculate prayer times
+                val calendar = Calendar.getInstance()
+                val tzOffsetHours = TimeZone.getDefault().rawOffset / (1000 * 60 * 60).toDouble()
+                
+                val localPrayerTimes = if (calculationMethod == PrayerCalculationMethod.MOROCCO_MINISTRY) {
+                    localPrayerCalculator.computeForMorocco(
+                        calendar = calendar,
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        asrFactor = 1,
+                        adjustmentsMinutes = cityAdjustments
+                    )
+                } else {
+                    localPrayerCalculator.compute(
+                        calendar = calendar,
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        tzOffsetHours = tzOffsetHours,
+                        method = calculationMethod.id,
+                        asrFactor = 1,
+                        adjustmentsMinutes = cityAdjustments
+                    )
+                }
+                
+                // Convert to PrayerData format
+                val prayerData = PrayerData(
+                    timings = PrayerTimings(
+                        Fajr = localPrayerTimes.Fajr,
+                        Sunrise = localPrayerTimes.Sunrise,
+                        Dhuhr = localPrayerTimes.Dhuhr,
+                        Asr = localPrayerTimes.Asr,
+                        Maghrib = localPrayerTimes.Maghrib,
+                        Isha = localPrayerTimes.Isha,
+                        Sunset = localPrayerTimes.Sunset,
+                        Imsak = localPrayerTimes.Imsak ?: "00:00",
+                        Midnight = localPrayerTimes.Midnight ?: "00:00",
+                        Firstthird = localPrayerTimes.Firstthird ?: "00:00",
+                        Lastthird = localPrayerTimes.Lastthird ?: "00:00"
+                    ),
+                    date = HijriDate(
+                        hijri = getHijriCalendarApprox(),
+                        gregorian = getGregorianForToday()
+                    ),
+                    meta = MetaData(
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        timezone = TimeZone.getDefault().id,
+                        method = MethodInfo(
+                            id = calculationMethod.id,
+                            name = calculationMethod.displayName,
+                            params = MethodParams(
+                                Fajr = getMethodAngle(calculationMethod.id, "Fajr"),
+                                Isha = getMethodAngle(calculationMethod.id, "Isha")
+                            ),
+                            location = LocationInfo(
+                                latitude = location.latitude,
+                                longitude = location.longitude
+                            )
+                        ),
+                        latitudeAdjustmentMethod = "ANGLE_BASED",
+                        midnightMode = "STANDARD",
+                        school = "STANDARD",
+                        offset = mapOf(
+                            "Imsak" to 0,
+                            "Fajr" to settings.fajrOffsetMinutes,
+                            "Sunrise" to settings.sunriseOffsetMinutes,
+                            "Dhuhr" to settings.dhuhrOffsetMinutes,
+                            "Asr" to settings.asrOffsetMinutes,
+                            "Maghrib" to settings.maghribOffsetMinutes,
+                            "Isha" to settings.ishaOffsetMinutes
+                        )
+                    )
+                )
+                
+                // Update cache
+                lastLocationKey = buildLocationKey(lat = location.latitude, lon = location.longitude, method = calculationMethod.id, tz = TimeZone.getDefault().id)
+                cachedPrayerData = prayerData
+                cacheTimestamp = System.currentTimeMillis()
+                
+                Result.success(prayerData)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error calculating prayer times locally", e)
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
      * Get Islamic calendar for current month
      */
     suspend fun getIslamicCalendar(): Result<List<CalendarDay>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val settings = settingsRepository.settings.value
+                
+                // Check if local calculations are enabled and preferred
+                if (settings.enableLocalCalculations) {
+                    if (settings.preferLocalOverApi) {
+                        // Try local first, then fallback to API
+                        val localResult = getIslamicCalendarLocally()
+                        if (localResult.isSuccess) {
+                            return@withContext localResult
+                        } else {
+                            Log.w(TAG, "Local Islamic calendar calculation failed, falling back to API: ${localResult.exceptionOrNull()?.message}")
+                            // Fall through to API fallback
+                        }
+                    } else {
+                        // Try API first, then fallback to local
+                        val apiResult = getIslamicCalendarFromAPI()
+                        if (apiResult.isSuccess) {
+                            return@withContext apiResult
+                        } else {
+                            Log.w(TAG, "API failed for Islamic calendar, falling back to local calculation: ${apiResult.exceptionOrNull()?.message}")
+                            return@withContext getIslamicCalendarLocally()
+                        }
+                    }
+                }
+                
+                // Default: API only mode
+                getIslamicCalendarFromAPI()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching Islamic calendar", e)
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Get Islamic calendar by city and country (more accurate)
+     */
+    suspend fun getIslamicCalendarByCity(city: String, country: String): Result<List<CalendarDay>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val calendar = Calendar.getInstance()
+                val gregorianYear = calendar.get(Calendar.YEAR)
+                val gregorianMonth = calendar.get(Calendar.MONTH) + 1
+                val tz = TimeZone.getDefault().id
+
+                Log.d(TAG, "Fetching Islamic calendar for city: $city, country: $country ($gregorianYear/$gregorianMonth Gregorian)")
+
+                val response = apiService.getIslamicCalendarByCity(
+                    year = gregorianYear,
+                    month = gregorianMonth,
+                    city = city,
+                    country = country,
+                    timezonestring = tz
+                )
+
+                if (response.code == 200) {
+                    Result.success(response.data)
+                } else {
+                    Result.failure(Exception("API Error: ${response.status}"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching Islamic calendar by city", e)
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Get Islamic calendar from API (helper method)
+     */
+    private suspend fun getIslamicCalendarFromAPI(): Result<List<CalendarDay>> {
         return withContext(Dispatchers.IO) {
             try {
                 val settings = settingsRepository.settings.value
@@ -199,12 +428,12 @@ class PrayerTimesRepository @Inject constructor(
                     // Prefer coordinates if enabled and available
                     if (settings.preferStoredCoordinates &&
                         settings.selectedLatitude != null && settings.selectedLongitude != null) {
-                val calendar = Calendar.getInstance()
-                val gregorianYear = calendar.get(Calendar.YEAR)
-                val gregorianMonth = calendar.get(Calendar.MONTH) + 1
-                val response = apiService.getIslamicCalendar(
-                    year = gregorianYear,
-                    month = gregorianMonth,
+                        val calendar = Calendar.getInstance()
+                        val gregorianYear = calendar.get(Calendar.YEAR)
+                        val gregorianMonth = calendar.get(Calendar.MONTH) + 1
+                        val response = apiService.getIslamicCalendar(
+                            year = gregorianYear,
+                            month = gregorianMonth,
                             latitude = settings.selectedLatitude!!,
                             longitude = settings.selectedLongitude!!,
                             timezonestring = tz
@@ -263,40 +492,150 @@ class PrayerTimesRepository @Inject constructor(
                     Result.failure(Exception("API Error: ${response.status}"))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching Islamic calendar", e)
+                Log.e(TAG, "Error fetching Islamic calendar from API", e)
                 Result.failure(e)
             }
         }
     }
 
     /**
-     * Get Islamic calendar by city and country (more accurate)
+     * Get Islamic calendar using local calculation (offline)
      */
-    suspend fun getIslamicCalendarByCity(city: String, country: String): Result<List<CalendarDay>> {
+    suspend fun getIslamicCalendarLocally(): Result<List<CalendarDay>> {
         return withContext(Dispatchers.IO) {
             try {
                 val calendar = Calendar.getInstance()
                 val gregorianYear = calendar.get(Calendar.YEAR)
                 val gregorianMonth = calendar.get(Calendar.MONTH) + 1
-                val tz = TimeZone.getDefault().id
-
-                Log.d(TAG, "Fetching Islamic calendar for city: $city, country: $country ($gregorianYear/$gregorianMonth Gregorian)")
-
-                val response = apiService.getIslamicCalendarByCity(
-                    year = gregorianYear,
-                    month = gregorianMonth,
-                    city = city,
-                    country = country,
-                    timezonestring = tz
-                )
-
-                if (response.code == 200) {
-                    Result.success(response.data)
-                } else {
-                    Result.failure(Exception("API Error: ${response.status}"))
+                val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+                
+                val calendarDays = mutableListOf<CalendarDay>()
+                
+                for (day in 1..daysInMonth) {
+                    // Create a simple date object for each day
+                    val dateCalendar = Calendar.getInstance()
+                    dateCalendar.set(Calendar.YEAR, gregorianYear)
+                    dateCalendar.set(Calendar.MONTH, gregorianMonth - 1)
+                    dateCalendar.set(Calendar.DAY_OF_MONTH, day)
+                    
+                    // Generate approximate Hijri date (simplified calculation)
+                    val hijriDay = day
+                    val hijriMonth = getHijriMonth()
+                    val hijriYear = getHijriYear()
+                    
+                    // Calculate prayer times for this day
+                    dateCalendar.set(Calendar.HOUR_OF_DAY, 12)
+                    dateCalendar.set(Calendar.MINUTE, 0)
+                    dateCalendar.set(Calendar.SECOND, 0)
+                    
+                    val location = getCurrentLocation()
+                    val tzOffsetHours = TimeZone.getDefault().rawOffset / (1000 * 60 * 60).toDouble()
+                    val settings = settingsRepository.settings.value
+                    
+                    val calculationMethod = if (settings.moroccoSpecificAdjustments &&
+                        moroccanLocationHelper.isInMorocco(location.latitude, location.longitude)) {
+                        PrayerCalculationMethod.MOROCCO_MINISTRY
+                    } else {
+                        PrayerCalculationMethod.values().find { it.id == settings.prayerCalculationMethod }
+                            ?: PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE
+                    }
+                    
+                    val cityAdjustments = if (settings.moroccoSpecificAdjustments &&
+                        moroccanLocationHelper.isInMorocco(location.latitude, location.longitude)) {
+                        localPrayerCalculator.getMoroccanAdjustmentsForCoordinates(location.latitude, location.longitude)
+                    } else {
+                        emptyMap()
+                    }
+                    
+                    val prayerTimings = if (calculationMethod == PrayerCalculationMethod.MOROCCO_MINISTRY) {
+                        localPrayerCalculator.computeForMorocco(
+                            calendar = dateCalendar,
+                            latitude = location.latitude,
+                            longitude = location.longitude,
+                            asrFactor = 1,
+                            adjustmentsMinutes = cityAdjustments
+                        )
+                    } else {
+                        localPrayerCalculator.compute(
+                            calendar = dateCalendar,
+                            latitude = location.latitude,
+                            longitude = location.longitude,
+                            tzOffsetHours = tzOffsetHours,
+                            method = calculationMethod.id,
+                            asrFactor = 1,
+                            adjustmentsMinutes = cityAdjustments
+                        )
+                    }
+                    
+                    val calendarDay = CalendarDay(
+                        timings = prayerTimings,
+                        date = HijriDate(
+                            hijri = HijriCalendar(
+                                date = String.format(Locale.US, "%02d-%02d-%d", hijriDay, hijriMonth, hijriYear),
+                                format = "DD-MM-YYYY",
+                                day = String.format(Locale.US, "%02d", hijriDay),
+                                weekday = HijriWeekday(en = "", ar = ""),
+                                month = HijriMonth(
+                                    number = hijriMonth,
+                                    en = "Hijri Month $hijriMonth",
+                                    ar = "Hijri Month $hijriMonth"
+                                ),
+                                year = hijriYear.toString(),
+                                designation = Designation(abbreviated = "AH", expanded = "Anno Hegirae"),
+                                holidays = emptyList()
+                            ),
+                            gregorian = com.hieltech.haramblur.data.prayer.GregorianCalendar(
+                                date = String.format(Locale.US, "%02d-%02d-%d", day, gregorianMonth, gregorianYear),
+                                format = "DD-MM-YYYY",
+                                day = String.format(Locale.US, "%02d", day),
+                                weekday = GregorianWeekday(
+                                    en = dateCalendar.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.ENGLISH) ?: ""
+                                ),
+                                month = GregorianMonth(
+                                    number = gregorianMonth,
+                                    en = dateCalendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.ENGLISH) ?: ""
+                                ),
+                                year = gregorianYear.toString(),
+                                designation = Designation(abbreviated = "AD", expanded = "Anno Domini")
+                            )
+                        ),
+                        meta = MetaData(
+                            latitude = location.latitude,
+                            longitude = location.longitude,
+                            timezone = TimeZone.getDefault().id,
+                            method = MethodInfo(
+                                id = calculationMethod.id,
+                                name = calculationMethod.displayName,
+                                params = MethodParams(
+                                    Fajr = getMethodAngle(calculationMethod.id, "Fajr"),
+                                    Isha = getMethodAngle(calculationMethod.id, "Isha")
+                                ),
+                                location = LocationInfo(
+                                    latitude = location.latitude,
+                                    longitude = location.longitude
+                                )
+                            ),
+                            latitudeAdjustmentMethod = "ANGLE_BASED",
+                            midnightMode = "STANDARD",
+                            school = "STANDARD",
+                            offset = mapOf(
+                                "Imsak" to 0,
+                                "Fajr" to settings.fajrOffsetMinutes,
+                                "Sunrise" to settings.sunriseOffsetMinutes,
+                                "Dhuhr" to settings.dhuhrOffsetMinutes,
+                                "Asr" to settings.asrOffsetMinutes,
+                                "Maghrib" to settings.maghribOffsetMinutes,
+                                "Isha" to settings.ishaOffsetMinutes
+                            )
+                        )
+                    )
+                    
+                    calendarDays.add(calendarDay)
                 }
+                
+                Result.success(calendarDays)
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching Islamic calendar by city", e)
+                Log.e(TAG, "Error calculating Islamic calendar locally", e)
                 Result.failure(e)
             }
         }
@@ -672,6 +1011,59 @@ class PrayerTimesRepository @Inject constructor(
             }
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /**
+     * Helper method to get prayer calculation method angles
+     */
+    private fun getMethodAngle(methodId: Int, prayerType: String): Double {
+        return when (methodId) {
+            1 -> when (prayerType) { // Karachi
+                "Fajr" -> 18.0
+                "Isha" -> 18.0
+                else -> 18.0
+            }
+            2 -> when (prayerType) { // ISNA
+                "Fajr" -> 15.0
+                "Isha" -> 15.0
+                else -> 15.0
+            }
+            3 -> when (prayerType) { // Muslim World League
+                "Fajr" -> 18.0
+                "Isha" -> 17.0
+                else -> 18.0
+            }
+            4 -> when (prayerType) { // Umm Al-Qura
+                "Fajr" -> 18.5
+                "Isha" -> 0.0 // 90 minutes interval
+                else -> 18.5
+            }
+            5 -> when (prayerType) { // Egypt
+                "Fajr" -> 19.5
+                "Isha" -> 17.5
+                else -> 19.5
+            }
+            7 -> when (prayerType) { // Tehran
+                "Fajr" -> 17.7
+                "Isha" -> 14.0
+                else -> 17.7
+            }
+            13 -> when (prayerType) { // Diyanet
+                "Fajr" -> 18.0
+                "Isha" -> 17.0
+                else -> 18.0
+            }
+            15 -> when (prayerType) { // Morocco Ministry
+                "Fajr" -> 18.0
+                "Isha" -> 17.0
+                else -> 18.0
+            }
+            else -> when (prayerType) { // Default
+                "Fajr" -> 18.0
+                "Isha" -> 17.0
+                else -> 18.0
+            }
         }
     }
 }

@@ -41,14 +41,24 @@ class PrayerNotificationWorker @AssistedInject constructor(
             val prefs = context.getSharedPreferences("haramblur_settings", Context.MODE_PRIVATE)
             val enablePrayerNotifications = prefs.getBoolean("enable_prayer_notifications", true)
             val enablePrayerTimes = prefs.getBoolean("enable_prayer_times", true)
+            val enableLocalCalculations = prefs.getBoolean("enable_local_calculations", false)
             
             if (enablePrayerNotifications && enablePrayerTimes) {
+                // Adjust network constraints based on local calculation settings
+                val networkConstraint = if (enableLocalCalculations) {
+                    // If local calculations are enabled, we don't require network connectivity
+                    NetworkType.NOT_REQUIRED
+                } else {
+                    // If local calculations are disabled, we require network connectivity
+                    NetworkType.CONNECTED
+                }
+                
                 val workRequest = PeriodicWorkRequestBuilder<PrayerNotificationWorker>(
                     1, TimeUnit.HOURS // Check every hour
                 )
                     .setConstraints(
                         Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .setRequiredNetworkType(networkConstraint)
                             .build()
                     )
                     .build()
@@ -78,6 +88,18 @@ class PrayerNotificationWorker @AssistedInject constructor(
                 return Result.success()
             }
 
+            // Log which calculation method is being used
+            val calculationMethod = if (settings.enableLocalCalculations) {
+                if (settings.preferLocalOverApi) {
+                    "Local calculation (preferred)"
+                } else {
+                    "API with local fallback"
+                }
+            } else {
+                "API only"
+            }
+            println("PrayerNotificationWorker using calculation method: $calculationMethod")
+
             // Get next prayer information
             val nextPrayer = prayerTimesRepository.getNextPrayer()
 
@@ -96,6 +118,9 @@ class PrayerNotificationWorker @AssistedInject constructor(
                             PrayerName.FAJR
                         }
                         
+                        // Log that we're sending a notification
+                        println("Sending prayer notification for $prayerName at ${prayerInfo.time} (in $timeUntilMs ms)")
+                        
                         // Use PrayerTimeNotificationManager to send the notification
                         prayerTimeNotificationManager.sendPrayerTimeNotification(prayerName, prayerInfo.time)
                     }
@@ -103,6 +128,13 @@ class PrayerNotificationWorker @AssistedInject constructor(
             }.onFailure { error ->
                 // Log error but don't fail the work
                 println("Error getting next prayer: ${error.message}")
+                
+                // If both API and local calculations failed, log a more detailed error
+                if (settings.enableLocalCalculations) {
+                    println("Both API and local calculation methods failed for prayer times")
+                } else {
+                    println("API failed for prayer times and local calculations are disabled")
+                }
             }
 
             Result.success()

@@ -10,6 +10,8 @@ import com.hieltech.haramblur.data.AppUsageTracker
 import com.hieltech.haramblur.data.database.DatabaseInitializer
 import com.hieltech.haramblur.data.database.SiteBlockingDatabase
 import com.hieltech.haramblur.data.database.AppUsageStatsDao
+import com.hieltech.haramblur.utils.LocalPrayerCalculator
+import com.hieltech.haramblur.utils.MoroccanLocationHelper
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -126,5 +128,20 @@ object DataModule {
             usageStatsHelper,
             appUsageStatsDao
         )
+    }
+
+    // Prayer Calculation Components
+    @Provides
+    @Singleton
+    fun provideLocalPrayerCalculator(
+        moroccanLocationHelper: MoroccanLocationHelper
+    ): LocalPrayerCalculator {
+        return LocalPrayerCalculator(moroccanLocationHelper)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMoroccanLocationHelper(): MoroccanLocationHelper {
+        return MoroccanLocationHelper()
     }
 }

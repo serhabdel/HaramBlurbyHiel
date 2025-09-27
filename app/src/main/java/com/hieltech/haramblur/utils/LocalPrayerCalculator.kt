@@ -3,13 +3,23 @@ package com.hieltech.haramblur.utils
 import com.hieltech.haramblur.data.prayer.PrayerTimings
 import kotlin.math.*
 import java.util.*
+import javax.inject.Inject
 
 /**
  * Lightweight local prayer time calculator (Adhan-like angles) for offline fallback.
  * Uses standard solar position formulas (NOAA) and common method angle presets.
+ *
+ * Features:
+ * - Morocco-specific calculation method (18° Fajr, 17° Isha) matching Ministry of Islamic Affairs
+ * - Automatic timezone detection and handling
+ * - City-specific adjustments for major Moroccan cities
+ * - Offline calculation without API dependencies
+ *
  * NOTE: This is a simplified implementation intended as a reliable fallback.
  */
-object LocalPrayerCalculator {
+class LocalPrayerCalculator @Inject constructor(
+    private val moroccanLocationHelper: MoroccanLocationHelper
+) {
 
     data class Angles(val fajr: Double, val isha: Double, val ishaIntervalMinutes: Int? = null)
 
@@ -21,6 +31,7 @@ object LocalPrayerCalculator {
         5 -> Angles(19.5, 17.5) // Egypt
         7 -> Angles(17.7, 14.0) // Tehran (approx)
         13 -> Angles(18.0, 17.0) // Diyanet (approx)
+        15 -> Angles(18.0, 17.0) // Morocco Ministry of Islamic Affairs (18° Fajr, 17° Isha)
         else -> Angles(18.0, 17.0)
     }
 
@@ -137,6 +148,46 @@ object LocalPrayerCalculator {
             Firstthird = null,
             Lastthird = null
         )
+    }
+
+    /**
+     * Convenience method for calculating prayer times in Morocco
+     * Automatically uses Morocco Ministry method and handles timezone
+     */
+    fun computeForMorocco(
+        calendar: Calendar,
+        latitude: Double,
+        longitude: Double,
+        asrFactor: Int = 1,
+        adjustmentsMinutes: Map<String, Int> = emptyMap()
+    ): PrayerTimings {
+        // Morocco uses UTC+1 (or UTC+0 during Ramadan in some years)
+        val tzOffsetHours = TimeZone.getDefault().rawOffset / (1000 * 60 * 60).toDouble()
+        
+        return compute(
+            calendar = calendar,
+            latitude = latitude,
+            longitude = longitude,
+            tzOffsetHours = tzOffsetHours,
+            method = 15, // Morocco Ministry method ID
+            asrFactor = asrFactor,
+            adjustmentsMinutes = adjustmentsMinutes
+        )
+    }
+
+    /**
+     * Get recommended adjustments for Moroccan cities using MoroccanLocationHelper
+     * These are regional adjustments based on local practices
+     */
+    fun getMoroccanCityAdjustments(cityName: String): Map<String, Int> {
+        return moroccanLocationHelper.getCityAdjustments(cityName)
+    }
+
+    /**
+     * Get Moroccan adjustments for coordinates using MoroccanLocationHelper
+     */
+    fun getMoroccanAdjustmentsForCoordinates(latitude: Double, longitude: Double): Map<String, Int> {
+        return moroccanLocationHelper.getAdjustmentsForCoordinates(latitude, longitude)
     }
 }
 

@@ -12,16 +12,18 @@ import javax.inject.Singleton
  * Automatically detects and suggests the best prayer calculation method based on user's location
  */
 @Singleton
-class AutoCalculationMethodDetector @Inject constructor() {
+class AutoCalculationMethodDetector @Inject constructor(
+    private val moroccanLocationHelper: MoroccanLocationHelper
+) {
 
     /**
      * Detect the best calculation method based on location
      */
     fun detectCalculationMethod(latitude: Double, longitude: Double): PrayerCalculationMethod {
         return when {
-            // Morocco - Use Muslim World League (18° Fajr, 17° Isha - same as Morocco's official method)
-            MoroccanLocationHelper.isInMorocco(latitude, longitude) -> {
-                PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE
+            // Morocco - Use Morocco Ministry method (18° Fajr, 17° Isha - official method)
+            moroccanLocationHelper.isInMorocco(latitude, longitude) -> {
+                PrayerCalculationMethod.MOROCCO_MINISTRY
             }
             
             // Saudi Arabia and surrounding Gulf region
@@ -163,7 +165,7 @@ class AutoCalculationMethodDetector @Inject constructor() {
 
     private fun getConfidenceLevel(lat: Double, lon: Double, method: PrayerCalculationMethod): ConfidenceLevel {
         return when {
-            MoroccanLocationHelper.isInMorocco(lat, lon) && method == PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE ->
+            moroccanLocationHelper.isInMorocco(lat, lon) && method == PrayerCalculationMethod.MOROCCO_MINISTRY ->
                 ConfidenceLevel.HIGH
             method == PrayerCalculationMethod.UMM_AL_QURA_UNIVERSITY && isInSaudiArabia(lat, lon) ->
                 ConfidenceLevel.HIGH
@@ -177,8 +179,8 @@ class AutoCalculationMethodDetector @Inject constructor() {
 
     private fun getRecommendationReason(lat: Double, lon: Double, method: PrayerCalculationMethod): String {
         return when {
-            MoroccanLocationHelper.isInMorocco(lat, lon) && method == PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE ->
-                "This method uses 18° for Fajr and 17° for Isha, which matches Morocco's official calculation method used by the Ministry of Islamic Affairs."
+            moroccanLocationHelper.isInMorocco(lat, lon) && method == PrayerCalculationMethod.MOROCCO_MINISTRY ->
+                "This is Morocco's official prayer time calculation method used by the Ministry of Islamic Affairs, using 18° for Fajr and 17° for Isha."
             method == PrayerCalculationMethod.UMM_AL_QURA_UNIVERSITY ->
                 "This method is widely used in Saudi Arabia and the surrounding region."
             method == PrayerCalculationMethod.ISLAMIC_SOCIETY_OF_NORTH_AMERICA ->
