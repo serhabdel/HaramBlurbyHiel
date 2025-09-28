@@ -40,6 +40,9 @@ class HaramBlurApplication : Application() {
         super.onCreate()
         Log.d(TAG, "HaramBlur Application created")
 
+        // Verify ML capabilities before initializing components
+        verifyMLCapabilities()
+        
         // Initialize app-level components here
         initializeComponents()
     }
@@ -127,4 +130,115 @@ class HaramBlurApplication : Application() {
             }
         }
     }
+    
+    /**
+     * Verify ML libraries are available before any detection services start
+     */
+    private fun verifyMLCapabilities() {
+        try {
+            // Check TensorFlow Lite availability
+            Class.forName("org.tensorflow.lite.Interpreter")
+            Log.d(TAG, "✅ TensorFlow Lite classes available")
+            
+            // Check ML Kit availability
+            Class.forName("com.google.mlkit.vision.face.FaceDetection")
+            Log.d(TAG, "✅ ML Kit classes available")
+            
+            // Attempt to load native libraries
+            verifyNativeLibraries()
+            
+        } catch (e: ClassNotFoundException) {
+            Log.e(TAG, "❌ ML libraries not available", e)
+            // Set global flag for fallback mode - this will be used by detection services
+            setFallbackMode(true)
+        } catch (e: UnsatisfiedLinkError) {
+            Log.e(TAG, "❌ Native ML libraries failed to load", e)
+            setFallbackMode(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Unexpected error verifying ML capabilities", e)
+            setFallbackMode(true)
+        }
+    }
+    
+    /**
+     * Attempt to load native ML libraries
+     */
+    private fun verifyNativeLibraries() {
+        val libraries = listOf(
+            "tensorflowlite_jni",
+            "tensorflowlite_gpu_jni",
+            "face_detector_v2_jni"
+        )
+        
+        libraries.forEach { libName ->
+            try {
+                System.loadLibrary(libName)
+                Log.d(TAG, "✅ Successfully loaded native library: $libName")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.w(TAG, "⚠️ Failed to load native library: $libName", e)
+                // Don't fail completely - some libraries might be optional
+            }
+        }
+    }
+    
+    /**
+     * Set fallback mode for when ML libraries are not available
+     */
+    private fun setFallbackMode(enabled: Boolean) {
+        // Store in application-level storage for other components to check
+        getSharedPreferences("haramblur_ml_status", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("ml_fallback_mode", enabled)
+            .apply()
+        
+        if (enabled) {
+            Log.w(TAG, "⚠️ ML fallback mode enabled - using heuristic-only detection")
+        }
+    }
+    
+    /**
+     * Check if ML fallback mode is enabled
+     */
+    fun isMLFallbackMode(): Boolean {
+        return getSharedPreferences("haramblur_ml_status", Context.MODE_PRIVATE)
+            .getBoolean("ml_fallback_mode", false)
+    }
+    
+    /**
+     * Get ML capability status for diagnostics
+     */
+    fun getMLCapabilityStatus(): MLCapabilityStatus {
+        return MLCapabilityStatus(
+            tensorFlowLiteAvailable = isClassAvailable("org.tensorflow.lite.Interpreter"),
+            mlKitAvailable = isClassAvailable("com.google.mlkit.vision.face.FaceDetection"),
+            fallbackMode = isMLFallbackMode(),
+            deviceInfo = getDeviceInfo()
+        )
+    }
+    
+    private fun isClassAvailable(className: String): Boolean {
+        return try {
+            Class.forName(className)
+            true
+        } catch (e: ClassNotFoundException) {
+            false
+        }
+    }
+    
+    private fun getDeviceInfo(): Map<String, String> {
+        val info = mutableMapOf<String, String>()
+        info["androidVersion"] = android.os.Build.VERSION.RELEASE
+        info["sdkVersion"] = android.os.Build.VERSION.SDK_INT.toString()
+        info["deviceModel"] = android.os.Build.MODEL
+        info["deviceManufacturer"] = android.os.Build.MANUFACTURER
+        info["abi"] = android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"
+        return info
+    }
+    
+    data class MLCapabilityStatus(
+        val tensorFlowLiteAvailable: Boolean,
+        val mlKitAvailable: Boolean,
+        val fallbackMode: Boolean,
+        val deviceInfo: Map<String, String>
+    )
 }

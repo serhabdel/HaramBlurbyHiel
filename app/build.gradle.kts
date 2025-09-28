@@ -18,6 +18,21 @@ android {
         versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Native library configuration for 16KB page size compatibility
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+    }
+    
+    // 16KB page size compatibility and native library packaging
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+            pickFirsts += "**/libtensorflowlite_jni.so"
+            pickFirsts += "**/libface_detector_v2_jni.so"
+            pickFirsts += "**/libtensorflowlite_gpu_jni.so"
+        }
     }
 
     signingConfigs {

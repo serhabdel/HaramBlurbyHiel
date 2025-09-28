@@ -37,6 +37,8 @@ import com.hieltech.haramblur.ui.components.SimpleNotificationPermissionStep
 import com.hieltech.haramblur.ui.components.SimplifiedWizardStepCard
 import android.util.Log
 import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.hieltech.haramblur.ui.SettingsViewModel
 
 /**
  * Main permission wizard screen composable
@@ -274,7 +276,9 @@ private fun SimplifiedStepPage(
                 LanguageSelectionStep(
                     viewModel = viewModel,
                     onLanguageSelected = {
-                        // Language change is handled automatically
+                        // Language change is handled automatically with immediate locale update
+                        // Activity recreation is suppressed during wizard flow
+                        // UI will recompose immediately with new language
                     }
                 )
             }

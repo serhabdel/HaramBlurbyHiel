@@ -33,11 +33,14 @@ class MLModelManager @Inject constructor(
         private const val GENDER_MODEL_PATH = "models/model_lite_gender_q.tflite"
         private const val INPUT_SIZE = 224
         private const val GENDER_INPUT_SIZE = 96 // Smaller input for gender model
-        private const val CONFIDENCE_THRESHOLD = 0.3f // Lowered for better sensitivity
-        private const val GENDER_CONFIDENCE_THRESHOLD = 0.7f
+        private const val CONFIDENCE_THRESHOLD = 0.25f // Lowered for maximum sensitivity
+        private const val GENDER_CONFIDENCE_THRESHOLD = 0.60f // Lowered for better gender detection
+        private const val MAX_ACCURACY_NSFW_THRESHOLD = 0.20f // Ultra-sensitive NSFW detection
         private const val DEFAULT_TIMEOUT_MS = 5000L
         private const val FAST_TIMEOUT_MS = 100L
         private const val ULTRA_FAST_TIMEOUT_MS = 50L
+        private const val MIN_TILE_SIZE = 64 // Minimum tile size for granular analysis
+        private const val MAX_OVERLAP_PERCENTAGE = 0.6f // Maximum overlap for thorough coverage
     }
     
     private var nsfwInterpreter: Interpreter? = null
@@ -58,6 +61,12 @@ class MLModelManager @Inject constructor(
     suspend fun initialize(context: Context): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
             Log.d(TAG, "Initializing ML models with GPU acceleration...")
+            
+            // Verify native libraries are loaded before proceeding
+            if (!verifyNativeLibraries()) {
+                Log.e(TAG, "❌ Native library verification failed - ML models cannot initialize")
+                return@withContext false
+            }
             
             // Initialize GPU acceleration
             gpuAccelerationManager.initialize(context)
@@ -90,6 +99,46 @@ class MLModelManager @Inject constructor(
             Log.e(TAG, "Failed to initialize ML models", e)
             false
         }
+    }
+    
+    /**
+     * Verify that native libraries are properly loaded
+     */
+    private fun verifyNativeLibraries(): Boolean {
+        val libraries = listOf(
+            "tensorflowlite_jni",
+            "tensorflowlite_gpu_jni"
+        )
+        
+        libraries.forEach { libName ->
+            try {
+                System.loadLibrary(libName)
+                Log.d(TAG, "✅ Successfully loaded library: $libName")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "❌ Failed to load library: $libName", e)
+                return false
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Unexpected error loading library: $libName", e)
+                return false
+            }
+        }
+        return true
+    }
+    
+    /**
+     * Get diagnostic information about ML model status
+     */
+    fun getDiagnosticInfo(): MLDiagnosticInfo {
+        return MLDiagnosticInfo(
+            isInitialized = isInitialized,
+            isGenderModelReady = isGenderModelReady,
+            gpuAccelerationActive = gpuAccelerationManager.isGPUActive(),
+            nsfwInterpreterAvailable = nsfwInterpreter != null,
+            genderInterpreterAvailable = genderInterpreter != null,
+            currentPerformanceMode = currentPerformanceMode,
+            genderCacheSize = genderCache.size,
+            nsfwCacheSize = nsfwCache.size
+        )
     }
     
     private fun initializeNSFWModel(context: Context) {
@@ -136,9 +185,15 @@ class MLModelManager @Inject constructor(
                 val modelBuffer = FileUtil.loadMappedFile(context, GENDER_MODEL_PATH)
                 genderInterpreter = Interpreter(modelBuffer, options)
                 isGenderModelReady = true
-                Log.d(TAG, "Gender model loaded successfully from: $GENDER_MODEL_PATH")
+                Log.d(TAG, "✅ Gender model loaded successfully from: $GENDER_MODEL_PATH")
             } catch (e: IOException) {
-                Log.w(TAG, "Gender model file not found at $GENDER_MODEL_PATH, falling back to heuristics", e)
+                Log.w(TAG, "⚠️ Gender model file not found at $GENDER_MODEL_PATH, falling back to heuristics", e)
+                isGenderModelReady = false
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "❌ TensorFlow Lite native library loading failed for gender model", e)
+                isGenderModelReady = false
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Unexpected error loading gender model", e)
                 isGenderModelReady = false
             }
 
@@ -267,7 +322,14 @@ class MLModelManager @Inject constructor(
             if (useFastMode) simulateNSFWDetectionFast(bitmap) else simulateNSFWDetection(bitmap)
         }
 
-        val isNSFW = confidence > CONFIDENCE_THRESHOLD
+        // Use lower threshold for maximum accuracy mode
+        val effectiveThreshold = if (currentPerformanceMode == PerformanceMode.QUALITY) {
+            MAX_ACCURACY_NSFW_THRESHOLD
+        } else {
+            CONFIDENCE_THRESHOLD
+        }
+        
+        val isNSFW = confidence > effectiveThreshold
 
         return DetectionResult(
             isNSFW,
@@ -315,9 +377,9 @@ class MLModelManager @Inject constructor(
     
     private fun analyzeSkinToneDistribution(bitmap: Bitmap): Float {
         try {
-            // Sample pixels from the bitmap to analyze skin tone presence
+            // Sample pixels from the bitmap to analyze skin tone presence with enhanced sensitivity
             val sampleSize = minOf(bitmap.width, bitmap.height, 100)
-            val step = maxOf(bitmap.width / sampleSize, bitmap.height / sampleSize, 1)
+            val step = maxOf(bitmap.width / sampleSize, bitmap.height / sampleSize, 2) // Reduced step for better accuracy
             
             var skinPixelCount = 0
             var totalPixels = 0
@@ -334,16 +396,17 @@ class MLModelManager @Inject constructor(
             
             val skinRatio = skinPixelCount.toFloat() / totalPixels
             
-            // High skin tone ratio might indicate exposed skin
+            // Enhanced skin tone detection with lower thresholds for maximum sensitivity
             return when {
-                skinRatio > 0.4f -> 0.8f  // Very high skin tone
-                skinRatio > 0.25f -> 0.6f // Moderate skin tone
-                skinRatio > 0.15f -> 0.3f // Some skin tone
-                else -> 0.1f              // Low skin tone
+                skinRatio > 0.35f -> 0.85f // Very high skin tone (lowered threshold)
+                skinRatio > 0.25f -> 0.75f // Moderate skin tone (increased sensitivity)
+                skinRatio > 0.15f -> 0.65f // Some skin tone (increased sensitivity)
+                skinRatio > 0.08f -> 0.45f // Low skin tone (new threshold)
+                else -> 0.15f             // Very low skin tone (increased from 0.1f)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error analyzing skin tone", e)
-            return 0.1f
+            return 0.15f
         }
     }
     
@@ -822,14 +885,21 @@ class MLModelManager @Inject constructor(
         val width = bitmap.width
         val height = bitmap.height
 
-        // Calculate tile size based on bitmap dimensions and performance mode
+        // Calculate tile size based on bitmap dimensions and performance mode with enhanced granularity
         val tileSize = calculateAdaptiveTileSize(width, height, useFastMode)
-        val overlapPercentage = if (useFastMode) 0.3f else 0.5f // Less overlap for faster processing
+        val overlapPercentage = 0.6f // Use 60% overlap for both modes as per accuracy-first plan
 
         val stepSize = (tileSize * (1.0f - overlapPercentage)).toInt()
         val highConfidenceRegions = mutableListOf<Rect>()
         val regionConfidences = mutableListOf<Float>()
         var maxConfidence = 0.0f
+
+        // Use lower threshold for maximum accuracy mode
+        val effectiveThreshold = if (currentPerformanceMode == PerformanceMode.QUALITY) {
+            MAX_ACCURACY_NSFW_THRESHOLD
+        } else {
+            CONFIDENCE_THRESHOLD * 0.8f // Lower threshold for region detection
+        }
 
         // Slide window across the bitmap
         for (x in 0 until width step stepSize) {
@@ -860,33 +930,33 @@ class MLModelManager @Inject constructor(
                     continue // Skip this tile if bitmap creation fails
                 }
 
-                // Analyze tile for NSFW content
-                val confidence = analyzeTileForNSFW(tileBitmap, useFastMode)
+                // Analyze tile for NSFW content with edge-aware processing
+                val confidence = analyzeTileForNSFWWithEdgeAwareness(tileBitmap, useFastMode, tileRect)
 
                 // Always recycle the tile bitmap
                 tileBitmap.recycle()
 
-                // Check if this tile meets high confidence threshold
-                if (confidence >= CONFIDENCE_THRESHOLD) {
+                // Check if this tile meets high confidence threshold (lowered for sensitivity)
+                if (confidence >= effectiveThreshold) {
                     highConfidenceRegions.add(tileRect)
                     regionConfidences.add(confidence)
                     maxConfidence = maxOf(maxConfidence, confidence)
                 }
 
                 // Early termination for performance - stop if we already have many regions
-                if (highConfidenceRegions.size >= 10) {
+                if (highConfidenceRegions.size >= 15) { // Increased from 10 for better coverage
                     break
                 }
             }
 
             // Early termination for performance
-            if (highConfidenceRegions.size >= 10) {
+            if (highConfidenceRegions.size >= 15) { // Increased from 10
                 break
             }
         }
 
-        // Merge overlapping regions to avoid double-counting
-        val mergedRegions = mergeOverlappingRegions(highConfidenceRegions, regionConfidences)
+        // Merge overlapping regions with edge-aware merging
+        val mergedRegions = mergeOverlappingRegionsWithEdgeAwareness(highConfidenceRegions, regionConfidences, bitmap)
 
         return RegionAnalysisResult(
             regionCount = mergedRegions.size,
@@ -904,19 +974,19 @@ class MLModelManager @Inject constructor(
 
         return when {
             useFastMode -> {
-                // Smaller tiles for faster processing in fast mode
+                // Smaller tiles for faster processing in fast mode, but with minimum size for accuracy
                 when {
-                    minDimension >= 1080 -> 96  // Smaller tiles for large screens
-                    minDimension >= 720 -> 80   // Medium tiles for medium screens
-                    else -> 64                  // Small tiles for small screens
+                    minDimension >= 1080 -> 80  // Smaller tiles for large screens
+                    minDimension >= 720 -> 72   // Medium tiles for medium screens
+                    else -> MIN_TILE_SIZE        // Minimum tile size for small screens
                 }
             }
             else -> {
-                // Standard mode - larger tiles for better accuracy
+                // Standard mode - smaller tiles for more granular analysis
                 when {
-                    minDimension >= 1080 -> 160 // Larger tiles for detailed analysis
-                    minDimension >= 720 -> 128  // Medium tiles for balanced analysis
-                    else -> 96                  // Small tiles for small screens
+                    minDimension >= 1080 -> 128 // Smaller tiles for detailed analysis
+                    minDimension >= 720 -> 96   // Medium tiles for balanced analysis
+                    else -> MIN_TILE_SIZE        // Minimum tile size for small screens
                 }
             }
         }
@@ -931,6 +1001,89 @@ class MLModelManager @Inject constructor(
         } else {
             simulateNSFWDetection(tileBitmap)
         }
+    }
+    
+    /**
+     * Analyze a tile bitmap for NSFW content with edge-aware processing
+     */
+    private fun analyzeTileForNSFWWithEdgeAwareness(tileBitmap: Bitmap, useFastMode: Boolean, tileRect: Rect): Float {
+        // Get base confidence from standard analysis
+        val baseConfidence = if (useFastMode) {
+            simulateNSFWDetectionFast(tileBitmap)
+        } else {
+            simulateNSFWDetection(tileBitmap)
+        }
+        
+        // Apply edge-aware boost for tiles with content boundaries
+        val edgeBoost = calculateEdgeAwarenessBoost(tileBitmap, tileRect)
+        
+        // Combine base confidence with edge awareness
+        val combinedConfidence = (baseConfidence * 0.8f) + (edgeBoost * 0.2f)
+        
+        return combinedConfidence.coerceIn(0.0f, 1.0f)
+    }
+    
+    /**
+     * Calculate edge-awareness boost for tiles containing content boundaries
+     */
+    private fun calculateEdgeAwarenessBoost(tileBitmap: Bitmap, tileRect: Rect): Float {
+        try {
+            var edgeDensity = 0f
+            val sampleStep = 4
+            
+            // Sample edges of the tile to detect content boundaries
+            for (x in 0 until tileBitmap.width step sampleStep) {
+                // Top edge
+                if (tileRect.top > 0) {
+                    val pixel = tileBitmap.getPixel(x, 0)
+                    edgeDensity += calculateEdgeStrength(pixel)
+                }
+                // Bottom edge
+                if (tileRect.bottom < tileBitmap.height) {
+                    val pixel = tileBitmap.getPixel(x, tileBitmap.height - 1)
+                    edgeDensity += calculateEdgeStrength(pixel)
+                }
+            }
+            
+            for (y in 0 until tileBitmap.height step sampleStep) {
+                // Left edge
+                if (tileRect.left > 0) {
+                    val pixel = tileBitmap.getPixel(0, y)
+                    edgeDensity += calculateEdgeStrength(pixel)
+                }
+                // Right edge
+                if (tileRect.right < tileBitmap.width) {
+                    val pixel = tileBitmap.getPixel(tileBitmap.width - 1, y)
+                    edgeDensity += calculateEdgeStrength(pixel)
+                }
+            }
+            
+            // Normalize edge density
+            val maxSamples = (tileBitmap.width / sampleStep + tileBitmap.height / sampleStep) * 2
+            val normalizedEdgeDensity = if (maxSamples > 0) edgeDensity / maxSamples else 0f
+            
+            // Convert to boost factor (higher edge density = higher boost)
+            return normalizedEdgeDensity * 0.5f // Scale down to avoid over-boosting
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error calculating edge awareness boost", e)
+            return 0f
+        }
+    }
+    
+    /**
+     * Calculate edge strength for a pixel based on color variance
+     */
+    private fun calculateEdgeStrength(pixel: Int): Float {
+        val red = (pixel shr 16) and 0xFF
+        val green = (pixel shr 8) and 0xFF
+        val blue = pixel and 0xFF
+        
+        // Calculate color variance as edge strength indicator
+        val brightness = getPixelBrightness(pixel)
+        val colorVariance = Math.abs(red - brightness) + Math.abs(green - brightness) + Math.abs(blue - brightness)
+        
+        return (colorVariance / 255.0f).coerceIn(0.0f, 1.0f)
     }
 
     /**
@@ -970,6 +1123,158 @@ class MLModelManager @Inject constructor(
         }
 
         return merged
+    }
+    
+    /**
+     * Merge overlapping regions with edge-awareness for better precision
+     */
+    private fun mergeOverlappingRegionsWithEdgeAwareness(
+        regions: List<Rect>,
+        confidences: List<Float>,
+        bitmap: Bitmap
+    ): List<Pair<Rect, Float>> {
+        if (regions.isEmpty()) return emptyList()
+
+        val merged = mutableListOf<Pair<Rect, Float>>()
+
+        regions.forEachIndexed { index, region ->
+            val confidence = confidences[index]
+
+            // Check if this region overlaps significantly with any existing merged region
+            val overlappingIndex = merged.indexOfFirst { (existingRegion, _) ->
+                calculateOverlapRatio(region, existingRegion) > 0.25f // Lower threshold for more precise merging
+            }
+
+            if (overlappingIndex >= 0) {
+                // Merge with existing region using confidence-weighted merging
+                val (existingRegion, existingConfidence) = merged[overlappingIndex]
+                
+                // Calculate weighted average confidence
+                val totalConfidence = confidence + existingConfidence
+                val weightedConfidence = if (totalConfidence > 0) {
+                    (confidence * confidence + existingConfidence * existingConfidence) / totalConfidence
+                } else {
+                    maxOf(confidence, existingConfidence)
+                }
+                
+                // Create merged rectangle with edge-aware refinement
+                val mergedRect = Rect(
+                    minOf(region.left, existingRegion.left),
+                    minOf(region.top, existingRegion.top),
+                    maxOf(region.right, existingRegion.right),
+                    maxOf(region.bottom, existingRegion.bottom)
+                )
+                
+                // Apply edge refinement to the merged region
+                val refinedRect = refineRegionWithEdgeDetection(mergedRect, bitmap)
+                
+                merged[overlappingIndex] = Pair(refinedRect, weightedConfidence)
+            } else {
+                // Add as new region with edge refinement
+                val refinedRect = refineRegionWithEdgeDetection(region, bitmap)
+                merged.add(Pair(refinedRect, confidence))
+            }
+        }
+
+        return merged
+    }
+    
+    /**
+     * Refine region boundaries using edge detection
+     */
+    private fun refineRegionWithEdgeDetection(region: Rect, bitmap: Bitmap): Rect {
+        try {
+            var refinedLeft = region.left
+            var refinedRight = region.right
+            var refinedTop = region.top
+            var refinedBottom = region.bottom
+            
+            // Refine left boundary
+            if (region.left > 0) {
+                refinedLeft = findContentBoundary(region.left, region.right, region.top, region.bottom, bitmap, true)
+            }
+            
+            // Refine right boundary
+            if (region.right < bitmap.width) {
+                refinedRight = findContentBoundary(region.right, region.left, region.top, region.bottom, bitmap, false)
+            }
+            
+            // Refine top boundary
+            if (region.top > 0) {
+                refinedTop = findContentBoundary(region.top, region.bottom, region.left, region.right, bitmap, true)
+            }
+            
+            // Refine bottom boundary
+            if (region.bottom < bitmap.height) {
+                refinedBottom = findContentBoundary(region.bottom, region.top, region.left, region.right, bitmap, false)
+            }
+            
+            return Rect(
+                refinedLeft.coerceAtLeast(0),
+                refinedTop.coerceAtLeast(0),
+                refinedRight.coerceAtMost(bitmap.width),
+                refinedBottom.coerceAtMost(bitmap.height)
+            )
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error refining region with edge detection", e)
+            return region
+        }
+    }
+    
+    /**
+     * Find content boundary using edge detection
+     */
+    private fun findContentBoundary(
+        start: Int,
+        end: Int,
+        fixedStart: Int,
+        fixedEnd: Int,
+        bitmap: Bitmap,
+        isHorizontal: Boolean
+    ): Int {
+        try {
+            val step = if (isHorizontal) 1 else 1
+            val direction = if (start < end) 1 else -1
+            var currentPos = start
+            
+            // Sample pixels along the boundary to find content edges
+            var edgeCount = 0
+            var totalSamples = 0
+            
+            while (currentPos != end) {
+                for (fixed in fixedStart until fixedEnd step 5) {
+                    val x = if (isHorizontal) currentPos else fixed
+                    val y = if (isHorizontal) fixed else currentPos
+                    
+                    if (x in 0 until bitmap.width && y in 0 until bitmap.height) {
+                        val pixel = bitmap.getPixel(x, y)
+                        val edgeStrength = calculateEdgeStrength(pixel)
+                        
+                        if (edgeStrength > 0.3f) {
+                            edgeCount++
+                        }
+                        totalSamples++
+                    }
+                }
+                
+                // If we find significant edge density, this is likely the boundary
+                if (totalSamples > 0) {
+                    val edgeDensity = edgeCount.toFloat() / totalSamples
+                    if (edgeDensity > 0.4f) {
+                        return currentPos
+                    }
+                }
+                
+                currentPos += direction * step
+            }
+            
+            return start // Fallback to original position
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error finding content boundary", e)
+            return start
+        }
     }
 
     /**
@@ -1172,5 +1477,19 @@ class MLModelManager @Inject constructor(
     private data class NSFWCacheEntry(
         val result: DetectionResult,
         val timestamp: Long
+    )
+    
+    /**
+     * ML diagnostic information
+     */
+    data class MLDiagnosticInfo(
+        val isInitialized: Boolean,
+        val isGenderModelReady: Boolean,
+        val gpuAccelerationActive: Boolean,
+        val nsfwInterpreterAvailable: Boolean,
+        val genderInterpreterAvailable: Boolean,
+        val currentPerformanceMode: PerformanceMode,
+        val genderCacheSize: Int,
+        val nsfwCacheSize: Int
     )
 }

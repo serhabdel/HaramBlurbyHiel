@@ -269,13 +269,12 @@ class SettingsViewModel @Inject constructor(
     
     fun updatePreferredLanguage(language: com.hieltech.haramblur.detection.Language) {
         viewModelScope.launch {
-            // Persist synchronously in repository (updates StateFlow and commits SharedPreferences)
-            settingsRepository.persistPreferredLanguageSync(language)
-            
-            // Log the language change
-            logRepository.logInfo("Language changed to: ${language.displayName}", "SettingsViewModel")
-            // Persist then trigger recreation so attachBaseContext() applies the locale
             try {
+                // Persist synchronously in repository (updates StateFlow and commits SharedPreferences)
+                settingsRepository.persistPreferredLanguageSync(language)
+                
+                // Log the language change
+                logRepository.logInfo("Language changed to: ${language.displayName}", "SettingsViewModel")
                 android.util.Log.d("SettingsViewModel", "Persisted language; requesting activity recreation")
                 
                 // Optional verification: read-back and ensure it matches
@@ -290,7 +289,43 @@ class SettingsViewModel @Inject constructor(
                 _languageChangeEvents.emit(Unit)
             } catch (e: Exception) {
                 android.util.Log.e("SettingsViewModel", "Error updating locale", e)
+                // Log the error for debugging
+                logRepository.logError("SettingsViewModel", "Failed to update language to: ${language.displayName}", e)
             }
+        }
+    }
+    
+    /**
+     * Enhanced language update method with verification and return value for wizard flow
+     * @param language The language to set
+     * @param suppressRecreation Whether to suppress activity recreation (for wizard flow)
+     * @return Boolean indicating success or failure of language persistence
+     */
+    suspend fun updatePreferredLanguageWithResult(language: com.hieltech.haramblur.detection.Language, suppressRecreation: Boolean = false): Boolean {
+        return try {
+            // Use the repository method with result and retry logic
+            val success = settingsRepository.persistPreferredLanguageSyncWithResult(language)
+            
+            // Log the language change
+            logRepository.logInfo("Language changed to: ${language.displayName}", "SettingsViewModel")
+            android.util.Log.d("SettingsViewModel", "Persisted language: ${language.name}, success: $success")
+            
+            if (success && !suppressRecreation) {
+                // Only emit recreation event for non-wizard flows
+                // During wizard, we handle UI updates immediately without recreation
+                try {
+                    _languageChangeEvents.emit(Unit)
+                } catch (e: Exception) {
+                    android.util.Log.e("SettingsViewModel", "Error emitting language change event", e)
+                }
+            }
+            
+            success
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsViewModel", "Error updating locale", e)
+            // Log the error for debugging
+            logRepository.logError("SettingsViewModel", "Failed to update language to: ${language.displayName}", e)
+            false
         }
     }
     

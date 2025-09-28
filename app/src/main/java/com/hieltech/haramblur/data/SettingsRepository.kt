@@ -34,7 +34,7 @@ class SettingsRepository @Inject constructor(
     companion object {
         private const val TAG = "SettingsRepository"
         private const val SETTINGS_VERSION_KEY = "settings_version"
-        private const val CURRENT_SETTINGS_VERSION = 11
+        private const val CURRENT_SETTINGS_VERSION = 12
     }
     
     private val _settings = MutableStateFlow(loadSettingsWithMigration())
@@ -75,7 +75,7 @@ class SettingsRepository @Inject constructor(
             expandBlurArea = prefs.getInt("expand_blur_area", 30),
             
             // Performance Settings
-            processingSpeed = ProcessingSpeed.valueOf(prefs.getString("processing_speed", ProcessingSpeed.BALANCED.name)!!),
+            processingSpeed = ProcessingSpeed.valueOf(prefs.getString("processing_speed", QualityMode.HIGH_QUALITY.processingSpeed.name)!!), // Aligned with HIGH_QUALITY
             enableRealTimeProcessing = prefs.getBoolean("enable_realtime_processing", true),
             pauseInApps = prefs.getStringSet("pause_in_apps", emptySet()) ?: emptySet(),
             
@@ -97,10 +97,10 @@ class SettingsRepository @Inject constructor(
             fullScreenWarningEnabled = prefs.getBoolean("fullscreen_warning_enabled", true),
             
             // Performance Enhancement Settings
-            maxProcessingTimeMs = prefs.getLong("max_processing_time_ms", 50L),
-            enableGPUAcceleration = prefs.getBoolean("enable_gpu_acceleration", true),
-            frameSkipThreshold = prefs.getInt("frame_skip_threshold", 3),
-            imageDownscaleRatio = prefs.getFloat("image_downscale_ratio", 0.5f),
+            maxProcessingTimeMs = prefs.getLong("max_processing_time_ms", QualityMode.HIGH_QUALITY.maxProcessingTimeMs), // Aligned with HIGH_QUALITY
+            enableGPUAcceleration = prefs.getBoolean("enable_gpu_acceleration", QualityMode.HIGH_QUALITY.enableGPUAcceleration), // Aligned with HIGH_QUALITY
+            frameSkipThreshold = prefs.getInt("frame_skip_threshold", QualityMode.HIGH_QUALITY.frameSkipThreshold), // Aligned with HIGH_QUALITY
+            imageDownscaleRatio = prefs.getFloat("image_downscale_ratio", QualityMode.HIGH_QUALITY.imageDownscaleRatio), // Aligned with HIGH_QUALITY
             
             // Islamic Guidance Settings
             preferredLanguage = com.hieltech.haramblur.detection.Language.valueOf(
@@ -227,7 +227,28 @@ class SettingsRepository @Inject constructor(
             enableLocalCalculations = prefs.getBoolean("enable_local_calculations", false),
             preferLocalOverApi = prefs.getBoolean("prefer_local_over_api", false),
             showCalculationMethod = prefs.getBoolean("show_calculation_method", true),
-            moroccoSpecificAdjustments = prefs.getBoolean("morocco_specific_adjustments", true)
+            moroccoSpecificAdjustments = prefs.getBoolean("morocco_specific_adjustments", true),
+
+            // Blur Animation Settings
+            enableSmoothBlurAnimations = prefs.getBoolean("enable_smooth_blur_animations", true),
+            blurAnimationDuration = prefs.getInt("blur_animation_duration", 250),
+            blurTransitionDuration = prefs.getInt("blur_transition_duration", 150),
+            enableBlurRegionInterpolation = prefs.getBoolean("enable_blur_region_interpolation", true),
+
+            // Blur Performance Optimization Settings
+            enableHardwareBlurAcceleration = prefs.getBoolean("enable_hardware_blur_acceleration", true),
+            blurRenderingMode = try {
+                BlurRenderingMode.valueOf(prefs.getString("blur_rendering_mode", BlurRenderingMode.SMOOTH.name)!!)
+            } catch (e: Exception) {
+                BlurRenderingMode.SMOOTH // Default to SMOOTH on error
+            },
+            maxBlurRegionsPerFrame = prefs.getInt("max_blur_regions_per_frame", 12),
+            enableBlurFrameRateLimiting = prefs.getBoolean("enable_blur_frame_rate_limiting", true),
+
+            // Blur Edge Refinement Settings
+            enableBlurEdgeRefinement = prefs.getBoolean("enable_blur_edge_refinement", true),
+            blurEdgeAntiAliasing = prefs.getBoolean("blur_edge_anti_aliasing", true),
+            blurBoundaryPrecision = prefs.getFloat("blur_boundary_precision", 0.5f)
         )
     }
 
@@ -503,6 +524,23 @@ class SettingsRepository @Inject constructor(
             putBoolean("show_calculation_method", settings.showCalculationMethod)
             putBoolean("morocco_specific_adjustments", settings.moroccoSpecificAdjustments)
 
+            // Blur Animation Settings
+            putBoolean("enable_smooth_blur_animations", settings.enableSmoothBlurAnimations)
+            putInt("blur_animation_duration", settings.blurAnimationDuration)
+            putInt("blur_transition_duration", settings.blurTransitionDuration)
+            putBoolean("enable_blur_region_interpolation", settings.enableBlurRegionInterpolation)
+
+            // Blur Performance Optimization Settings
+            putBoolean("enable_hardware_blur_acceleration", settings.enableHardwareBlurAcceleration)
+            putString("blur_rendering_mode", settings.blurRenderingMode.name)
+            putInt("max_blur_regions_per_frame", settings.maxBlurRegionsPerFrame)
+            putBoolean("enable_blur_frame_rate_limiting", settings.enableBlurFrameRateLimiting)
+
+            // Blur Edge Refinement Settings
+            putBoolean("enable_blur_edge_refinement", settings.enableBlurEdgeRefinement)
+            putBoolean("blur_edge_anti_aliasing", settings.blurEdgeAntiAliasing)
+            putFloat("blur_boundary_precision", settings.blurBoundaryPrecision)
+
             // Force immediate commit to prevent data loss
             apply()
             }
@@ -563,6 +601,54 @@ class SettingsRepository @Inject constructor(
         // Commit synchronously to ensure durability before consumers act on it
         prefs.edit().putString("preferred_language", language.name).commit()
         Log.d(TAG, "persistPreferredLanguageSync committed: ${language.name}")
+    }
+    
+    /**
+     * Enhanced language persistence method with verification and return value
+     * @param language The language to persist
+     * @return Boolean indicating success or failure of language persistence
+     */
+    fun persistPreferredLanguageSyncWithResult(language: Language): Boolean {
+        return try {
+            val updated = _settings.value.copy(preferredLanguage = language)
+            _settings.value = updated
+            
+            // First attempt
+            var success = prefs.edit().putString("preferred_language", language.name).commit()
+            Log.d(TAG, "persistPreferredLanguageSyncWithResult first attempt: ${language.name}, success: $success")
+            
+            // Retry logic: single retry on failure
+            if (!success) {
+                Log.w(TAG, "First language persistence attempt failed, retrying...")
+                Thread.sleep(100) // Small delay before retry
+                success = prefs.edit().putString("preferred_language", language.name).commit()
+                Log.d(TAG, "persistPreferredLanguageSyncWithResult retry attempt: ${language.name}, success: $success")
+            }
+            
+            // Verification: read-back and ensure it matches
+            if (success) {
+                val verified = try {
+                    val stored = prefs.getString("preferred_language", null)
+                    val matches = stored == language.name
+                    if (!matches) {
+                        Log.w(TAG, "Language verification failed: expected ${language.name}, got $stored")
+                    }
+                    matches
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error verifying language persistence", e)
+                    false
+                }
+                
+                Log.d(TAG, "Language persistence verification: $verified for ${language.name}")
+                verified
+            } else {
+                Log.e(TAG, "Language persistence failed after retry for ${language.name}")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error persisting language: ${language.name}", e)
+            false
+        }
     }
     
     fun updateBlurIntensity(intensity: BlurIntensity) {
@@ -870,6 +956,73 @@ class SettingsRepository @Inject constructor(
         updateSettings(updated)
     }
 
+    // Blur Animation Settings Helper Methods
+    fun updateSmoothBlurAnimations(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(enableSmoothBlurAnimations = enabled)
+        updateSettings(updated)
+    }
+
+    fun updateBlurAnimationDuration(duration: Int) {
+        val current = _settings.value
+        val updated = current.copy(blurAnimationDuration = duration.coerceIn(50, 1000))
+        updateSettings(updated)
+    }
+
+    fun updateBlurTransitionDuration(duration: Int) {
+        val current = _settings.value
+        val updated = current.copy(blurTransitionDuration = duration.coerceIn(50, 1000))
+        updateSettings(updated)
+    }
+
+    fun updateBlurRenderingMode(mode: BlurRenderingMode) {
+        val current = _settings.value
+        val updated = current.copy(blurRenderingMode = mode)
+        updateSettings(updated)
+    }
+
+    fun updateHardwareBlurAcceleration(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(enableHardwareBlurAcceleration = enabled)
+        updateSettings(updated)
+    }
+
+    fun updateBlurEdgeRefinement(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(enableBlurEdgeRefinement = enabled)
+        updateSettings(updated)
+    }
+
+    fun updateBlurEdgeAntiAliasing(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(blurEdgeAntiAliasing = enabled)
+        updateSettings(updated)
+    }
+
+    fun updateBlurBoundaryPrecision(precision: Float) {
+        val current = _settings.value
+        val updated = current.copy(blurBoundaryPrecision = precision.coerceIn(0.1f, 1.0f))
+        updateSettings(updated)
+    }
+
+    fun updateMaxBlurRegionsPerFrame(maxRegions: Int) {
+        val current = _settings.value
+        val updated = current.copy(maxBlurRegionsPerFrame = maxRegions.coerceIn(1, 50))
+        updateSettings(updated)
+    }
+
+    fun updateBlurFrameRateLimiting(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(enableBlurFrameRateLimiting = enabled)
+        updateSettings(updated)
+    }
+
+    fun updateBlurRegionInterpolation(enabled: Boolean) {
+        val current = _settings.value
+        val updated = current.copy(enableBlurRegionInterpolation = enabled)
+        updateSettings(updated)
+    }
+
     fun updateAllLocalCalculationSettings(
         enableLocal: Boolean,
         preferLocal: Boolean,
@@ -1036,6 +1189,29 @@ class SettingsRepository @Inject constructor(
                     apply()
                 }
             }
+            11 -> {
+                // Migration to version 12: Add blur animation and performance optimization settings
+                Log.i(TAG, "Migrating from version 11: Adding blur animation and performance settings")
+                prefs.edit().apply {
+                    // Blur Animation Settings
+                    putBoolean("enable_smooth_blur_animations", true)
+                    putInt("blur_animation_duration", 250)
+                    putInt("blur_transition_duration", 150)
+                    putBoolean("enable_blur_region_interpolation", true)
+                    
+                    // Blur Performance Optimization Settings
+                    putBoolean("enable_hardware_blur_acceleration", true)
+                    putString("blur_rendering_mode", BlurRenderingMode.SMOOTH.name)
+                    putInt("max_blur_regions_per_frame", 12)
+                    putBoolean("enable_blur_frame_rate_limiting", true)
+                    
+                    // Blur Edge Refinement Settings
+                    putBoolean("enable_blur_edge_refinement", true)
+                    putBoolean("blur_edge_anti_aliasing", true)
+                    putFloat("blur_boundary_precision", 0.5f)
+                    apply()
+                }
+            }
         }
     }
     
@@ -1071,7 +1247,13 @@ class SettingsRepository @Inject constructor(
             // App-Specific Detection and Usage Time validation
             defaultSocialMediaTimeLimit = settings.defaultSocialMediaTimeLimit.coerceIn(1, 1440), // 1 minute to 24 hours
             defaultMessagingTimeLimit = settings.defaultMessagingTimeLimit.coerceIn(1, 1440), // 1 minute to 24 hours
-            usageNotificationFrequency = settings.usageNotificationFrequency.coerceIn(5, 120) // 5 minutes to 2 hours
+            usageNotificationFrequency = settings.usageNotificationFrequency.coerceIn(5, 120), // 5 minutes to 2 hours
+
+            // Blur Animation and Performance Settings validation
+            blurAnimationDuration = settings.blurAnimationDuration.coerceIn(50, 1000), // 50ms to 1000ms
+            blurTransitionDuration = settings.blurTransitionDuration.coerceIn(50, 1000), // 50ms to 1000ms
+            maxBlurRegionsPerFrame = settings.maxBlurRegionsPerFrame.coerceIn(1, 50), // 1 to 50 regions
+            blurBoundaryPrecision = settings.blurBoundaryPrecision.coerceIn(0.1f, 1.0f) // 0.1 to 1.0 precision
         )
     }
     
@@ -1200,6 +1382,29 @@ class SettingsRepository @Inject constructor(
             put("usageNotificationFrequency", settings.usageNotificationFrequency)
             put("enableDailyUsageReset", settings.enableDailyUsageReset)
 
+            // Local Prayer Calculation Settings
+            put("enableLocalCalculations", settings.enableLocalCalculations)
+            put("preferLocalOverApi", settings.preferLocalOverApi)
+            put("showCalculationMethod", settings.showCalculationMethod)
+            put("moroccoSpecificAdjustments", settings.moroccoSpecificAdjustments)
+
+            // Blur Animation Settings
+            put("enableSmoothBlurAnimations", settings.enableSmoothBlurAnimations)
+            put("blurAnimationDuration", settings.blurAnimationDuration)
+            put("blurTransitionDuration", settings.blurTransitionDuration)
+            put("enableBlurRegionInterpolation", settings.enableBlurRegionInterpolation)
+
+            // Blur Performance Optimization Settings
+            put("enableHardwareBlurAcceleration", settings.enableHardwareBlurAcceleration)
+            put("blurRenderingMode", settings.blurRenderingMode.name)
+            put("maxBlurRegionsPerFrame", settings.maxBlurRegionsPerFrame)
+            put("enableBlurFrameRateLimiting", settings.enableBlurFrameRateLimiting)
+
+            // Blur Edge Refinement Settings
+            put("enableBlurEdgeRefinement", settings.enableBlurEdgeRefinement)
+            put("blurEdgeAntiAliasing", settings.blurEdgeAntiAliasing)
+            put("blurBoundaryPrecision", settings.blurBoundaryPrecision)
+
             // Metadata
             put("exportVersion", CURRENT_SETTINGS_VERSION)
             put("exportTimestamp", System.currentTimeMillis())
@@ -1237,8 +1442,8 @@ class SettingsRepository @Inject constructor(
                 
                 // Performance Settings
                 processingSpeed = try {
-                    ProcessingSpeed.valueOf(jsonObject.optString("processingSpeed", ProcessingSpeed.BALANCED.name))
-                } catch (e: IllegalArgumentException) { ProcessingSpeed.BALANCED },
+                    ProcessingSpeed.valueOf(jsonObject.optString("processingSpeed", ProcessingSpeed.FAST.name))
+                } catch (e: IllegalArgumentException) { ProcessingSpeed.FAST },
                 enableRealTimeProcessing = jsonObject.optBoolean("enableRealTimeProcessing", true),
                 
                 // Enhanced Detection Settings
@@ -1254,8 +1459,8 @@ class SettingsRepository @Inject constructor(
                 // Performance Enhancement Settings
                 maxProcessingTimeMs = jsonObject.optLong("maxProcessingTimeMs", 50L),
                 enableGPUAcceleration = jsonObject.optBoolean("enableGPUAcceleration", true),
-                frameSkipThreshold = jsonObject.optInt("frameSkipThreshold", 3),
-                imageDownscaleRatio = jsonObject.optDouble("imageDownscaleRatio", 0.5).toFloat(),
+                frameSkipThreshold = jsonObject.optInt("frameSkipThreshold", 1),
+                imageDownscaleRatio = jsonObject.optDouble("imageDownscaleRatio", 0.7).toFloat(),
                 
                 // Islamic Guidance Settings
                 preferredLanguage = try {
@@ -1354,7 +1559,32 @@ class SettingsRepository @Inject constructor(
                 defaultMessagingTimeLimit = validateTimeLimit(jsonObject.optInt("defaultMessagingTimeLimit", 120)),
                 customAppTimeLimits = parseCustomAppTimeLimits(jsonObject),
                 usageNotificationFrequency = validateNotificationFrequency(jsonObject.optInt("usageNotificationFrequency", 30)),
-                enableDailyUsageReset = jsonObject.optBoolean("enableDailyUsageReset", true)
+                enableDailyUsageReset = jsonObject.optBoolean("enableDailyUsageReset", true),
+                
+                // Local Prayer Calculation Settings
+                enableLocalCalculations = jsonObject.optBoolean("enableLocalCalculations", false),
+                preferLocalOverApi = jsonObject.optBoolean("preferLocalOverApi", false),
+                showCalculationMethod = jsonObject.optBoolean("showCalculationMethod", true),
+                moroccoSpecificAdjustments = jsonObject.optBoolean("moroccoSpecificAdjustments", true),
+                
+                // Blur Animation Settings
+                enableSmoothBlurAnimations = jsonObject.optBoolean("enableSmoothBlurAnimations", true),
+                blurAnimationDuration = jsonObject.optInt("blurAnimationDuration", 250).coerceIn(50, 1000),
+                blurTransitionDuration = jsonObject.optInt("blurTransitionDuration", 150).coerceIn(50, 1000),
+                enableBlurRegionInterpolation = jsonObject.optBoolean("enableBlurRegionInterpolation", true),
+                
+                // Blur Performance Optimization Settings
+                enableHardwareBlurAcceleration = jsonObject.optBoolean("enableHardwareBlurAcceleration", true),
+                blurRenderingMode = try {
+                    BlurRenderingMode.valueOf(jsonObject.optString("blurRenderingMode", BlurRenderingMode.SMOOTH.name))
+                } catch (e: IllegalArgumentException) { BlurRenderingMode.SMOOTH },
+                maxBlurRegionsPerFrame = jsonObject.optInt("maxBlurRegionsPerFrame", 12).coerceIn(1, 50),
+                enableBlurFrameRateLimiting = jsonObject.optBoolean("enableBlurFrameRateLimiting", true),
+                
+                // Blur Edge Refinement Settings
+                enableBlurEdgeRefinement = jsonObject.optBoolean("enableBlurEdgeRefinement", true),
+                blurEdgeAntiAliasing = jsonObject.optBoolean("blurEdgeAntiAliasing", true),
+                blurBoundaryPrecision = jsonObject.optDouble("blurBoundaryPrecision", 0.5).toFloat().coerceIn(0.1f, 1.0f)
             )
             
             val validatedSettings = validateSettings(importedSettings)
@@ -1690,8 +1920,8 @@ class SettingsRepository @Inject constructor(
                 } catch (e: IllegalArgumentException) { BlurStyle.ARTISTIC },
                 expandBlurArea = settingsJson.optInt("expandBlurArea", 30),
                 processingSpeed = try {
-                    ProcessingSpeed.valueOf(settingsJson.optString("processingSpeed", ProcessingSpeed.BALANCED.name))
-                } catch (e: IllegalArgumentException) { ProcessingSpeed.BALANCED },
+                    ProcessingSpeed.valueOf(settingsJson.optString("processingSpeed", ProcessingSpeed.FAST.name))
+                } catch (e: IllegalArgumentException) { ProcessingSpeed.FAST },
                 enableRealTimeProcessing = settingsJson.optBoolean("enableRealTimeProcessing", true),
                 enableFullScreenBlurForNSFW = settingsJson.optBoolean("enableFullScreenBlurForNSFW", true),
                 showBlurBorders = settingsJson.optBoolean("showBlurBorders", true),
@@ -1707,8 +1937,8 @@ class SettingsRepository @Inject constructor(
                 fullScreenWarningEnabled = settingsJson.optBoolean("fullScreenWarningEnabled", true),
                 maxProcessingTimeMs = settingsJson.optLong("maxProcessingTimeMs", 50L),
                 enableGPUAcceleration = settingsJson.optBoolean("enableGPUAcceleration", true),
-                frameSkipThreshold = settingsJson.optInt("frameSkipThreshold", 3),
-                imageDownscaleRatio = settingsJson.optDouble("imageDownscaleRatio", 0.5).toFloat(),
+                frameSkipThreshold = settingsJson.optInt("frameSkipThreshold", 1),
+                imageDownscaleRatio = settingsJson.optDouble("imageDownscaleRatio", 0.7).toFloat(),
                 preferredLanguage = try {
                     com.hieltech.haramblur.detection.Language.valueOf(
                         settingsJson.optString("preferredLanguage", com.hieltech.haramblur.detection.Language.ENGLISH.name)
@@ -2005,7 +2235,7 @@ class SettingsRepository @Inject constructor(
     }
 
     /**
-     * Update quality mode - applies all related settings automatically
+     * Update quality mode - applies all related settings automatically including new blur optimization defaults
      */
     suspend fun updateQualityMode(qualityMode: QualityMode) {
         val currentSettings = getCurrentSettings()
@@ -2019,13 +2249,65 @@ class SettingsRepository @Inject constructor(
             imageDownscaleRatio = qualityMode.imageDownscaleRatio,
             enableGPUAcceleration = qualityMode.enableGPUAcceleration,
             enableRealTimeProcessing = qualityMode.enableRealTimeProcessing,
+            // NEW: Apply blur optimization defaults based on QualityMode
+            enableSmoothBlurAnimations = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> true
+                QualityMode.BALANCED -> true
+                QualityMode.BATTERY_SAVER -> false // Disable animations for battery saving
+            },
+            enableHardwareBlurAcceleration = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> true
+                QualityMode.BALANCED -> true
+                QualityMode.BATTERY_SAVER -> false // Disable hardware acceleration for battery saving
+            },
+            blurRenderingMode = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> BlurRenderingMode.SMOOTH
+                QualityMode.BALANCED -> BlurRenderingMode.ADAPTIVE
+                QualityMode.BATTERY_SAVER -> BlurRenderingMode.SMOOTH // Use smooth cached patterns
+            },
+            enableBlurEdgeRefinement = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> true
+                QualityMode.BALANCED -> true
+                QualityMode.BATTERY_SAVER -> false // Disable edge refinement for battery saving
+            },
+            blurEdgeAntiAliasing = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> true
+                QualityMode.BALANCED -> true
+                QualityMode.BATTERY_SAVER -> false // Disable anti-aliasing for battery saving
+            },
+            blurBoundaryPrecision = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> 0.8f // High precision for quality mode
+                QualityMode.BALANCED -> 0.6f // Medium precision for balanced mode
+                QualityMode.BATTERY_SAVER -> 0.3f // Low precision for battery saving
+            },
+            maxBlurRegionsPerFrame = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> 15 // Higher limit for quality mode
+                QualityMode.BALANCED -> 12 // Standard limit for balanced mode
+                QualityMode.BATTERY_SAVER -> 8 // Lower limit for battery saving
+            },
+            enableBlurFrameRateLimiting = true, // Always enable frame rate limiting
+            enableBlurRegionInterpolation = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> true
+                QualityMode.BALANCED -> true
+                QualityMode.BATTERY_SAVER -> false // Disable interpolation for battery saving
+            },
+            blurAnimationDuration = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> 200 // Fast animations for responsiveness
+                QualityMode.BALANCED -> 250 // Standard animation duration
+                QualityMode.BATTERY_SAVER -> 300 // Slower animations for battery saving
+            },
+            blurTransitionDuration = when (qualityMode) {
+                QualityMode.HIGH_QUALITY -> 100 // Quick transitions
+                QualityMode.BALANCED -> 150 // Standard transition duration
+                QualityMode.BATTERY_SAVER -> 200 // Slower transitions for battery saving
+            },
             // Ensure detection is enabled when applying quality mode
             enableFaceDetection = true,
             enableNSFWDetection = true,
             isServicePaused = false
         )
         updateSettings(updatedSettings)
-        Log.d(TAG, "Quality mode updated to: ${qualityMode.displayName}")
+        Log.d(TAG, "Quality mode updated to: ${qualityMode.displayName} with blur optimization defaults")
     }
 
     /**
@@ -2043,35 +2325,46 @@ class SettingsRepository @Inject constructor(
     }
 
     /**
+     * Apply maximum performance settings using QualityMode.HIGH_QUALITY as source of truth
+     */
+    suspend fun applyMaximumPerformanceSettings() {
+        val currentSettings = getCurrentSettings()
+        val maxPerformanceSettings = currentSettings.copy(
+            qualityMode = QualityMode.HIGH_QUALITY,
+            // Apply High Quality mode settings with maximum performance
+            detectionSensitivity = QualityMode.HIGH_QUALITY.detectionSensitivity,
+            processingSpeed = QualityMode.HIGH_QUALITY.processingSpeed,
+            blurIntensity = QualityMode.HIGH_QUALITY.blurIntensity,
+            maxProcessingTimeMs = QualityMode.HIGH_QUALITY.maxProcessingTimeMs,
+            frameSkipThreshold = QualityMode.HIGH_QUALITY.frameSkipThreshold,
+            imageDownscaleRatio = QualityMode.HIGH_QUALITY.imageDownscaleRatio,
+            enableGPUAcceleration = QualityMode.HIGH_QUALITY.enableGPUAcceleration,
+            enableRealTimeProcessing = QualityMode.HIGH_QUALITY.enableRealTimeProcessing,
+            // Ensure detection is enabled when applying quality mode
+            enableFaceDetection = true,
+            enableNSFWDetection = true,
+            isServicePaused = false,
+            ultraFastModeEnabled = false, // Disable ultra fast mode for better quality
+            fullScreenWarningEnabled = true,
+            enableRegionBasedFullScreen = true,
+            // Align thresholds with HIGH_QUALITY detection sensitivity
+            nsfwConfidenceThreshold = if (QualityMode.HIGH_QUALITY.detectionSensitivity > 0.8f) 0.5f else 0.4f,
+            genderConfidenceThreshold = if (QualityMode.HIGH_QUALITY.detectionSensitivity > 0.8f) 0.4f else 0.3f,
+            nsfwFullScreenRegionThreshold = if (QualityMode.HIGH_QUALITY.detectionSensitivity > 0.8f) 6 else 5,
+            nsfwHighConfidenceThreshold = if (QualityMode.HIGH_QUALITY.detectionSensitivity > 0.8f) 0.8f else 0.65f
+        )
+        updateSettings(maxPerformanceSettings)
+        Log.d(TAG, "Applied maximum performance settings using QualityMode.HIGH_QUALITY constants")
+    }
+
+    /**
      * Apply optimal first-time defaults (High Quality mode)
+     * Now delegates to applyMaximumPerformanceSettings() to avoid duplication
      */
     suspend fun applyFirstTimeDefaults() {
         if (isFirstTimeInstall()) {
-            val defaultSettings = AppSettings(
-                qualityMode = QualityMode.HIGH_QUALITY,
-                // Apply High Quality mode settings
-                detectionSensitivity = QualityMode.HIGH_QUALITY.detectionSensitivity,
-                processingSpeed = QualityMode.HIGH_QUALITY.processingSpeed,
-                blurIntensity = QualityMode.HIGH_QUALITY.blurIntensity,
-                maxProcessingTimeMs = QualityMode.HIGH_QUALITY.maxProcessingTimeMs,
-                frameSkipThreshold = QualityMode.HIGH_QUALITY.frameSkipThreshold,
-                imageDownscaleRatio = QualityMode.HIGH_QUALITY.imageDownscaleRatio,
-                enableGPUAcceleration = QualityMode.HIGH_QUALITY.enableGPUAcceleration,
-                enableRealTimeProcessing = QualityMode.HIGH_QUALITY.enableRealTimeProcessing,
-                
-                // Other optimized first-time defaults
-                enableFaceDetection = true,
-                enableNSFWDetection = true,
-                blurFemaleFaces = true,
-                enableQuranicGuidance = true,
-                enableSiteBlocking = true,
-                isServicePaused = false,
-                // Use optimized confidence thresholds for better detection
-                nsfwConfidenceThreshold = 0.5f,
-                genderConfidenceThreshold = 0.4f
-            )
-            updateSettings(defaultSettings)
-            Log.d(TAG, "Applied first-time defaults with High Quality mode")
+            applyMaximumPerformanceSettings()
+            Log.d(TAG, "Applied first-time defaults with Maximum Performance settings")
         }
     }
 }

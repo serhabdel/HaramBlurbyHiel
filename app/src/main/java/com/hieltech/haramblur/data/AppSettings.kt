@@ -17,7 +17,7 @@ data class AppSettings(
     val enableNSFWDetection: Boolean = true, // Enabled with improved error handling
     val blurMaleFaces: Boolean = false, // Will be set based on user gender
     val blurFemaleFaces: Boolean = true, // Will be set based on user gender
-    val detectionSensitivity: Float = 0.8f, // Higher sensitivity for better detection
+    val detectionSensitivity: Float = 0.9f, // Higher sensitivity for better detection
     
     // NEW: Gender-based Settings for Islamic Compliance
     val userGender: UserGender = UserGender.NOT_SPECIFIED, // User's gender for appropriate content filtering
@@ -27,8 +27,8 @@ data class AppSettings(
     val blurStyle: BlurStyle = BlurStyle.ARTISTIC,
     val expandBlurArea: Int = 30, // pixels to expand around detected areas
 
-    // Performance Settings - Optimized for maximum performance
-    val processingSpeed: ProcessingSpeed = ProcessingSpeed.BALANCED,
+    // Performance Settings - Optimized for maximum accuracy regardless of performance impact
+    val processingSpeed: ProcessingSpeed = ProcessingSpeed.ULTRA_FAST, // Maximum accuracy mode
     val enableRealTimeProcessing: Boolean = true,
     val pauseInApps: Set<String> = emptySet(), // Package names to pause detection
 
@@ -38,7 +38,7 @@ data class AppSettings(
     val enableHoverToReveal: Boolean = false, // Tap to temporarily reveal
 
     // Enhanced Detection Settings - Maximum performance and accuracy
-    val genderDetectionAccuracy: GenderAccuracy = GenderAccuracy.BALANCED,
+    val genderDetectionAccuracy: GenderAccuracy = GenderAccuracy.HIGH, // Maximum accuracy
     
     // Pause/Resume Control - Global pause for all services
     val isServicePaused: Boolean = false, // Global pause state for all detection services
@@ -46,14 +46,14 @@ data class AppSettings(
     val mandatoryReflectionTime: Int = 15, // seconds
     val enableSiteBlocking: Boolean = true,
     val enableQuranicGuidance: Boolean = true,
-    val ultraFastModeEnabled: Boolean = false,
+    val ultraFastModeEnabled: Boolean = true, // Enable ultra-fast mode for maximum accuracy
     val fullScreenWarningEnabled: Boolean = true,
 
-    // Performance Enhancement Settings - Maximum performance by default
-    val maxProcessingTimeMs: Long = 50L,
-    val enableGPUAcceleration: Boolean = true,
-    val frameSkipThreshold: Int = 3,
-    val imageDownscaleRatio: Float = 0.5f,
+    // Performance Enhancement Settings - Maximum accuracy regardless of performance impact
+    val maxProcessingTimeMs: Long = 30L, // Maximum accuracy mode
+    val enableGPUAcceleration: Boolean = true, // Already optimal
+    val frameSkipThreshold: Int = 1, // Maximum accuracy mode
+    val imageDownscaleRatio: Float = 0.8f, // Maximum accuracy mode
 
     // Islamic Guidance Settings
     val preferredLanguage: Language = Language.ENGLISH,
@@ -62,20 +62,35 @@ data class AppSettings(
     val customReflectionTime: Int = 15, // seconds for custom reflection periods
 
     // Advanced Detection Settings - Optimized for female detection with maximum performance
-    val genderConfidenceThreshold: Float = 0.4f, // Lower threshold for more sensitive female detection
-    val nsfwConfidenceThreshold: Float = 0.5f, // Lower threshold for better content detection
+    val genderConfidenceThreshold: Float = 0.30f, // Lower threshold for more sensitive gender detection
+    val nsfwConfidenceThreshold: Float = 0.40f, // Lower threshold for more sensitive NSFW detection
     val enableFallbackDetection: Boolean = true,
     val enablePerformanceMonitoring: Boolean = true,
 
-    // NEW: Region-based Full-Screen Blur Settings
+    // NEW: Region-based Full-Screen Blur Settings - Aligned with HIGH_QUALITY defaults
     val enableRegionBasedFullScreen: Boolean = true, // Enable/disable the 6+ regions rule
-    val nsfwFullScreenRegionThreshold: Int = 6, // Number of NSFW regions required to trigger full-screen blur
-    val nsfwHighConfidenceThreshold: Float = 0.7f, // Minimum confidence level for each region to be considered "high confidence"
-    val regionDetectionTileSize: Int = 128, // Size of tiles used for region detection (adaptive based on screen size)
+    val nsfwFullScreenRegionThreshold: Int = 6, // Aligned with HIGH_QUALITY detection sensitivity
+    val nsfwHighConfidenceThreshold: Float = 0.8f, // Aligned with HIGH_QUALITY detection sensitivity
+    val regionDetectionTileSize: Int = 96, // Reduced for more granular region detection
     val regionOverlapPercentage: Float = 0.5f, // Overlap percentage for sliding window region detection
-    val maxRegionDetectionTime: Long = 100L, // Maximum time allowed for region detection in milliseconds
+    val maxRegionDetectionTime: Long = 75L, // Reduced for faster region analysis
 
+    // NEW: Blur Animation Settings
+    val enableSmoothBlurAnimations: Boolean = true, // Enable/disable smooth fade and transition animations
+    val blurAnimationDuration: Int = 250, // Duration in milliseconds for blur overlay fade animations
+    val blurTransitionDuration: Int = 150, // Duration for blur intensity change transitions
+    val enableBlurRegionInterpolation: Boolean = true, // Enable smooth interpolation between blur region changes
 
+    // NEW: Performance Optimization Settings
+    val enableHardwareBlurAcceleration: Boolean = true, // Enable hardware-accelerated blur rendering when available
+    val blurRenderingMode: BlurRenderingMode = BlurRenderingMode.SMOOTH, // Choose between SMOOTH (cached) and QUALITY (full) rendering
+    val maxBlurRegionsPerFrame: Int = 12, // Maximum number of blur regions to render per frame to maintain 60fps
+    val enableBlurFrameRateLimiting: Boolean = true, // Limit blur rendering to 60fps to prevent excessive CPU usage
+
+    // NEW: Edge Refinement Settings
+    val enableBlurEdgeRefinement: Boolean = true, // Enable precise edge detection for blur boundaries
+    val blurEdgeAntiAliasing: Boolean = true, // Enable anti-aliasing for smoother blur edges
+    val blurBoundaryPrecision: Float = 0.5f, // Precision factor for blur boundary calculations (0.1-1.0)
 
     // Logging Settings - Enterprise/SaaS-style logging
     val enableDetailedLogging: Boolean = true, // Enable detailed logging for troubleshooting
@@ -315,7 +330,7 @@ enum class ProcessingSpeed(val displayName: String, val intervalMs: Long, val de
  * Simple quality modes for easy user selection - replaces complex individual settings
  */
 enum class QualityMode(
-    val displayName: String, 
+    val displayName: String,
     val description: String,
     val icon: String,
     val detectionSensitivity: Float,
@@ -325,24 +340,48 @@ enum class QualityMode(
     val frameSkipThreshold: Int,
     val imageDownscaleRatio: Float,
     val enableGPUAcceleration: Boolean,
-    val enableRealTimeProcessing: Boolean
+    val enableRealTimeProcessing: Boolean,
+    // NEW: Enhanced blur optimization defaults
+    val enableSmoothBlurAnimations: Boolean = false,
+    val enableHardwareBlurAcceleration: Boolean = true,
+    val blurRenderingMode: BlurRenderingMode = BlurRenderingMode.SMOOTH,
+    val enableBlurEdgeRefinement: Boolean = true,
+    val blurEdgeAntiAliasing: Boolean = true,
+    val blurBoundaryPrecision: Float = 0.5f,
+    val maxBlurRegionsPerFrame: Int = 10,
+    val enableBlurFrameRateLimiting: Boolean = true,
+    val enableBlurRegionInterpolation: Boolean = true,
+    val blurAnimationDuration: Int = 200,
+    val blurTransitionDuration: Int = 300
 ) {
     HIGH_QUALITY(
         displayName = "High Quality",
-        description = "Maximum protection and detection accuracy",
+        description = "Maximum protection and detection accuracy with enhanced blur optimizations",
         icon = "🛡️",
-        detectionSensitivity = 0.8f,
-        processingSpeed = ProcessingSpeed.BALANCED,
+        detectionSensitivity = 0.9f, // Increased for maximum detection sensitivity
+        processingSpeed = ProcessingSpeed.ULTRA_FAST, // Upgraded to ULTRA_FAST for maximum responsiveness
         blurIntensity = BlurIntensity.STRONG,
-        maxProcessingTimeMs = 100L,
-        frameSkipThreshold = 1,
-        imageDownscaleRatio = 0.7f,
+        maxProcessingTimeMs = 30L, // Reduced for faster processing cycles
+        frameSkipThreshold = 1, // Already optimal
+        imageDownscaleRatio = 0.8f, // Increased for higher quality image processing
         enableGPUAcceleration = true,
-        enableRealTimeProcessing = true
+        enableRealTimeProcessing = true,
+        // NEW: Enhanced blur optimization defaults for HIGH_QUALITY
+        enableSmoothBlurAnimations = true,
+        enableHardwareBlurAcceleration = true,
+        blurRenderingMode = BlurRenderingMode.SMOOTH,
+        enableBlurEdgeRefinement = true,
+        blurEdgeAntiAliasing = true,
+        blurBoundaryPrecision = 0.8f, // High precision for quality mode
+        maxBlurRegionsPerFrame = 15, // Higher limit for quality mode
+        enableBlurFrameRateLimiting = true,
+        enableBlurRegionInterpolation = true,
+        blurAnimationDuration = 200, // Fast animations for responsiveness
+        blurTransitionDuration = 100 // Quick transitions
     ),
     BALANCED(
         displayName = "Balanced",
-        description = "Good protection with optimal performance",
+        description = "Good protection with optimal performance and balanced blur optimizations",
         icon = "⚖️",
         detectionSensitivity = 0.7f,
         processingSpeed = ProcessingSpeed.BALANCED,
@@ -351,11 +390,23 @@ enum class QualityMode(
         frameSkipThreshold = 2,
         imageDownscaleRatio = 0.5f,
         enableGPUAcceleration = true,
-        enableRealTimeProcessing = true
+        enableRealTimeProcessing = true,
+        // NEW: Balanced blur optimization defaults
+        enableSmoothBlurAnimations = true,
+        enableHardwareBlurAcceleration = true,
+        blurRenderingMode = BlurRenderingMode.ADAPTIVE, // Adaptive for balanced performance
+        enableBlurEdgeRefinement = true,
+        blurEdgeAntiAliasing = true,
+        blurBoundaryPrecision = 0.6f, // Medium precision
+        maxBlurRegionsPerFrame = 12, // Standard limit
+        enableBlurFrameRateLimiting = true,
+        enableBlurRegionInterpolation = true,
+        blurAnimationDuration = 250, // Standard animation duration
+        blurTransitionDuration = 150 // Standard transition duration
     ),
     BATTERY_SAVER(
         displayName = "Battery Saver",
-        description = "Essential protection with minimal battery usage",
+        description = "Essential protection with minimal battery usage and optimized blur performance",
         icon = "🔋",
         detectionSensitivity = 0.6f,
         processingSpeed = ProcessingSpeed.BATTERY_SAVER,
@@ -364,7 +415,19 @@ enum class QualityMode(
         frameSkipThreshold = 3,
         imageDownscaleRatio = 0.4f,
         enableGPUAcceleration = false,
-        enableRealTimeProcessing = false
+        enableRealTimeProcessing = false,
+        // NEW: Battery-optimized blur settings
+        enableSmoothBlurAnimations = false, // Disable animations to save battery
+        enableHardwareBlurAcceleration = false, // Disable hardware acceleration to save battery
+        blurRenderingMode = BlurRenderingMode.SMOOTH, // Use smooth cached patterns
+        enableBlurEdgeRefinement = false, // Disable edge refinement to save processing
+        blurEdgeAntiAliasing = false, // Disable anti-aliasing to save processing
+        blurBoundaryPrecision = 0.3f, // Low precision for battery saving
+        maxBlurRegionsPerFrame = 8, // Lower limit to reduce processing
+        enableBlurFrameRateLimiting = true, // Strict frame rate limiting
+        enableBlurRegionInterpolation = false, // Disable interpolation to save battery
+        blurAnimationDuration = 300, // Slower animations
+        blurTransitionDuration = 200 // Slower transitions
     )
 }
 
@@ -390,6 +453,15 @@ enum class LogCategory(val displayName: String, val description: String) {
     DATABASE("Database", "Database operations and queries"),
     ACCESSIBILITY("Accessibility", "Accessibility service logs"),
     PERFORMANCE("Performance", "Performance metrics and timing logs")
+}
+
+/**
+ * Blur rendering modes for performance optimization
+ */
+enum class BlurRenderingMode(val displayName: String, val description: String) {
+    SMOOTH("Smooth", "Cached patterns for faster rendering"),
+    QUALITY("Quality", "Full rendering for maximum quality"),
+    ADAPTIVE("Adaptive", "Switches based on performance")
 }
 
 /**

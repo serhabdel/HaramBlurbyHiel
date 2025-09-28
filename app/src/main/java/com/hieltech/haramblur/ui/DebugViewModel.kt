@@ -26,6 +26,8 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
+import com.hieltech.haramblur.testing.MLDiagnosticHelper
+import com.hieltech.haramblur.HaramBlurApplication
 
 @HiltViewModel
 class DebugViewModel @Inject constructor(
@@ -34,7 +36,8 @@ class DebugViewModel @Inject constructor(
     private val faceDetectionManager: FaceDetectionManager,
     private val mlModelManager: MLModelManager,
     private val settingsRepository: SettingsRepository,
-    private val prayerTimeNotificationManager: PrayerTimeNotificationManager
+    private val prayerTimeNotificationManager: PrayerTimeNotificationManager,
+    private val mlDiagnosticHelper: MLDiagnosticHelper
 ) : ViewModel() {
     
     companion object {
@@ -43,6 +46,9 @@ class DebugViewModel @Inject constructor(
     
     private val _debugState = MutableStateFlow(DebugState())
     val debugState: StateFlow<DebugState> = _debugState
+    
+    private val _mlDiagnosticState = MutableStateFlow(MLDiagnosticState())
+    val mlDiagnosticState: StateFlow<MLDiagnosticState> = _mlDiagnosticState
     
     private val debugLogs = mutableListOf<DebugLog>()
     private val dateFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
@@ -478,6 +484,155 @@ class DebugViewModel @Inject constructor(
                 _debugState.value = _debugState.value.copy(
                     lastActionResult = "Failed: ${e.message}"
                 )
+            }
+    }
+
+    /**
+     * Generate comprehensive ML diagnostic report
+     */
+    fun generateMLDiagnosticReport() {
+            addDebugLog(TAG, "Generating ML diagnostic report...")
+            viewModelScope.launch {
+                try {
+                    _mlDiagnosticState.value = _mlDiagnosticState.value.copy(isLoading = true)
+                    
+                    // Get ML capability status from application
+                    val app = context.applicationContext as? HaramBlurApplication
+                    val mlStatus = app?.getMLCapabilityStatus()
+                    
+                    // Generate comprehensive diagnostic report
+                    val report = mlDiagnosticHelper.generateDiagnosticReport()
+                    
+                    _mlDiagnosticState.value = _mlDiagnosticState.value.copy(
+                        tensorFlowLiteAvailable = mlStatus?.tensorFlowLiteAvailable ?: false,
+                        mlKitAvailable = mlStatus?.mlKitAvailable ?: false,
+                        fallbackMode = mlStatus?.fallbackMode ?: false,
+                        deviceInfo = mlStatus?.deviceInfo ?: emptyMap(),
+                        lastDiagnosticReport = report,
+                        isLoading = false,
+                        lastError = null
+                    )
+                    
+                    addDebugLog(TAG, "ML diagnostic report generated successfully")
+                    _debugState.value = _debugState.value.copy(
+                        lastActionResult = "ML diagnostic report generated - Overall Health: ${report.overallHealth}"
+                    )
+                    
+                } catch (e: Exception) {
+                    addDebugLog(TAG, "Failed to generate ML diagnostic report: ${e.message}", "ERROR")
+                    _mlDiagnosticState.value = _mlDiagnosticState.value.copy(
+                        isLoading = false,
+                        lastError = e.message
+                    )
+                    _debugState.value = _debugState.value.copy(
+                        lastActionResult = "Failed to generate ML diagnostic report: ${e.message}"
+                    )
+                }
+            }
+    }
+
+    /**
+     * Test face detection functionality
+     */
+    fun testFaceDetection() {
+            addDebugLog(TAG, "Testing face detection functionality...")
+            viewModelScope.launch {
+                try {
+                    val result = faceDetectionManager.testFaceDetection()
+                    
+                    addDebugLog(TAG, "Face detection test completed: ${result?.facesDetected} faces detected in ${result?.processingTimeMs}ms")
+                    
+                    val status = if (result?.success == true) {
+                        "✅ Face detection working - ${result.facesDetected} faces detected"
+                    } else {
+                        "❌ Face detection failed - ${result?.errorMessage}"
+                    }
+                    
+                    _debugState.value = _debugState.value.copy(
+                        lastActionResult = status
+                    )
+                    
+                } catch (e: Exception) {
+                    addDebugLog(TAG, "Face detection test failed: ${e.message}", "ERROR")
+                    _debugState.value = _debugState.value.copy(
+                        lastActionResult = "Face detection test failed: ${e.message}"
+                    )
+                }
+            }
+        }
+        
+        /**
+         * Test gender classification functionality
+         */
+        fun testGenderClassification() {
+            addDebugLog(TAG, "Testing gender classification functionality...")
+            viewModelScope.launch {
+                try {
+                    val result = mlDiagnosticHelper.testGenderClassificationWithSample()
+                    
+                    addDebugLog(TAG, "Gender classification test completed - ML: ${result.mlModelGender} (${result.mlModelConfidence}), Heuristic: ${result.heuristicGender} (${result.heuristicConfidence})")
+                    
+                    val status = if (result.success) {
+                        "✅ Gender classification working - ML: ${result.mlModelGender}, Heuristic: ${result.heuristicGender}"
+                    } else {
+                        "❌ Gender classification failed - ${result.errorMessage}"
+                    }
+                    
+                    _debugState.value = _debugState.value.copy(
+                        lastActionResult = status
+                    )
+                    
+                } catch (e: Exception) {
+                    addDebugLog(TAG, "Gender classification test failed: ${e.message}", "ERROR")
+                    _debugState.value = _debugState.value.copy(
+                        lastActionResult = "Gender classification test failed: ${e.message}"
+                    )
+                }
+            }
+        }
+        
+        /**
+         * Reload ML libraries
+         */
+        fun reloadMLLibraries() {
+            addDebugLog(TAG, "Reloading ML libraries...")
+            viewModelScope.launch {
+                try {
+                    // Test native library loading
+                    val libraries = listOf(
+                        "tensorflowlite_jni",
+                        "tensorflowlite_gpu_jni",
+                        "face_detector_v2_jni"
+                    )
+                    
+                    val results = mutableListOf<String>()
+                    libraries.forEach { libName ->
+                        try {
+                            System.loadLibrary(libName)
+                            results.add("✅ $libName")
+                        } catch (e: UnsatisfiedLinkError) {
+                            results.add("❌ $libName: ${e.message}")
+                        }
+                    }
+                    
+                    addDebugLog(TAG, "ML library reload completed: ${results.joinToString(", ")}")
+                    
+                    val status = if (results.any { it.startsWith("✅") }) {
+                        "✅ ML libraries reloaded - ${results.count { it.startsWith("✅") }}/${libraries.size} successful"
+                    } else {
+                        "❌ All ML library reloads failed"
+                    }
+                    
+                    _debugState.value = _debugState.value.copy(
+                        lastActionResult = status
+                    )
+                    
+                } catch (e: Exception) {
+                    addDebugLog(TAG, "ML library reload failed: ${e.message}", "ERROR")
+                    _debugState.value = _debugState.value.copy(
+                        lastActionResult = "ML library reload failed: ${e.message}"
+                    )
+                }
             }
         }
     }

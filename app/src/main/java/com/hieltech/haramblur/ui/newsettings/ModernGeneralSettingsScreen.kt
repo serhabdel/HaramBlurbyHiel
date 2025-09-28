@@ -45,6 +45,7 @@ import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.data.AppTheme
 import com.hieltech.haramblur.data.BlurIntensity
+import com.hieltech.haramblur.data.UserGender
 import com.hieltech.haramblur.data.PresetData
 import com.hieltech.haramblur.data.PresetManager
 import com.hieltech.haramblur.ui.SettingsViewModel
@@ -299,12 +300,122 @@ private fun CoreProtectionSection(
         ) {
             Column {
                 Spacer(modifier = Modifier.height(8.dp))
-                EnhancedSwitchSetting(
-                    title = stringResource(R.string.detect_female_faces_title),
-                    description = stringResource(R.string.detect_female_faces_description),
-                    checked = settings.blurFemaleFaces,
-                    onCheckedChange = viewModel::updateFemaleBlur
-                )
+                
+                // Gender-based face detection toggles
+                when (settings.userGender) {
+                    UserGender.MALE -> {
+                        // Male users: Only show female face detection
+                        EnhancedSwitchSetting(
+                            title = stringResource(R.string.detect_female_faces_title),
+                            description = stringResource(R.string.detect_female_faces_description),
+                            checked = settings.blurFemaleFaces,
+                            onCheckedChange = viewModel::updateFemaleBlur
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Show explanatory text for male users
+                        Surface(
+                            tonalElevation = 0.dp,
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.islamic_compliance_male_user),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = stringResource(R.string.automatic_gender_detection_active),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                    UserGender.FEMALE -> {
+                        // Female users: Only show male face detection
+                        EnhancedSwitchSetting(
+                            title = stringResource(R.string.detect_male_faces_title),
+                            description = stringResource(R.string.detect_male_faces_description),
+                            checked = settings.blurMaleFaces,
+                            onCheckedChange = viewModel::updateMaleBlur
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Show explanatory text for female users
+                        Surface(
+                            tonalElevation = 0.dp,
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.islamic_compliance_female_user),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = stringResource(R.string.automatic_gender_detection_active),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                    UserGender.NOT_SPECIFIED -> {
+                        // Gender not specified: Show both toggles with explanation
+                        EnhancedSwitchSetting(
+                            title = stringResource(R.string.detect_female_faces_title),
+                            description = stringResource(R.string.detect_female_faces_description),
+                            checked = settings.blurFemaleFaces,
+                            onCheckedChange = viewModel::updateFemaleBlur
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        EnhancedSwitchSetting(
+                            title = stringResource(R.string.detect_male_faces_title),
+                            description = stringResource(R.string.detect_male_faces_description),
+                            checked = settings.blurMaleFaces,
+                            onCheckedChange = viewModel::updateMaleBlur
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Show explanatory text for users with unspecified gender
+                        Surface(
+                            tonalElevation = 0.dp,
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.gender_not_specified_info),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = stringResource(R.string.complete_gender_setup),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 

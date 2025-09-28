@@ -31,6 +31,9 @@ import com.hieltech.haramblur.R
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
 
 import kotlinx.coroutines.launch
+import com.hieltech.haramblur.testing.MLDiagnosticHelper
+import com.hieltech.haramblur.testing.MLDiagnosticState
+import com.hieltech.haramblur.testing.MLDiagnosticReport
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -458,6 +461,24 @@ private fun CompactDebugScreen(
                 }
             }
 
+            // ML Diagnostics Section
+            // ML Diagnostics Section - Temporarily disabled due to compilation issues
+            // TODO: Fix MLDiagnosticsSection composable and re-enable
+            Card {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "🤖 ML Diagnostics (Temporarily Disabled)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "ML diagnostics feature is being refined. Core ML functionality is still operational.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
@@ -872,6 +893,15 @@ private fun MediumDebugScreen(
                     )
                 }
             }
+
+            // ML Diagnostics Section
+            MLDiagnosticsSection(
+                viewModel = viewModel,
+                onGenerateReport = { viewModel.generateMLDiagnosticReport() },
+                onTestFaceDetection = { viewModel.testFaceDetection() },
+                onTestGenderClassification = { viewModel.testGenderClassification() },
+                onReloadLibraries = { viewModel.reloadMLLibraries() }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -1318,6 +1348,15 @@ private fun ExpandedDebugScreen(
                 }
             }
 
+            // ML Diagnostics Section
+            MLDiagnosticsSection(
+                viewModel = viewModel,
+                onGenerateReport = { viewModel.generateMLDiagnosticReport() },
+                onTestFaceDetection = { viewModel.testFaceDetection() },
+                onTestGenderClassification = { viewModel.testGenderClassification() },
+                onReloadLibraries = { viewModel.reloadMLLibraries() }
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -1589,3 +1628,218 @@ suspend fun exportDebugData(context: Context, debugState: DebugState) {
 private operator fun String.times(count: Int): String {
     return this.repeat(count)
 }
+
+/**
+ * ML Diagnostics Section Composable
+ */
+@Composable
+fun MLDiagnosticsSection(
+    viewModel: DebugViewModel,
+    onGenerateReport: () -> Unit,
+    onTestFaceDetection: () -> Unit,
+    onTestGenderClassification: () -> Unit,
+    onReloadLibraries: () -> Unit
+) {
+    val mlDiagnosticState = viewModel.mlDiagnosticState.collectAsState().value
+    
+    Card {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "🤖 ML Diagnostics",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                "Comprehensive ML system diagnostics and testing",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // ML Status Overview
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // TensorFlow Lite Status
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (mlDiagnosticState.tensorFlowLiteAvailable)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        else
+                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = if (mlDiagnosticState.tensorFlowLiteAvailable)
+                                Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (mlDiagnosticState.tensorFlowLiteAvailable) Color.Green else Color.Red
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "TensorFlow Lite",
+                            style = MaterialTheme.typography.labelSmall,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Text(
+                            if (mlDiagnosticState.tensorFlowLiteAvailable) "Available" else "Unavailable",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                
+                // ML Kit Status
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (mlDiagnosticState.mlKitAvailable)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        else
+                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = if (mlDiagnosticState.mlKitAvailable)
+                                Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (mlDiagnosticState.mlKitAvailable) Color.Green else Color.Red
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "ML Kit",
+                            style = MaterialTheme.typography.labelSmall,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Text(
+                            if (mlDiagnosticState.mlKitAvailable) "Available" else "Unavailable",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                
+                // Fallback Mode Status
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (!mlDiagnosticState.fallbackMode)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        else
+                            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = if (!mlDiagnosticState.fallbackMode)
+                                Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (!mlDiagnosticState.fallbackMode) Color.Green else Color.Yellow
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Fallback Mode",
+                            style = MaterialTheme.typography.labelSmall,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Text(
+                            if (mlDiagnosticState.fallbackMode) "Active" else "Normal",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Diagnostic Action Buttons
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onGenerateReport,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Share, null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Generate Report")
+                    }
+                    
+                    Button(
+                        onClick = onTestFaceDetection,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Test Face Detection")
+                    }
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onTestGenderClassification,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Test Gender Classification")
+                    }
+                    
+                    OutlinedButton(
+                        onClick = onReloadLibraries,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Refresh, null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Reload Libraries")
+                    }
+                }
+            }
+            
+            // Show diagnostic report if available
+            mlDiagnosticState.lastDiagnosticReport?.let { report ->
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            "Latest Diagnostic Report",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Overall Health: ${report.overallHealth}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

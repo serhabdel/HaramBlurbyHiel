@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +20,9 @@ import com.hieltech.haramblur.ui.PermissionWizardViewModel
 import com.hieltech.haramblur.detection.Language as AppLanguage
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hieltech.haramblur.ui.SettingsViewModel
+import androidx.compose.animation.AnimatedVisibility
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.GlobalScope
 
 data class LanguageOption(
     val code: String,
@@ -53,6 +57,10 @@ fun LanguageSelectionStep(
         languages.find { it.appLanguage == settings.preferredLanguage } ?: languages.first()
     ) }
     
+    // Loading state for language persistence
+    var isSaving by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -75,6 +83,37 @@ fun LanguageSelectionStep(
             modifier = Modifier.padding(bottom = 24.dp)
         )
         
+        // Error message display
+        errorMessage?.let { message ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = "Error",
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+        }
+        
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -85,7 +124,7 @@ fun LanguageSelectionStep(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { selectedLanguage = language },
+                        .clickable(enabled = !isSaving) { selectedLanguage = language },
                     colors = CardDefaults.cardColors(
                         containerColor = if (selectedLanguage.code == language.code) {
                             MaterialTheme.colorScheme.primaryContainer
@@ -145,20 +184,62 @@ fun LanguageSelectionStep(
         Button(
             onClick = {
                 // Save selected language to settings
-                settingsViewModel.updateLanguage(selectedLanguage.appLanguage)
-                // Mark language step as complete
-                viewModel.completeLanguageSelection()
-                onLanguageSelected()
+                if (!isSaving) {
+                    isSaving = true
+                    errorMessage = null
+                    
+                    // Use coroutine to handle language update with proper error handling
+                    kotlinx.coroutines.GlobalScope.launch {
+                        try {
+                            // Use the enhanced method with result and suppress recreation for wizard flow
+                            val success = settingsViewModel.updatePreferredLanguageWithResult(
+                                selectedLanguage.appLanguage,
+                                suppressRecreation = true
+                            )
+                            
+                            if (success) {
+                                // Mark language step as complete
+                                viewModel.completeLanguageSelection()
+                                onLanguageSelected()
+                            } else {
+                                // Handle failure case
+                                errorMessage = "Failed to save language. Please try again."
+                                isSaving = false
+                            }
+                        } catch (e: Exception) {
+                            // Handle exception case
+                            errorMessage = "Error saving language: ${e.message}"
+                            isSaving = false
+                        }
+                    }
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            enabled = true
+            enabled = !isSaving
         ) {
-            Text(
-                text = "Continue in ${selectedLanguage.name}",
-                style = MaterialTheme.typography.labelLarge
-            )
+            if (isSaving) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Saving...",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            } else {
+                Text(
+                    text = "Continue in ${selectedLanguage.name}",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
         }
     }
 }

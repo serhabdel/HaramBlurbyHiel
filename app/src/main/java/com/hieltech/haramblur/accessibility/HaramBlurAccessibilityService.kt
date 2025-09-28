@@ -17,6 +17,8 @@ import android.os.Bundle
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.hieltech.haramblur.data.BlurIntensity
+import com.hieltech.haramblur.data.BlurStyle
 import com.hieltech.haramblur.detection.ContentDetectionEngine
 import com.hieltech.haramblur.detection.SiteBlockingManager
 import com.hieltech.haramblur.detection.BlockingCategory
@@ -42,6 +44,59 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
+
+/**
+ * Data class for blur regions with metadata for debounced updates
+ */
+data class BlurRegionWithMeta(
+    val regions: List<Rect>,
+    val intensity: BlurIntensity,
+    val style: BlurStyle,
+    val confidence: Float,
+    val timestamp: Long
+)
+
+/**
+ * Debouncer for blur updates to prevent excessive updates
+ */
+class BlurUpdateDebouncer(private val debounceMs: Long) {
+    private var pendingUpdate: BlurRegionWithMeta? = null
+    private var debounceJob: kotlinx.coroutines.Job? = null
+    
+    fun scheduleUpdate(
+        blurRegionWithMeta: BlurRegionWithMeta,
+        onUpdate: (BlurRegionWithMeta) -> Unit
+    ) {
+        // Cancel any existing debounce job
+        debounceJob?.cancel()
+        
+        // Store the latest update
+        pendingUpdate = blurRegionWithMeta
+        
+        // Schedule new debounced update
+        debounceJob = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+            try {
+                delay(debounceMs)
+                
+                // Apply the pending update
+                pendingUpdate?.let { update ->
+                    onUpdate(update)
+                    pendingUpdate = null
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Job was cancelled, which is expected behavior
+                Log.d("BlurUpdateDebouncer", "Debounced update cancelled")
+            } catch (e: Exception) {
+                Log.e("BlurUpdateDebouncer", "Error in debounced update", e)
+            }
+        }
+    }
+    
+    fun cancelPendingUpdates() {
+        debounceJob?.cancel()
+        pendingUpdate = null
+    }
+}
 
 @AndroidEntryPoint
 class HaramBlurAccessibilityService : AccessibilityService() {
@@ -225,6 +280,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private val activeTabOperations = AtomicInteger(0)
     private val tabOperationHistory = mutableListOf<Pair<Long, String>>()
     
+    // Debounced blur updates with metadata
+    private var blurUpdateDebouncer: BlurUpdateDebouncer? = null
+    private val blurUpdateDebounceMs = 50L
+    
     private val knownBrowserPackages = setOf(
         "com.android.chrome",
         "com.chrome.beta",
@@ -371,6 +430,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             // App launch interceptor is registered in manifest
             Log.d(TAG, "🚀 App launch interceptor ready")
 
+            // Initialize blur update debouncer
+            blurUpdateDebouncer = BlurUpdateDebouncer(blurUpdateDebounceMs)
+            Log.d(TAG, "✅ Blur update debouncer initialized with ${blurUpdateDebounceMs}ms delay")
+
             // Initialize components with safety wrapper
             serviceScope.launch {
                 try {
@@ -448,6 +511,15 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 isCurrentlyBlurred = false
             } catch (e: Exception) {
                 Log.e(TAG, "Error in emergency overlay cleanup", e)
+            }
+            
+            // Cancel blur update debouncer
+            try {
+                blurUpdateDebouncer?.cancelPendingUpdates()
+                blurUpdateDebouncer = null
+                Log.d(TAG, "✅ Blur update debouncer cancelled")
+            } catch (e: Exception) {
+                Log.w(TAG, "Error cancelling blur update debouncer", e)
             }
             
             // Shutdown crash recovery system
@@ -1084,19 +1156,35 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         
         Log.d(TAG, "🧠 Using adaptive thresholds: NSFW=$nsfwThreshold, Gender=$genderThreshold")
         
-        // ULTRA-PRECISE FEMALE-ONLY DETECTION
+        // ENHANCED FEMALE DETECTION WITH INCLUSIVE LOGIC
         val hasFemaleFaces = if (settings.blurFemaleFaces) {
             result.faceDetectionResult?.detectedFaces?.any { face ->
-                val isConfidentFemale = face.genderConfidence > genderThreshold && 
+                val isConfidentFemale = face.genderConfidence > genderThreshold &&
                                        face.estimatedGender.toString().contains("FEMALE", ignoreCase = true)
-                val isPossibleFemale = face.genderConfidence < 0.7f && 
-                                     !face.estimatedGender.toString().contains("MALE", ignoreCase = true)
                 
-                Log.d(TAG, "👩 Female analysis: confidence=${face.genderConfidence}, gender=${face.estimatedGender}, confident=$isConfidentFemale, possible=$isPossibleFemale")
-                logDebugToDatabase("👩 Female analysis: confidence=${face.genderConfidence}, gender=${face.estimatedGender}, confident=$isConfidentFemale, possible=$isPossibleFemale", LogRepository.LogCategory.DETECTION)
+                // INCLUSIVE: Consider moderate confidence males as potential females for safety
+                val isModerateConfidenceMale = face.estimatedGender.toString().contains("MALE", ignoreCase = true) &&
+                                              face.genderConfidence >= 0.4f &&
+                                              face.genderConfidence <= 0.8f
                 
-                // STRICT: Only blur if confident female OR uncertain (but not confident male)
-                isConfidentFemale || (isPossibleFemale && settings.detectionSensitivity > 0.6f)
+                // LOW CONFIDENCE: Any gender with very low confidence might be female
+                val isLowConfidenceUnknown = face.genderConfidence < 0.4f
+                
+                // SAFETY: Include unknown gender faces
+                val isUnknownGender = face.estimatedGender.toString().contains("UNKNOWN", ignoreCase = true)
+                
+                Log.d(TAG, "👩 Female analysis: confidence=${face.genderConfidence}, gender=${face.estimatedGender}, " +
+                          "confidentFemale=$isConfidentFemale, moderateMale=$isModerateConfidenceMale, " +
+                          "lowConfidence=$isLowConfidenceUnknown, unknown=$isUnknownGender")
+                logDebugToDatabase("👩 Female analysis: confidence=${face.genderConfidence}, gender=${face.estimatedGender}, " +
+                                 "confidentFemale=$isConfidentFemale, moderateMale=$isModerateConfidenceMale", LogRepository.LogCategory.DETECTION)
+                
+                // INCLUSIVE: Blur confident females, moderate-confidence males (potential misclassification),
+                // low-confidence faces, and unknown gender faces
+                isConfidentFemale ||
+                (isModerateConfidenceMale && settings.detectionSensitivity > 0.5f) ||
+                (isLowConfidenceUnknown && settings.detectionSensitivity > 0.6f) ||
+                (isUnknownGender && settings.detectionSensitivity > 0.4f)
             } ?: false
         } else {
             Log.d(TAG, "👩 Female face detection disabled in settings")
@@ -1285,7 +1373,19 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
             if (preciseRegions.isNotEmpty()) {
-                blurOverlayManager.showBlurOverlay(preciseRegions, settings.blurIntensity)
+                // Create blur regions with metadata for debounced updates
+                val blurRegionsWithMeta = BlurRegionWithMeta(
+                    regions = preciseRegions,
+                    intensity = settings.blurIntensity,
+                    style = settings.blurStyle,
+                    confidence = result.maxNsfwConfidence,
+                    timestamp = currentTime
+                )
+                
+                // Schedule debounced blur update
+                blurUpdateDebouncer?.scheduleUpdate(blurRegionsWithMeta) { update ->
+                    blurOverlayManager.updateBlurRegionsSmooth(update.regions)
+                }
                 Log.d(TAG, "🎯 PRECISION BLUR: ${preciseRegions.size} targeted regions (screen: ${screenWidth}x${screenHeight})")
             } else {
                 Log.d(TAG, "⚠️ No valid precision regions - blur skipped")

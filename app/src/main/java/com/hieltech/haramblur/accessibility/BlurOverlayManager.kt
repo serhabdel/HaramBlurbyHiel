@@ -32,9 +32,12 @@ import com.hieltech.haramblur.ui.components.BlockedSiteDialog
 import com.hieltech.haramblur.ui.components.PornBlockingDialog
 import com.hieltech.haramblur.ui.components.WarningDialog
 import com.hieltech.haramblur.ui.components.WarningDialogManager
+import com.hieltech.haramblur.ui.components.BlurAnimationUtils
 import com.hieltech.haramblur.ui.effects.EnhancedBlurEffects
 import com.hieltech.haramblur.ui.theme.HaramBlurTheme
 import com.hieltech.haramblur.detection.Language
+import android.animation.ValueAnimator
+import android.view.ViewPropertyAnimator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -85,6 +88,31 @@ class BlurOverlayManager @Inject constructor(
     private var overlayHealthMonitorJob: kotlinx.coroutines.Job? = null
     private var overlayCreationTime = 0L
     private var overlayHealthCheckCount = 0
+    
+    // Animation and performance optimization
+    private var currentAnimator: ViewPropertyAnimator? = null
+    private var regionTransitionAnimator: ValueAnimator? = null
+    private var isAnimating = false
+    private var lastFrameTime = 0L
+    private val FRAME_TIME_THRESHOLD = 16L // 60fps target
+    
+    // Cached blur regions for smooth transitions
+    private var cachedBlurRegions: List<Rect> = emptyList()
+    private var cachedBlurIntensity: BlurIntensity? = null
+    private var cachedBlurStyle: BlurStyle? = null
+    private var cachedContentSensitivity: Float = 0.5f
+    
+    // Pending regions for deferred updates when frame skipping
+    private var pendingRegions: List<Rect>? = null
+    private var pendingBlurIntensity: BlurIntensity? = null
+    private var pendingBlurStyle: BlurStyle? = null
+    private var pendingContentSensitivity: Float? = null
+    private var deferredUpdateJob: kotlinx.coroutines.Job? = null
+    
+    // Performance monitoring
+    private var overlayRenderTime = 0L
+    private var frameDropCount = 0
+    private var lastPerformanceLogTime = 0L
     
     // Navigation callback for automatic actions
     var onNavigateAwayAction: (() -> Unit)? = null
@@ -276,12 +304,17 @@ class BlurOverlayManager @Inject constructor(
         Log.d(TAG, "Blur overlay manager initialized with lifecycle support and stuck detection")
     }
     
+    /**
+     * Show blur overlay with smooth animations and performance optimizations
+     */
     fun showBlurOverlay(
         blurRegions: List<Rect>,
         blurIntensity: BlurIntensity? = null,
         blurStyle: BlurStyle? = null,
         contentSensitivity: Float = 0.5f,
-        transparency: Float = 1.0f // Maximum opacity for better coverage
+        transparency: Float? = null, // Use AppSettings blur intensity if not provided
+        smoothTransition: Boolean = true,
+        animationDuration: Long = BlurAnimationUtils.OVERLAY_FADE_DURATION
     ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -294,9 +327,14 @@ class BlurOverlayManager @Inject constructor(
                 val currentSettings = settingsRepository.settings.value
                 val userBlurIntensity = blurIntensity ?: currentSettings.blurIntensity
                 val userBlurStyle = blurStyle ?: currentSettings.blurStyle
+                val userTransparency = transparency ?: (currentSettings.blurIntensity.alphaValue / 255f) // Use blur intensity alpha value as transparency
                 
                 if (isOverlayVisible) {
-                    updateBlurOverlay(blurRegions, userBlurIntensity, userBlurStyle, contentSensitivity)
+                    if (smoothTransition) {
+                        updateBlurRegionsSmooth(blurRegions, userBlurIntensity, userBlurStyle, contentSensitivity, animationDuration)
+                    } else {
+                        updateBlurOverlay(blurRegions, userBlurIntensity, userBlurStyle, contentSensitivity)
+                    }
                     return@launch
                 }
                 
@@ -331,7 +369,7 @@ class BlurOverlayManager @Inject constructor(
                     userBlurIntensity,
                     userBlurStyle,
                     contentSensitivity,
-                    transparency,
+                    userTransparency,
                     isFullScreen = false,
                     screenWidth = screenWidth,
                     screenHeight = screenHeight
@@ -343,11 +381,18 @@ class BlurOverlayManager @Inject constructor(
                     WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                             WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, // Enable hardware acceleration
                     PixelFormat.TRANSLUCENT
                 )
                 
                 params.gravity = Gravity.TOP or Gravity.START
+                
+                // Enable hardware acceleration on the overlay view
+                if (settingsRepository.settings.value.enableHardwareBlurAcceleration) {
+                    BlurAnimationUtils.enableHardwareAcceleration(overlayView as View, isOverlayView = true)
+                    Log.d(TAG, "Hardware acceleration enabled for blur overlay (RenderEffect skipped)")
+                }
                 
                 val success = safeExecuteWithRetry("add_blur_overlay") {
                     windowManager!!.addView(overlayView, params)
@@ -357,8 +402,21 @@ class BlurOverlayManager @Inject constructor(
                     isOverlayVisible = true
                     Log.d(TAG, "🎯 PRECISION BLUR: ${scaledRegions.size} regions on ${screenWidth}x${screenHeight} screen")
                     
+                    // Apply smooth fade-in animation if enabled
+                    if (smoothTransition && settingsRepository.settings.value.enableSmoothBlurAnimations) {
+                        BlurAnimationUtils.createFadeInAnimation(
+                            overlayView!!,
+                            animationDuration
+                        ) {
+                            Log.d(TAG, "Blur overlay fade-in animation completed")
+                        }
+                    }
+                    
                     // Start overlay health monitoring
                     startOverlayHealthMonitoring()
+                    
+                    // Start performance monitoring
+                    startPerformanceMonitoring()
                 } else {
                     Log.e(TAG, "Failed to add blur overlay after retries")
                     isOverlayVisible = false
@@ -387,41 +445,24 @@ class BlurOverlayManager @Inject constructor(
         Log.d(TAG, "Blur overlay updated with ${blurRegions.size} regions")
     }
     
-    fun hideBlurOverlay() {
+    fun hideBlurOverlay(smoothTransition: Boolean = true) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 Log.d(TAG, "Attempting to hide blur overlay - isVisible: $isOverlayVisible, overlayView: ${overlayView != null}")
 
-                // Force hide any visible overlay with safety wrapper
-                if (isOverlayVisible && overlayView != null && windowManager != null) {
-                    val success = safeExecuteWithRetry("remove_blur_overlay") {
-                        windowManager!!.removeView(overlayView)
+                // Apply smooth fade-out animation if enabled
+                if (smoothTransition && settingsRepository.settings.value.enableSmoothBlurAnimations && overlayView != null) {
+                    BlurAnimationUtils.createFadeOutAnimation(
+                        overlayView!!,
+                        BlurAnimationUtils.OVERLAY_FADE_DURATION
+                    ) {
+                        // Animation complete - now remove the view
+                        removeOverlayView()
                     }
-                    
-                    if (success) {
-                        Log.d(TAG, "✅ Blur overlay view removed from window")
-                    } else {
-                        Log.w(TAG, "⚠️ Failed to remove overlay view safely - attempting emergency cleanup")
-                        // Try more aggressive cleanup
-                        try {
-                            windowManager?.removeViewImmediate(overlayView)
-                            Log.d(TAG, "✅ Blur overlay removed immediately")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "❌ Emergency overlay removal also failed", e)
-                        }
-                    }
+                } else {
+                    // Immediate removal
+                    removeOverlayView()
                 }
-
-                // Also try to hide full-screen blur if it exists
-                hideFullScreenBlur()
-
-                // Stop health monitoring
-                stopOverlayHealthMonitoring()
-                
-                // Reset all state
-                isOverlayVisible = false
-                overlayView = null
-                Log.d(TAG, "✅ Blur overlay hidden and state reset")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Critical error hiding blur overlay", e)
@@ -429,6 +470,52 @@ class BlurOverlayManager @Inject constructor(
                 isOverlayVisible = false
                 overlayView = null
             }
+        }
+    }
+    
+    /**
+     * Remove overlay view with safety checks
+     */
+    private fun removeOverlayView() {
+        try {
+            // Force hide any visible overlay with safety wrapper
+            if (isOverlayVisible && overlayView != null && windowManager != null) {
+                val success = safeExecuteWithRetry("remove_blur_overlay") {
+                    windowManager!!.removeView(overlayView)
+                }
+                
+                if (success) {
+                    Log.d(TAG, "✅ Blur overlay view removed from window")
+                } else {
+                    Log.w(TAG, "⚠️ Failed to remove overlay view safely - attempting emergency cleanup")
+                    // Try more aggressive cleanup
+                    try {
+                        windowManager?.removeViewImmediate(overlayView)
+                        Log.d(TAG, "✅ Blur overlay removed immediately")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "❌ Emergency overlay removal also failed", e)
+                    }
+                }
+            }
+
+            // Also try to hide full-screen blur if it exists
+            hideFullScreenBlur()
+
+            // Stop health monitoring
+            stopOverlayHealthMonitoring()
+            
+            // Stop performance monitoring
+            stopPerformanceMonitoring()
+            
+            // Reset all state
+            isOverlayVisible = false
+            overlayView = null
+            Log.d(TAG, "✅ Blur overlay hidden and state reset")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing overlay view", e)
+            isOverlayVisible = false
+            overlayView = null
         }
     }
 
@@ -454,6 +541,132 @@ class BlurOverlayManager @Inject constructor(
     }
     
     fun isOverlayActive(): Boolean = isOverlayVisible
+    
+    /**
+     * Update blur regions with smooth animation and interpolation
+     * Enhanced with frame skipping and deferred updates
+     */
+    fun updateBlurRegionsSmooth(
+        newRegions: List<Rect>,
+        blurIntensity: BlurIntensity? = null,
+        blurStyle: BlurStyle? = null,
+        contentSensitivity: Float = 0.5f,
+        animationDuration: Long = BlurAnimationUtils.REGION_TRANSITION_DURATION
+    ) {
+        try {
+            val startTime = System.currentTimeMillis()
+            
+            // Get current user settings
+            val currentSettings = settingsRepository.settings.value
+            val userBlurIntensity = blurIntensity ?: currentSettings.blurIntensity
+            val userBlurStyle = blurStyle ?: currentSettings.blurStyle
+            
+            // Check if we should skip this update for performance
+            if (BlurAnimationUtils.shouldSkipFrame()) {
+                Log.d(TAG, "Skipping blur region update for performance - scheduling deferred update")
+                
+                // Store pending regions for deferred update
+                pendingRegions = newRegions
+                pendingBlurIntensity = userBlurIntensity
+                pendingBlurStyle = userBlurStyle
+                pendingContentSensitivity = contentSensitivity
+                
+                // Schedule a single deferred update via Handler/coroutine delay
+                scheduleDeferredBlurUpdate()
+                return
+            }
+            
+            // Use ValueAnimator for smooth region transitions
+            regionTransitionAnimator?.cancel()
+            
+            val oldRegions = cachedBlurRegions
+            val optimizedRegions = BlurAnimationUtils.optimizeRegionTransitions(newRegions)
+            
+            regionTransitionAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = animationDuration
+                addUpdateListener { animator ->
+                    val progress = animator.animatedValue as Float
+                    
+                    // Interpolate between old and new regions
+                    val interpolatedRegions = if (oldRegions.isNotEmpty()) {
+                        BlurAnimationUtils.interpolateBlurRegions(oldRegions, optimizedRegions, progress)
+                    } else {
+                        optimizedRegions
+                    }
+                    
+                    // Update overlay with interpolated regions
+                    overlayView?.updateBlurRegions(
+                        interpolatedRegions,
+                        userBlurIntensity,
+                        userBlurStyle,
+                        contentSensitivity
+                    )
+                }
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        // Final update with actual regions
+                        updateBlurOverlay(optimizedRegions, userBlurIntensity, userBlurStyle, contentSensitivity)
+                        isAnimating = false
+                        
+                        val frameTime = System.currentTimeMillis() - startTime
+                        logPerformanceMetrics(frameTime)
+                    }
+                    
+                    override fun onAnimationCancel(animation: android.animation.Animator) {
+                        isAnimating = false
+                    }
+                })
+                start()
+            }
+            
+            isAnimating = true
+            Log.d(TAG, "Started smooth blur region transition animation")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in smooth region transition, falling back to direct update", e)
+            updateBlurOverlay(newRegions, blurIntensity, blurStyle, contentSensitivity)
+        }
+    }
+    
+    /**
+     * Animate blur intensity change
+     */
+    fun animateBlurIntensityChange(
+        fromIntensity: BlurIntensity,
+        toIntensity: BlurIntensity,
+        duration: Long = BlurAnimationUtils.INTENSITY_CHANGE_DURATION
+    ) {
+        try {
+            BlurAnimationUtils.createIntensityTransition(
+                fromAlpha = fromIntensity.alphaValue,
+                toAlpha = toIntensity.alphaValue,
+                duration = duration
+            ) { alpha ->
+                // Update overlay with interpolated alpha
+                overlayView?.let { view ->
+                    // Create intermediate intensity based on alpha
+                    val intermediateIntensity = when {
+                        alpha >= 240 -> BlurIntensity.MAXIMUM
+                        alpha >= 180 -> BlurIntensity.STRONG
+                        alpha >= 120 -> BlurIntensity.MEDIUM
+                        else -> BlurIntensity.LIGHT
+                    }
+                    
+                    view.updateBlurRegions(
+                        cachedBlurRegions,
+                        intermediateIntensity,
+                        cachedBlurStyle ?: BlurStyle.PIXELATED,
+                        cachedContentSensitivity
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error animating blur intensity change", e)
+            // Fallback to direct intensity update
+            updateBlurOverlay(cachedBlurRegions, toIntensity, cachedBlurStyle, cachedContentSensitivity)
+        }
+    }
+    
 
     /**
      * Start the auto-close timer for full screen blur with enhanced navigation
@@ -1066,7 +1279,128 @@ class BlurOverlayManager @Inject constructor(
                 Log.e(TAG, "Error showing blocked site overlay", e)
             }
         }
+        
     }
+
+    /**
+     * Start performance monitoring for blur rendering
+     */
+    private fun startPerformanceMonitoring() {
+        overlayRenderTime = System.currentTimeMillis()
+        frameDropCount = 0
+        lastPerformanceLogTime = System.currentTimeMillis()
+        Log.d(TAG, "Started blur performance monitoring")
+    }
+    
+    /**
+     * Stop performance monitoring and log results
+     */
+    private fun stopPerformanceMonitoring() {
+        val totalTime = System.currentTimeMillis() - overlayRenderTime
+        Log.d(TAG, "Blur performance summary - Total time: ${totalTime}ms, Frame drops: $frameDropCount")
+        
+        // Clear performance counters
+        overlayRenderTime = 0L
+        frameDropCount = 0
+    }
+    
+    /**
+     * Log performance metrics
+     */
+    private fun logPerformanceMetrics(frameTime: Long) {
+        if (frameTime > FRAME_TIME_THRESHOLD) {
+            frameDropCount++
+            Log.w(TAG, "Blur frame drop detected - Frame time: ${frameTime}ms (threshold: ${FRAME_TIME_THRESHOLD}ms)")
+        }
+        
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastPerformanceLogTime > 10000) { // Log every 10 seconds
+            val avgFrameTime = if (frameDropCount > 0) frameTime else FRAME_TIME_THRESHOLD
+            val fps = if (avgFrameTime > 0) 1000 / avgFrameTime else 0
+            
+            Log.d(TAG, "Blur performance - Frame drops: $frameDropCount, Avg time: ${avgFrameTime}ms, FPS: $fps")
+            lastPerformanceLogTime = currentTime
+        }
+    }
+    
+    /**
+     * Get blur rendering performance stats
+     */
+    fun getBlurRenderingStats(): BlurRenderingStats {
+        return BlurRenderingStats(
+            isAnimating = isAnimating,
+            frameDropCount = frameDropCount,
+            lastFrameTime = lastFrameTime,
+            currentRenderingMode = enhancedBlurEffects.currentRenderingMode.toString()
+        )
+    }
+    
+    /**
+     * Enable hardware acceleration for blur rendering
+     */
+    fun enableHardwareAccelerationForOverlay() {
+        try {
+            overlayView?.let { view ->
+                if (settingsRepository.settings.value.enableHardwareBlurAcceleration) {
+                    BlurAnimationUtils.enableHardwareAcceleration(view)
+                    Log.d(TAG, "Hardware acceleration enabled for current overlay")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to enable hardware acceleration for overlay", e)
+        }
+    }
+    
+    /**
+     * Schedule deferred blur update when frame skipping occurs
+     */
+    private fun scheduleDeferredBlurUpdate() {
+        // Cancel any existing deferred update
+        deferredUpdateJob?.cancel()
+        
+        // Schedule new deferred update with small delay
+        deferredUpdateJob = CoroutineScope(Dispatchers.Main).launch {
+            try {
+                delay(50) // Small delay to allow frame timing to stabilize
+                
+                // Apply pending regions if available
+                pendingRegions?.let { regions ->
+                    val intensity = pendingBlurIntensity ?: settingsRepository.settings.value.blurIntensity
+                    val style = pendingBlurStyle ?: settingsRepository.settings.value.blurStyle
+                    val sensitivity = pendingContentSensitivity ?: 0.5f
+                    
+                    Log.d(TAG, "Applying deferred blur update with ${regions.size} regions")
+                    updateBlurOverlay(regions, intensity, style, sensitivity)
+                    
+                    // Clear pending data
+                    pendingRegions = null
+                    pendingBlurIntensity = null
+                    pendingBlurStyle = null
+                    pendingContentSensitivity = null
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in deferred blur update", e)
+            }
+        }
+    }
+    
+    /**
+     * Set performance mode for blur rendering
+     */
+    fun setBlurPerformanceMode(mode: com.hieltech.haramblur.data.BlurRenderingMode) {
+        enhancedBlurEffects.setPerformanceMode(mode)
+        Log.d(TAG, "Blur performance mode set to: ${mode.name}")
+    }
+    
+    /**
+     * Data class for blur rendering performance statistics
+     */
+    data class BlurRenderingStats(
+        val isAnimating: Boolean,
+        val frameDropCount: Int,
+        val lastFrameTime: Long,
+        val currentRenderingMode: String
+    )
     
     /**
      * Show blocked site dialog with Quranic verse
@@ -1383,13 +1717,24 @@ class BlurOverlayManager @Inject constructor(
                     )
                     
                     if (boundedRect.width() > 0 && boundedRect.height() > 0) {
-                        // Apply enhanced precision blur with user settings
+                        // Apply enhanced precision blur with user settings and new blur optimization settings
+                        val currentSettings = com.hieltech.haramblur.data.SettingsRepository(context!!).settings.value
                         enhancedBlurEffects.applyEnhancedBlur(
-                            canvas, 
-                            boundedRect, 
+                            canvas,
+                            boundedRect,
                             blurIntensity, // Use user's preferred intensity
                             blurStyle, // Use user's preferred style
-                            contentSensitivity // Use passed sensitivity
+                            contentSensitivity, // Use passed sensitivity
+                            enableEdgeRefinement = true,
+                            enableAntiAliasing = true,
+                            precision = currentSettings.blurBoundaryPrecision,
+                            enableBlurEdgeRefinement = currentSettings.enableBlurEdgeRefinement,
+                            blurEdgeAntiAliasing = currentSettings.blurEdgeAntiAliasing,
+                            blurBoundaryPrecision = currentSettings.blurBoundaryPrecision,
+                            enableBlurFrameRateLimiting = currentSettings.enableBlurFrameRateLimiting,
+                            maxBlurRegionsPerFrame = currentSettings.maxBlurRegionsPerFrame,
+                            enableBlurRegionInterpolation = currentSettings.enableBlurRegionInterpolation,
+                            blurAnimationDuration = currentSettings.blurAnimationDuration
                         )
                         
                         // Add precision border for debugging (remove in production)
@@ -1678,51 +2023,13 @@ class BlurOverlayManager @Inject constructor(
         }
         
         private fun drawPixelatedPattern(canvas: Canvas, rect: Rect, pixelSize: Int = 15, alpha: Int = 200) {
-            
-            for (x in rect.left until rect.right step pixelSize) {
-                for (y in rect.top until rect.bottom step pixelSize) {
-                    val pixelRect = Rect(
-                        x,
-                        y,
-                        minOf(x + pixelSize, rect.right),
-                        minOf(y + pixelSize, rect.bottom)
-                    )
-                    
-                    // Vary the color slightly for each pixel
-                    val variation = (Math.random() * 40 - 20).toInt()
-                    val adjustedColor = Color.rgb(
-                        (208 + variation).coerceIn(180, 240),
-                        (208 + variation).coerceIn(180, 240),
-                        (208 + variation).coerceIn(180, 240)
-                    )
-                    
-                    val dynamicPaint = Paint().apply {
-                        isAntiAlias = false
-                        color = adjustedColor
-                        setAlpha(alpha)
-                    }
-                    canvas.drawRect(pixelRect, dynamicPaint)
-                }
-            }
+            // Delegate to EnhancedBlurEffects for optimized pixelated rendering with cached patterns
+            enhancedBlurEffects.applyPixelatedBlur(canvas, rect, blurIntensity, contentSensitivity, alpha)
         }
         
         private fun drawNoisePattern(canvas: Canvas, rect: Rect) {
-            val noiseSize = 4 // Size of noise dots
-            val density = 0.3f // How many noise dots (30% coverage)
-            
-            val numDotsX = (rect.width() / noiseSize * density).toInt()
-            val numDotsY = (rect.height() / noiseSize * density).toInt()
-            
-            repeat(numDotsX * numDotsY) {
-                val x = rect.left + (Math.random() * rect.width()).toInt()
-                val y = rect.top + (Math.random() * rect.height()).toInt()
-                
-                // Random brightness for noise
-                val brightness = (Math.random() * 100 + 180).toInt()
-                noisePaint.color = Color.rgb(brightness, brightness, brightness)
-                
-                canvas.drawCircle(x.toFloat(), y.toFloat(), noiseSize.toFloat(), noisePaint)
-            }
+            // Delegate to EnhancedBlurEffects for optimized noise rendering using cached bitmaps
+            enhancedBlurEffects.applyOptimizedNoiseBlur(canvas, rect, blurIntensity, contentSensitivity)
         }
         
         private fun drawBlurBorder(canvas: Canvas, rect: Rect) {

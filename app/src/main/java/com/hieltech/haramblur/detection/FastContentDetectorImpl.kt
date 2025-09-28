@@ -25,8 +25,10 @@ class FastContentDetectorImpl @Inject constructor(
         private const val GRID_SIZE = 4 // 4x4 grid for density analysis
         private const val CACHE_EXPIRATION_MS = 2000L // 2 seconds cache
         private const val MAX_CACHE_SIZE = 50
-        private const val SKIN_TONE_THRESHOLD = 0.3f
-        private const val FULL_SCREEN_DENSITY_THRESHOLD = 0.4f
+        private const val SKIN_TONE_THRESHOLD = 0.25f // Lowered for better sensitivity
+        private const val FULL_SCREEN_DENSITY_THRESHOLD = 0.35f // Lowered for earlier full-screen blur
+        private const val FAST_DETECTION_CONFIDENCE_MULTIPLIER = 0.85f // Multiplier for more sensitive thresholds in fast mode
+        private const val MIN_CELL_SIZE = 32 // Minimum cell size for analysis
     }
     
     private var currentPerformanceMode = PerformanceMode.BALANCED
@@ -83,7 +85,7 @@ class FastContentDetectorImpl @Inject constructor(
                 // Face detection job
                 val faceDetectionJob = async {
                     if (settings.enableFaceDetection) {
-                        faceDetectionManager.detectFaces(processedBitmap)
+                        faceDetectionManager.detectFaces(processedBitmap, settings)
                     } else {
                         FaceDetectionManager.FaceDetectionResult(0, emptyList(), true, null)
                     }
@@ -475,40 +477,46 @@ class FastContentDetectorImpl @Inject constructor(
     ): List<Rect> {
         val regions = mutableListOf<Rect>()
 
-        // Check for region-based full-screen blur trigger (6+ high-confidence regions)
+        // Check for region-based full-screen blur trigger with lower thresholds for maximum accuracy
         if (settings.enableRegionBasedFullScreen &&
-            regionAnalysis.regionCount >= settings.nsfwFullScreenRegionThreshold &&
-            regionAnalysis.maxConfidence >= settings.nsfwHighConfidenceThreshold) {
-            // Trigger full-screen blur due to high region count
+            regionAnalysis.regionCount >= (settings.nsfwFullScreenRegionThreshold - 1) &&
+            regionAnalysis.maxConfidence >= (settings.nsfwHighConfidenceThreshold - 0.05f)) {
+            // Trigger full-screen blur due to high region count with lower thresholds
             Log.d(TAG, "Region-based full-screen blur triggered: ${regionAnalysis.regionCount} regions with max confidence ${regionAnalysis.maxConfidence}")
             return listOf(Rect(0, 0, bitmap.width, bitmap.height))
         }
 
-        // Add face regions (simplified - no gender filtering for speed)
+        // Add face regions with enhanced expansion for better coverage
         if (settings.enableFaceDetection && faceResult.hasFaces()) {
             faceResult.detectedFaces.forEach { face ->
-                val expandedRect = expandRect(face.boundingBox, 20)
+                val expandedRect = expandRectWithEdgeDetection(face.boundingBox, 30, bitmap)
                 regions.add(expandedRect)
             }
         }
         
-        // Add NSFW regions based on confidence
+        // Add NSFW regions based on confidence with enhanced precision
         if (settings.enableNSFWDetection && nsfwResult.isNSFW) {
             when {
-                nsfwResult.confidence > 0.8f -> {
-                    // Full screen blur for high confidence
-                    regions.add(Rect(0, 0, bitmap.width, bitmap.height))
-                }
                 nsfwResult.confidence > 0.6f -> {
-                    // Center region blur
-                    val margin = bitmap.width / 10
-                    regions.add(Rect(margin, margin, bitmap.width - margin, bitmap.height - margin))
+                    // Full screen blur with refined edges for high confidence
+                    val fullScreenRect = Rect(0, 0, bitmap.width, bitmap.height)
+                    val refinedRect = applyFastEdgeDetection(fullScreenRect, bitmap)
+                    regions.add(refinedRect)
                 }
                 nsfwResult.confidence > 0.4f -> {
-                    // Middle section blur
-                    val marginX = bitmap.width / 8
-                    val marginY = bitmap.height / 8
-                    regions.add(Rect(marginX, marginY, bitmap.width - marginX, bitmap.height - marginY))
+                    // Center region blur with refined edges
+                    val margin = bitmap.width / 12
+                    val centerRect = Rect(margin, margin, bitmap.width - margin, bitmap.height - margin)
+                    val refinedRect = applyFastEdgeDetection(centerRect, bitmap)
+                    regions.add(refinedRect)
+                }
+                nsfwResult.confidence > 0.25f -> {
+                    // Middle section blur with refined edges
+                    val marginX = bitmap.width / 10
+                    val marginY = bitmap.height / 10
+                    val middleRect = Rect(marginX, marginY, bitmap.width - marginX, bitmap.height - marginY)
+                    val refinedRect = applyFastEdgeDetection(middleRect, bitmap)
+                    regions.add(refinedRect)
                 }
             }
         }
@@ -523,6 +531,141 @@ class FastContentDetectorImpl @Inject constructor(
             rect.right + expansion,
             rect.bottom + expansion
         )
+    }
+    
+    /**
+     * Expand rectangle with edge detection for better coverage
+     */
+    private fun expandRectWithEdgeDetection(rect: Rect, expansion: Int, bitmap: Bitmap): Rect {
+        // First expand the rectangle
+        val expandedRect = Rect(
+            maxOf(0, rect.left - expansion),
+            maxOf(0, rect.top - expansion),
+            minOf(bitmap.width, rect.right + expansion),
+            minOf(bitmap.height, rect.bottom + expansion)
+        )
+        
+        // Apply fast edge detection to refine the expanded boundaries
+        return applyFastEdgeDetection(expandedRect, bitmap)
+    }
+    
+    /**
+     * Apply fast edge detection to refine region boundaries
+     */
+    private fun applyFastEdgeDetection(rect: Rect, bitmap: Bitmap): Rect {
+        try {
+            var refinedLeft = rect.left
+            var refinedRight = rect.right
+            var refinedTop = rect.top
+            var refinedBottom = rect.bottom
+            
+            // Sample edges to find content boundaries with simplified approach
+            val edgeThreshold = 0.25f // Lower threshold for more sensitive detection
+            
+            // Check left boundary
+            if (rect.left > 0) {
+                refinedLeft = findFastEdgeBoundary(rect.left, rect.top, rect.bottom, bitmap, true, edgeThreshold)
+            }
+            
+            // Check right boundary
+            if (rect.right < bitmap.width) {
+                refinedRight = findFastEdgeBoundary(rect.right, rect.top, rect.bottom, bitmap, false, edgeThreshold)
+            }
+            
+            // Check top boundary
+            if (rect.top > 0) {
+                refinedTop = findFastEdgeBoundary(rect.top, rect.left, rect.right, bitmap, true, edgeThreshold)
+            }
+            
+            // Check bottom boundary
+            if (rect.bottom < bitmap.height) {
+                refinedBottom = findFastEdgeBoundary(rect.bottom, rect.left, rect.right, bitmap, false, edgeThreshold)
+            }
+            
+            return Rect(
+                refinedLeft.coerceAtLeast(0),
+                refinedTop.coerceAtLeast(0),
+                refinedRight.coerceAtMost(bitmap.width),
+                refinedBottom.coerceAtMost(bitmap.height)
+            )
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error applying fast edge detection", e)
+            return rect
+        }
+    }
+    
+    /**
+     * Find fast edge boundary using simplified edge detection
+     */
+    private fun findFastEdgeBoundary(
+        start: Int,
+        fixedStart: Int,
+        fixedEnd: Int,
+        bitmap: Bitmap,
+        isHorizontal: Boolean,
+        edgeThreshold: Float
+    ): Int {
+        try {
+            val step = 2 // Larger step for faster processing
+            val direction = if (start < (if (isHorizontal) bitmap.width else bitmap.height) / 2) 1 else -1
+            var currentPos = start
+            var edgeCount = 0
+            var totalSamples = 0
+            
+            // Sample along the boundary to find edges
+            for (offset in 0 until 20 step step) { // Limit search range for speed
+                val testPos = start + (direction * offset)
+                
+                if (testPos < 0 || testPos >= (if (isHorizontal) bitmap.width else bitmap.height)) {
+                    break
+                }
+                
+                for (fixed in fixedStart until fixedEnd step 8) { // Sample every 8 pixels for speed
+                    val x = if (isHorizontal) testPos else fixed
+                    val y = if (isHorizontal) fixed else testPos
+                    
+                    if (x in 0 until bitmap.width && y in 0 until bitmap.height) {
+                        val pixel = bitmap.getPixel(x, y)
+                        val edgeStrength = calculateFastEdgeStrength(pixel)
+                        
+                        if (edgeStrength > edgeThreshold) {
+                            edgeCount++
+                        }
+                        totalSamples++
+                    }
+                }
+                
+                // If we find significant edge density, this is likely the boundary
+                if (totalSamples > 5) { // Minimum samples for reliable detection
+                    val edgeDensity = edgeCount.toFloat() / totalSamples
+                    if (edgeDensity > 0.3f) {
+                        return testPos
+                    }
+                }
+            }
+            
+            return start // Fallback to original position
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error finding fast edge boundary", e)
+            return start
+        }
+    }
+    
+    /**
+     * Calculate fast edge strength for a pixel
+     */
+    private fun calculateFastEdgeStrength(pixel: Int): Float {
+        val red = (pixel shr 16) and 0xFF
+        val green = (pixel shr 8) and 0xFF
+        val blue = pixel and 0xFF
+        
+        // Simplified edge strength calculation
+        val brightness = (red * 0.299f + green * 0.587f + blue * 0.114f)
+        val colorVariance = Math.abs(red - brightness) + Math.abs(green - brightness) + Math.abs(blue - brightness)
+        
+        return (colorVariance / 255.0f).coerceIn(0.0f, 1.0f)
     }
     
     private fun determineContentType(
@@ -571,14 +714,18 @@ class FastContentDetectorImpl @Inject constructor(
         val skinToneRatio = analyzeSkinToneInCell(cellBitmap)
         val colorVariance = analyzeColorVarianceInCell(cellBitmap)
         
-        // Combine metrics for overall inappropriateness score
+        // Combine metrics for overall inappropriateness score with enhanced sensitivity
         var score = 0.0f
         
-        // High skin tone ratio increases score
-        if (skinToneRatio > 0.3f) score += skinToneRatio * 0.6f
+        // High skin tone ratio increases score with lower thresholds
+        if (skinToneRatio > 0.25f) score += skinToneRatio * 0.7f // Increased sensitivity
         
-        // Low color variance (smooth areas) might indicate skin
-        if (colorVariance < 0.3f && skinToneRatio > 0.2f) score += 0.3f
+        // Low color variance (smooth areas) might indicate skin with lower thresholds
+        if (colorVariance < 0.4f && skinToneRatio > 0.15f) score += 0.4f // Increased sensitivity
+        
+        // Add texture analysis for better detection
+        val textureScore = analyzeTextureInCell(cellBitmap)
+        score += textureScore * 0.2f
         
         return minOf(1.0f, score)
     }
@@ -631,6 +778,41 @@ class FastContentDetectorImpl @Inject constructor(
         }.average()
         
         return (variance / 65536.0).toFloat() // Normalize to 0-1 range
+    }
+    
+    private fun analyzeTextureInCell(cellBitmap: Bitmap): Float {
+        // Fast texture analysis for detecting smooth skin regions
+        return calculatePixelVarianceFast(cellBitmap)
+    }
+    
+    private fun calculatePixelVarianceFast(cellBitmap: Bitmap): Float {
+        val sampleStep = 3 // Sample every 3rd pixel for speed
+        val pixels = mutableListOf<Int>()
+        
+        for (x in 0 until cellBitmap.width step sampleStep) {
+            for (y in 0 until cellBitmap.height step sampleStep) {
+                pixels.add(cellBitmap.getPixel(x, y))
+            }
+        }
+        
+        if (pixels.size < 2) return 0.0f
+        
+        // Calculate brightness variance
+        val brightnessValues = pixels.map { pixel ->
+            val red = (pixel shr 16) and 0xFF
+            val green = (pixel shr 8) and 0xFF
+            val blue = pixel and 0xFF
+            (red * 0.299f + green * 0.587f + blue * 0.114f)
+        }
+        
+        val avgBrightness = brightnessValues.average()
+        val variance = brightnessValues.map { brightness ->
+            val diff = brightness - avgBrightness
+            diff * diff
+        }.average()
+        
+        // Low variance indicates smooth texture (potential skin)
+        return (1.0f - (variance / 10000.0).coerceIn(0.0, 1.0).toFloat())
     }
     
     private fun createSpatialDistributionMap(distributionMap: Array<Array<Float>>): Map<String, Float> {
@@ -792,9 +974,9 @@ class FastContentDetectorImpl @Inject constructor(
         val width = bitmap.width
         val height = bitmap.height
 
-        // Determine grid size based on performance mode and bitmap dimensions
+        // Determine grid size based on performance mode and bitmap dimensions with enhanced granularity
         val gridSize = when (performanceMode) {
-            PerformanceMode.ULTRA_FAST -> 2 // 2x2 grid for maximum speed
+            PerformanceMode.ULTRA_FAST -> 3 // 3x3 grid for better accuracy even in ultra-fast mode
             PerformanceMode.FAST -> 3        // 3x3 grid for good speed/accuracy balance
             else -> 4                         // 4x4 grid for better accuracy
         }
@@ -836,8 +1018,11 @@ class FastContentDetectorImpl @Inject constructor(
                 val confidence = analyzeCellForNSFWFast(cellBitmap)
                 cellBitmap.recycle()
 
-                // Check if this cell meets high confidence threshold
-                if (confidence >= settings.nsfwConfidenceThreshold) {
+                // Use lower threshold for maximum accuracy mode
+                val effectiveThreshold = settings.nsfwConfidenceThreshold * FAST_DETECTION_CONFIDENCE_MULTIPLIER
+                
+                // Check if this cell meets high confidence threshold (lowered for sensitivity)
+                if (confidence >= effectiveThreshold) {
                     highConfidenceRegions.add(cellRect)
                     regionConfidences.add(confidence)
                     maxConfidence = maxOf(maxConfidence, confidence)
@@ -873,14 +1058,13 @@ class FastContentDetectorImpl @Inject constructor(
 
         val skinRatio = if (totalPixels > 0) skinPixels.toFloat() / totalPixels else 0.0f
 
-        // Convert skin ratio to confidence score
+        // Convert skin ratio to confidence score with enhanced sensitivity
         return when {
-            skinRatio > 0.4f -> 0.8f
-            skinRatio > 0.3f -> 0.7f
-            skinRatio > 0.2f -> 0.6f
-            skinRatio > 0.15f -> 0.5f
-            skinRatio > 0.1f -> 0.4f
-            else -> 0.2f
+            skinRatio > 0.35f -> 0.85f // Increased sensitivity
+            skinRatio > 0.25f -> 0.75f // New threshold
+            skinRatio > 0.15f -> 0.65f // Increased sensitivity
+            skinRatio > 0.08f -> 0.45f // New threshold
+            else -> 0.25f             // Increased from 0.2f
         }
     }
 

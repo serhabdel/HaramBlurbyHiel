@@ -6,15 +6,26 @@ package com.hieltech.haramblur.detection
 object EnhancedDetectionConfig {
     
     // Performance Thresholds
-    const val ULTRA_FAST_PROCESSING_TIME_MS = 50L
-    const val FAST_PROCESSING_TIME_MS = 100L
-    const val BALANCED_PROCESSING_TIME_MS = 200L
+    const val ULTRA_FAST_PROCESSING_TIME_MS = 30L
+    const val FAST_PROCESSING_TIME_MS = 75L
+    const val BALANCED_PROCESSING_TIME_MS = 150L
     const val HIGH_QUALITY_PROCESSING_TIME_MS = 500L
     
     // Gender Detection
-    const val GENDER_CONFIDENCE_THRESHOLD_HIGH = 0.92f
-    const val GENDER_CONFIDENCE_THRESHOLD_BALANCED = 0.85f
-    const val GENDER_CONFIDENCE_THRESHOLD_FAST = 0.75f
+    const val GENDER_CONFIDENCE_THRESHOLD_HIGH = 0.85f
+    const val GENDER_CONFIDENCE_THRESHOLD_BALANCED = 0.75f
+    const val GENDER_CONFIDENCE_THRESHOLD_FAST = 0.65f
+    
+    // Maximum Accuracy Constants
+    const val GENDER_CONFIDENCE_THRESHOLD_MAX_ACCURACY = 0.30f
+    const val NSFW_CONFIDENCE_THRESHOLD_MAX_ACCURACY = 0.40f
+    const val FEMALE_CONFIDENCE_MIN_MAX_ACCURACY = 0.25f
+    const val UNKNOWN_CONFIDENCE_MAX_MAX_ACCURACY = 0.35f
+    
+    // Edge Detection Constants
+    const val ENABLE_EDGE_REFINEMENT = true
+    const val EDGE_DETECTION_THRESHOLD = 0.3f
+    const val BLUR_REGION_EDGE_EXPANSION = 5
     
     // Content Density
     const val FULL_SCREEN_BLUR_THRESHOLD = 0.4f // 40% of screen

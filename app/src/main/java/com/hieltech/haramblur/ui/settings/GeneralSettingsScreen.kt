@@ -247,12 +247,114 @@ fun GeneralSettingsScreen(
                     )
 
                     if (settings.enableFaceDetection) {
-                        SwitchSetting(
-                            title = stringResource(R.string.detect_female_faces_title),
-                            description = stringResource(R.string.detect_female_faces_description),
-                            checked = settings.blurFemaleFaces,
-                            onCheckedChange = { viewModel.updateFemaleBlur(it) }
-                        )
+                        // Gender-based face detection toggles
+                        when (settings.userGender) {
+                            UserGender.MALE -> {
+                                // Male users: Only show female face detection
+                                SwitchSetting(
+                                    title = stringResource(R.string.detect_female_faces_title),
+                                    description = stringResource(R.string.detect_female_faces_description),
+                                    checked = settings.blurFemaleFaces,
+                                    onCheckedChange = { viewModel.updateFemaleBlur(it) }
+                                )
+                                // Show explanatory text for male users
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.islamic_compliance_male_user),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.automatic_gender_detection_active),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                            UserGender.FEMALE -> {
+                                // Female users: Only show male face detection
+                                SwitchSetting(
+                                    title = stringResource(R.string.detect_male_faces_title),
+                                    description = stringResource(R.string.detect_male_faces_description),
+                                    checked = settings.blurMaleFaces,
+                                    onCheckedChange = { viewModel.updateMaleBlur(it) }
+                                )
+                                // Show explanatory text for female users
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.islamic_compliance_female_user),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.automatic_gender_detection_active),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                            UserGender.NOT_SPECIFIED -> {
+                                // Gender not specified: Show both toggles with explanation
+                                SwitchSetting(
+                                    title = stringResource(R.string.detect_female_faces_title),
+                                    description = stringResource(R.string.detect_female_faces_description),
+                                    checked = settings.blurFemaleFaces,
+                                    onCheckedChange = { viewModel.updateFemaleBlur(it) }
+                                )
+                                SwitchSetting(
+                                    title = stringResource(R.string.detect_male_faces_title),
+                                    description = stringResource(R.string.detect_male_faces_description),
+                                    checked = settings.blurMaleFaces,
+                                    onCheckedChange = { viewModel.updateMaleBlur(it) }
+                                )
+                                // Show explanatory text for users with unspecified gender
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.gender_not_specified_info),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.complete_gender_setup),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     RadioButtonGroup(

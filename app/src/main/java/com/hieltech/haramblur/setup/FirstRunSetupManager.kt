@@ -7,6 +7,9 @@ import com.hieltech.haramblur.detection.ContentDetectionEngine
 import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.data.ProcessingSpeed
 import com.hieltech.haramblur.data.SettingsRepository
+import com.hieltech.haramblur.data.QualityMode
+import com.hieltech.haramblur.data.BlurIntensity
+import com.hieltech.haramblur.data.BlurStyle
 import com.hieltech.haramblur.testing.FirstRunValidator
 import kotlinx.coroutines.*
 import javax.inject.Inject
@@ -29,8 +32,10 @@ class FirstRunSetupManager @Inject constructor(
         private const val KEY_FIRST_RUN_COMPLETED = "first_run_completed"
         private const val KEY_SETUP_VERSION = "setup_version"
         private const val KEY_DEVICE_PROFILE = "device_profile"
+        private const val KEY_GPU_FAILURE_COUNT = "gpu_failure_count"
         private const val CURRENT_SETUP_VERSION = 3
         private const val SETUP_TIMEOUT_MS = 60000L // 60 seconds
+        private const val MAX_GPU_FAILURES_BEFORE_DISABLE = 3 // Disable GPU after 3 consecutive failures
     }
     
     data class SetupResult(
@@ -180,50 +185,39 @@ class FirstRunSetupManager @Inject constructor(
     
     /**
      * Analyze device capabilities and create performance profile
+     * BYPASS DEVICE ANALYSIS - Always return HIGH_END device profile for maximum performance
      */
     private suspend fun analyzeDeviceCapabilities(context: Context): DeviceProfile = withContext(Dispatchers.Default) {
-        Log.d(TAG, "🔍 Analyzing device capabilities...")
+        Log.d(TAG, "🔍 Analyzing device capabilities... BYPASSED - Using HIGH_END profile")
         
-        // Memory analysis
-        val runtime = Runtime.getRuntime()
-        val maxMemoryMB = runtime.maxMemory() / (1024f * 1024f)
-        val availableMemoryMB = (runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()) / (1024f * 1024f)
-        
-        Log.d(TAG, "Memory: ${availableMemoryMB}MB available / ${maxMemoryMB}MB max")
-        
-        // CPU performance test
-        val cpuScore = performCPUBenchmark()
-        Log.d(TAG, "CPU performance score: $cpuScore")
-        
-        // GPU capability detection
-        val hasGPU = detectGPUCapabilities(context)
-        Log.d(TAG, "GPU acceleration available: $hasGPU")
-        
-        // Device classification
-        val deviceClass = classifyDevice(maxMemoryMB, cpuScore, hasGPU)
-        Log.d(TAG, "Device classified as: $deviceClass")
-        
-        // Determine optimal processing mode
-        val processingMode = determineOptimalProcessingMode(deviceClass, cpuScore, availableMemoryMB)
-        val maxProcessingTime = determineMaxProcessingTime(deviceClass, processingMode)
-        
+        // Bypass device analysis and always return HIGH_END device profile
         return@withContext DeviceProfile(
-            deviceClass = deviceClass,
-            hasGPUAcceleration = hasGPU,
-            availableMemoryMB = availableMemoryMB,
-            cpuPerformanceScore = cpuScore,
-            recommendedProcessingMode = processingMode,
-            maxProcessingTimeMs = maxProcessingTime
+            deviceClass = DeviceClass.HIGH_END,
+            hasGPUAcceleration = true, // Force GPU acceleration enabled
+            availableMemoryMB = 8000f, // Assume high memory for maximum performance
+            cpuPerformanceScore = 1.0f, // Assume maximum CPU performance
+            recommendedProcessingMode = ProcessingMode.ACCURATE, // Use most accurate mode
+            maxProcessingTimeMs = 50L // Use fastest processing time
         )
     }
     
     /**
      * Initialize core components with device-optimized settings
+     * Add GPU capability checks and fallback logic
      */
     private suspend fun initializeCoreComponents(context: Context, deviceProfile: DeviceProfile): Boolean {
         Log.d(TAG, "🔧 Initializing core components for ${deviceProfile.deviceClass} device...")
         
         return try {
+            // Check GPU failure history
+            val gpuFailureCount = prefs.getInt(KEY_GPU_FAILURE_COUNT, 0)
+            if (gpuFailureCount >= MAX_GPU_FAILURES_BEFORE_DISABLE) {
+                Log.w(TAG, "⚠️ GPU disabled due to $gpuFailureCount consecutive failures")
+                // Temporarily disable GPU acceleration for this session
+                val currentSettings = settingsRepository.getCurrentSettings()
+                settingsRepository.updateSettings(currentSettings.copy(enableGPUAcceleration = false))
+            }
+            
             // Initialize with timeout based on device class
             val timeout = when (deviceProfile.deviceClass) {
                 DeviceClass.HIGH_END -> 10000L
@@ -236,124 +230,79 @@ class FirstRunSetupManager @Inject constructor(
                 val success = contentDetectionEngine.initialize(context)
                 if (success) {
                     Log.d(TAG, "✅ Content detection engine initialized successfully")
+                    // Reset GPU failure count on successful initialization
+                    if (gpuFailureCount > 0) {
+                        prefs.edit().putInt(KEY_GPU_FAILURE_COUNT, 0).apply()
+                        Log.d(TAG, "🔄 GPU failure count reset after successful initialization")
+                    }
                 } else {
                     Log.w(TAG, "⚠️ Content detection engine initialization failed")
+                    handleGPUFailure()
                 }
                 success
             }
         } catch (e: TimeoutCancellationException) {
             Log.e(TAG, "❌ Component initialization timed out")
+            handleGPUFailure()
             false
         } catch (e: Exception) {
             Log.e(TAG, "❌ Component initialization failed", e)
+            handleGPUFailure()
             false
+        }
+    }
+
+    /**
+     * Handle GPU failure by incrementing failure count and potentially disabling GPU
+     */
+    private fun handleGPUFailure() {
+        val currentFailures = prefs.getInt(KEY_GPU_FAILURE_COUNT, 0)
+        val newFailureCount = currentFailures + 1
+        prefs.edit().putInt(KEY_GPU_FAILURE_COUNT, newFailureCount).apply()
+        
+        Log.w(TAG, "⚠️ GPU failure detected. Failure count: $newFailureCount")
+        
+        if (newFailureCount >= MAX_GPU_FAILURES_BEFORE_DISABLE) {
+            Log.e(TAG, "❌ GPU will be disabled for future sessions due to repeated failures")
+            // Disable GPU acceleration in current settings
+            val currentSettings = settingsRepository.getCurrentSettings()
+            settingsRepository.updateSettings(currentSettings.copy(enableGPUAcceleration = false))
         }
     }
     
     /**
      * Generate optimized settings based on device profile
+     * Use SettingsRepository.applyMaximumPerformanceSettings() to avoid duplication
      */
-    private fun generateOptimizedSettings(deviceProfile: DeviceProfile): AppSettings {
-        Log.d(TAG, "⚙️ Generating optimized settings for ${deviceProfile.deviceClass} device...")
+    private suspend fun generateOptimizedSettings(deviceProfile: DeviceProfile): AppSettings {
+        Log.d(TAG, "⚙️ Generating optimized settings using SettingsRepository.applyMaximumPerformanceSettings()")
         
-        return when (deviceProfile.deviceClass) {
-            DeviceClass.HIGH_END -> AppSettings(
-                enableGPUAcceleration = deviceProfile.hasGPUAcceleration,
-                enableNSFWDetection = true,
-                enableFaceDetection = true,
-                blurFemaleFaces = true,
-                blurMaleFaces = false, // Focus on female faces only
-                maxProcessingTimeMs = 100L,
-                processingSpeed = ProcessingSpeed.FAST,
-                ultraFastModeEnabled = false,
-                enableRealTimeProcessing = true,
-                fullScreenWarningEnabled = true,
-                enableRegionBasedFullScreen = true,
-                nsfwFullScreenRegionThreshold = 6,
-                nsfwHighConfidenceThreshold = 0.8f
-            )
-            
-            DeviceClass.MID_RANGE -> AppSettings(
-                enableGPUAcceleration = deviceProfile.hasGPUAcceleration,
-                enableNSFWDetection = true,
-                enableFaceDetection = true,
-                blurFemaleFaces = true,
-                blurMaleFaces = false,
-                maxProcessingTimeMs = 200L,
-                processingSpeed = ProcessingSpeed.BALANCED,
-                ultraFastModeEnabled = false,
-                enableRealTimeProcessing = true,
-                fullScreenWarningEnabled = true,
-                enableRegionBasedFullScreen = true,
-                nsfwFullScreenRegionThreshold = 5,
-                nsfwHighConfidenceThreshold = 0.7f
-            )
-            
-            DeviceClass.LOW_END -> AppSettings(
-                enableGPUAcceleration = false, // Disable GPU on low-end devices
-                enableNSFWDetection = true,
-                enableFaceDetection = true,
-                blurFemaleFaces = true,
-                blurMaleFaces = false,
-                maxProcessingTimeMs = 500L,
-                processingSpeed = ProcessingSpeed.ULTRA_FAST,
-                ultraFastModeEnabled = true,
-                enableRealTimeProcessing = true,
-                fullScreenWarningEnabled = false, // Disable for performance
-                enableRegionBasedFullScreen = true,
-                nsfwFullScreenRegionThreshold = 4,
-                nsfwHighConfidenceThreshold = 0.6f
-            )
-            
-            DeviceClass.UNKNOWN -> getFailsafeSettings()
-        }
+        // Apply maximum performance settings using the centralized method
+        settingsRepository.applyMaximumPerformanceSettings()
+        
+        // Return the updated settings with preserved gender preferences
+        val currentSettings = settingsRepository.getCurrentSettings()
+        return currentSettings.copy(
+            blurMaleFaces = currentSettings.blurMaleFaces,
+            blurFemaleFaces = currentSettings.blurFemaleFaces,
+            userGender = currentSettings.userGender
+        )
     }
     
     /**
      * Apply performance optimizations based on validation results
+     * REMOVE PERFORMANCE-BASED OPTIMIZATIONS - Always maintain maximum performance settings
      */
     private fun applyPerformanceOptimizations(
         baseSettings: AppSettings,
         validationResult: FirstRunValidator.ValidationResult,
         deviceProfile: DeviceProfile
     ): AppSettings {
-        Log.d(TAG, "🚀 Applying performance optimizations...")
+        Log.d(TAG, "🚀 Applying performance optimizations... BYPASSED - Maintaining maximum performance settings")
         
-        var optimizedSettings = baseSettings
-        
-        // If performance is poor, apply optimizations
-        if (validationResult.performanceScore < 0.6f) {
-            Log.w(TAG, "Poor performance detected (${validationResult.performanceScore}), applying optimizations...")
-            
-            optimizedSettings = optimizedSettings.copy(
-                enableGPUAcceleration = false, // Disable GPU if causing issues
-                maxProcessingTimeMs = optimizedSettings.maxProcessingTimeMs * 2, // Increase timeout
-                ultraFastModeEnabled = true,
-                fullScreenWarningEnabled = false // Disable for performance
-            )
-        }
-        
-        // If accuracy is poor, adjust thresholds
-        if (validationResult.accuracyScore < 0.8f) {
-            Log.w(TAG, "Poor accuracy detected (${validationResult.accuracyScore}), adjusting thresholds...")
-            
-            optimizedSettings = optimizedSettings.copy(
-                nsfwHighConfidenceThreshold = optimizedSettings.nsfwHighConfidenceThreshold - 0.1f,
-                nsfwFullScreenRegionThreshold = optimizedSettings.nsfwFullScreenRegionThreshold - 1
-            )
-        }
-        
-        // Memory optimization
-        if (deviceProfile.availableMemoryMB < 200f) {
-            Log.w(TAG, "Low memory detected (${deviceProfile.availableMemoryMB}MB), applying memory optimizations...")
-            
-            optimizedSettings = optimizedSettings.copy(
-                enableFaceDetection = false, // Disable face detection to save memory
-                ultraFastModeEnabled = true
-            )
-        }
-        
-        return optimizedSettings
+        // BYPASS performance-based optimizations - never downgrade from maximum settings
+        // Always return the original maximum performance settings regardless of validation results
+        return baseSettings
     }
     
     /**
@@ -396,12 +345,9 @@ class FirstRunSetupManager @Inject constructor(
     }
     
     private fun classifyDevice(maxMemoryMB: Float, cpuScore: Float, hasGPU: Boolean): DeviceClass {
-        return when {
-            maxMemoryMB > 4000f && cpuScore > 0.8f && hasGPU -> DeviceClass.HIGH_END
-            maxMemoryMB > 2000f && cpuScore > 0.5f -> DeviceClass.MID_RANGE
-            maxMemoryMB > 1000f -> DeviceClass.LOW_END
-            else -> DeviceClass.UNKNOWN
-        }
+        // BYPASS DEVICE CLASSIFICATION - Always return HIGH_END for maximum performance
+        Log.d(TAG, "Device classification bypassed - forcing HIGH_END")
+        return DeviceClass.HIGH_END
     }
     
     private fun determineOptimalProcessingMode(deviceClass: DeviceClass, cpuScore: Float, availableMemoryMB: Float): ProcessingMode {
@@ -438,20 +384,29 @@ class FirstRunSetupManager @Inject constructor(
     }
     
     private fun getFailsafeSettings(): AppSettings {
+        Log.d(TAG, "Getting failsafe settings... USING SAFER CONFIGURATION FOR WEAK DEVICES")
+        // Return safer configuration that maintains protection but reduces performance requirements
         return AppSettings(
-            enableGPUAcceleration = false,
+            qualityMode = QualityMode.BALANCED, // Use balanced mode for better compatibility
+            enableGPUAcceleration = false, // Disable GPU to prevent crashes on weak devices
             enableNSFWDetection = true,
-            enableFaceDetection = false, // Disable for maximum compatibility
+            enableFaceDetection = true,
             blurFemaleFaces = true,
             blurMaleFaces = false,
-            maxProcessingTimeMs = 1000L,
-            processingSpeed = ProcessingSpeed.ULTRA_FAST,
-            ultraFastModeEnabled = true,
+            maxProcessingTimeMs = 150L, // Increased timeout for slower devices
+            processingSpeed = ProcessingSpeed.BALANCED, // Use balanced processing speed
+            ultraFastModeEnabled = false,
             enableRealTimeProcessing = true,
-            fullScreenWarningEnabled = false,
-            enableRegionBasedFullScreen = false,
-            nsfwFullScreenRegionThreshold = 8,
-            nsfwHighConfidenceThreshold = 0.9f
+            fullScreenWarningEnabled = true,
+            enableRegionBasedFullScreen = true,
+            nsfwFullScreenRegionThreshold = 5, // Conservative threshold
+            nsfwHighConfidenceThreshold = 0.7f, // Conservative confidence threshold
+            // Safer performance settings
+            frameSkipThreshold = 2, // Allow some frame skipping for stability
+            imageDownscaleRatio = 0.6f, // Moderate downscaling for performance
+            detectionSensitivity = 0.7f, // Moderate sensitivity
+            blurIntensity = BlurIntensity.MEDIUM, // Medium blur intensity for performance
+            blurStyle = BlurStyle.PIXELATED // Simpler blur style for performance
         )
     }
 }

@@ -906,4 +906,14 @@
     <string name="already_prayed">✅ Already Prayed</string>
     <string name="remind_later">⏰ Remind Later</string>
     
+    <!-- Gender-Based Face Detection Strings -->
+    <string name="detect_male_faces_title">Detect Male Faces</string>
+    <string name="detect_male_faces_description">Enable detection and blurring of male faces</string>
+    <string name="gender_based_detection_explanation">Gender-based detection is automatically configured based on your profile for Islamic compliance.</string>
+    <string name="islamic_compliance_male_user">Islamic Compliance: Male user - female faces will be blurred to maintain modesty.</string>
+    <string name="islamic_compliance_female_user">Islamic Compliance: Female user - male faces will be blurred to maintain modesty.</string>
+    <string name="automatic_gender_detection_active">Automatic gender-based detection is active. Settings are simplified for your convenience.</string>
+    <string name="complete_gender_setup">Complete your profile setup in the wizard to enable simplified gender-based detection settings.</string>
+    <string name="gender_not_specified_info">Gender not specified - both male and female face detection options are available.</string>
+    
 </resources>

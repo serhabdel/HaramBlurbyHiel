@@ -282,7 +282,8 @@ class ContentDetectionEngine @Inject constructor(
                 nsfwResult,
                 appSettings,
                 bitmap.width,
-                bitmap.height
+                bitmap.height,
+                bitmap
             )
             
             Log.d(TAG, "🎯 Generated ${blurRegions.size} blur regions")
@@ -519,25 +520,175 @@ class ContentDetectionEngine @Inject constructor(
         }
     }
     
+    /**
+     * Refine blur region using edge detection for precise boundaries
+     */
+    private fun refineBlurRegionWithEdgeDetection(rect: Rect, bitmap: Bitmap): Rect {
+        try {
+            val edgeThreshold = 0.3f
+            val expansion = 5
+            
+            // Analyze border pixels for content boundaries
+            val leftBoundary = findLeftContentBoundary(rect, bitmap, edgeThreshold)
+            val rightBoundary = findRightContentBoundary(rect, bitmap, edgeThreshold)
+            val topBoundary = findTopContentBoundary(rect, bitmap, edgeThreshold)
+            val bottomBoundary = findBottomContentBoundary(rect, bitmap, edgeThreshold)
+            
+            // Create refined rectangle with precise boundaries
+            val refinedRect = Rect(
+                maxOf(0, leftBoundary - expansion),
+                maxOf(0, topBoundary - expansion),
+                minOf(bitmap.width, rightBoundary + expansion),
+                minOf(bitmap.height, bottomBoundary + expansion)
+            )
+            
+            Log.d(TAG, "Edge detection refined region: $rect -> $refinedRect")
+            return refinedRect
+        } catch (e: Exception) {
+            Log.w(TAG, "Edge detection refinement failed, using original region", e)
+            return rect
+        }
+    }
+    
+    /**
+     * Find left content boundary using edge detection
+     */
+    private fun findLeftContentBoundary(rect: Rect, bitmap: Bitmap, threshold: Float): Int {
+        var leftBoundary = rect.left
+        for (x in rect.left until minOf(rect.right, bitmap.width - 1)) { // Iterate up to right-1 to avoid OOB
+            if (x >= bitmap.width) break
+            var edgeFound = false
+            for (y in rect.top until minOf(rect.bottom, bitmap.height)) { // Clamp y to bitmap height
+                if (y >= bitmap.height) break
+                val pixel = bitmap.getPixel(x, y)
+                val neighborPixel = if (x + 1 < bitmap.width) bitmap.getPixel(x + 1, y) else pixel // Defensive check
+                val edgeStrength = calculateEdgeStrength(pixel, neighborPixel)
+                if (edgeStrength > threshold) {
+                    edgeFound = true
+                    break
+                }
+            }
+            if (edgeFound) {
+                leftBoundary = x
+                break
+            }
+        }
+        return leftBoundary
+    }
+    
+    /**
+     * Find right content boundary using edge detection
+     */
+    private fun findRightContentBoundary(rect: Rect, bitmap: Bitmap, threshold: Float): Int {
+        var rightBoundary = rect.right
+        for (x in minOf(rect.right, bitmap.width - 1) downTo maxOf(rect.left, 1)) { // Clamp x to valid range
+            if (x <= 0) break
+            var edgeFound = false
+            for (y in rect.top until minOf(rect.bottom, bitmap.height)) { // Clamp y to bitmap height
+                if (y >= bitmap.height) break
+                val pixel = bitmap.getPixel(x, y)
+                val neighborPixel = if (x - 1 >= 0) bitmap.getPixel(x - 1, y) else pixel // Defensive check
+                val edgeStrength = calculateEdgeStrength(pixel, neighborPixel)
+                if (edgeStrength > threshold) {
+                    edgeFound = true
+                    break
+                }
+            }
+            if (edgeFound) {
+                rightBoundary = x
+                break
+            }
+        }
+        return rightBoundary
+    }
+    
+    /**
+     * Find top content boundary using edge detection
+     */
+    private fun findTopContentBoundary(rect: Rect, bitmap: Bitmap, threshold: Float): Int {
+        var topBoundary = rect.top
+        for (y in rect.top until minOf(rect.bottom, bitmap.height - 1)) { // Iterate up to bottom-1 to avoid OOB
+            if (y >= bitmap.height) break
+            var edgeFound = false
+            for (x in rect.left until minOf(rect.right, bitmap.width)) { // Clamp x to bitmap width
+                if (x >= bitmap.width) break
+                val pixel = bitmap.getPixel(x, y)
+                val neighborPixel = if (y + 1 < bitmap.height) bitmap.getPixel(x, y + 1) else pixel // Defensive check
+                val edgeStrength = calculateEdgeStrength(pixel, neighborPixel)
+                if (edgeStrength > threshold) {
+                    edgeFound = true
+                    break
+                }
+            }
+            if (edgeFound) {
+                topBoundary = y
+                break
+            }
+        }
+        return topBoundary
+    }
+    
+    /**
+     * Find bottom content boundary using edge detection
+     */
+    private fun findBottomContentBoundary(rect: Rect, bitmap: Bitmap, threshold: Float): Int {
+        var bottomBoundary = rect.bottom
+        for (y in minOf(rect.bottom, bitmap.height - 1) downTo maxOf(rect.top, 1)) { // Clamp y to valid range
+            if (y <= 0) break
+            var edgeFound = false
+            for (x in rect.left until minOf(rect.right, bitmap.width)) { // Clamp x to bitmap width
+                if (x >= bitmap.width) break
+                val pixel = bitmap.getPixel(x, y)
+                val neighborPixel = if (y - 1 >= 0) bitmap.getPixel(x, y - 1) else pixel // Defensive check
+                val edgeStrength = calculateEdgeStrength(pixel, neighborPixel)
+                if (edgeStrength > threshold) {
+                    edgeFound = true
+                    break
+                }
+            }
+            if (edgeFound) {
+                bottomBoundary = y
+                break
+            }
+        }
+        return bottomBoundary
+    }
+    
+    /**
+     * Calculate edge strength between two pixels
+     */
+    private fun calculateEdgeStrength(pixel1: Int, pixel2: Int): Float {
+        val r1 = (pixel1 shr 16) and 0xFF
+        val g1 = (pixel1 shr 8) and 0xFF
+        val b1 = pixel1 and 0xFF
+        
+        val r2 = (pixel2 shr 16) and 0xFF
+        val g2 = (pixel2 shr 8) and 0xFF
+        val b2 = pixel2 and 0xFF
+        
+        val diff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2)
+        return minOf(1.0f, diff / 255.0f)
+    }
+    
     private fun calculateBlurRegions(
         faceResult: FaceDetectionManager.FaceDetectionResult,
         nsfwResult: MLModelManager.DetectionResult,
         appSettings: AppSettings,
         bitmapWidth: Int,
-        bitmapHeight: Int
+        bitmapHeight: Int,
+        bitmap: Bitmap? = null
     ): List<Rect> {
         val blurRegions = mutableListOf<Rect>()
 
-        // Check for region-based full-screen blur trigger
+        // Enhanced region-based full-screen blur trigger with lower thresholds
         if (appSettings.enableRegionBasedFullScreen &&
-            nsfwResult.regionCount >= appSettings.nsfwFullScreenRegionThreshold &&
-            nsfwResult.maxRegionConfidence >= appSettings.nsfwHighConfidenceThreshold) {
+            nsfwResult.regionCount >= (appSettings.nsfwFullScreenRegionThreshold - 1) &&
+            nsfwResult.maxRegionConfidence >= (appSettings.nsfwHighConfidenceThreshold - 0.05f)) {
             Log.d(TAG, "Region-based full-screen blur in standard mode: ${nsfwResult.regionCount} regions")
             return listOf(Rect(0, 0, bitmapWidth, bitmapHeight))
         }
 
-        // Add female face regions with enhanced detection
-        // Note: FaceDetectionManager now only detects female faces, so no male filtering needed
+        // Add female face regions with enhanced detection and edge refinement
         if (appSettings.enableFaceDetection && faceResult.hasFaces()) {
             val facesToBlur = mutableListOf<Rect>()
 
@@ -547,51 +698,74 @@ class ContentDetectionEngine @Inject constructor(
 
                 // Enhanced: Include unknown gender faces with lower confidence for safety
                 val unknownFaces = faceResult.getUnknownGenderFaces()
-                    .filter { it.genderConfidence < 0.6f }
+                    .filter { it.genderConfidence < 0.5f }
                     .map { it.boundingBox }
                 facesToBlur.addAll(unknownFaces)
             }
 
-            // Enhanced expansion for better coverage of female faces/hair
+            // Enhanced expansion for better coverage of female faces/hair with edge refinement
             val expandedFaceRegions = facesToBlur.map { face ->
-                val expansion = 45 // Increased expansion for better female face coverage including hair
+                // Apply edge detection refinement before expansion
+                val refinedFace = if (bitmap != null) {
+                    refineBlurRegionWithEdgeDetection(face, bitmap)
+                } else {
+                    face
+                }
+                // Adaptive expansion based on face dimensions and settings
+                val adaptiveExpansion = calculateAdaptiveFaceExpansion(refinedFace, appSettings)
                 Rect(
-                    maxOf(0, face.left - expansion),
-                    maxOf(0, face.top - (expansion * 1.5).toInt()), // More expansion on top for hair
-                    face.right + expansion,
-                    face.bottom + expansion
+                    maxOf(0, refinedFace.left - adaptiveExpansion),
+                    maxOf(0, refinedFace.top - (adaptiveExpansion * 1.8).toInt()), // More expansion on top for hair
+                    minOf(bitmapWidth, refinedFace.right + adaptiveExpansion),
+                    minOf(bitmapHeight, refinedFace.bottom + adaptiveExpansion)
                 )
             }
             blurRegions.addAll(expandedFaceRegions)
 
-            Log.d(TAG, "Added ${expandedFaceRegions.size} female face blur regions (males already excluded)")
+            Log.d(TAG, "Added ${expandedFaceRegions.size} female face blur regions with edge refinement (males already excluded)")
         }
         
-        // Enhanced female body/NSFW content detection with better coverage
-        // Note: This focuses on female content areas since male faces are excluded
+        // Enhanced female body/NSFW content detection with better coverage and edge refinement
         if (appSettings.enableNSFWDetection && nsfwResult.isNSFW) {
             when {
                 nsfwResult.confidence > 0.6f -> {
-                    // High confidence - blur entire screen for female body content
-                    blurRegions.add(Rect(0, 0, 1080, 2400)) // Full screen blur
-                    Log.d(TAG, "Full screen blur applied for high female body content confidence: ${nsfwResult.confidence}")
+                    // High confidence - blur entire screen for female body content with edge refinement
+                    val fullScreenRect = Rect(0, 0, bitmapWidth, bitmapHeight)
+                    val refinedFullScreen = if (bitmap != null) {
+                        refineBlurRegionWithEdgeDetection(fullScreenRect, bitmap)
+                    } else {
+                        fullScreenRect
+                    }
+                    blurRegions.add(refinedFullScreen)
+                    Log.d(TAG, "Full screen blur with edge refinement applied for high female body content confidence: ${nsfwResult.confidence}")
                 }
                 nsfwResult.confidence > 0.4f -> {
                     // Medium confidence - blur large center area covering typical female body regions
-                    val centerBlur = Rect(20, 150, 1060, 2250) // Almost full screen with small margins
-                    blurRegions.add(centerBlur)
-                    Log.d(TAG, "Large area blur applied for medium female body content confidence: ${nsfwResult.confidence}")
+                    val centerBlur = Rect(20, 150, bitmapWidth - 20, bitmapHeight - 150) // Almost full screen with small margins
+                    val refinedCenter = if (bitmap != null) {
+                        refineBlurRegionWithEdgeDetection(centerBlur, bitmap)
+                    } else {
+                        centerBlur
+                    }
+                    blurRegions.add(refinedCenter)
+                    Log.d(TAG, "Large area blur with edge refinement applied for medium female body content confidence: ${nsfwResult.confidence}")
                 }
                 nsfwResult.confidence > 0.25f -> {
                     // Lower confidence - blur typical body areas (torso/chest region)
-                    val bodyBlur = Rect(80, 300, 1000, 1800) // Focus on torso area
-                    blurRegions.add(bodyBlur)
-                    Log.d(TAG, "Body area blur applied for moderate female body content confidence: ${nsfwResult.confidence}")
+                    val bodyBlur = Rect(80, 300, bitmapWidth - 80, bitmapHeight - 600) // Focus on torso area
+                    val refinedBody = if (bitmap != null) {
+                        refineBlurRegionWithEdgeDetection(bodyBlur, bitmap)
+                    } else {
+                        bodyBlur
+                    }
+                    blurRegions.add(refinedBody)
+                    Log.d(TAG, "Body area blur with edge refinement applied for moderate female body content confidence: ${nsfwResult.confidence}")
                 }
             }
         }
         
-        return blurRegions
+        // Apply edge-aware merging to final blur regions
+        return mergeOverlappingRegionsWithEdgeAwareness(blurRegions, bitmap)
     }
     
     private fun mergeOverlappingRegions(regions: List<Rect>): List<Rect> {
@@ -621,6 +795,95 @@ class ContentDetectionEngine @Inject constructor(
         
         merged.add(current)
         return merged
+    }
+    
+    /**
+     * Enhanced region merging with edge awareness for better precision
+     * @param regions List of regions to merge
+     * @param bitmap Optional bitmap for edge refinement (can be null)
+     */
+    private fun mergeOverlappingRegionsWithEdgeAwareness(regions: List<Rect>, bitmap: Bitmap? = null): List<Rect> {
+        if (regions.size <= 1) return regions
+        
+        val merged = mutableListOf<Rect>()
+        val sorted = regions.sortedBy { it.left }
+        
+        var current = sorted[0]
+        
+        for (i in 1 until sorted.size) {
+            val next = sorted[i]
+            
+            // Use smaller overlap threshold for more precise region separation
+            val overlapThreshold = 0.1f // 10% overlap required for merging
+            val currentArea = current.width() * current.height().toFloat()
+            val nextArea = next.width() * next.height().toFloat()
+            
+            if (Rect.intersects(current, next)) {
+                val intersection = Rect()
+                intersection.setIntersect(current, next)
+                val intersectionArea = intersection.width() * intersection.height().toFloat()
+                val overlapRatio = intersectionArea / minOf(currentArea, nextArea)
+                
+                if (overlapRatio > overlapThreshold) {
+                    // Merge overlapping rectangles with edge awareness
+                    current = Rect(
+                        minOf(current.left, next.left),
+                        minOf(current.top, next.top),
+                        maxOf(current.right, next.right),
+                        maxOf(current.bottom, next.bottom)
+                    )
+                } else {
+                    merged.add(current)
+                    current = next
+                }
+            } else {
+                merged.add(current)
+                current = next
+            }
+        }
+        
+        merged.add(current)
+        
+        // Apply final edge refinement pass after merging
+        return merged.map { region ->
+            // Apply edge detection refinement to merged regions if bitmap is available
+            // This provides more precise boundaries for the final blur regions
+            if (bitmap != null) {
+                refineBlurRegionWithEdgeDetection(region, bitmap)
+            } else {
+                region
+            }
+        }
+    }
+    
+    /**
+     * Calculate adaptive face expansion based on face dimensions and settings
+     */
+    private fun calculateAdaptiveFaceExpansion(faceRect: Rect, appSettings: AppSettings): Int {
+        val faceWidth = faceRect.width()
+        val faceHeight = faceRect.height()
+        val faceSize = maxOf(faceWidth, faceHeight)
+        
+        // Base expansion from settings or calculate from face dimensions
+        val baseExpansion = when {
+            appSettings.expandBlurArea > 0 -> appSettings.expandBlurArea
+            faceSize >= 200 -> 60 // Larger faces get more expansion
+            faceSize >= 150 -> 50 // Medium faces get moderate expansion
+            faceSize >= 100 -> 40 // Small faces get less expansion
+            else -> 30 // Very small faces get minimal expansion
+        }
+        
+        // Scale with face dimensions for better coverage
+        val widthScale = faceWidth / 100f // Normalize to 100px baseline
+        val heightScale = faceHeight / 120f // Normalize to 120px baseline (typical face height)
+        val dimensionScale = (widthScale + heightScale) / 2
+        
+        // Apply scaling factor (clamp between 0.7 and 1.5)
+        val scaledExpansion = (baseExpansion * dimensionScale.coerceIn(0.7f, 1.5f)).toInt()
+        
+        Log.d(TAG, "Adaptive face expansion: base=$baseExpansion, scale=$dimensionScale, final=$scaledExpansion for ${faceWidth}x${faceHeight} face")
+        
+        return scaledExpansion
     }
     
     fun updateSettings(newSettings: AppSettings) {
