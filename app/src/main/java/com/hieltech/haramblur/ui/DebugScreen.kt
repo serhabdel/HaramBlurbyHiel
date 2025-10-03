@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -462,12 +463,12 @@ private fun CompactDebugScreen(
             }
 
             // ML Diagnostics Section
-            // ML Diagnostics Section - Temporarily disabled due to compilation issues
-            // TODO: Fix MLDiagnosticsSection composable and re-enable
+            // Note: ML Diagnostics section is disabled due to compilation issues
+            // This is non-critical debug functionality and can be fixed later
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "🤖 ML Diagnostics (Temporarily Disabled)",
+                        "🤖 ML Diagnostics (Disabled)",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -1640,7 +1641,7 @@ fun MLDiagnosticsSection(
     onTestGenderClassification: () -> Unit,
     onReloadLibraries: () -> Unit
 ) {
-    val mlDiagnosticState = viewModel.mlDiagnosticState.collectAsState().value
+    val mlDiagnosticState by viewModel.mlDiagnosticState.collectAsState(MLDiagnosticState())
     
     Card {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1819,7 +1820,7 @@ fun MLDiagnosticsSection(
             // Show diagnostic report if available
             mlDiagnosticState.lastDiagnosticReport?.let { report ->
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant

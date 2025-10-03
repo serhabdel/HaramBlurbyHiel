@@ -35,7 +35,8 @@ import androidx.compose.ui.tooling.preview.Preview
 fun MainScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
-    viewModel: MainViewModel = hiltViewModel()
+    viewModel: MainViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val serviceRunning by viewModel.serviceRunning.collectAsState()
@@ -219,14 +220,14 @@ fun MainScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
-                                onClick = { /* TODO: Implement optimal settings */ },
+                                onClick = { settingsViewModel.applyOptimalSettings() },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(stringResource(R.string.optimal))
                             }
 
                             Button(
-                                onClick = { /* TODO: Implement reset settings */ },
+                                onClick = { settingsViewModel.resetToDefaults() },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(stringResource(R.string.reset))

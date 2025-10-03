@@ -165,11 +165,12 @@ class MLModelManager @Inject constructor(
             // Initialize fast NSFW model optimized for ultra-fast processing
             val options = gpuAccelerationManager.createFastInferenceOptions()
             
-            // TODO: Load quantized/optimized model for fast inference
-            Log.d(TAG, "Fast NSFW model placeholder initialized")
+            // Note: Fast NSFW model not yet implemented - falls back to standard model with lower resolution
+            // To implement: create quantized version of NSFW model using TFLite Model Optimizer
+            Log.d(TAG, "Fast NSFW model not implemented - using standard model with optimized settings")
             
         } catch (e: IOException) {
-            Log.e(TAG, "Error loading fast NSFW model", e)
+            Log.e(TAG, "Error initializing fast NSFW model", e)
         }
     }
     
@@ -603,12 +604,25 @@ class MLModelManager @Inject constructor(
             val outputBuffer = ByteBuffer.allocateDirect(4 * 2) // 2 classes: male, female
             outputBuffer.order(ByteOrder.nativeOrder())
             
-            // TODO: Run actual model inference when model file is available
-            // For now, simulate model output
-            val simulatedOutput = simulateGenderModelOutput(face, bitmap)
-            
-            val maleConfidence = simulatedOutput[0]
-            val femaleConfidence = simulatedOutput[1]
+            // Run actual gender model inference
+            val (maleConfidence, femaleConfidence) = if (genderInterpreter != null && isGenderModelReady) {
+                try {
+                    genderInterpreter?.run(inputBuffer, outputBuffer)
+                    outputBuffer.rewind()
+                    val male = outputBuffer.getFloat()
+                    val female = outputBuffer.getFloat()
+                    Log.d(TAG, "Gender model inference: male=$male, female=$female")
+                    Pair(male, female)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Gender model inference failed, using heuristics", e)
+                    val simulated = simulateGenderModelOutput(face, bitmap)
+                    Pair(simulated[0], simulated[1])
+                }
+            } else {
+                Log.d(TAG, "Gender model not ready, using heuristics")
+                val simulated = simulateGenderModelOutput(face, bitmap)
+                Pair(simulated[0], simulated[1])
+            }
             
             val gender = when {
                 maleConfidence > femaleConfidence && maleConfidence > GENDER_CONFIDENCE_THRESHOLD -> Gender.MALE

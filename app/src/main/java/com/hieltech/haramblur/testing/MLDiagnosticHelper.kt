@@ -4,9 +4,14 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
 import android.util.Log
+import com.google.mlkit.vision.common.InputImage
 import com.hieltech.haramblur.ml.FaceDetectionManager
 import com.hieltech.haramblur.ml.MLModelManager
 import com.hieltech.haramblur.detection.Gender
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,7 +21,8 @@ import javax.inject.Singleton
 @Singleton
 class MLDiagnosticHelper @Inject constructor(
     private val mlModelManager: MLModelManager,
-    private val faceDetectionManager: FaceDetectionManager
+    private val faceDetectionManager: FaceDetectionManager,
+    private val context: Context
 ) {
     
     companion object {
@@ -26,59 +32,61 @@ class MLDiagnosticHelper @Inject constructor(
     /**
      * Generate comprehensive ML diagnostic report
      */
-    fun generateDiagnosticReport(): MLDiagnosticReport {
+    suspend fun generateDiagnosticReport(): MLDiagnosticReport {
         Log.d(TAG, "Generating comprehensive ML diagnostic report...")
-        
-        return try {
-            val mlModelInfo = mlModelManager.getDiagnosticInfo()
-            val faceDetectionTest = testFaceDetectionWithSample()
-            val genderClassificationTest = testGenderClassificationWithSample()
-            val modelFileStatus = verifyModelFiles()
-            val nativeLibraryStatus = checkNativeLibraries()
-            val deviceInfo = getDeviceInformation()
-            
-            MLDiagnosticReport(
-                timestamp = System.currentTimeMillis(),
-                mlModelStatus = mlModelInfo,
-                faceDetectionTest = faceDetectionTest,
-                genderClassificationTest = genderClassificationTest,
-                modelFileStatus = modelFileStatus,
-                nativeLibraryStatus = nativeLibraryStatus,
-                deviceInfo = deviceInfo,
-                overallHealth = calculateOverallHealth(
-                    mlModelInfo,
-                    faceDetectionTest,
-                    genderClassificationTest,
-                    modelFileStatus,
-                    nativeLibraryStatus
+
+        return withContext(Dispatchers.IO) {
+            try {
+                val mlModelInfo = mlModelManager.getDiagnosticInfo()
+                val faceDetectionTest = testFaceDetectionWithSample()
+                val genderClassificationTest = testGenderClassificationWithSample()
+                val modelFileStatus = verifyModelFiles()
+                val nativeLibraryStatus = checkNativeLibraries()
+                val deviceInfo = getDeviceInformation()
+
+                MLDiagnosticReport(
+                    timestamp = System.currentTimeMillis(),
+                    mlModelStatus = mlModelInfo,
+                    faceDetectionTest = faceDetectionTest,
+                    genderClassificationTest = genderClassificationTest,
+                    modelFileStatus = modelFileStatus,
+                    nativeLibraryStatus = nativeLibraryStatus,
+                    deviceInfo = deviceInfo,
+                    overallHealth = calculateOverallHealth(
+                        mlModelInfo,
+                        faceDetectionTest,
+                        genderClassificationTest,
+                        modelFileStatus,
+                        nativeLibraryStatus
+                    )
                 )
-            )
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error generating diagnostic report", e)
-            MLDiagnosticReport(
-                timestamp = System.currentTimeMillis(),
-                mlModelStatus = null,
-                faceDetectionTest = FaceDetectionTestResult(
-                    success = false,
-                    facesDetected = 0,
-                    processingTimeMs = 0,
-                    mlKitStatus = "ERROR",
-                    errorMessage = e.message
-                ),
-                genderClassificationTest = GenderDetectionTestResult(
-                    success = false,
-                    mlModelGender = null,
-                    heuristicGender = null,
-                    mlModelConfidence = 0f,
-                    heuristicConfidence = 0f,
-                    errorMessage = e.message
-                ),
-                modelFileStatus = ModelFileStatus(false, emptyList(), "Error during diagnosis"),
-                nativeLibraryStatus = NativeLibraryStatus(false, emptyList(), "Error during diagnosis"),
-                deviceInfo = getDeviceInformation(),
-                overallHealth = HealthStatus.CRITICAL
-            )
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error generating diagnostic report", e)
+                MLDiagnosticReport(
+                    timestamp = System.currentTimeMillis(),
+                    mlModelStatus = null,
+                    faceDetectionTest = FaceDetectionTestResult(
+                        success = false,
+                        facesDetected = 0,
+                        processingTimeMs = 0,
+                        mlKitStatus = "ERROR",
+                        errorMessage = e.message
+                    ),
+                    genderClassificationTest = GenderDetectionTestResult(
+                        success = false,
+                        mlModelGender = null,
+                        heuristicGender = null,
+                        mlModelConfidence = 0f,
+                        heuristicConfidence = 0f,
+                        errorMessage = e.message
+                    ),
+                    modelFileStatus = ModelFileStatus(false, emptyList(), "Error during diagnosis"),
+                    nativeLibraryStatus = NativeLibraryStatus(false, emptyList(), "Error during diagnosis"),
+                    deviceInfo = getDeviceInformation(),
+                    overallHealth = HealthStatus.CRITICAL
+                )
+            }
         }
     }
     
@@ -120,7 +128,7 @@ class MLDiagnosticHelper @Inject constructor(
                 facesDetected = result.facesDetected,
                 processingTimeMs = processingTime,
                 mlKitStatus = if (result.success) "SUCCESS" else "NO_FACES_DETECTED",
-                errorMessage = if (!result.success) result.errorMessage else null
+                errorMessage = if (!result.success) "Face detection failed" else null
             )
             
         } catch (e: Exception) {
@@ -371,9 +379,7 @@ class MLDiagnosticHelper @Inject constructor(
     // Helper methods
     
     private fun getApplicationContext(): Context {
-        // This would need to be injected or obtained from the application
-        // For now, return a dummy context - in real implementation, inject Application context
-        throw UnsupportedOperationException("Application context must be injected")
+        return context
     }
     
     private fun getAssetFileSize(context: Context, fileName: String): Long {
@@ -547,6 +553,20 @@ enum class HealthStatus {
     DEGRADED,   // Significant issues affecting performance
     CRITICAL    // Major system failures
 }
+
+/**
+ * ML Diagnostic state for UI display
+ */
+data class MLDiagnosticState(
+    val tensorFlowLiteAvailable: Boolean = false,
+    val mlKitAvailable: Boolean = false,
+    val fallbackMode: Boolean = false,
+    val lastDiagnosticReport: MLDiagnosticReport? = null,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val deviceInfo: Map<String, Any> = emptyMap(),
+    val lastError: String? = null
+)
 
 /**
  * Gender detection result (placeholder - should be imported from detection package)

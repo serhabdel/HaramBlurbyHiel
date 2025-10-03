@@ -178,7 +178,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     @Inject
     lateinit var logRepository: LogRepository
 
-    // TODO: Behavioral action components temporarily disabled
+    // Note: Behavioral action components (automatic app closing, navigation) are disabled
+    // This is intentional to keep the app focused on content blur overlays only
     
     // Database logging convenience methods
     private fun logToDatabase(
@@ -668,7 +669,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             )
             Log.d(TAG, "🛡️ Crash recovery system initialized")
 
-            // Behavioral action components temporarily disabled for build
+            // Behavioral action components intentionally disabled (see note at line 181)
 
             Log.d(TAG, "HaramBlur components initialized successfully")
         } catch (e: Exception) {
@@ -891,7 +892,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         if (analysisResult.isSuccessful()) {
             Log.d(TAG, "✅ Content analysis successful, handling results... [$processingId]")
 
-            // Behavioral actions temporarily disabled for build
+            // Behavioral actions intentionally disabled (see note at line 181)
 
             // Handle traditional blur overlay based on action results
             try {

@@ -27,6 +27,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 import com.hieltech.haramblur.testing.MLDiagnosticHelper
+import com.hieltech.haramblur.testing.MLDiagnosticState
 import com.hieltech.haramblur.HaramBlurApplication
 
 @HiltViewModel
@@ -111,37 +112,160 @@ class DebugViewModel @Inject constructor(
                     recommendedAction = com.hieltech.haramblur.detection.ContentAction.SELECTIVE_BLUR,
                     nsfwRegionCount = if (actionType == "EMERGENCY_BLUR") 8 else 2,
                     maxNsfwConfidence = if (actionType == "EMERGENCY_BLUR") 0.9f else 0.7f,
-                    nsfwRegionRects = emptyList(),
-                    triggeredByRegionCount = actionType == "EMERGENCY_BLUR"
+                )
+            } catch (e: Exception) {
+                addDebugLog(TAG, "Action test failed: ${e.message}", "ERROR")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Action test failed: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Generate comprehensive ML diagnostic report
+     */
+    fun generateMLDiagnosticReport() {
+        addDebugLog(TAG, "Generating ML diagnostic report...")
+        viewModelScope.launch {
+            try {
+                _mlDiagnosticState.value = _mlDiagnosticState.value.copy(isLoading = true)
+
+                // Get ML capability status from application
+                val app = context.applicationContext as? HaramBlurApplication
+                val mlStatus = app?.getMLCapabilityStatus()
+
+                // Generate comprehensive diagnostic report
+                val report = mlDiagnosticHelper.generateDiagnosticReport()
+
+                _mlDiagnosticState.value = _mlDiagnosticState.value.copy(
+                    tensorFlowLiteAvailable = mlStatus?.tensorFlowLiteAvailable ?: false,
+                    mlKitAvailable = mlStatus?.mlKitAvailable ?: false,
+                    fallbackMode = mlStatus?.fallbackMode ?: false,
+                    deviceInfo = mlStatus?.deviceInfo ?: emptyMap(),
+                    lastDiagnosticReport = report,
+                    isLoading = false,
+                    lastError = null
                 )
 
-                // TODO: Behavioral actions temporarily disabled for build
-                // Create a simple mock result
-                val actionResult = object {
-                    val executedActions = listOf(
-                        object {
-                            val success = true
-                            val message = "Action simulated successfully"
-                        }
-                    )
-                    val successCount = 1
-                    val failureCount = 0
-                }
-
-                val resultSummary = "Executed ${actionResult.executedActions.size} actions, " +
-                    "${actionResult.successCount} successful, ${actionResult.failureCount} failed"
-
-                addDebugLog(TAG, "Action test result: $resultSummary")
-
-                // Update the debug state with the result
+                addDebugLog(TAG, "ML diagnostic report generated successfully")
                 _debugState.value = _debugState.value.copy(
-                    lastActionResult = resultSummary
+                    lastActionResult = "ML diagnostic report generated - Overall Health: ${report.overallHealth}"
                 )
 
             } catch (e: Exception) {
-                addDebugLog(TAG, "Action test failed: ${e.message}")
+                addDebugLog(TAG, "Failed to generate ML diagnostic report: ${e.message}", "ERROR")
+                _mlDiagnosticState.value = _mlDiagnosticState.value.copy(
+                    isLoading = false,
+                    lastError = e.message
+                )
                 _debugState.value = _debugState.value.copy(
-                    lastActionResult = "Failed: ${e.message}"
+                    lastActionResult = "Failed to generate ML diagnostic report: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Test face detection functionality
+     */
+    fun testFaceDetection() {
+        addDebugLog(TAG, "Testing face detection functionality...")
+        viewModelScope.launch {
+            try {
+                val result = faceDetectionManager.testFaceDetection()
+
+                addDebugLog(TAG, "Face detection test completed: ${result?.facesDetected} faces detected in ${result?.processingTimeMs}ms")
+
+                val status = if (result?.success == true) {
+                    "✅ Face detection working - ${result.facesDetected} faces detected"
+                } else {
+                    "❌ Face detection failed - ${result?.errorMessage}"
+                }
+
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = status
+                )
+
+            } catch (e: Exception) {
+                addDebugLog(TAG, "Face detection test failed: ${e.message}", "ERROR")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Face detection test failed: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Test gender classification functionality
+     */
+    fun testGenderClassification() {
+        addDebugLog(TAG, "Testing gender classification functionality...")
+        viewModelScope.launch {
+            try {
+                val result = mlDiagnosticHelper.testGenderClassificationWithSample()
+
+                addDebugLog(TAG, "Gender classification test completed - ML: ${result.mlModelGender} (${result.mlModelConfidence}), Heuristic: ${result.heuristicGender} (${result.heuristicConfidence})")
+
+                val status = if (result.success) {
+                    "✅ Gender classification working - ML: ${result.mlModelGender}, Heuristic: ${result.heuristicGender}"
+                } else {
+                    "❌ Gender classification failed - ${result.errorMessage}"
+                }
+
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = status
+                )
+
+            } catch (e: Exception) {
+                addDebugLog(TAG, "Gender classification test failed: ${e.message}", "ERROR")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "Gender classification test failed: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Reload ML libraries
+     */
+    fun reloadMLLibraries() {
+        addDebugLog(TAG, "Reloading ML libraries...")
+        viewModelScope.launch {
+            try {
+                // Test native library loading
+                val libraries = listOf(
+                    "tensorflowlite_jni",
+                    "tensorflowlite_gpu_jni",
+                    "face_detector_v2_jni"
+                )
+
+                val results = mutableListOf<String>()
+                libraries.forEach { libName ->
+                    try {
+                        System.loadLibrary(libName)
+                        results.add("✅ $libName")
+                    } catch (e: UnsatisfiedLinkError) {
+                        results.add("❌ $libName: ${e.message}")
+                    }
+                }
+
+                addDebugLog(TAG, "ML library reload completed: ${results.joinToString(", ")}")
+
+                val status = if (results.any { it.startsWith("✅") }) {
+                    "✅ ML libraries reloaded - ${results.count { it.startsWith("✅") }}/${libraries.size} successful"
+                } else {
+                    "❌ All ML library reloads failed"
+                }
+
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = status
+                )
+
+            } catch (e: Exception) {
+                addDebugLog(TAG, "ML library reload failed: ${e.message}", "ERROR")
+                _debugState.value = _debugState.value.copy(
+                    lastActionResult = "ML library reload failed: ${e.message}"
                 )
             }
         }
