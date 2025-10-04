@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -71,6 +72,9 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -298,120 +302,184 @@ private fun CoreProtectionSection(
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                // Gender-based face detection toggles
+                // Smart gender-based protection status (no manual toggles)
                 when (settings.userGender) {
                     UserGender.MALE -> {
-                        // Male users: Only show female face detection
-                        EnhancedSwitchSetting(
-                            title = stringResource(R.string.detect_female_faces_title),
-                            description = stringResource(R.string.detect_female_faces_description),
-                            checked = settings.blurFemaleFaces,
-                            onCheckedChange = viewModel::updateFemaleBlur
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        // Show explanatory text for male users
+                        // Male users: Clean status card, automatic behavior
                         Surface(
-                            tonalElevation = 0.dp,
+                            tonalElevation = 2.dp,
                             shape = MaterialTheme.shapes.medium,
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.islamic_compliance_male_user),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = stringResource(R.string.automatic_gender_detection_active),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "🧔",
+                                            style = MaterialTheme.typography.titleLarge
+                                        )
+                                        Text(
+                                            text = "Male Profile Active",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Female faces and inappropriate content are automatically blurred for Islamic modesty. All detections happen privately on your device.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    )
+                                }
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.CheckCircle,
+                                    contentDescription = "Active",
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
                     }
+                    
                     UserGender.FEMALE -> {
-                        // Female users: Only show male face detection
-                        EnhancedSwitchSetting(
-                            title = stringResource(R.string.detect_male_faces_title),
-                            description = stringResource(R.string.detect_male_faces_description),
-                            checked = settings.blurMaleFaces,
-                            onCheckedChange = viewModel::updateMaleBlur
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        // Show explanatory text for female users
+                        // Female users: Clean status card, automatic behavior
                         Surface(
-                            tonalElevation = 0.dp,
-                            shape = MaterialTheme.shapes.medium,
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.islamic_compliance_female_user),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = stringResource(R.string.automatic_gender_detection_active),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                    }
-                    UserGender.NOT_SPECIFIED -> {
-                        // Gender not specified: Show both toggles with explanation
-                        EnhancedSwitchSetting(
-                            title = stringResource(R.string.detect_female_faces_title),
-                            description = stringResource(R.string.detect_female_faces_description),
-                            checked = settings.blurFemaleFaces,
-                            onCheckedChange = viewModel::updateFemaleBlur
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        EnhancedSwitchSetting(
-                            title = stringResource(R.string.detect_male_faces_title),
-                            description = stringResource(R.string.detect_male_faces_description),
-                            checked = settings.blurMaleFaces,
-                            onCheckedChange = viewModel::updateMaleBlur
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        // Show explanatory text for users with unspecified gender
-                        Surface(
-                            tonalElevation = 0.dp,
+                            tonalElevation = 2.dp,
                             shape = MaterialTheme.shapes.medium,
                             color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "👩",
+                                            style = MaterialTheme.typography.titleLarge
+                                        )
+                                        Text(
+                                            text = "Female Profile Active",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Male faces and inappropriate content are automatically blurred for Islamic modesty. All detections happen privately on your device.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                    )
+                                }
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.CheckCircle,
+                                    contentDescription = "Active",
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        }
+                    }
+                    
+                    UserGender.NOT_SPECIFIED -> {
+                        // Gender not specified: Show helpful prompt to complete profile
+                        Surface(
+                            tonalElevation = 2.dp,
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = androidx.compose.material.icons.Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                        modifier = Modifier.height(32.dp).width(32.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Complete Your Profile",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                        Text(
+                                            text = "Set your gender to enable smart, automatic content filtering based on Islamic modesty guidelines.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                }
+                                
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f)
+                                )
+                                
                                 Text(
-                                    text = stringResource(R.string.gender_not_specified_info),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    text = "Temporary Manual Controls",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f),
                                     fontWeight = FontWeight.Medium
                                 )
-                                Text(
-                                    text = stringResource(R.string.complete_gender_setup),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
+                                
+                                // Simplified toggles as fallback (less prominent)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Blur female faces",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    androidx.compose.material3.Switch(
+                                        checked = settings.blurFemaleFaces,
+                                        onCheckedChange = viewModel::updateFemaleBlur
+                                    )
+                                }
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Blur male faces",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    androidx.compose.material3.Switch(
+                                        checked = settings.blurMaleFaces,
+                                        onCheckedChange = viewModel::updateMaleBlur
+                                    )
+                                }
                             }
                         }
                     }

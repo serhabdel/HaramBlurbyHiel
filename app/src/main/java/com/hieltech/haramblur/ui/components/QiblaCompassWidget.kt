@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -85,24 +86,38 @@ fun QiblaCompassWidget(
         onRetry?.invoke()
     }) {
         Card(
-            modifier = modifier.clip(RoundedCornerShape(16.dp)),
+            modifier = modifier,
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
-            )
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(responsiveSpacing()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(responsiveCardPadding())
+                modifier = Modifier.padding(20.dp)
             ) {
-                // Enhanced header with icon
+                // Enhanced header with gradient background
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.05f)
+                                )
+                            )
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = "🧭",
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.headlineMedium
                     )
                     Text(
                         text = stringResource(id = R.string.qibla_direction_title),
@@ -124,7 +139,7 @@ fun QiblaCompassWidget(
                     )
                 }
 
-                // Sensor accuracy hint
+                // Sensor accuracy hint - Enhanced display
                 val accText = when (state.compassState.sensorAccuracy) {
                     SensorAccuracy.UNRELIABLE -> stringResource(R.string.qibla_accuracy_unreliable)
                     SensorAccuracy.LOW -> stringResource(R.string.qibla_accuracy_low)
@@ -132,11 +147,36 @@ fun QiblaCompassWidget(
                     SensorAccuracy.HIGH -> stringResource(R.string.qibla_accuracy_high)
                     SensorAccuracy.UNAVAILABLE -> stringResource(R.string.qibla_accuracy_unavailable)
                 }
-                AssistChip(
-                    onClick = {},
-                    label = { Text(accText) },
-                    leadingIcon = null
-                )
+                val accColor = when (state.compassState.sensorAccuracy) {
+                    SensorAccuracy.HIGH -> MaterialTheme.colorScheme.primary
+                    SensorAccuracy.MEDIUM -> MaterialTheme.colorScheme.tertiary
+                    SensorAccuracy.LOW -> Color(0xFFFF9800)
+                    else -> MaterialTheme.colorScheme.error
+                }
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = accColor.copy(alpha = 0.1f)
+                    )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "📡",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Accuracy: $accText",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = accColor
+                        )
+                    }
+                }
             }
         }
     }
@@ -177,19 +217,33 @@ private fun CompassDial(
 
     val aligned = kotlin.math.abs(state.compassState.angleToQibla) <= alignmentToleranceDeg
 
-    Box(
-        modifier = Modifier
-            .size(dialSize)
-            .clip(RoundedCornerShape(999.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .semantics {
-                contentDescription = IslamicFeaturesAccessibility.contentDescriptionForQibla(
-                    angleTo = state.compassState.angleToQibla,
-                    aligned = aligned
-                )
-            },
-        contentAlignment = Alignment.Center
+    Card(
+        modifier = Modifier.size(dialSize),
+        shape = RoundedCornerShape(999.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface,
+                            MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                )
+                .semantics {
+                    contentDescription = IslamicFeaturesAccessibility.contentDescriptionForQibla(
+                        angleTo = state.compassState.angleToQibla,
+                        aligned = aligned
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
         Canvas(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             val drawWidth = size.width
             val drawHeight = size.height
@@ -264,24 +318,50 @@ private fun CompassDial(
             drawLine(color = Color.Red, start = right, end = tip, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
         }
 
-        // Alignment banner
-        if (aligned) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 8.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.qibla_aligned),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            // Alignment banner - Enhanced design
+            if (aligned) {
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = "✓",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.qibla_aligned),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+                // Accessibility announcement when aligned
+                IslamicFeaturesAccessibility.announce(stringResource(R.string.qibla_aligned))
             }
-            // Accessibility announcement when aligned
-            IslamicFeaturesAccessibility.announce(stringResource(R.string.qibla_aligned))
         }
     }
 }

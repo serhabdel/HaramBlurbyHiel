@@ -241,19 +241,22 @@ class SettingsViewModel @Inject constructor(
             val (blurMale, blurFemale) = when (gender) {
                 com.hieltech.haramblur.data.UserGender.MALE -> {
                     // Males should have female faces blurred, but may see male faces
+                    Log.d("SettingsViewModel", "🧔 Applying MALE profile: blur female faces only")
                     false to true
                 }
                 com.hieltech.haramblur.data.UserGender.FEMALE -> {
                     // Females should have male faces blurred, but may see female faces
+                    Log.d("SettingsViewModel", "👩 Applying FEMALE profile: blur male faces only")
                     true to false
                 }
                 com.hieltech.haramblur.data.UserGender.NOT_SPECIFIED -> {
                     // Safest option: blur all faces
+                    Log.d("SettingsViewModel", "⚠️ Gender NOT_SPECIFIED: blur all faces as safest option")
                     true to true
                 }
             }
             
-            settingsRepository.updateSettings(current.copy(
+            val updated = current.copy(
                 userGender = gender,
                 blurMaleFaces = blurMale,
                 blurFemaleFaces = blurFemale,
@@ -261,9 +264,25 @@ class SettingsViewModel @Inject constructor(
                 enableFaceDetection = true,
                 enableNSFWDetection = true,
                 detectionSensitivity = 0.8f
-            ))
+            )
             
-            logRepository.logInfo("Gender settings updated: $gender, blur male: $blurMale, blur female: $blurFemale", "SettingsViewModel")
+            Log.d("SettingsViewModel", "💾 Saving gender settings to repository...")
+            settingsRepository.updateSettings(updated)
+            
+            // Verify persistence after a short delay
+            kotlinx.coroutines.delay(200)
+            val verified = settingsRepository.getCurrentSettings()
+            
+            if (verified.userGender != gender) {
+                Log.e("SettingsViewModel", "❌ CRITICAL: Gender persistence FAILED!")
+                Log.e("SettingsViewModel", "   Expected: $gender, Got: ${verified.userGender}")
+                logRepository.logError("SettingsViewModel", "Gender not persisted correctly: expected $gender, got ${verified.userGender}", null)
+            } else {
+                Log.d("SettingsViewModel", "✅ Gender persistence verified successfully: $gender")
+                Log.d("SettingsViewModel", "   Blur settings - Male: $blurMale, Female: $blurFemale")
+            }
+            
+            logRepository.logInfo("Gender settings updated and verified: $gender, blur male: $blurMale, blur female: $blurFemale", "SettingsViewModel")
         }
     }
     

@@ -31,6 +31,7 @@ class MoroccanLocationHelper {
         MoroccanCity("Nador", 35.1681, -2.9287, "Oriental"),
         MoroccanCity("Taza", 34.2133, -4.0103, "Fès-Meknès"),
         MoroccanCity("Settat", 33.0013, -7.6216, "Casablanca-Settat"),
+        MoroccanCity("Sidi Bennour", 32.6489, -8.4269, "Casablanca-Settat"),
         MoroccanCity("Larache", 35.1932, -6.1563, "Tanger-Tétouan-Al Hoceïma"),
         MoroccanCity("Ksar El Kebir", 35.0017, -5.9008, "Tanger-Tétouan-Al Hoceïma"),
         MoroccanCity("Khemisset", 33.8244, -6.0661, "Rabat-Salé-Kénitra"),
