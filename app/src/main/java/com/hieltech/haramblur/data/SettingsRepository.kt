@@ -68,6 +68,11 @@ class SettingsRepository @Inject constructor(
             blurMaleFaces = prefs.getBoolean("blur_male_faces", true),
             blurFemaleFaces = prefs.getBoolean("blur_female_faces", true),
             detectionSensitivity = prefs.getFloat("detection_sensitivity", 0.8f),
+            userGender = try {
+                UserGender.valueOf(prefs.getString("user_gender", UserGender.NOT_SPECIFIED.name)!!)
+            } catch (e: Exception) {
+                UserGender.NOT_SPECIFIED // Fallback to NOT_SPECIFIED on error
+            },
             
             // Blur Settings
             blurIntensity = BlurIntensity.valueOf(prefs.getString("blur_intensity", BlurIntensity.MEDIUM.name)!!),
@@ -375,6 +380,7 @@ class SettingsRepository @Inject constructor(
             putBoolean("blur_male_faces", settings.blurMaleFaces)
             putBoolean("blur_female_faces", settings.blurFemaleFaces)
             putFloat("detection_sensitivity", settings.detectionSensitivity)
+            putString("user_gender", settings.userGender.name) // CRITICAL: Save gender preference
             
             // Blur Settings
             putString("blur_intensity", settings.blurIntensity.name)
