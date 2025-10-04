@@ -400,84 +400,36 @@ private fun CoreProtectionSection(
                     }
                     
                     UserGender.NOT_SPECIFIED -> {
-                        // Gender not specified: Show helpful prompt to complete profile
+                        // Production mode: Force users to complete wizard - NO manual controls
                         Surface(
                             tonalElevation = 2.dp,
                             shape = MaterialTheme.shapes.medium,
-                            color = MaterialTheme.colorScheme.tertiaryContainer
+                            color = MaterialTheme.colorScheme.errorContainer
                         ) {
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = androidx.compose.material.icons.Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                        modifier = Modifier.height(32.dp).width(32.dp)
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Complete Your Profile",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                                        )
-                                        Text(
-                                            text = "Set your gender to enable smart, automatic content filtering based on Islamic modesty guidelines.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
-                                        )
-                                    }
-                                }
-                                
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f)
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.height(32.dp).width(32.dp)
                                 )
-                                
-                                Text(
-                                    text = "Temporary Manual Controls",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f),
-                                    fontWeight = FontWeight.Medium
-                                )
-                                
-                                // Simplified toggles as fallback (less prominent)
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Blur female faces",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        text = "Gender Required",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
                                     )
-                                    androidx.compose.material3.Switch(
-                                        checked = settings.blurFemaleFaces,
-                                        onCheckedChange = viewModel::updateFemaleBlur
-                                    )
-                                }
-                                
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
                                     Text(
-                                        text = "Blur male faces",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
-                                    androidx.compose.material3.Switch(
-                                        checked = settings.blurMaleFaces,
-                                        onCheckedChange = viewModel::updateMaleBlur
+                                        text = "Smart protection requires gender selection. Please complete the initial setup wizard to enable automatic content filtering.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
                                     )
                                 }
                             }
