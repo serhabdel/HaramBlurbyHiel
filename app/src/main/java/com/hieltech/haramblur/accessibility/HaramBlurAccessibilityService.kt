@@ -263,7 +263,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private var lastBitmapHash: String? = null
     private var consecutiveNSFWCount = 0
     private var consecutiveCleanCount = 0
-    private val requiredConsecutiveDetections = 1 // Immediate response for safety
+    private val requiredConsecutiveDetections = 2 // Require 2 consecutive detections for stability
     
     // Adaptive learning system
     private var adaptiveNSFWThreshold = 0.4f // Start lower, adapt based on content
@@ -1250,12 +1250,15 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             Log.d(TAG, "✅ Clean content count: $consecutiveCleanCount")
         }
         
-        // Immediate blur for safety - no consecutive requirements for unsafe content
+        // Apply blur based on consecutive detection count for stability
         val shouldShowBlur = when {
-            // IMMEDIATE blur for any inappropriate content
-            shouldBlurBasedOnContent -> {
+            // Show blur after required consecutive detections
+            shouldBlurBasedOnContent && consecutiveNSFWCount >= requiredConsecutiveDetections -> {
                 if (!isCurrentlyBlurred) {
-                    Log.d(TAG, "🛑 ⚡ IMMEDIATE BLUR TRIGGERED - Safety first!")
+                    Log.w(TAG, "🛑 ⚡ BLUR TRIGGERED - $consecutiveNSFWCount consecutive detections!")
+                    Log.w(TAG, "   Blur regions: ${result.blurRegions.size}")
+                    Log.w(TAG, "   Face detection: ${hasFemaleFaces}")
+                    Log.w(TAG, "   NSFW detection: ${hasNSFWContent}")
                     isCurrentlyBlurred = true
                     lastBlurStartTime = currentTime
                 }
@@ -1374,20 +1377,28 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
             if (preciseRegions.isNotEmpty()) {
-                // Create blur regions with metadata for debounced updates
-                val blurRegionsWithMeta = BlurRegionWithMeta(
-                    regions = preciseRegions,
-                    intensity = settings.blurIntensity,
-                    style = settings.blurStyle,
-                    confidence = result.maxNsfwConfidence,
-                    timestamp = currentTime
-                )
-                
-                // Schedule debounced blur update
-                blurUpdateDebouncer?.scheduleUpdate(blurRegionsWithMeta) { update ->
-                    blurOverlayManager.updateBlurRegionsSmooth(update.regions)
+                Log.w(TAG, "🎯 ===== ACTIVATING BLUR OVERLAY =====")
+                Log.w(TAG, "   Screen: ${screenWidth}x${screenHeight}")
+                Log.w(TAG, "   Regions: ${preciseRegions.size}")
+                preciseRegions.forEachIndexed { index, rect ->
+                    Log.w(TAG, "   Region $index: ($rect.left, $rect.top) -> ($rect.right, $rect.bottom) [${rect.width()}x${rect.height()}]")
                 }
-                Log.d(TAG, "🎯 PRECISION BLUR: ${preciseRegions.size} targeted regions (screen: ${screenWidth}x${screenHeight})")
+                Log.w(TAG, "   Intensity: ${settings.blurIntensity}")
+                Log.w(TAG, "   Style: ${settings.blurStyle}")
+                Log.w(TAG, "=====================================")
+                
+                try {
+                    blurOverlayManager.showBlurOverlay(
+                        blurRegions = preciseRegions,
+                        blurIntensity = settings.blurIntensity,
+                        blurStyle = settings.blurStyle,
+                        contentSensitivity = result.nsfwDetectionResult?.confidence ?: 0.5f,
+                        smoothTransition = settings.enableSmoothBlurAnimations
+                    )
+                    Log.w(TAG, "✅ Blur overlay showBlurOverlay() called successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ CRITICAL: Failed to show blur overlay", e)
+                }
             } else {
                 Log.d(TAG, "⚠️ No valid precision regions - blur skipped")
                 blurOverlayManager.hideBlurOverlay()

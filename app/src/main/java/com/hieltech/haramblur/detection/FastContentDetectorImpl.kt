@@ -73,11 +73,16 @@ class FastContentDetectorImpl @Inject constructor(
                 
                 // Determine if we need to reduce quality for performance
                 val shouldReduceQuality = shouldReduceQuality(settings)
+                val downscaleRatio = if (shouldReduceQuality) currentPerformanceMode.imageDownscaleRatio else 1.0f
                 val processedBitmap = if (shouldReduceQuality) {
-                    downscaleBitmap(bitmap, currentPerformanceMode.imageDownscaleRatio)
+                    downscaleBitmap(bitmap, downscaleRatio)
                 } else {
                     bitmap
                 }
+                
+                // Track original bitmap dimensions for coordinate scaling
+                val originalWidth = bitmap.width
+                val originalHeight = bitmap.height
                 
                 // Perform multi-threaded detection
                 val detectionJobs = mutableListOf<Deferred<*>>()
@@ -129,7 +134,26 @@ class FastContentDetectorImpl @Inject constructor(
 
                 // Combine results and make blur decision
                 val shouldBlur = determineBlurDecisionFast(faceResult, nsfwResult, skinToneResult, settings)
-                val blurRegions = calculateBlurRegionsFast(faceResult, nsfwResult, processedBitmap, settings, regionAnalysis)
+                
+                // CRITICAL FIX: Pass original dimensions to calculateBlurRegionsFast
+                // This ensures any region calculations use original bitmap size, not downscaled
+                val blurRegionsDownscaled = calculateBlurRegionsFast(
+                    faceResult, 
+                    nsfwResult, 
+                    processedBitmap, 
+                    settings, 
+                    regionAnalysis,
+                    originalWidth,
+                    originalHeight
+                )
+                
+                // CRITICAL FIX: Scale blur regions back to original bitmap coordinates
+                val blurRegions = if (shouldReduceQuality && downscaleRatio < 1.0f) {
+                    scaleRegionsToOriginalSize(blurRegionsDownscaled, downscaleRatio, originalWidth, originalHeight)
+                } else {
+                    blurRegionsDownscaled
+                }
+                
                 val contentType = determineContentType(faceResult, nsfwResult, skinToneResult)
                 val confidence = calculateOverallConfidence(faceResult, nsfwResult, skinToneResult)
                 
@@ -471,11 +495,17 @@ class FastContentDetectorImpl @Inject constructor(
     private fun calculateBlurRegionsFast(
         faceResult: FaceDetectionManager.FaceDetectionResult,
         nsfwResult: MLModelManager.DetectionResult,
-        bitmap: Bitmap,
+        bitmap: Bitmap,  // This is the DOWNSCALED bitmap for edge detection
         settings: AppSettings,
-        regionAnalysis: FastRegionAnalysis
+        regionAnalysis: FastRegionAnalysis,
+        originalWidth: Int,  // CRITICAL: Original bitmap dimensions
+        originalHeight: Int  // CRITICAL: Original bitmap dimensions
     ): List<Rect> {
         val regions = mutableListOf<Rect>()
+        
+        // Use downscaled bitmap dimensions for edge detection
+        val bitmapWidth = bitmap.width
+        val bitmapHeight = bitmap.height
 
         // Check for region-based full-screen blur trigger with lower thresholds for maximum accuracy
         if (settings.enableRegionBasedFullScreen &&
@@ -483,45 +513,64 @@ class FastContentDetectorImpl @Inject constructor(
             regionAnalysis.maxConfidence >= (settings.nsfwHighConfidenceThreshold - 0.05f)) {
             // Trigger full-screen blur due to high region count with lower thresholds
             Log.d(TAG, "Region-based full-screen blur triggered: ${regionAnalysis.regionCount} regions with max confidence ${regionAnalysis.maxConfidence}")
-            return listOf(Rect(0, 0, bitmap.width, bitmap.height))
+            // Return full screen in DOWNSCALED coordinates (will be scaled up later)
+            return listOf(Rect(0, 0, bitmapWidth, bitmapHeight))
         }
 
         // Add face regions with enhanced expansion for better coverage
+        // IMPORTANT: Face bounding boxes are already in downscaled coordinates
         if (settings.enableFaceDetection && faceResult.hasFaces()) {
             faceResult.detectedFaces.forEach { face ->
+                // Face boundingBox is in downscaled coordinates, use for edge detection
                 val expandedRect = expandRectWithEdgeDetection(face.boundingBox, 30, bitmap)
                 regions.add(expandedRect)
+                Log.d(TAG, "   Face region (downscaled): [${expandedRect.left},${expandedRect.top}-${expandedRect.right},${expandedRect.bottom}]")
             }
         }
         
-        // Add NSFW regions based on confidence with enhanced precision
-        if (settings.enableNSFWDetection && nsfwResult.isNSFW) {
-            when {
-                nsfwResult.confidence > 0.6f -> {
-                    // Full screen blur with refined edges for high confidence
-                    val fullScreenRect = Rect(0, 0, bitmap.width, bitmap.height)
-                    val refinedRect = applyFastEdgeDetection(fullScreenRect, bitmap)
-                    regions.add(refinedRect)
-                }
-                nsfwResult.confidence > 0.4f -> {
-                    // Center region blur with refined edges
-                    val margin = bitmap.width / 12
-                    val centerRect = Rect(margin, margin, bitmap.width - margin, bitmap.height - margin)
-                    val refinedRect = applyFastEdgeDetection(centerRect, bitmap)
-                    regions.add(refinedRect)
-                }
-                nsfwResult.confidence > 0.25f -> {
-                    // Middle section blur with refined edges
-                    val marginX = bitmap.width / 10
-                    val marginY = bitmap.height / 10
-                    val middleRect = Rect(marginX, marginY, bitmap.width - marginX, bitmap.height - marginY)
-                    val refinedRect = applyFastEdgeDetection(middleRect, bitmap)
-                    regions.add(refinedRect)
-                }
-            }
-        }
+        // REMOVED: Large screen-wide NSFW regions - they will be created in ContentDetectionEngine
+        // This function should only return face regions from downscaled detection
+        // NSFW regions from nsfwResult.regionRects will be handled separately
         
         return regions
+    }
+    
+    /**
+     * CRITICAL FIX: Scale blur regions from downscaled coordinates back to original screen coordinates
+     * This fixes the bug where blurs appeared in wrong positions
+     */
+    private fun scaleRegionsToOriginalSize(
+        regions: List<Rect>,
+        downscaleRatio: Float,
+        originalWidth: Int,
+        originalHeight: Int
+    ): List<Rect> {
+        if (regions.isEmpty() || downscaleRatio >= 1.0f) {
+            return regions
+        }
+        
+        val scaleUpFactor = 1.0f / downscaleRatio
+        
+        return regions.map { rect ->
+            val scaledLeft = (rect.left * scaleUpFactor).toInt()
+            val scaledTop = (rect.top * scaleUpFactor).toInt()
+            val scaledRight = (rect.right * scaleUpFactor).toInt()
+            val scaledBottom = (rect.bottom * scaleUpFactor).toInt()
+            
+            // Ensure coordinates don't exceed original bounds
+            Rect(
+                maxOf(0, scaledLeft),
+                maxOf(0, scaledTop),
+                minOf(originalWidth, scaledRight),
+                minOf(originalHeight, scaledBottom)
+            )
+        }.also {
+            Log.d(TAG, "🎯 COORDINATE FIX: Scaled ${regions.size} regions from downscaled (${downscaleRatio}x) back to original ${originalWidth}x${originalHeight}")
+            regions.forEachIndexed { index, original ->
+                val scaled = it[index]
+                Log.d(TAG, "   Region $index: [${original.left},${original.top}-${original.right},${original.bottom}] → [${scaled.left},${scaled.top}-${scaled.right},${scaled.bottom}]")
+            }
+        }
     }
     
     private fun expandRect(rect: Rect, expansion: Int): Rect {

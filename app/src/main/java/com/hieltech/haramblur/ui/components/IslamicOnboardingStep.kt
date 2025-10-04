@@ -249,7 +249,7 @@ fun IslamicOnboardingStep(
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = "Using Muslim World League method (18° Fajr, 17° Isha) - same as Morocco's official calculation",
+                                    text = "Using Morocco Ministry method (18° Fajr, 17° Isha) - official calculation method",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -420,9 +420,9 @@ fun IslamicOnboardingStep(
                     settingsViewModel.updateIslamicCalendarEnabled(true)
                     settingsViewModel.updateQiblaDirectionEnabled(true)
 
-                    // Set Muslim World League method if user is in Morocco (same as Morocco's official method)
+                    // Set Morocco Ministry method if user is in Morocco (official method)
                     if (isInMorocco) {
-                        settingsViewModel.updateCalculationMethod(PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE.id)
+                        settingsViewModel.updateCalculationMethod(PrayerCalculationMethod.MOROCCO_MINISTRY.id)
                     }
 
                     // Save location settings using LocationMethod

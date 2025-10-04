@@ -711,13 +711,13 @@ class ContentDetectionEngine @Inject constructor(
                 } else {
                     face
                 }
-                // Adaptive expansion based on face dimensions and settings
+                // SMART BLUR: Adaptive expansion with reduced top expansion for precision
                 val adaptiveExpansion = calculateAdaptiveFaceExpansion(refinedFace, appSettings)
                 Rect(
                     maxOf(0, refinedFace.left - adaptiveExpansion),
-                    maxOf(0, refinedFace.top - (adaptiveExpansion * 1.8).toInt()), // More expansion on top for hair
+                    maxOf(0, refinedFace.top - (adaptiveExpansion * 1.3).toInt()), // Reduced from 1.8 to 1.3 for top
                     minOf(bitmapWidth, refinedFace.right + adaptiveExpansion),
-                    minOf(bitmapHeight, refinedFace.bottom + adaptiveExpansion)
+                    minOf(bitmapHeight, refinedFace.bottom + (adaptiveExpansion * 0.8).toInt()) // Slightly less at bottom
                 )
             }
             blurRegions.addAll(expandedFaceRegions)
@@ -725,41 +725,64 @@ class ContentDetectionEngine @Inject constructor(
             Log.d(TAG, "Added ${expandedFaceRegions.size} female face blur regions with edge refinement (males already excluded)")
         }
         
-        // Enhanced female body/NSFW content detection with better coverage and edge refinement
+        // SMART TARGETED NSFW BLUR - Use detected regions instead of large screen areas
         if (appSettings.enableNSFWDetection && nsfwResult.isNSFW) {
-            when {
-                nsfwResult.confidence > 0.6f -> {
-                    // High confidence - blur entire screen for female body content with edge refinement
-                    val fullScreenRect = Rect(0, 0, bitmapWidth, bitmapHeight)
-                    val refinedFullScreen = if (bitmap != null) {
-                        refineBlurRegionWithEdgeDetection(fullScreenRect, bitmap)
-                    } else {
-                        fullScreenRect
+            // Check if we have specific NSFW regions from the detection
+            if (nsfwResult.regionCount > 0 && nsfwResult.regionRects.isNotEmpty()) {
+                // TARGETED BLUR: Use actual detected regions instead of blanket screen blur
+                val targetedRegions = nsfwResult.regionRects.mapNotNull { detectedRect ->
+                    // Apply modest expansion to detected regions (not huge screen areas)
+                    val expansion = when {
+                        nsfwResult.confidence > 0.6f -> 40 // High confidence: moderate expansion
+                        nsfwResult.confidence > 0.4f -> 30 // Medium confidence: small expansion
+                        else -> 20 // Low confidence: minimal expansion
                     }
-                    blurRegions.add(refinedFullScreen)
-                    Log.d(TAG, "Full screen blur with edge refinement applied for high female body content confidence: ${nsfwResult.confidence}")
+                    
+                    val expandedRect = Rect(
+                        maxOf(0, detectedRect.left - expansion),
+                        maxOf(0, detectedRect.top - expansion),
+                        minOf(bitmapWidth, detectedRect.right + expansion),
+                        minOf(bitmapHeight, detectedRect.bottom + expansion)
+                    )
+                    
+                    // Only include regions that are meaningful in size
+                    if (expandedRect.width() > 30 && expandedRect.height() > 30) {
+                        // Apply edge refinement to targeted region
+                        if (bitmap != null) {
+                            refineBlurRegionWithEdgeDetection(expandedRect, bitmap)
+                        } else {
+                            expandedRect
+                        }
+                    } else {
+                        null
+                    }
                 }
-                nsfwResult.confidence > 0.4f -> {
-                    // Medium confidence - blur large center area covering typical female body regions
-                    val centerBlur = Rect(20, 150, bitmapWidth - 20, bitmapHeight - 150) // Almost full screen with small margins
-                    val refinedCenter = if (bitmap != null) {
-                        refineBlurRegionWithEdgeDetection(centerBlur, bitmap)
-                    } else {
-                        centerBlur
+                
+                blurRegions.addAll(targetedRegions)
+                Log.d(TAG, "Smart targeted blur: ${targetedRegions.size} NSFW regions with ${nsfwResult.confidence} confidence")
+                
+            } else {
+                // FALLBACK: Only if no specific regions detected, use confidence-based areas
+                when {
+                    nsfwResult.confidence > 0.7f -> {
+                        // Very high confidence - blur center 80% of screen
+                        val margin = (bitmapWidth * 0.1f).toInt()
+                        val topMargin = (bitmapHeight * 0.15f).toInt()
+                        val bottomMargin = (bitmapHeight * 0.15f).toInt()
+                        val centerBlur = Rect(margin, topMargin, bitmapWidth - margin, bitmapHeight - bottomMargin)
+                        blurRegions.add(centerBlur)
+                        Log.d(TAG, "Fallback: Center area blur for very high confidence: ${nsfwResult.confidence}")
                     }
-                    blurRegions.add(refinedCenter)
-                    Log.d(TAG, "Large area blur with edge refinement applied for medium female body content confidence: ${nsfwResult.confidence}")
-                }
-                nsfwResult.confidence > 0.25f -> {
-                    // Lower confidence - blur typical body areas (torso/chest region)
-                    val bodyBlur = Rect(80, 300, bitmapWidth - 80, bitmapHeight - 600) // Focus on torso area
-                    val refinedBody = if (bitmap != null) {
-                        refineBlurRegionWithEdgeDetection(bodyBlur, bitmap)
-                    } else {
-                        bodyBlur
+                    nsfwResult.confidence > 0.5f -> {
+                        // High confidence - blur center 60% of screen
+                        val margin = (bitmapWidth * 0.2f).toInt()
+                        val topMargin = (bitmapHeight * 0.2f).toInt()
+                        val bottomMargin = (bitmapHeight * 0.2f).toInt()
+                        val centerBlur = Rect(margin, topMargin, bitmapWidth - margin, bitmapHeight - bottomMargin)
+                        blurRegions.add(centerBlur)
+                        Log.d(TAG, "Fallback: Center area blur for high confidence: ${nsfwResult.confidence}")
                     }
-                    blurRegions.add(refinedBody)
-                    Log.d(TAG, "Body area blur with edge refinement applied for moderate female body content confidence: ${nsfwResult.confidence}")
+                    // Lower confidence: Don't add any region (rely on face detection only)
                 }
             }
         }
@@ -864,18 +887,19 @@ class ContentDetectionEngine @Inject constructor(
         val faceHeight = faceRect.height()
         val faceSize = maxOf(faceWidth, faceHeight)
         
-        // Base expansion from settings or calculate from face dimensions
+        // SMART BLUR: Reduced expansion for more precise targeting
+        // Base expansion from settings or calculate from face dimensions (reduced by ~40%)
         val baseExpansion = when {
-            appSettings.expandBlurArea > 0 -> appSettings.expandBlurArea
-            faceSize >= 200 -> 60 // Larger faces get more expansion
-            faceSize >= 150 -> 50 // Medium faces get moderate expansion
-            faceSize >= 100 -> 40 // Small faces get less expansion
-            else -> 30 // Very small faces get minimal expansion
+            appSettings.expandBlurArea > 0 -> (appSettings.expandBlurArea * 0.6f).toInt() // Use 60% of setting
+            faceSize >= 200 -> 35 // Larger faces: reduced from 60 to 35
+            faceSize >= 150 -> 25 // Medium faces: reduced from 50 to 25
+            faceSize >= 100 -> 20 // Small faces: reduced from 40 to 20
+            else -> 15 // Very small faces: reduced from 30 to 15
         }
         
-        // Scale with face dimensions for better coverage
-        val widthScale = faceWidth / 100f // Normalize to 100px baseline
-        val heightScale = faceHeight / 120f // Normalize to 120px baseline (typical face height)
+        // Scale with face dimensions for better coverage (reduced multiplier)
+        val widthScale = faceWidth / 150f // Increased baseline from 100 to 150 (reduces expansion)
+        val heightScale = faceHeight / 180f // Increased baseline from 120 to 180 (reduces expansion)
         val dimensionScale = (widthScale + heightScale) / 2
         
         // Apply scaling factor (clamp between 0.7 and 1.5)

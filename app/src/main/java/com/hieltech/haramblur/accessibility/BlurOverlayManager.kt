@@ -359,8 +359,14 @@ class BlurOverlayManager @Inject constructor(
                 }
                 
                 if (scaledRegions.isEmpty()) {
-                    Log.w(TAG, "No valid scaled regions - skipping blur overlay")
+                    Log.w(TAG, "❌ No valid scaled regions - skipping blur overlay")
                     return@launch
+                }
+                
+                Log.w(TAG, "✅ Creating BlurOverlayView with ${scaledRegions.size} regions")
+                Log.w(TAG, "   Screen resolution: ${screenWidth}x${screenHeight}")
+                scaledRegions.forEachIndexed { index, rect ->
+                    Log.w(TAG, "   Scaled region $index: [${rect.left},${rect.top}] to [${rect.right},${rect.bottom}] = ${rect.width()}x${rect.height()}")
                 }
                 
                 overlayView = BlurOverlayView(
@@ -372,7 +378,11 @@ class BlurOverlayManager @Inject constructor(
                     userTransparency,
                     isFullScreen = false,
                     screenWidth = screenWidth,
-                    screenHeight = screenHeight
+                    screenHeight = screenHeight,
+                    triggeredByRegionCount = false,
+                    regionCount = 0,
+                    maxConfidence = 0.0f,
+                    appSettings = currentSettings
                 )
                 
                 val params = WindowManager.LayoutParams(
@@ -400,7 +410,10 @@ class BlurOverlayManager @Inject constructor(
                 
                 if (success) {
                     isOverlayVisible = true
-                    Log.d(TAG, "🎯 PRECISION BLUR: ${scaledRegions.size} regions on ${screenWidth}x${screenHeight} screen")
+                    Log.w(TAG, "✅✅✅ BLUR OVERLAY SUCCESSFULLY ADDED TO WINDOW MANAGER ✅✅✅")
+                    Log.w(TAG, "🎯 PRECISION BLUR: ${scaledRegions.size} regions on ${screenWidth}x${screenHeight} screen")
+                    Log.w(TAG, "   Overlay visible flag: $isOverlayVisible")
+                    Log.w(TAG, "   Overlay view attached: ${overlayView?.isAttachedToWindow}")
                     
                     // Apply smooth fade-in animation if enabled
                     if (smoothTransition && settingsRepository.settings.value.enableSmoothBlurAnimations) {
@@ -1015,16 +1028,21 @@ class BlurOverlayManager @Inject constructor(
                 
                 Log.d(TAG, "Creating full-screen blur - Region trigger: $triggeredByRegionCount, Count: $regionCount, Max confidence: $maxConfidence")
 
+                val currentSettings = settingsRepository.settings.value
                 overlayView = BlurOverlayView(
                     context!!,
                     listOf(fullScreenRect),
                     BlurIntensity.MAXIMUM,
                     BlurStyle.COMBINED,
-                    1.0f, // Maximum sensitivity for full-screen
+                    1.0f, // contentSensitivity
+                    1.0f, // transparency
                     isFullScreen = true,
+                    screenWidth = displayMetrics.widthPixels,
+                    screenHeight = displayMetrics.heightPixels,
                     triggeredByRegionCount = triggeredByRegionCount,
                     regionCount = regionCount,
-                    maxConfidence = maxConfidence
+                    maxConfidence = maxConfidence,
+                    appSettings = currentSettings
                 )
                 
                 val params = WindowManager.LayoutParams(
@@ -1630,7 +1648,9 @@ class BlurOverlayManager @Inject constructor(
         // Region-based trigger information
         private val triggeredByRegionCount: Boolean = false,
         private val regionCount: Int = 0,
-        private val maxConfidence: Float = 0.0f
+        private val maxConfidence: Float = 0.0f,
+        // Pass app settings once to avoid memory leak
+        private val appSettings: com.hieltech.haramblur.data.AppSettings
     ) : View(context) {
 
         // Public property to check if this is a full screen blur
@@ -1717,8 +1737,7 @@ class BlurOverlayManager @Inject constructor(
                     )
                     
                     if (boundedRect.width() > 0 && boundedRect.height() > 0) {
-                        // Apply enhanced precision blur with user settings and new blur optimization settings
-                        val currentSettings = com.hieltech.haramblur.data.SettingsRepository(context!!).settings.value
+                        // Apply enhanced precision blur with passed settings (NO MEMORY LEAK!)
                         enhancedBlurEffects.applyEnhancedBlur(
                             canvas,
                             boundedRect,
@@ -1727,17 +1746,17 @@ class BlurOverlayManager @Inject constructor(
                             contentSensitivity, // Use passed sensitivity
                             enableEdgeRefinement = true,
                             enableAntiAliasing = true,
-                            precision = currentSettings.blurBoundaryPrecision,
-                            enableBlurEdgeRefinement = currentSettings.enableBlurEdgeRefinement,
-                            blurEdgeAntiAliasing = currentSettings.blurEdgeAntiAliasing,
-                            blurBoundaryPrecision = currentSettings.blurBoundaryPrecision,
-                            enableBlurFrameRateLimiting = currentSettings.enableBlurFrameRateLimiting,
-                            maxBlurRegionsPerFrame = currentSettings.maxBlurRegionsPerFrame,
-                            enableBlurRegionInterpolation = currentSettings.enableBlurRegionInterpolation,
-                            blurAnimationDuration = currentSettings.blurAnimationDuration
+                            precision = appSettings.blurBoundaryPrecision,
+                            enableBlurEdgeRefinement = appSettings.enableBlurEdgeRefinement,
+                            blurEdgeAntiAliasing = appSettings.blurEdgeAntiAliasing,
+                            blurBoundaryPrecision = appSettings.blurBoundaryPrecision,
+                            enableBlurFrameRateLimiting = appSettings.enableBlurFrameRateLimiting,
+                            maxBlurRegionsPerFrame = appSettings.maxBlurRegionsPerFrame,
+                            enableBlurRegionInterpolation = appSettings.enableBlurRegionInterpolation,
+                            blurAnimationDuration = appSettings.blurAnimationDuration
                         )
                         
-                        // Add precision border for debugging (remove in production)
+                        // Add precision border for debugging
                         drawPrecisionBorder(canvas, boundedRect)
                     }
                 }
@@ -1941,26 +1960,8 @@ class BlurOverlayManager @Inject constructor(
             val centerY = rect.centerY().toFloat()
 
             // Draw exclamation mark
-            val textPaint = Paint().apply {
-                isAntiAlias = true
-                color = Color.WHITE
-                alpha = 255
-                textSize = 36f
-                textAlign = Paint.Align.CENTER
-            }
-
-            canvas.drawText("!", centerX, centerY - 140f, textPaint)
-
-            // Draw "Multiple NSFW Regions" text
-            val messagePaint = Paint().apply {
-                isAntiAlias = true
-                color = Color.parseColor("#FFCCCC") // Light red text
-                alpha = 200
-                textSize = 24f
-                textAlign = Paint.Align.CENTER
-            }
-
-            canvas.drawText("Multiple NSFW Regions Detected", centerX, centerY - 80f, messagePaint)
+            // Text overlays removed for cleaner UI per user request
+            // Users found "Multiple NSFW Regions Detected" text annoying
         }
         
         private fun drawStrongBlurEffect(canvas: Canvas, rect: Rect) {

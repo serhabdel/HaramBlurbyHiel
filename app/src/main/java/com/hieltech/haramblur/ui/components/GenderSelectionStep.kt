@@ -25,7 +25,16 @@ fun GenderSelectionStep(
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     onGenderSelected: () -> Unit = {}
 ) {
-    var selectedGender by remember { mutableStateOf<UserGender?>(null) }
+    // Initialize with persisted value from settings
+    val currentSettings by settingsViewModel.settings.collectAsState()
+    val initialGender = remember(currentSettings.userGender) {
+        if (currentSettings.userGender != UserGender.NOT_SPECIFIED) {
+            currentSettings.userGender
+        } else {
+            null
+        }
+    }
+    var selectedGender by remember { mutableStateOf<UserGender?>(initialGender) }
     
     Column(
         modifier = Modifier

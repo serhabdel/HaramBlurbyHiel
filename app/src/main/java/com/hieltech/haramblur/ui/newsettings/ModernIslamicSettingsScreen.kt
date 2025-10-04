@@ -328,6 +328,60 @@ private fun PrayerTimesSection(
                     selectedCountry = settings.selectedCountry ?: settings.preferredCountry,
                     onCitySelected = viewModel::updateSelectedCity
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Prayer Calculation Method Selector
+                EnhancedRadioGroup(
+                    title = "Prayer Calculation Method",
+                    options = listOf(
+                        "Muslim World League" to "18° Fajr, 17° Isha - Widely used internationally",
+                        "ISNA (North America)" to "15° Fajr, 15° Isha - Optimized for North America",
+                        "Egyptian General Authority" to "19.5° Fajr, 17.5° Isha - Egypt's official method",
+                        "Umm al-Qura (Makkah)" to "18.5° Fajr, 90 min after Maghrib - Saudi Arabia",
+                        "Morocco Ministry" to "18° Fajr, 17° Isha - Morocco's official method",
+                        "University of Karachi" to "18° Fajr, 18° Isha - Pakistan and India",
+                        "Gulf Region" to "19.5° Fajr, 90 min after Maghrib - Gulf countries",
+                        "Kuwait" to "18° Fajr, 17.5° Isha - Kuwait official",
+                        "Qatar" to "18° Fajr, 90 min after Maghrib - Qatar official",
+                        "Singapore (MUIS)" to "20° Fajr, 18° Isha - Singapore and Malaysia",
+                        "Institute of Geophysics (Tehran)" to "17.7° Fajr, 14° Isha - Iran",
+                        "Turkey (Diyanet)" to "18° Fajr, 17° Isha - Turkey official"
+                    ),
+                    selectedIndex = when (settings.prayerCalculationMethod) {
+                        3 -> 0  // Muslim World League
+                        2 -> 1  // ISNA
+                        5 -> 2  // Egyptian General Authority
+                        4 -> 3  // Umm al-Qura
+                        15 -> 4 // Morocco Ministry
+                        1 -> 5  // University of Karachi
+                        8 -> 6  // Gulf Region
+                        9 -> 7  // Kuwait
+                        10 -> 8 // Qatar
+                        11 -> 9 // Singapore
+                        7 -> 10 // Institute of Geophysics
+                        13 -> 11 // Turkey
+                        else -> 0 // Default to Muslim World League
+                    },
+                    onSelectionChange = { index ->
+                        val methodId = when (index) {
+                            0 -> 3  // Muslim World League
+                            1 -> 2  // ISNA
+                            2 -> 5  // Egyptian General Authority
+                            3 -> 4  // Umm al-Qura
+                            4 -> 15 // Morocco Ministry
+                            5 -> 1  // University of Karachi
+                            6 -> 8  // Gulf Region
+                            7 -> 9  // Kuwait
+                            8 -> 10 // Qatar
+                            9 -> 11 // Singapore
+                            10 -> 7 // Institute of Geophysics
+                            11 -> 13 // Turkey
+                            else -> 3 // Default to Muslim World League
+                        }
+                        viewModel.updateCalculationMethod(methodId)
+                    }
+                )
             }
         }
     }
