@@ -1,5 +1,6 @@
 package com.hieltech.haramblur.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,7 +23,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hieltech.haramblur.ui.SettingsViewModel
 import androidx.compose.animation.AnimatedVisibility
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.GlobalScope
 
 data class LanguageOption(
     val code: String,
@@ -53,13 +53,14 @@ fun LanguageSelectionStep(
     
     // Get current language from settings
     val settings by settingsViewModel.settings.collectAsState()
-    var selectedLanguage by remember { mutableStateOf(
-        languages.find { it.appLanguage == settings.preferredLanguage } ?: languages.first()
-    ) }
+    val coroutineScope = rememberCoroutineScope()
     
-    // Loading state for language persistence
-    var isSaving by remember { mutableStateOf(false) }
+    // State for selected language
+    var selectedLanguage by remember { mutableStateOf(
+        languages.find { it.code == settings.preferredLanguage.code } ?: languages[0]
+    ) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSaving by remember { mutableStateOf(false) }
     
     Column(
         modifier = Modifier
@@ -189,8 +190,10 @@ fun LanguageSelectionStep(
                     errorMessage = null
                     
                     // Use coroutine to handle language update with proper error handling
-                    kotlinx.coroutines.GlobalScope.launch {
+                    coroutineScope.launch {
                         try {
+                            Log.d("LanguageSelector", "🔄 Starting language persistence for ${selectedLanguage.appLanguage.displayName}")
+                            
                             // Use the enhanced method with result and suppress recreation for wizard flow
                             val success = settingsViewModel.updatePreferredLanguageWithResult(
                                 selectedLanguage.appLanguage,
@@ -198,16 +201,33 @@ fun LanguageSelectionStep(
                             )
                             
                             if (success) {
+                                Log.d("LanguageSelector", "✅ Language persistence successful: ${selectedLanguage.appLanguage.displayName}")
                                 // Mark language step as complete
                                 viewModel.completeLanguageSelection()
                                 onLanguageSelected()
                             } else {
-                                // Handle failure case
-                                errorMessage = "Failed to save language. Please try again."
-                                isSaving = false
+                                // Handle failure case with retry
+                                Log.w("LanguageSelector", "❌ First attempt failed for ${selectedLanguage.appLanguage.displayName}, retrying...")
+                                kotlinx.coroutines.delay(500) // Brief delay before retry
+                                
+                                val retrySuccess = settingsViewModel.updatePreferredLanguageWithResult(
+                                    selectedLanguage.appLanguage,
+                                    suppressRecreation = true
+                                )
+                                
+                                if (retrySuccess) {
+                                    Log.d("LanguageSelector", "✅ Language persistence successful on retry: ${selectedLanguage.appLanguage.displayName}")
+                                    viewModel.completeLanguageSelection()
+                                    onLanguageSelected()
+                                } else {
+                                    Log.e("LanguageSelector", "❌ Language persistence failed after retry for ${selectedLanguage.appLanguage.displayName}")
+                                    errorMessage = "Failed to save language after retry. Please try again."
+                                    isSaving = false
+                                }
                             }
                         } catch (e: Exception) {
-                            // Handle exception case
+                            // Handle exception case with detailed logging
+                            Log.e("LanguageSelector", "❌ Exception during language save for ${selectedLanguage.appLanguage.displayName}", e)
                             errorMessage = "Error saving language: ${e.message}"
                             isSaving = false
                         }

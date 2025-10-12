@@ -618,11 +618,11 @@ class SettingsRepository @Inject constructor(
         return try {
             val updated = _settings.value.copy(preferredLanguage = language)
             _settings.value = updated
-            
+
             // First attempt
             var success = prefs.edit().putString("preferred_language", language.name).commit()
             Log.d(TAG, "persistPreferredLanguageSyncWithResult first attempt: ${language.name}, success: $success")
-            
+
             // Retry logic: single retry on failure
             if (!success) {
                 Log.w(TAG, "First language persistence attempt failed, retrying...")
@@ -630,7 +630,7 @@ class SettingsRepository @Inject constructor(
                 success = prefs.edit().putString("preferred_language", language.name).commit()
                 Log.d(TAG, "persistPreferredLanguageSyncWithResult retry attempt: ${language.name}, success: $success")
             }
-            
+
             // Verification: read-back and ensure it matches
             if (success) {
                 val verified = try {
@@ -644,7 +644,7 @@ class SettingsRepository @Inject constructor(
                     Log.e(TAG, "Error verifying language persistence", e)
                     false
                 }
-                
+
                 Log.d(TAG, "Language persistence verification: $verified for ${language.name}")
                 verified
             } else {
@@ -652,7 +652,102 @@ class SettingsRepository @Inject constructor(
                 false
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error persisting language: ${language.name}", e)
+            Log.e(TAG, "Exception in persistPreferredLanguageSyncWithResult", e)
+            false
+        }
+    }
+
+    /**
+     * Synchronously persist gender and related blur settings with verification.
+     * This method uses commit() instead of apply() to ensure immediate persistence
+     * and includes retry logic and read-back verification.
+     *
+     * @param gender The user's gender
+     * @param blurMaleFaces Whether to blur male faces
+     * @param blurFemaleFaces Whether to blur female faces
+     * @return true if persistence was verified successful, false otherwise
+     */
+    fun persistGenderSyncWithResult(
+        gender: UserGender,
+        blurMaleFaces: Boolean,
+        blurFemaleFaces: Boolean
+    ): Boolean {
+        return try {
+            // Update in-memory StateFlow first
+            val updated = _settings.value.copy(
+                userGender = gender,
+                blurMaleFaces = blurMaleFaces,
+                blurFemaleFaces = blurFemaleFaces,
+                enableFaceDetection = true,
+                enableNSFWDetection = true
+            )
+            _settings.value = updated
+
+            // First attempt - synchronous commit
+            var success = prefs.edit()
+                .putString("user_gender", gender.name)
+                .putBoolean("blur_male_faces", blurMaleFaces)
+                .putBoolean("blur_female_faces", blurFemaleFaces)
+                .putBoolean("enable_face_detection", true)
+                .putBoolean("enable_nsfw_detection", true)
+                .commit()
+
+            Log.d(TAG, "persistGenderSyncWithResult first attempt: gender=${gender.name}, blurMale=$blurMaleFaces, blurFemale=$blurFemaleFaces, success=$success")
+
+            // Retry logic: single retry on failure
+            if (!success) {
+                Log.w(TAG, "First gender persistence attempt failed, retrying...")
+                Thread.sleep(100) // Small delay before retry
+                success = prefs.edit()
+                    .putString("user_gender", gender.name)
+                    .putBoolean("blur_male_faces", blurMaleFaces)
+                    .putBoolean("blur_female_faces", blurFemaleFaces)
+                    .putBoolean("enable_face_detection", true)
+                    .putBoolean("enable_nsfw_detection", true)
+                    .commit()
+                Log.d(TAG, "persistGenderSyncWithResult retry attempt: gender=${gender.name}, success=$success")
+            }
+
+            // Verification: read-back and ensure it matches
+            if (success) {
+                val verified = try {
+                    val storedGender = prefs.getString("user_gender", null)
+                    val storedBlurMale = prefs.getBoolean("blur_male_faces", false)
+                    val storedBlurFemale = prefs.getBoolean("blur_female_faces", false)
+                    val storedFaceDetection = prefs.getBoolean("enable_face_detection", false)
+                    val storedNsfwDetection = prefs.getBoolean("enable_nsfw_detection", false)
+
+                    val genderMatches = storedGender == gender.name
+                    val blurMaleMatches = storedBlurMale == blurMaleFaces
+                    val blurFemaleMatches = storedBlurFemale == blurFemaleFaces
+                    val faceDetectionMatches = storedFaceDetection == true
+                    val nsfwDetectionMatches = storedNsfwDetection == true
+
+                    val allMatch = genderMatches && blurMaleMatches && blurFemaleMatches &&
+                                   faceDetectionMatches && nsfwDetectionMatches
+
+                    if (!allMatch) {
+                        Log.w(TAG, "Gender verification failed:")
+                        Log.w(TAG, "  Expected gender: ${gender.name}, got: $storedGender (match: $genderMatches)")
+                        Log.w(TAG, "  Expected blurMale: $blurMaleFaces, got: $storedBlurMale (match: $blurMaleMatches)")
+                        Log.w(TAG, "  Expected blurFemale: $blurFemaleFaces, got: $storedBlurFemale (match: $blurFemaleMatches)")
+                        Log.w(TAG, "  Expected faceDetection: true, got: $storedFaceDetection (match: $faceDetectionMatches)")
+                        Log.w(TAG, "  Expected nsfwDetection: true, got: $storedNsfwDetection (match: $nsfwDetectionMatches)")
+                    }
+                    allMatch
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error verifying gender persistence", e)
+                    false
+                }
+
+                Log.d(TAG, "Gender persistence verification: $verified for ${gender.name}")
+                verified
+            } else {
+                Log.e(TAG, "Gender persistence failed after retry for ${gender.name}")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in persistGenderSyncWithResult for ${gender.name}", e)
             false
         }
     }

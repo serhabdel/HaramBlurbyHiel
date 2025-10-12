@@ -150,9 +150,6 @@ fun PornBlockingDialog(
                             selectedLanguage = selectedLanguage
                         )
                     }
-
-                    // Blocking details
-                    PornBlockingDetailsCard(blockingResult)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -186,8 +183,8 @@ private fun PornBlockingHeader(
             .background(
                 Brush.horizontalGradient(
                     colors = listOf(
-                        Color(0xFFD32F2F), // Red
-                        Color(0xFFB71C1C)  // Dark red
+                        Color(0xFF2E7D32), // Islamic green
+                        Color(0xFF1B5E20)  // Dark green
                     )
                 )
             )
@@ -204,27 +201,22 @@ private fun PornBlockingHeader(
             ) {
                     Icon(
                         imageVector = Icons.Default.Warning,
-                        contentDescription = stringResource(R.string.critical_warning),
+                        contentDescription = "Protection Active",
                         tint = Color.White,
                         modifier = Modifier.size(40.dp)
                     )
 
                 Column {
                     Text(
-                        text = stringResource(R.string.protected_from_haram),
+                        text = "Protected by Allah's Guidance",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Text(
-                        text = category.displayName,
+                        text = "Seeking Allah's Protection",
                         style = MaterialTheme.typography.titleMedium,
                         color = Color.White.copy(alpha = 0.9f)
-                    )
-                    Text(
-                        text = "Confidence: ${(confidence * 100).toInt()}%",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.8f)
                     )
                 }
             }
@@ -245,7 +237,7 @@ private fun UrgentWarningCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFEBEE) // Light red background
+            containerColor = Color(0xFFE8F5E9) // Light green background
         )
     ) {
         Column(
@@ -253,19 +245,19 @@ private fun UrgentWarningCard() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = stringResource(R.string.urgent_protection_activated),
+                text = "Allah's Protection is With You",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFD32F2F),
+                color = Color(0xFF2E7D32),
                 textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = stringResource(R.string.content_violates_principles),
+                text = "This content may harm your spiritual well-being. Let's turn to something beneficial instead.",
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFFB71C1C),
+                color = Color(0xFF1B5E20),
                 textAlign = TextAlign.Center
             )
         }
@@ -486,47 +478,8 @@ private fun PornSpecificGuidanceCard(
 
 @Composable
 private fun PornBlockingDetailsCard(blockingResult: SiteBlockingResult) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFF3E0) // Light orange
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.blocking_details),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF424242)
-            )
-
-            blockingResult.blockingReason?.let { reason ->
-                Text(
-                    text = "${stringResource(R.string.reason)}: $reason",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF424242)
-                )
-            }
-
-            blockingResult.matchedPattern?.let { pattern ->
-                Text(
-                    text = "${stringResource(R.string.detected_pattern)}: $pattern",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF757575),
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                )
-            }
-
-            Text(
-                text = "${stringResource(R.string.severity)}: ${blockingResult.category?.severity ?: 5}/5",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF757575)
-            )
-        }
-    }
+    // Removed - no longer showing technical blocking details
+    // This improves UX by not exposing harmful keywords or patterns
 }
 
 @Composable

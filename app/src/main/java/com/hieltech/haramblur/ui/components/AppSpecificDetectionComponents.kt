@@ -133,6 +133,8 @@ fun CustomAppsManager(
     onAddApp: (String) -> Unit,
     onRemoveApp: (String) -> Unit,
     conflictingApps: Set<String> = emptySet(),
+    installedApps: List<com.hieltech.haramblur.detection.AppInfo> = emptyList(),
+    isLoadingApps: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
@@ -194,7 +196,9 @@ fun CustomAppsManager(
             },
             existingApps = customApps,
             conflictingApps = conflictingApps,
-            conflictMessage = "This app is already in the excluded list"
+            conflictMessage = "This app is already in the excluded list",
+            installedApps = installedApps,
+            isLoadingApps = isLoadingApps
         )
     }
 }
@@ -246,7 +250,7 @@ fun CustomAppItem(
 }
 
 /**
- * Dialog for adding custom apps
+ * Dialog for adding custom apps - now with app picker for better UX
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -255,74 +259,99 @@ fun AddCustomAppDialog(
     onAddApp: (String) -> Unit,
     existingApps: Set<String> = emptySet(),
     conflictingApps: Set<String> = emptySet(),
-    conflictMessage: String = "This app is already in the other list"
+    conflictMessage: String = "This app is already in the other list",
+    installedApps: List<com.hieltech.haramblur.detection.AppInfo> = emptyList(),
+    isLoadingApps: Boolean = false
 ) {
+    var showManualEntry by remember { mutableStateOf(false) }
     var packageName by remember { mutableStateOf("") }
     val trimmedPackageName = packageName.trim()
     val isDuplicate = trimmedPackageName.isNotEmpty() && existingApps.contains(trimmedPackageName)
     val hasConflict = trimmedPackageName.isNotEmpty() && conflictingApps.contains(trimmedPackageName)
     val isValid = trimmedPackageName.isNotEmpty() && !isDuplicate && !hasConflict
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(stringResource(R.string.add_custom_app_title))
-        },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(R.string.package_name_title),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = packageName,
-                    onValueChange = { packageName = it },
-                    label = { Text(stringResource(R.string.package_name_title)) },
-                    placeholder = { Text(stringResource(R.string.package_name_placeholder)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.package_name_example),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                if (isDuplicate) {
-                    Spacer(modifier = Modifier.height(8.dp))
+    if (showManualEntry) {
+        // Manual package name entry (fallback for advanced users)
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text(stringResource(R.string.add_custom_app_title))
+            },
+            text = {
+                Column {
                     Text(
-                        text = "This app is already in the list",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        text = stringResource(R.string.package_name_title),
+                        style = MaterialTheme.typography.bodyMedium
                     )
-                }
-
-                if (hasConflict) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = conflictMessage,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                    OutlinedTextField(
+                        value = packageName,
+                        onValueChange = { packageName = it },
+                        label = { Text(stringResource(R.string.package_name_title)) },
+                        placeholder = { Text(stringResource(R.string.package_name_placeholder)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.package_name_example),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (isDuplicate) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "This app is already in the list",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    if (hasConflict) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = conflictMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = { showManualEntry = false }) {
+                        Text("← Back to app picker")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { onAddApp(trimmedPackageName) },
+                    enabled = isValid
+                ) {
+                    Text(stringResource(R.string.add_title))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onAddApp(trimmedPackageName) },
-                enabled = isValid
-            ) {
-                Text(stringResource(R.string.add_title))
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
+        )
+    } else {
+        // Show app picker directly (not nested in another dialog)
+        InstalledAppPickerDialog(
+            onDismiss = onDismiss,
+            onAppSelected = { selectedPackage ->
+                onAddApp(selectedPackage)
+            },
+            installedApps = installedApps,
+            existingApps = existingApps,
+            conflictingApps = conflictingApps,
+            conflictMessage = conflictMessage,
+            isLoading = isLoadingApps,
+            onManualEntry = { showManualEntry = true }
+        )
+    }
 }
 
 /**

@@ -117,15 +117,7 @@ fun BlockedSiteDialog(
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    // Blocking information
-                    BlockingInfoCard(
-                        blockingResult = blockingResult,
-                        selectedLanguage = selectedLanguage
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Quranic verse section
+                    // Quranic verse section - PRIORITIZED
                     guidance?.verse?.let { verse ->
                         QuranicVerseCard(
                             verse = verse,
@@ -142,7 +134,15 @@ fun BlockedSiteDialog(
                             guidance = islamicGuidance,
                             selectedLanguage = selectedLanguage
                         )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
+                    
+                    // Blocking information - MOVED TO BOTTOM
+                    BlockingInfoCard(
+                        blockingResult = blockingResult,
+                        selectedLanguage = selectedLanguage
+                    )
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -181,25 +181,20 @@ private fun BlockedSiteHeader(
         ) {
             Icon(
                 imageVector = Icons.Default.Warning,
-                contentDescription = "Site Blocked",
-                tint = when (category.severity) {
-                    5 -> MaterialTheme.colorScheme.error
-                    4 -> Color(0xFFFF6B35) // Orange-red
-                    3 -> Color(0xFFFF8C00) // Orange
-                    else -> MaterialTheme.colorScheme.primary
-                },
+                contentDescription = "Protection Active",
+                tint = Color(0xFF2E7D32), // Islamic green
                 modifier = Modifier.size(32.dp)
             )
             
             Column {
                 Text(
-                    text = "Site Blocked",
+                    text = "Protected by Islamic Guidance",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error
+                    color = Color(0xFF2E7D32)
                 )
                 Text(
-                    text = category.displayName,
+                    text = "Content may not align with Islamic values",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -274,7 +269,7 @@ private fun BlockingInfoCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+            containerColor = Color(0xFFE8F5E9) // Light green
         )
     ) {
         Column(
@@ -282,33 +277,16 @@ private fun BlockingInfoCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "This site has been blocked for your protection",
+                text = "This content has been filtered for your spiritual well-being",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.error
+                color = Color(0xFF2E7D32)
             )
             
-            blockingResult.blockingReason?.let { reason ->
-                Text(
-                    text = "Reason: $reason",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            blockingResult.matchedPattern?.let { pattern ->
-                Text(
-                    text = "Matched pattern: $pattern",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                )
-            }
-            
             Text(
-                text = "Confidence: ${(blockingResult.confidence * 100).toInt()}%",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "Let's redirect our attention to something more beneficial and pleasing to Allah.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF1B5E20)
             )
         }
     }

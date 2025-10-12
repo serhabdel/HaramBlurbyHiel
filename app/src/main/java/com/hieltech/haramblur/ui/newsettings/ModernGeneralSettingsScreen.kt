@@ -306,6 +306,7 @@ private fun CoreProtectionSection(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 // Smart gender-based protection status (no manual toggles)
+                // If gender detection fails, default to FEMALE for better protection
                 when (settings.userGender) {
                     UserGender.MALE -> {
                         // Male users: Clean status card, automatic behavior
@@ -400,38 +401,48 @@ private fun CoreProtectionSection(
                     }
                     
                     UserGender.NOT_SPECIFIED -> {
-                        // Production mode: Force users to complete wizard - NO manual controls
+                        // If gender detection fails, default to FEMALE for better Islamic protection
+                        // This ensures the app still provides protection even if the wizard wasn't completed properly
                         Surface(
                             tonalElevation = 2.dp,
                             shape = MaterialTheme.shapes.medium,
-                            color = MaterialTheme.colorScheme.errorContainer
+                            color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = androidx.compose.material.icons.Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.height(32.dp).width(32.dp)
-                                )
                                 Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "👩",
+                                            style = MaterialTheme.typography.titleLarge
+                                        )
+                                        Text(
+                                            text = "Female Profile Active (Default)",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Gender Required",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onErrorContainer
-                                    )
-                                    Text(
-                                        text = "Smart protection requires gender selection. Please complete the initial setup wizard to enable automatic content filtering.",
+                                        text = "Male faces and inappropriate content are automatically blurred for Islamic modesty. Complete the setup wizard for personalized filtering.",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                                     )
                                 }
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.CheckCircle,
+                                    contentDescription = "Active",
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
                             }
                         }
                     }

@@ -23,14 +23,28 @@ class AppFilteringManager @Inject constructor(
 ) {
 
     /**
-     * Flow that emits the current detection scope based on settings
+     * Flow that emits the current detection scope based on settings.
+     * 
+     * **Behavior Notes:**
+     * - If app-specific detection is disabled (`enableAppSpecificDetection = false`), 
+     *   mode is set to `ALL_APPS` to monitor all installed apps.
+     * - If app-specific detection is enabled but both `monitoredAppCategories` and 
+     *   `customMonitoredApps` are empty, mode falls back to `ALL_APPS` instead of 
+     *   `DISABLED`. This ensures the app continues to provide protection even when 
+     *   no specific categories are selected, preventing accidental complete disabling 
+     *   of detection.
+     * - The initial value uses `DetectionScope()` defaults (SPECIFIC_CATEGORIES with 
+     *   SOCIAL_MEDIA, BROWSERS, and DATING categories) to ensure correct behavior 
+     *   on first install before settings are loaded.
      */
     val detectionScopeFlow: StateFlow<DetectionScope> = settingsRepository.settings.map { settings ->
         DetectionScope(
             mode = if (!settings.enableAppSpecificDetection) {
                 DetectionMode.ALL_APPS
-            } else if (settings.monitoredAppCategories.isEmpty()) {
-                DetectionMode.DISABLED
+            } else if (settings.monitoredAppCategories.isEmpty() && settings.customMonitoredApps.isEmpty()) {
+                // Fallback to ALL_APPS when no categories or custom apps are selected.
+                // This prevents complete detection disabling and maintains protection.
+                DetectionMode.ALL_APPS
             } else {
                 DetectionMode.SPECIFIC_CATEGORIES
             },
@@ -40,13 +54,8 @@ class AppFilteringManager @Inject constructor(
         )
     }.stateIn(
         scope = applicationScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = DetectionScope(
-            mode = DetectionMode.ALL_APPS,
-            monitoredCategories = emptySet(),
-            customIncludedApps = emptySet(),
-            excludedApps = emptySet()
-        )
+        started = SharingStarted.Eagerly,
+        initialValue = DetectionScope() // Uses default values: SPECIFIC_CATEGORIES with high-risk categories
     )
 
     /**

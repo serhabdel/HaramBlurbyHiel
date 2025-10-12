@@ -526,12 +526,22 @@ class PermissionWizardViewModel @Inject constructor(
             isComplete = isComplete,
             canProceed = true
         )
+
+        android.util.Log.d("PermissionWizardViewModel", "✅ Language selection step completed successfully")
     }
 
     /**
      * Complete gender selection step
      */
     fun completeGenderSelection() {
+        android.util.Log.d("PermissionWizardViewModel", "completeGenderSelection() called")
+
+        // TRUST the persistence result instead of immediately re-reading from StateFlow
+        // The gender has been successfully saved via persistGenderSyncWithResult()
+        // StateFlow may lag behind SharedPreferences due to async updates
+
+        android.util.Log.d("PermissionWizardViewModel", "✅ Trusting gender persistence success, marking step complete")
+
         val currentState = _wizardState.value
         val updatedSteps = currentState.steps.map { step ->
             if (step.permissionType == "GENDER_SELECTION") {
@@ -553,6 +563,10 @@ class PermissionWizardViewModel @Inject constructor(
             isComplete = isComplete,
             canProceed = true
         )
+
+        android.util.Log.d("PermissionWizardViewModel", "✅ Gender selection step marked as complete")
+        android.util.Log.d("PermissionWizardViewModel", "   Next step index: ${if (currentStepIndex == -1) 0 else currentStepIndex}")
+        android.util.Log.d("PermissionWizardViewModel", "   Wizard complete: $isComplete")
     }
 
     /**

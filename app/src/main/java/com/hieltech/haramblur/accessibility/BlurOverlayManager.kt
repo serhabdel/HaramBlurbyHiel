@@ -1953,8 +1953,8 @@ class BlurOverlayManager @Inject constructor(
          * Draw precision border for debugging blur regions
          */
         private fun drawPrecisionBorder(canvas: Canvas, rect: Rect) {
-            // Only draw in debug mode - comment out for production
-            // canvas.drawRect(rect, borderPaint)
+            // DEBUG MODE: Draw red border to visualize blur regions
+            canvas.drawRect(rect, borderPaint)
 
             val centerX = rect.centerX().toFloat()
             val centerY = rect.centerY().toFloat()

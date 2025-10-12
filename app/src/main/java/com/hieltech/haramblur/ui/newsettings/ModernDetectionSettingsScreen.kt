@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -59,6 +60,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -67,6 +70,16 @@ fun ModernDetectionSettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
+    var installedApps by remember { mutableStateOf<List<com.hieltech.haramblur.detection.AppInfo>>(emptyList()) }
+    var isLoadingApps by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    
+    // Load installed apps when screen is first displayed
+    LaunchedEffect(Unit) {
+        isLoadingApps = true
+        installedApps = viewModel.getInstalledApps()
+        isLoadingApps = false
+    }
 
     Scaffold(
         topBar = {
@@ -97,7 +110,14 @@ fun ModernDetectionSettingsScreen(
 
             item { AdvancedDetectionSection(settings = settings, viewModel = viewModel) }
 
-            item { AppSpecificDetectionSection(settings = settings, viewModel = viewModel) }
+            item { 
+                AppSpecificDetectionSection(
+                    settings = settings, 
+                    viewModel = viewModel,
+                    installedApps = installedApps,
+                    isLoadingApps = isLoadingApps
+                ) 
+            }
         }
     }
 }
@@ -179,7 +199,9 @@ private fun AdvancedDetectionSection(
 @Composable
 private fun AppSpecificDetectionSection(
     settings: AppSettings,
-    viewModel: SettingsViewModel
+    viewModel: SettingsViewModel,
+    installedApps: List<com.hieltech.haramblur.detection.AppInfo>,
+    isLoadingApps: Boolean
 ) {
     ModernSettingsSection(
         title = stringResource(R.string.app_specific_detection_title),
@@ -230,10 +252,17 @@ private fun AppSpecificDetectionSection(
                         val updated = settings.customMonitoredApps - packageName
                         viewModel.updateCustomMonitoredApps(updated)
                     },
-                    conflictingApps = settings.excludedApps
+                    conflictingApps = settings.excludedApps,
+                    installedApps = installedApps,
+                    isLoadingApps = isLoadingApps
                 )
 
-                ExcludedAppsSection(settings = settings, viewModel = viewModel)
+                ExcludedAppsSection(
+                    settings = settings, 
+                    viewModel = viewModel,
+                    installedApps = installedApps,
+                    isLoadingApps = isLoadingApps
+                )
             }
         }
     }
@@ -242,7 +271,9 @@ private fun AppSpecificDetectionSection(
 @Composable
 private fun ExcludedAppsSection(
     settings: AppSettings,
-    viewModel: SettingsViewModel
+    viewModel: SettingsViewModel,
+    installedApps: List<com.hieltech.haramblur.detection.AppInfo>,
+    isLoadingApps: Boolean
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -328,7 +359,9 @@ private fun ExcludedAppsSection(
             },
             existingApps = settings.excludedApps,
             conflictingApps = settings.customMonitoredApps,
-            conflictMessage = "This app is already in the monitored list"
+            conflictMessage = "This app is already in the monitored list",
+            installedApps = installedApps,
+            isLoadingApps = isLoadingApps
         )
     }
 }

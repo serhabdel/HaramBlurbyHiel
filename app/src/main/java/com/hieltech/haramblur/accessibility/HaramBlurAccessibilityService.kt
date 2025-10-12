@@ -17,21 +17,27 @@ import android.os.Bundle
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.data.BlurIntensity
 import com.hieltech.haramblur.data.BlurStyle
-import com.hieltech.haramblur.detection.ContentDetectionEngine
-import com.hieltech.haramblur.detection.SiteBlockingManager
-import com.hieltech.haramblur.detection.BlockingCategory
-import com.hieltech.haramblur.detection.ContentAction
-import com.hieltech.haramblur.setup.FirstRunSetupManager
-import com.hieltech.haramblur.testing.FirstRunValidator
-import com.hieltech.haramblur.detection.ForegroundAppMonitor
-import com.hieltech.haramblur.data.SettingsRepository
-import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.data.ProcessingSpeed
 import com.hieltech.haramblur.data.QuranicRepository
 import com.hieltech.haramblur.data.models.DetectionScope
 import com.hieltech.haramblur.data.models.AppCategory
+import com.hieltech.haramblur.detection.ContentDetectionEngine
+import com.hieltech.haramblur.detection.SiteBlockingManager
+import com.hieltech.haramblur.detection.BlockingCategory
+import com.hieltech.haramblur.detection.ContentAction
+// import com.hieltech.haramblur.services.DhikrReminder
+// import com.hieltech.haramblur.services.DhikrReminderManager
+// import com.hieltech.haramblur.services.DhikrReminderNotificationManager
+// import com.hieltech.haramblur.ui.newsettings.ScreenTimeNotificationHelper
+// import com.hieltech.haramblur.utils.AppCategoryClassifier
+import com.hieltech.haramblur.utils.CoordinateMapper
+import com.hieltech.haramblur.setup.FirstRunSetupManager
+import com.hieltech.haramblur.testing.FirstRunValidator
+import com.hieltech.haramblur.detection.ForegroundAppMonitor
+import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.data.AppFilteringManager
 import com.hieltech.haramblur.data.AppCategoryDetector
 import com.hieltech.haramblur.data.LogRepository
@@ -896,7 +902,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
             // Handle traditional blur overlay based on action results
             try {
-                val shouldBlur = handleAnalysisResultWithStability(analysisResult, currentSettings)
+                val shouldBlur = handleAnalysisResultWithStability(analysisResult, currentSettings, bitmap)
                 detectionCache[bitmapHash] = Pair(currentTime, shouldBlur)
                 lastBitmapHash = bitmapHash
             } catch (e: Exception) {
@@ -1143,7 +1149,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         )
     }
     
-    private fun handleAnalysisResultWithStability(result: ContentDetectionEngine.ContentAnalysisResult, settings: AppSettings): Boolean {
+    private fun handleAnalysisResultWithStability(result: ContentDetectionEngine.ContentAnalysisResult, settings: AppSettings, bitmap: Bitmap? = null): Boolean {
         val currentTime = System.currentTimeMillis()
         
         Log.d(TAG, "📊 Analysis result: shouldBlur=${result.shouldBlur}, regions=${result.blurRegions.size}")
@@ -1355,30 +1361,36 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
         // Apply selective blur decision with PRECISION TARGETING ONLY
         if (shouldShowBlur && result.blurRegions.isNotEmpty()) {
-            // Get display metrics for proper scaling
-            val displayMetrics = this.resources?.displayMetrics
-            val screenWidth = displayMetrics?.widthPixels ?: 1080
-            val screenHeight = displayMetrics?.heightPixels ?: 2400
-
-            // Scale and validate blur regions to screen resolution
-            val preciseRegions = result.blurRegions.mapNotNull { region ->
-                // Ensure region is within screen bounds
-                val scaledRegion = android.graphics.Rect(
-                    maxOf(0, region.left),
-                    maxOf(0, region.top),
-                    minOf(screenWidth, region.right),
-                    minOf(screenHeight, region.bottom)
-                )
-
+            // Get proper screen metrics with system UI offsets
+            val screenMetrics = CoordinateMapper.getScreenMetrics(this)
+            
+            // Map blur regions from bitmap/detection space to screen space with proper offsets
+            val preciseRegions = CoordinateMapper.mapBitmapRegionsToScreen(
+                regions = result.blurRegions,
+                bitmapWidth = bitmap?.width ?: screenMetrics.realWidth,
+                bitmapHeight = bitmap?.height ?: screenMetrics.realHeight,
+                screenMetrics = screenMetrics,
+                includeStatusBarOffset = false // Accessibility overlay covers full screen
+            ).mapNotNull { region ->
                 // Only include regions that are valid and not too small
-                if (scaledRegion.width() > 20 && scaledRegion.height() > 20) {
-                    scaledRegion
+                if (region.width() > 20 && region.height() > 20) {
+                    // Debug the mapping for verification
+                    if (result.blurRegions.indexOf(region) == 0) {
+                        CoordinateMapper.debugRegionMapping(
+                            originalRegion = result.blurRegions[0],
+                            mappedRegion = region,
+                            context = this
+                        )
+                    }
+                    region
                 } else null
             }
 
             if (preciseRegions.isNotEmpty()) {
                 Log.w(TAG, "🎯 ===== ACTIVATING BLUR OVERLAY =====")
-                Log.w(TAG, "   Screen: ${screenWidth}x${screenHeight}")
+                Log.w(TAG, "   Screen: ${screenMetrics.realWidth}x${screenMetrics.realHeight}")
+                Log.w(TAG, "   Status Bar: ${screenMetrics.statusBarHeight}px")
+                Log.w(TAG, "   Navigation Bar: ${screenMetrics.navigationBarHeight}px")
                 Log.w(TAG, "   Regions: ${preciseRegions.size}")
                 preciseRegions.forEachIndexed { index, rect ->
                     Log.w(TAG, "   Region $index: ($rect.left, $rect.top) -> ($rect.right, $rect.bottom) [${rect.width()}x${rect.height()}]")

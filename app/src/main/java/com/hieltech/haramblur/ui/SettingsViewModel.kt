@@ -233,57 +233,51 @@ class SettingsViewModel @Inject constructor(
         updatePreferredLanguage(language)
     }
 
-    fun updateGenderSettings(gender: com.hieltech.haramblur.data.UserGender) {
-        viewModelScope.launch {
-            val current = settings.value
-            
-            // Smart blur settings based on gender for Islamic compliance
-            val (blurMale, blurFemale) = when (gender) {
-                com.hieltech.haramblur.data.UserGender.MALE -> {
-                    // Males should have female faces blurred, but may see male faces
-                    Log.d("SettingsViewModel", "🧔 Applying MALE profile: blur female faces only")
-                    false to true
-                }
-                com.hieltech.haramblur.data.UserGender.FEMALE -> {
-                    // Females should have male faces blurred, but may see female faces
-                    Log.d("SettingsViewModel", "👩 Applying FEMALE profile: blur male faces only")
-                    true to false
-                }
-                com.hieltech.haramblur.data.UserGender.NOT_SPECIFIED -> {
-                    // Safest option: blur all faces
-                    Log.d("SettingsViewModel", "⚠️ Gender NOT_SPECIFIED: blur all faces as safest option")
-                    true to true
-                }
+    suspend fun updateGenderSettings(gender: com.hieltech.haramblur.data.UserGender): Boolean {
+        // Smart blur settings based on gender for Islamic compliance
+        val (blurMale, blurFemale) = when (gender) {
+            com.hieltech.haramblur.data.UserGender.MALE -> {
+                // Males should have female faces blurred, but may see male faces
+                Log.d("SettingsViewModel", "🧔 Applying MALE profile: blur female faces only")
+                false to true
             }
-            
-            val updated = current.copy(
-                userGender = gender,
-                blurMaleFaces = blurMale,
-                blurFemaleFaces = blurFemale,
-                // Ensure detection is enabled
-                enableFaceDetection = true,
-                enableNSFWDetection = true,
-                detectionSensitivity = 0.8f
-            )
-            
-            Log.d("SettingsViewModel", "💾 Saving gender settings to repository...")
-            settingsRepository.updateSettings(updated)
-            
-            // Verify persistence after a short delay
-            kotlinx.coroutines.delay(200)
-            val verified = settingsRepository.getCurrentSettings()
-            
-            if (verified.userGender != gender) {
-                Log.e("SettingsViewModel", "❌ CRITICAL: Gender persistence FAILED!")
-                Log.e("SettingsViewModel", "   Expected: $gender, Got: ${verified.userGender}")
-                logRepository.logError("SettingsViewModel", "Gender not persisted correctly: expected $gender, got ${verified.userGender}", null)
-            } else {
-                Log.d("SettingsViewModel", "✅ Gender persistence verified successfully: $gender")
-                Log.d("SettingsViewModel", "   Blur settings - Male: $blurMale, Female: $blurFemale")
+            com.hieltech.haramblur.data.UserGender.FEMALE -> {
+                // Females should have male faces blurred, but may see female faces
+                Log.d("SettingsViewModel", "👩 Applying FEMALE profile: blur male faces only")
+                true to false
             }
-            
-            logRepository.logInfo("Gender settings updated and verified: $gender, blur male: $blurMale, blur female: $blurFemale", "SettingsViewModel")
+            com.hieltech.haramblur.data.UserGender.NOT_SPECIFIED -> {
+                // Safest option: blur all faces
+                Log.d("SettingsViewModel", "⚠️ Gender NOT_SPECIFIED: blur all faces as safest option")
+                true to true
+            }
         }
+
+        Log.d("SettingsViewModel", "💾 Saving gender settings synchronously with verification...")
+        Log.d("SettingsViewModel", "   Gender: $gender, Blur Male: $blurMale, Blur Female: $blurFemale")
+
+        // Use synchronous persistence with verification
+        val success = withContext(Dispatchers.IO) {
+            settingsRepository.persistGenderSyncWithResult(
+                gender = gender,
+                blurMaleFaces = blurMale,
+                blurFemaleFaces = blurFemale
+            )
+        }
+
+        if (success) {
+            Log.d("SettingsViewModel", "✅ Gender persistence verified successfully: $gender")
+            Log.d("SettingsViewModel", "   Applied settings - Blur Male: $blurMale, Blur Female: $blurFemale")
+            Log.d("SettingsViewModel", "   Face Detection: enabled, NSFW Detection: enabled")
+            logRepository.logInfo("Gender settings persisted and verified: $gender, blur male: $blurMale, blur female: $blurFemale", "SettingsViewModel")
+        } else {
+            Log.e("SettingsViewModel", "❌ CRITICAL: Gender persistence FAILED!")
+            Log.e("SettingsViewModel", "   Attempted to save: $gender with blur settings Male=$blurMale, Female=$blurFemale")
+            Log.e("SettingsViewModel", "   User will need to retry gender selection")
+            logRepository.logError("SettingsViewModel", "Gender persistence failed for $gender", null)
+        }
+
+        return success
     }
     
     fun updatePreferredLanguage(language: com.hieltech.haramblur.detection.Language) {
@@ -1531,6 +1525,39 @@ class SettingsViewModel @Inject constructor(
             )
             // Invalidate prayer times cache to ensure recalculation with new settings
             prayerTimesRepository.invalidateCache()
+        }
+    }
+
+    /**
+     * Get list of installed apps for app picker dialog
+     */
+    suspend fun getInstalledApps(): List<com.hieltech.haramblur.detection.AppInfo> = withContext(Dispatchers.IO) {
+        try {
+            val packageManager = context.packageManager
+            val packages = packageManager.getInstalledApplications(android.content.pm.PackageManager.GET_META_DATA)
+            
+            packages.mapNotNull { appInfo ->
+                try {
+                    // Filter out system apps that users typically don't want to monitor
+                    val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                    if (isSystemApp) {
+                        null
+                    } else {
+                        com.hieltech.haramblur.detection.AppInfo(
+                            packageName = appInfo.packageName,
+                            appName = appInfo.loadLabel(packageManager).toString(),
+                            category = "user_app",
+                            isSystemApp = false,
+                            icon = null
+                        )
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }.sortedBy { it.appName }
+        } catch (e: Exception) {
+            Log.e("SettingsViewModel", "Error getting installed apps", e)
+            emptyList()
         }
     }
 
