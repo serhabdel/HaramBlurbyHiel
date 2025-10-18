@@ -194,12 +194,6 @@
             android:theme="@style/Theme.HaramBlur">
         </activity>
 
-        <!-- Prayer Guidance Activity -->
-        <activity
-            android:name=".services.PrayerGuidanceActivity"
-            android:exported="false"
-            android:theme="@style/Theme.HaramBlur" />
-
         <!-- Diagnostics activity for troubleshooting -->
         <activity
             android:name=".ui.DiagnosticsActivity"

@@ -258,8 +258,8 @@ data class AppSettings(
     val compassUpdateRate: Int = 15,
 
     // App-Specific Detection Settings
-    val enableAppSpecificDetection: Boolean = true, // Toggle between monitoring all apps vs specific categories
-    val monitoredAppCategories: Set<AppCategory> = setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING), // Default categories to monitor
+    val enableAppSpecificDetection: Boolean = false, // Toggle between monitoring all apps vs specific categories (disabled by default for maximum protection)
+    val monitoredAppCategories: Set<AppCategory> = AppCategory.values().toSet(), // All categories monitored by default
     val customMonitoredApps: Set<String> = emptySet(), // User-added package names for monitoring
     val excludedApps: Set<String> = emptySet(), // Apps to exclude from detection even if in monitored categories
 

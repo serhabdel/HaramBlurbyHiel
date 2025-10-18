@@ -798,4 +798,47 @@
     <string name="already_prayed">✅ J\'ai déjà prié</string>
     <string name="remind_later">⏰ Rappeler plus tard</string>
 
+    <!-- Notifications de Prière -->
+    <string name="prayer_advance_10min_title">Prière dans 10 Minutes</string>
+    <string name="prayer_advance_10min_text">La prière de %s est dans 10 minutes. Préparez-vous pour la prière.</string>
+    <string name="prayer_advance_10min_message">Préparez-vous pour la prière. Qu\'Allah vous bénisse.</string>
+    <string name="prayer_advance_5min_title">Prière dans 5 Minutes</string>
+    <string name="prayer_advance_5min_text">La prière de %s est dans 5 minutes. Préparez-vous pour la prière.</string>
+    <string name="prayer_advance_5min_message">Préparez-vous pour la prière. Qu\'Allah accepte votre adoration.</string>
+    
+    <!-- Chaînes de rappel de prière améliorées -->
+    <string name="prayer_reminder_title_bilingual">Rappel de Prière</string>
+    <string name="prayer_reminder_question">Avez-vous prié %s?</string>
+    <string name="prayer_reminder_question_bilingual">Avez-vous prié %s?</string>
+    
+    <!-- Étiquettes des boutons d\'action -->
+    <string name="prayer_action_yes_bilingual">Oui</string>
+    <string name="prayer_action_no_bilingual">Non</string>
+    <string name="prayer_action_already_prayed_bilingual">Déjà Prié</string>
+    <string name="prayer_action_will_pray_now_bilingual">Je Vais Prier Maintenant</string>
+    
+    <!-- Chaînes de notification de guidance coranique -->
+    <string name="prayer_guidance_title_bilingual">Rappel d\'Importance de la Prière</string>
+    <string name="prayer_guidance_encouragement">Ne retardez pas la prière. La prière est le pilier de la religion.</string>
+    <string name="prayer_guidance_encouragement_bilingual">Ne retardez pas la prière. La prière est le pilier de la religion.</string>
+    <string name="prayer_guidance_verse_reference">📖 Coran %1$d:%2$d</string>
+    
+    <!-- Chaînes de rappel de suivi -->
+    <string name="prayer_followup_title_bilingual">Rappel Important de Prière</string>
+    <string name="prayer_followup_message">Ne retardez pas la prière de %s. La prière est le pilier de la religion.</string>
+    <string name="prayer_followup_message_bilingual">Ne retardez pas la prière de %s. La prière est le pilier de la religion.</string>
+    
+    <!-- Messages d\'encouragement -->
+    <string name="prayer_encouragement_prepare">Préparez-vous pour la prière. Qu\'Allah vous bénisse.</string>
+    <string name="prayer_encouragement_timeliness">La prière à l\'heure est parmi les actes les plus aimés d\'Allah.</string>
+    <string name="prayer_encouragement_pillar">La prière est le pilier de la religion.</string>
+    <string name="prayer_encouragement_blessing">Qu\'Allah vous bénisse et accepte votre prière.</string>
+    <string name="prayer_encouragement_dont_delay">Ne retardez pas ce qui vous rapproche de votre Créateur.</string>
+    
+    <!-- Messages de reconnaissance -->
+    <string name="prayer_completion_acknowledgment">Qu\'Allah vous bénisse! Merci d\'avoir accompli la prière.</string>
+    <string name="prayer_completion_acknowledgment_bilingual">Qu\'Allah vous bénisse! Merci d\'avoir accompli la prière.</string>
+    <string name="prayer_will_pray_acknowledgment">Qu\'Allah vous bénisse! Qu\'Allah accepte votre prière.</string>
+    <string name="prayer_will_pray_acknowledgment_bilingual">Qu\'Allah vous bénisse! Qu\'Allah accepte votre prière.</string>
+
 </resources>

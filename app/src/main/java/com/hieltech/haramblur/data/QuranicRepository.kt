@@ -30,6 +30,84 @@ class QuranicRepository @Inject constructor(
         }
     }
     
+    // Hardcoded prayer-related verses for timely prayer reminders
+    private val prayerTimelinessVerses = listOf(
+        QuranicVerse(
+            id = "4_103",
+            surahName = "An-Nisa",
+            surahNumber = 4,
+            verseNumber = 103,
+            arabicText = "إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا",
+            transliteration = "innaṣ-ṣalāta kānat ʿalā l-muʾminīna kitāban mawqūtan",
+            translations = mapOf(
+                Language.ENGLISH to "Indeed, prayer has been decreed upon the believers a decree of specified times.",
+                Language.ARABIC to "إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا"
+            ),
+            category = BlockingCategory.SUSPICIOUS_CONTENT,
+            context = "This verse emphasizes that prayers must be performed at their prescribed times. Delaying prayer without valid reason is a serious matter in Islam.",
+            reflection = "Allah has ordained prayer at specific times for our spiritual benefit. Maintaining punctuality in prayer demonstrates our commitment to Allah and helps us maintain a strong connection with Him throughout the day."
+        ),
+        QuranicVerse(
+            id = "2_238",
+            surahName = "Al-Baqarah",
+            surahNumber = 2,
+            verseNumber = 238,
+            arabicText = "حَافِظُوا عَلَى الصَّلَوَاتِ وَالصَّلَاةِ الْوُسْطَىٰ وَقُومُوا لِلَّهِ قَانِتِينَ",
+            transliteration = "Ḥāfiẓū ʿalā aṣ-ṣalawāti waṣ-ṣalāta al-wusṭā wa qūmū lillāhi qānitīn",
+            translations = mapOf(
+                Language.ENGLISH to "Maintain with care the [obligatory] prayers and [in particular] the middle prayer and stand before Allah, devoutly obedient.",
+                Language.ARABIC to "حَافِظُوا عَلَى الصَّلَوَاتِ وَالصَّلَاةِ الْوُسْطَىٰ وَقُومُوا لِلَّهِ قَانِتِينَ"
+            ),
+            category = BlockingCategory.SUSPICIOUS_CONTENT,
+            context = "Allah commands believers to guard their prayers carefully, especially the middle prayer (commonly understood as Asr). This shows the importance of consistency and devotion in prayer.",
+            reflection = "Guarding our prayers means performing them on time, with proper focus and devotion. When we maintain our prayers, we maintain our connection with Allah and protect ourselves from spiritual harm."
+        ),
+        QuranicVerse(
+            id = "70_23",
+            surahName = "Al-Ma'arij",
+            surahNumber = 70,
+            verseNumber = 23,
+            arabicText = "الَّذِينَ هُمْ عَلَى صَلَاتِهِمْ دَائِمُونَ",
+            transliteration = "alladhīna hum ʿalā ṣalātihim dāʾimūn",
+            translations = mapOf(
+                Language.ENGLISH to "Those who are constant in their prayer.",
+                Language.ARABIC to "الَّذِينَ هُمْ عَلَى صَلَاتِهِمْ دَائِمُونَ"
+            ),
+            category = BlockingCategory.SUSPICIOUS_CONTENT,
+            context = "This verse describes one of the qualities of the successful believers - they are constant and consistent in their prayers.",
+            reflection = "Being constant in prayer means never abandoning it and performing it regularly at its proper times. This consistency is a sign of true faith and leads to success in this life and the Hereafter."
+        ),
+        QuranicVerse(
+            id = "70_34",
+            surahName = "Al-Ma'arij",
+            surahNumber = 70,
+            verseNumber = 34,
+            arabicText = "وَالَّذِينَ هُمْ عَلَىٰ صَلَاتِهِمْ يُحَافِظُونَ",
+            transliteration = "wa alladhīna hum ʿalā ṣalātihim yuḥāfiẓūn",
+            translations = mapOf(
+                Language.ENGLISH to "And those who [carefully] maintain their prayer.",
+                Language.ARABIC to "وَالَّذِينَ هُمْ عَلَىٰ صَلَاتِهِمْ يُحَافِظُونَ"
+            ),
+            category = BlockingCategory.SUSPICIOUS_CONTENT,
+            context = "This verse concludes the description of the righteous believers who will be honored in Paradise. Maintaining prayer is the final quality mentioned, emphasizing its supreme importance.",
+            reflection = "Maintaining prayer carefully means performing it with all its conditions, on time, and with full presence of heart. This is the mark of those who will be honored in Paradise."
+        ),
+        QuranicVerse(
+            id = "70_35",
+            surahName = "Al-Ma'arij",
+            surahNumber = 70,
+            verseNumber = 35,
+            arabicText = "أُولَٰئِكَ فِي جَنَّاتٍ مُّكْرَمُونَ",
+            transliteration = "ulāʾika fī jannātin mukramūn",
+            translations = mapOf(
+                Language.ENGLISH to "Those will be in gardens, honored.",
+                Language.ARABIC to "أُولَٰئِكَ فِي جَنَّاتٍ مُّكْرَمُونَ"
+            ),
+            category = BlockingCategory.SUSPICIOUS_CONTENT,
+            context = "This verse reveals the reward for those who maintain their prayers and possess the other qualities of righteousness - they will be honored in the gardens of Paradise.",
+            reflection = "The ultimate reward for maintaining our prayers is eternal honor in Paradise. Every prayer we perform on time is an investment in our eternal success."
+        )
+    )
 
     
     /**
@@ -147,7 +225,7 @@ class QuranicRepository @Inject constructor(
     }
     
     /**
-     * Get verse by ID
+     * Get a specific verse by ID
      */
     suspend fun getVerseById(id: String): QuranicVerse? = withContext(Dispatchers.IO) {
         try {
@@ -157,6 +235,27 @@ class QuranicRepository @Inject constructor(
         } catch (e: Exception) {
             null
         }
+    }
+    
+    /**
+     * Get a random Quranic verse about prayer timeliness
+     * Returns one of the hardcoded prayer-related verses
+     */
+    suspend fun getPrayerTimelinessVerse(): QuranicVerse = withContext(Dispatchers.IO) {
+        try {
+            // Randomly select one verse from the prayer verses list
+            prayerTimelinessVerses.shuffled().first()
+        } catch (e: Exception) {
+            // Return default prayer verse if random selection fails
+            getDefaultPrayerVerse()
+        }
+    }
+    
+    /**
+     * Get the default prayer verse (Quran 4:103) as fallback
+     */
+    private fun getDefaultPrayerVerse(): QuranicVerse {
+        return prayerTimelinessVerses.first() // Quran 4:103 is the first in the list
     }
     
     /**

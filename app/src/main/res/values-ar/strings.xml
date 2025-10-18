@@ -514,6 +514,49 @@
     <string name="prayer_already_prayed">صليت بالفعل</string>
     <string name="prayer_will_pray_now">سأصلي الآن</string>
 
+    <!-- إشعارات الصلاة المسبقة -->
+    <string name="prayer_advance_10min_title">الصلاة بعد 10 دقائق</string>
+    <string name="prayer_advance_10min_text">صلاة %s بعد 10 دقائق. استعد للصلاة.</string>
+    <string name="prayer_advance_10min_message">استعد للصلاة. بارك الله فيك.</string>
+    <string name="prayer_advance_5min_title">الصلاة بعد 5 دقائق</string>
+    <string name="prayer_advance_5min_text">صلاة %s بعد 5 دقائق. تهيأ للصلاة.</string>
+    <string name="prayer_advance_5min_message">تهيأ للصلاة. تقبل الله عبادتك.</string>
+    
+    <!-- سلاسل تذكير الصلاة المحسّنة -->
+    <string name="prayer_reminder_title_bilingual">تذكير بالصلاة | Prayer Reminder</string>
+    <string name="prayer_reminder_question">هل صليت %s؟</string>
+    <string name="prayer_reminder_question_bilingual">هل صليت %2$s؟\nHave you prayed %1$s?</string>
+    
+    <!-- تسميات أزرار الإجراءات -->
+    <string name="prayer_action_yes_bilingual">نعم | Yes</string>
+    <string name="prayer_action_no_bilingual">لا | No</string>
+    <string name="prayer_action_already_prayed_bilingual">لقد صليت | Already Prayed</string>
+    <string name="prayer_action_will_pray_now_bilingual">سأصلي الآن | I Will Pray Now</string>
+    
+    <!-- سلاسل إشعار الإرشاد القرآني -->
+    <string name="prayer_guidance_title_bilingual">تذكير بأهمية الصلاة | Prayer Importance Reminder</string>
+    <string name="prayer_guidance_encouragement">لا تؤخر الصلاة. الصلاة عماد الدين.</string>
+    <string name="prayer_guidance_encouragement_bilingual">لا تؤخر الصلاة. الصلاة عماد الدين.\nDon\'t delay prayer. Prayer is the pillar of religion.</string>
+    <string name="prayer_guidance_verse_reference">📖 القرآن %1$d:%2$d</string>
+    
+    <!-- سلاسل تذكير المتابعة -->
+    <string name="prayer_followup_title_bilingual">تذكير مهم بالصلاة | Important Prayer Reminder</string>
+    <string name="prayer_followup_message">لا تؤخر صلاة %s. الصلاة عماد الدين.</string>
+    <string name="prayer_followup_message_bilingual">لا تؤخر صلاة %2$s. الصلاة عماد الدين.\nDon\'t delay %1$s prayer. Prayer is the pillar of religion.</string>
+    
+    <!-- رسائل التشجيع -->
+    <string name="prayer_encouragement_prepare">استعد للصلاة. بارك الله فيك.</string>
+    <string name="prayer_encouragement_timeliness">الصلاة في وقتها من أحب الأعمال إلى الله.</string>
+    <string name="prayer_encouragement_pillar">الصلاة عماد الدين.</string>
+    <string name="prayer_encouragement_blessing">بارك الله فيك وتقبل صلاتك.</string>
+    <string name="prayer_encouragement_dont_delay">لا تؤخر ما يقربك من خالقك.</string>
+    
+    <!-- رسائل الإقرار -->
+    <string name="prayer_completion_acknowledgment">بارك الله فيك! جزاك الله خيراً.</string>
+    <string name="prayer_completion_acknowledgment_bilingual">بارك الله فيك! جزاك الله خيراً.\nMay Allah bless you! Thank you for completing prayer.</string>
+    <string name="prayer_will_pray_acknowledgment">بارك الله فيك! نسأل الله أن يتقبل منك.</string>
+    <string name="prayer_will_pray_acknowledgment_bilingual">بارك الله فيك! نسأل الله أن يتقبل منك.\nMay Allah bless you! May Allah accept your prayer.</string>
+
     <!-- Quranic Guidance Activity -->
     <string name="quranic_guidance_dialog_title">🌟 الهداية الإلهية</string>
     <string name="quranic_guidance_subtitle">فلنستمع إلى كلام الله</string>

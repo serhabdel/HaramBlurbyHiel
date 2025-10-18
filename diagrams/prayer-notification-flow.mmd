@@ -1,0 +1,41 @@
+sequenceDiagram
+    participant WM as WorkManager
+    participant PNW as PrayerNotificationWorker
+    participant PTR as PrayerTimesRepository
+    participant SP as SharedPreferences
+    participant PTNM as PrayerTimeNotificationManager
+    
+    Note over WM: Every 5 minutes
+    WM->>PNW: doWork()
+    PNW->>PTR: getPrayerTimes()
+    PTR-->>PNW: PrayerData (all 5 prayers)
+    
+    loop For each prayer (Fajr, Dhuhr, Asr, Maghrib, Isha)
+        PNW->>PNW: parsePrayerTime(prayerTime)
+        PNW->>PNW: Calculate time difference
+        
+        alt Prayer in 10 minutes (±1 min)
+            PNW->>SP: hasNotificationBeenSent(prayer, "10min")?
+            alt Not sent yet
+                PNW->>PTNM: sendAdvanceNotification(prayer, 10, lang)
+                PNW->>SP: markNotificationAsSent(prayer, "10min")
+            end
+        else Prayer in 5 minutes (±1 min)
+            PNW->>SP: hasNotificationBeenSent(prayer, "5min")?
+            alt Not sent yet
+                PNW->>PTNM: sendAdvanceNotification(prayer, 5, lang)
+                PNW->>SP: markNotificationAsSent(prayer, "5min")
+            end
+        else Prayer was 10 minutes ago (±1 min)
+            PNW->>SP: hasNotificationBeenSent(prayer, "late")?
+            alt Not sent yet
+                PNW->>PTNM: sendPrayerReminderNotification(prayer)
+                Note over PTNM: Shows "Have you prayed?"<br/>with Yes/No buttons
+                PNW->>SP: markNotificationAsSent(prayer, "late")
+            end
+        end
+    end
+    
+    PNW-->>WM: Result.success()
+    
+    Note over WM: Wait 5 minutes, repeat

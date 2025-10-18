@@ -238,6 +238,26 @@ class AppFilteringManagerTest {
     }
 
     @Test
+    fun `should use dynamic category detection for apps not in defaults`() = runTest {
+        // Given: App not present in default lists but detected as social media
+        val dynamicPackage = "com.example.altinstagram"
+        every { appCategoryDetector.determineAppCategory(dynamicPackage) } returns AppCategory.SOCIAL_MEDIA
+
+        settingsFlow.value = AppSettings(
+            enableAppSpecificDetection = true,
+            monitoredAppCategories = setOf(AppCategory.SOCIAL_MEDIA),
+            customMonitoredApps = emptySet(),
+            excludedApps = emptySet()
+        )
+
+        // When: Check monitoring decision
+        val shouldMonitor = appFilteringManager.shouldMonitorApp(dynamicPackage)
+
+        // Then: App should be monitored via dynamic detection
+        assertTrue("App detected as SOCIAL_MEDIA should be monitored", shouldMonitor)
+    }
+
+    @Test
     fun `shouldMonitorAppSync should work correctly`() = runTest {
         // Given: Default first install settings
         

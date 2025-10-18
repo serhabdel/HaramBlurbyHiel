@@ -214,7 +214,7 @@ class SettingsRepository @Inject constructor(
             compassUpdateRate = prefs.getInt("compass_update_rate", 15),
 
             // App-Specific Detection Settings
-            enableAppSpecificDetection = prefs.getBoolean("enable_app_specific_detection", true),
+            enableAppSpecificDetection = prefs.getBoolean("enable_app_specific_detection", false),
             monitoredAppCategories = loadMonitoredAppCategories(),
             customMonitoredApps = prefs.getStringSet("custom_monitored_apps", emptySet()) ?: emptySet(),
             excludedApps = prefs.getStringSet("excluded_apps", emptySet()) ?: emptySet(),
@@ -263,7 +263,7 @@ class SettingsRepository @Inject constructor(
     private fun loadMonitoredAppCategories(): Set<AppCategory> {
         val categoriesJson = prefs.getString("monitored_app_categories", null)
         if (categoriesJson.isNullOrBlank()) {
-            return setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING)
+            return AppCategory.values().toSet() // Monitor all categories by default
         }
 
         return try {
@@ -292,8 +292,8 @@ class SettingsRepository @Inject constructor(
 
             // Ensure we have at least the defaults if everything was filtered out
             if (categories.isEmpty()) {
-                Log.w(TAG, "No valid categories found, falling back to defaults")
-                setOf(AppCategory.SOCIAL_MEDIA, AppCategory.BROWSERS, AppCategory.DATING)
+                Log.w(TAG, "No valid categories found, falling back to all categories")
+                AppCategory.values().toSet() // Monitor all categories by default
             } else {
                 categories
             }

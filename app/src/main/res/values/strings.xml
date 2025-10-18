@@ -898,6 +898,49 @@
     <string name="prayer_already_prayed">Already Prayed</string>
     <string name="prayer_will_pray_now">I Will Pray Now</string>
     
+    <!-- Advance Prayer Notifications -->
+    <string name="prayer_advance_10min_title">Prayer in 10 Minutes</string>
+    <string name="prayer_advance_10min_text">%s prayer is in 10 minutes. Prepare for prayer.</string>
+    <string name="prayer_advance_10min_message">Prepare for prayer. May Allah bless you.</string>
+    <string name="prayer_advance_5min_title">Prayer in 5 Minutes</string>
+    <string name="prayer_advance_5min_text">%s prayer is in 5 minutes. Get ready for prayer.</string>
+    <string name="prayer_advance_5min_message">Get ready for prayer. May Allah accept your worship.</string>
+    
+    <!-- Enhanced Prayer Reminder Strings -->
+    <string name="prayer_reminder_title_bilingual">Prayer Reminder | تذكير بالصلاة</string>
+    <string name="prayer_reminder_question">Have you prayed %s?</string>
+    <string name="prayer_reminder_question_bilingual">Have you prayed %1$s?\nهل صليت %2$s؟</string>
+    
+    <!-- Action Button Labels -->
+    <string name="prayer_action_yes_bilingual">Yes | نعم</string>
+    <string name="prayer_action_no_bilingual">No | لا</string>
+    <string name="prayer_action_already_prayed_bilingual">Already Prayed | لقد صليت</string>
+    <string name="prayer_action_will_pray_now_bilingual">I Will Pray Now | سأصلي الآن</string>
+    
+    <!-- Quranic Guidance Notification Strings -->
+    <string name="prayer_guidance_title_bilingual">Prayer Importance Reminder | تذكير بأهمية الصلاة</string>
+    <string name="prayer_guidance_encouragement">Don\'t delay prayer. Prayer is the pillar of religion.</string>
+    <string name="prayer_guidance_encouragement_bilingual">Don\'t delay prayer. Prayer is the pillar of religion.\nلا تؤخر الصلاة. الصلاة عماد الدين.</string>
+    <string name="prayer_guidance_verse_reference">📖 Quran %1$d:%2$d</string>
+    
+    <!-- Follow-up Reminder Strings -->
+    <string name="prayer_followup_title_bilingual">Important Prayer Reminder | تذكير مهم بالصلاة</string>
+    <string name="prayer_followup_message">Don\'t delay %s prayer. Prayer is the pillar of religion.</string>
+    <string name="prayer_followup_message_bilingual">Don\'t delay %1$s prayer. Prayer is the pillar of religion.\nلا تؤخر صلاة %2$s. الصلاة عماد الدين.</string>
+    
+    <!-- Encouragement Messages -->
+    <string name="prayer_encouragement_prepare">Prepare for prayer. May Allah bless you.</string>
+    <string name="prayer_encouragement_timeliness">Prayer on time is among the most beloved deeds to Allah.</string>
+    <string name="prayer_encouragement_pillar">Prayer is the pillar of religion.</string>
+    <string name="prayer_encouragement_blessing">May Allah bless you and accept your prayer.</string>
+    <string name="prayer_encouragement_dont_delay">Don\'t delay what brings you closer to your Creator.</string>
+    
+    <!-- Acknowledgment Messages -->
+    <string name="prayer_completion_acknowledgment">May Allah bless you! Thank you for completing prayer.</string>
+    <string name="prayer_completion_acknowledgment_bilingual">May Allah bless you! Thank you for completing prayer.\nبارك الله فيك! جزاك الله خيراً.</string>
+    <string name="prayer_will_pray_acknowledgment">May Allah bless you! May Allah accept your prayer.</string>
+    <string name="prayer_will_pray_acknowledgment_bilingual">May Allah bless you! May Allah accept your prayer.\nبارك الله فيك! نسأل الله أن يتقبل منك.</string>
+    
     <!-- Quranic Guidance Activity -->
     <string name="quranic_guidance_dialog_title">🌟 Divine Guidance</string>
     <string name="quranic_guidance_subtitle">Let us listen to the words of Allah</string>

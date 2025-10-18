@@ -62,25 +62,14 @@ class AppFilteringManager @Inject constructor(
      * Check if a specific app should be monitored for content detection
      */
     suspend fun shouldMonitorApp(packageName: String?): Boolean {
-        if (packageName.isNullOrBlank()) {
-            // Return true for null/blank apps only when monitoring all apps
-            return detectionScopeFlow.value.mode == DetectionMode.ALL_APPS
-        }
-
-        val currentScope = detectionScopeFlow.value
-        return currentScope.shouldMonitorApp(packageName)
+        return shouldMonitorWithScope(packageName, detectionScopeFlow.value)
     }
 
     /**
      * Check if a specific app should be monitored (synchronous version)
      */
     fun shouldMonitorAppSync(packageName: String?): Boolean {
-        if (packageName.isNullOrBlank()) {
-            // Return true for null/blank apps only when monitoring all apps
-            return detectionScopeFlow.value.mode == DetectionMode.ALL_APPS
-        }
-
-        return detectionScopeFlow.value.shouldMonitorApp(packageName)
+        return shouldMonitorWithScope(packageName, detectionScopeFlow.value)
     }
 
     /**
@@ -139,13 +128,54 @@ class AppFilteringManager @Inject constructor(
     fun getMonitoringReason(packageName: String): String {
         val scope = detectionScopeFlow.value
 
+        if (packageName.isBlank()) {
+            return if (scope.isMonitoringAllApps()) "monitoring_all_apps" else "not_monitored"
+        }
+
         return when {
             scope.isDetectionDisabled() -> "detection_disabled"
-            scope.isMonitoringAllApps() -> "monitoring_all_apps"
-            isAppExcluded(packageName) -> "explicitly_excluded"
-            isCustomMonitoredApp(packageName) -> "custom_monitored_app"
-            isAppInMonitoredCategory(packageName) -> "in_monitored_category_${getAppCategory(packageName)?.name?.lowercase()}"
-            else -> "not_monitored"
+            scope.isMonitoringAllApps() -> if (scope.excludedApps.contains(packageName)) "explicitly_excluded" else "monitoring_all_apps"
+            scope.excludedApps.contains(packageName) -> "explicitly_excluded"
+            scope.customIncludedApps.contains(packageName) -> "custom_monitored_app"
+            else -> {
+                val detectedCategory = appCategoryDetector.determineAppCategory(packageName)
+                if (detectedCategory != null && scope.monitoredCategories.contains(detectedCategory)) {
+                    "in_monitored_category_${detectedCategory.name.lowercase()}"
+                } else {
+                    "not_monitored"
+                }
+            }
+        }
+    }
+
+    private fun shouldMonitorWithScope(packageName: String?, scope: DetectionScope): Boolean {
+        if (packageName.isNullOrBlank()) {
+            return scope.mode == DetectionMode.ALL_APPS && !scope.isDetectionDisabled()
+        }
+
+        // Always respect explicit exclusions
+        if (scope.excludedApps.contains(packageName)) {
+            return false
+        }
+
+        return when (scope.mode) {
+            DetectionMode.DISABLED -> false
+            DetectionMode.ALL_APPS -> true
+            DetectionMode.SPECIFIC_CATEGORIES -> {
+                if (scope.customIncludedApps.contains(packageName)) {
+                    return true
+                }
+
+                val directMatch = scope.monitoredCategories.any { category ->
+                    category.defaultApps.contains(packageName)
+                }
+                if (directMatch) {
+                    return true
+                }
+
+                val detectedCategory = appCategoryDetector.determineAppCategory(packageName)
+                detectedCategory != null && scope.monitoredCategories.contains(detectedCategory)
+            }
         }
     }
 
