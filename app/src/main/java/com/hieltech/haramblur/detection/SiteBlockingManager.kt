@@ -96,7 +96,7 @@ class SiteBlockingManagerImpl @Inject constructor(
             // Early exit: Check if domain is whitelisted (should never be blocked)
             if (isWhitelistedDomain(cleanUrl)) {
                 Log.d("SiteBlockingManager", "Whitelisted domain detected, allowing: $domain")
-                return@withContext SiteBlockingResult(
+                val result = SiteBlockingResult(
                     isBlocked = false,
                     category = null,
                     confidence = 0.0f,
@@ -104,16 +104,32 @@ class SiteBlockingManagerImpl @Inject constructor(
                     reflectionTimeSeconds = 0,
                     blockingReason = "Whitelisted domain"
                 )
+                cacheResult(domain, result)
+                return@withContext result
+            }
+
+            // Early exit: Check if this is an authentication URL (should never be blocked)
+            if (isAuthenticationUrl(cleanUrl) || isLegitimateServiceUrl(domain)) {
+                Log.d("SiteBlockingManager", "Authentication/legitimate service URL detected, allowing: $domain")
+                val result = SiteBlockingResult(
+                    isBlocked = false,
+                    category = null,
+                    confidence = 0.0f,
+                    quranicVerse = null,
+                    reflectionTimeSeconds = 0,
+                    blockingReason = "Legitimate authentication/service URL"
+                )
+                cacheResult(domain, result)
+                return@withContext result
             }
             
-            // Default result for non-blocked sites
-            SiteBlockingResult(
-                isBlocked = false,
-                category = null,
-                confidence = 0.0f,
-                quranicVerse = null,
-                reflectionTimeSeconds = 0
-            )
+            // Perform blocking check (domain-focused)
+            val result = checkAgainstBlockedSites(domain, cleanUrl)
+            
+            // Cache the result
+            cacheResult(domain, result)
+            
+            result
         } catch (e: Exception) {
             Log.e("SiteBlockingManager", "Error checking URL: $url", e)
             // Return safe default on error
@@ -327,11 +343,27 @@ class SiteBlockingManagerImpl @Inject constructor(
     /**
      * Check for suspicious patterns in URL that might indicate inappropriate content
      * Enhanced with comprehensive porn site detection patterns and context awareness
+     * FIXED: Focus on domain-only analysis to prevent false positives from query parameters
      */
     private fun checkSuspiciousPatterns(url: String): SiteBlockingResult {
+        val cleanUrl = cleanUrl(url)
+        val domain = UrlUtils.extractDomain(cleanUrl)
         val lowercaseUrl = url.lowercase()
+        val lowercaseDomain = domain.lowercase()
 
-        // High-confidence porn keywords (immediate block) - refined for accuracy
+        // Early exit for authentication and legitimate service URLs
+        if (isAuthenticationUrl(cleanUrl) || isLegitimateServiceUrl(domain)) {
+            return SiteBlockingResult(
+                isBlocked = false,
+                category = null,
+                confidence = 0.0f,
+                quranicVerse = null,
+                reflectionTimeSeconds = 0,
+                blockingReason = "Legitimate authentication/service URL"
+            )
+        }
+
+        // High-confidence porn keywords (immediate block) - ONLY check domain, not full URL
         val highConfidencePornKeywords = listOf(
             "porn", "xxx", "nude", "naked", "fuck", "pornography",
             "erotica", "nsfw", "adultcontent", "sexvideo", "pornstar",
@@ -341,7 +373,7 @@ class SiteBlockingManagerImpl @Inject constructor(
             "adultwebcam", "pornchat", "sextoy", "vibrator", "dildo"
         )
 
-        // Medium-confidence adult keywords - with context checks
+        // Medium-confidence adult keywords - with context checks (domain only)
         val mediumConfidenceAdultKeywords = listOf(
             "adult", "escort", "stripper", "massage", "sensual",
             "erotic", "intimate", "seductive", "provocative",
@@ -359,32 +391,32 @@ class SiteBlockingManagerImpl @Inject constructor(
 
         // Check for legitimate context first - if found, reduce suspicion
         val hasLegitimateContext = legitimateContextKeywords.any { keyword ->
-            lowercaseUrl.contains(keyword)
+            lowercaseDomain.contains(keyword)
         }
 
-        // Check high-confidence porn patterns first
+        // Check high-confidence porn patterns in DOMAIN ONLY (not full URL)
         for (keyword in highConfidencePornKeywords) {
-            if (lowercaseUrl.contains(keyword)) {
+            if (lowercaseDomain.contains(keyword)) {
                 // Even high-confidence keywords can be false positives in legitimate contexts
                 if (hasLegitimateContext) {
                     return createPornBlockingResult(keyword, 0.4f, "High-confidence keyword in legitimate context")
                 }
-                return createPornBlockingResult(keyword, 0.9f, "High-confidence porn keyword detected")
+                return createPornBlockingResult(keyword, 0.9f, "High-confidence porn keyword detected in domain")
             }
         }
 
-        // Check medium-confidence adult patterns with additional context checks
+        // Check medium-confidence adult patterns with additional context checks (domain only)
         for (keyword in mediumConfidenceAdultKeywords) {
-            if (lowercaseUrl.contains(keyword)) {
+            if (lowercaseDomain.contains(keyword)) {
                 // Additional checks for common false positives
-                if (hasLegitimateContext || isLikelyFalsePositive(lowercaseUrl, keyword)) {
+                if (hasLegitimateContext || isLikelyFalsePositive(lowercaseDomain, keyword)) {
                     return createPornBlockingResult(keyword, 0.3f, "Adult keyword in legitimate context")
                 }
-                return createPornBlockingResult(keyword, 0.7f, "Adult entertainment keyword detected")
+                return createPornBlockingResult(keyword, 0.7f, "Adult entertainment keyword detected in domain")
             }
         }
 
-        // Check gambling patterns
+        // Check gambling patterns (domain only)
         val gamblingKeywords = listOf(
             "casino", "bet", "gambling", "poker", "slots", "jackpot",
             "blackjack", "roulette", "lottery", "sportsbet", "betting",
@@ -392,7 +424,7 @@ class SiteBlockingManagerImpl @Inject constructor(
         )
 
         for (keyword in gamblingKeywords) {
-            if (lowercaseUrl.contains(keyword)) {
+            if (lowercaseDomain.contains(keyword)) {
                 return SiteBlockingResult(
                     isBlocked = true,
                     category = BlockingCategory.GAMBLING,
@@ -405,7 +437,7 @@ class SiteBlockingManagerImpl @Inject constructor(
             }
         }
 
-        // Check dating patterns
+        // Check dating patterns (domain only)
         val datingKeywords = listOf(
             "hookup", "dating", "singles", "meet", "tinder", "bumble",
             "match", "okcupid", "plentyoffish", "eharmony", "zoosk",
@@ -413,7 +445,7 @@ class SiteBlockingManagerImpl @Inject constructor(
         )
 
         for (keyword in datingKeywords) {
-            if (lowercaseUrl.contains(keyword)) {
+            if (lowercaseDomain.contains(keyword)) {
                 return SiteBlockingResult(
                     isBlocked = true,
                     category = BlockingCategory.DATING_SITES,
@@ -426,17 +458,17 @@ class SiteBlockingManagerImpl @Inject constructor(
             }
         }
 
-        // Check for porn site TLD patterns
+        // Check for porn site TLD patterns (domain only)
         val pornTlds = listOf(".porn", ".sex", ".xxx", ".adult", ".cam", ".tube", ".video")
         for (tld in pornTlds) {
-            if (lowercaseUrl.contains(tld)) {
-                return createPornBlockingResult(tld, 0.95f, "Pornographic TLD detected")
+            if (lowercaseDomain.contains(tld)) {
+                return createPornBlockingResult(tld, 0.95f, "Pornographic TLD detected in domain")
             }
         }
 
-        // Check for suspicious URL structures with improved accuracy
-        if (isSuspiciousUrlStructure(lowercaseUrl)) {
-            return createPornBlockingResult("suspicious_structure", 0.5f, "Suspicious URL structure detected")
+        // Check for suspicious URL structures with improved accuracy (domain focused)
+        if (isSuspiciousUrlStructure(lowercaseDomain)) {
+            return createPornBlockingResult("suspicious_structure", 0.5f, "Suspicious domain structure detected")
         }
 
         return SiteBlockingResult(
@@ -446,6 +478,70 @@ class SiteBlockingManagerImpl @Inject constructor(
             quranicVerse = null,
             reflectionTimeSeconds = 0
         )
+    }
+
+    /**
+     * Check if URL is an authentication/OAuth URL that should never be blocked
+     */
+    private fun isAuthenticationUrl(url: String): Boolean {
+        val lowercaseUrl = url.lowercase()
+        
+        // Google authentication URLs
+        if (lowercaseUrl.contains("accounts.google.com") || 
+            lowercaseUrl.contains("oauth2.googleapis.com") ||
+            lowercaseUrl.contains("google.com/oauth")) {
+            return true
+        }
+        
+        // Common authentication patterns
+        val authPatterns = listOf(
+            "oauth", "authenticate", "signin", "login", "sso", "auth",
+            "openid", "saml", "cas", "oidc"
+        )
+        
+        // Check if URL contains authentication patterns in the path (not domain)
+        for (pattern in authPatterns) {
+            if (lowercaseUrl.contains("/$pattern") || 
+                lowercaseUrl.contains("?$pattern") ||
+                lowercaseUrl.contains("&$pattern")) {
+                return true
+            }
+        }
+        
+        // Check for common OAuth parameters
+        val oauthParams = listOf(
+            "client_id=", "redirect_uri=", "response_type=", "scope=",
+            "access_token=", "refresh_token=", "code=", "state="
+        )
+        
+        for (param in oauthParams) {
+            if (lowercaseUrl.contains(param)) {
+                return true
+            }
+        }
+        
+        return false
+    }
+
+    /**
+     * Check if domain is a legitimate service that should never be blocked
+     */
+    private fun isLegitimateServiceUrl(domain: String): Boolean {
+        val lowercaseDomain = domain.lowercase()
+        
+        // Major tech companies and their services
+        val legitimateDomains = setOf(
+            "google.com", "accounts.google.com", "oauth2.googleapis.com",
+            "microsoft.com", "login.microsoftonline.com", "apple.com",
+            "facebook.com", "amazon.com", "netflix.com", "spotify.com",
+            "github.com", "stackoverflow.com", "linkedin.com", "twitter.com",
+            "instagram.com", "youtube.com", "discord.com", "slack.com"
+        )
+        
+        // Check exact match or subdomain
+        return legitimateDomains.any { legitDomain ->
+            lowercaseDomain == legitDomain || lowercaseDomain.endsWith(".$legitDomain")
+        }
     }
 
     /**
@@ -471,15 +567,10 @@ class SiteBlockingManagerImpl @Inject constructor(
 
     /**
      * Check for suspicious URL structures that might indicate porn sites
+     * UPDATED: Now focuses on domain structure only, not query parameters
      */
-    private fun isSuspiciousUrlStructure(url: String): Boolean {
-        // Check for encoded characters that might hide porn content
-        if (url.contains("%") && url.length > 100) {
-            return true
-        }
-
+    private fun isSuspiciousUrlStructure(domain: String): Boolean {
         // Check for suspicious subdomains
-        val domain = UrlUtils.extractDomain(url)
         val suspiciousSubdomains = listOf("sex", "porn", "xxx", "adult", "hot", "sexy", "nude", "naked", "fuck")
         for (subdomain in suspiciousSubdomains) {
             if (domain.startsWith("$subdomain.") || domain.contains(".$subdomain.")) {
@@ -487,7 +578,7 @@ class SiteBlockingManagerImpl @Inject constructor(
             }
         }
 
-        // Check for numbers in domain that might indicate random porn sites
+        // Check for numbers in main domain that might indicate random porn sites
         val domainParts = domain.split(".")
         if (domainParts.size >= 2) {
             val mainDomain = domainParts[domainParts.size - 2]
@@ -496,14 +587,21 @@ class SiteBlockingManagerImpl @Inject constructor(
             }
         }
 
+        // Check for excessive hyphens in domain (common in spam/porn sites)
+        val mainDomain = domainParts.getOrNull(domainParts.size - 2) ?: return false
+        if (mainDomain.count { it == '-' } > 2) {
+            return true
+        }
+
         return false
     }
 
     /**
-     * Check if a URL is likely a false positive based on common patterns
+     * Check if a domain is likely a false positive based on common patterns
+     * UPDATED: Now works with domain-only analysis
      */
-    private fun isLikelyFalsePositive(url: String, matchedKeyword: String): Boolean {
-        val lowercaseUrl = url.lowercase()
+    private fun isLikelyFalsePositive(domain: String, matchedKeyword: String): Boolean {
+        val lowercaseDomain = domain.lowercase()
 
         // Common false positive patterns
         val falsePositivePatterns = listOf(
@@ -528,9 +626,9 @@ class SiteBlockingManagerImpl @Inject constructor(
             "instagram", "youtube", "linkedin", "github", "stackoverflow"
         )
 
-        // Check if URL contains any false positive patterns
+        // Check if domain contains any false positive patterns
         for (pattern in falsePositivePatterns) {
-            if (lowercaseUrl.contains(pattern)) {
+            if (lowercaseDomain.contains(pattern)) {
                 return true
             }
         }
@@ -539,29 +637,29 @@ class SiteBlockingManagerImpl @Inject constructor(
         return when (matchedKeyword) {
             "sex" -> {
                 // Common false positives with "sex"
-                lowercaseUrl.contains("education") ||
-                lowercaseUrl.contains("health") ||
-                lowercaseUrl.contains("medical") ||
-                lowercaseUrl.contains("research") ||
-                lowercaseUrl.contains("university") ||
-                lowercaseUrl.contains("study") ||
-                lowercaseUrl.contains("science")
+                lowercaseDomain.contains("education") ||
+                lowercaseDomain.contains("health") ||
+                lowercaseDomain.contains("medical") ||
+                lowercaseDomain.contains("research") ||
+                lowercaseDomain.contains("university") ||
+                lowercaseDomain.contains("study") ||
+                lowercaseDomain.contains("science")
             }
             "adult" -> {
                 // Common false positives with "adult"
-                lowercaseUrl.contains("education") ||
-                lowercaseUrl.contains("learning") ||
-                lowercaseUrl.contains("literacy") ||
-                lowercaseUrl.contains("training") ||
-                lowercaseUrl.contains("development")
+                lowercaseDomain.contains("education") ||
+                lowercaseDomain.contains("learning") ||
+                lowercaseDomain.contains("literacy") ||
+                lowercaseDomain.contains("training") ||
+                lowercaseDomain.contains("development")
             }
             "massage" -> {
                 // Common false positives with "massage"
-                lowercaseUrl.contains("therapy") ||
-                lowercaseUrl.contains("medical") ||
-                lowercaseUrl.contains("health") ||
-                lowercaseUrl.contains("spa") ||
-                lowercaseUrl.contains("wellness")
+                lowercaseDomain.contains("therapy") ||
+                lowercaseDomain.contains("medical") ||
+                lowercaseDomain.contains("health") ||
+                lowercaseDomain.contains("spa") ||
+                lowercaseDomain.contains("wellness")
             }
             else -> false
         }

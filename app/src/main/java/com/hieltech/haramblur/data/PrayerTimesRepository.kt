@@ -47,39 +47,61 @@ class PrayerTimesRepository @Inject constructor(
             try {
                 // Check cache first
                 if (isCacheValid()) {
-                    cachedPrayerData?.let { return@withContext Result.success(it) }
+                    cachedPrayerData?.let { 
+                        Log.d(TAG, "✅ Using cached prayer times")
+                        return@withContext Result.success(it) 
+                    }
                 }
 
                 val settings = settingsRepository.settings.value
+                Log.d(TAG, "🔍 Fetching prayer times - localCalc: ${settings.enableLocalCalculations}, preferLocal: ${settings.preferLocalOverApi}")
                 
                 // Check if local calculations are enabled and preferred
                 if (settings.enableLocalCalculations) {
                     if (settings.preferLocalOverApi) {
                         // Try local first, then fallback to API
+                        Log.d(TAG, "🏠 Trying local calculation first")
                         val localResult = getPrayerTimesLocally()
                         if (localResult.isSuccess) {
+                            Log.i(TAG, "✅ Local calculation successful")
                             return@withContext localResult
                         } else {
-                            Log.w(TAG, "Local calculation failed, falling back to API: ${localResult.exceptionOrNull()?.message}")
+                            Log.w(TAG, "⚠️ Local calculation failed, falling back to API: ${localResult.exceptionOrNull()?.message}")
                             // Fall through to API fallback
                         }
                     } else {
                         // Try API first, then fallback to local
+                        Log.d(TAG, "🌐 Trying API first")
                         val apiResult = getPrayerTimesFromAPI()
                         if (apiResult.isSuccess) {
+                            Log.i(TAG, "✅ API successful")
                             return@withContext apiResult
                         } else {
-                            Log.w(TAG, "API failed, falling back to local calculation: ${apiResult.exceptionOrNull()?.message}")
-                            return@withContext getPrayerTimesLocally()
+                            Log.w(TAG, "⚠️ API failed, falling back to local calculation: ${apiResult.exceptionOrNull()?.message}")
+                            val localResult = getPrayerTimesLocally()
+                            if (localResult.isSuccess) {
+                                Log.i(TAG, "✅ Local calculation fallback successful")
+                                return@withContext localResult
+                            } else {
+                                Log.e(TAG, "❌ Both API and local calculation failed")
+                                return@withContext localResult
+                            }
                         }
                     }
                 }
                 
                 // Default: API only mode
+                Log.d(TAG, "🌐 Using API only mode")
                 getPrayerTimesFromAPI()
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching prayer times", e)
-                Result.failure(e)
+                Log.e(TAG, "💥 Critical error fetching prayer times", e)
+                // Try emergency local calculation as last resort
+                if (settingsRepository.settings.value.enableLocalCalculations) {
+                    Log.w(TAG, "🆘 Attempting emergency local calculation")
+                    getPrayerTimesLocally()
+                } else {
+                    Result.failure(e)
+                }
             }
         }
     }

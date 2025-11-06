@@ -265,18 +265,27 @@ class UnifiedSiteBlockingManager @Inject constructor(
 
     /**
      * Check for suspicious patterns in URL
+     * FIXED: Focus on domain-only analysis to prevent false positives from query parameters
      */
     private fun checkSuspiciousPatterns(url: String): SiteBlockingResult {
+        val cleanUrl = UrlUtils.cleanUrl(url)
+        val domain = UrlUtils.extractDomain(cleanUrl)
         val lowercaseUrl = url.lowercase()
+        val lowercaseDomain = domain.lowercase()
 
-        // Check for dating/hookup keywords
+        // Early exit for authentication and legitimate service URLs
+        if (isAuthenticationUrl(cleanUrl) || isLegitimateServiceUrl(domain)) {
+            return createSafeResult("Legitimate authentication/service URL")
+        }
+
+        // Check for dating/hookup keywords (domain only)
         val datingKeywords = listOf(
             "dating", "hookup", "tinder", "bumble", "match", "singles",
             "flirt", "romance", "meet", "chat", "adult-dating"
         )
 
         for (keyword in datingKeywords) {
-            if (lowercaseUrl.contains(keyword)) {
+            if (lowercaseDomain.contains(keyword)) {
                 return SiteBlockingResult(
                     isBlocked = true,
                     category = BlockingCategory.DATING_SITES,
@@ -289,10 +298,10 @@ class UnifiedSiteBlockingManager @Inject constructor(
             }
         }
 
-        // Check for porn TLD patterns
+        // Check for porn TLD patterns (domain only)
         val pornTlds = listOf(".porn", ".sex", ".xxx", ".adult", ".cam", ".tube", ".video")
         for (tld in pornTlds) {
-            if (lowercaseUrl.contains(tld)) {
+            if (lowercaseDomain.contains(tld)) {
                 return SiteBlockingResult(
                     isBlocked = true,
                     category = BlockingCategory.EXPLICIT_CONTENT,
@@ -306,6 +315,70 @@ class UnifiedSiteBlockingManager @Inject constructor(
         }
 
         return createSafeResult("No suspicious patterns")
+    }
+
+    /**
+     * Check if URL is an authentication/OAuth URL that should never be blocked
+     */
+    private fun isAuthenticationUrl(url: String): Boolean {
+        val lowercaseUrl = url.lowercase()
+        
+        // Google authentication URLs
+        if (lowercaseUrl.contains("accounts.google.com") || 
+            lowercaseUrl.contains("oauth2.googleapis.com") ||
+            lowercaseUrl.contains("google.com/oauth")) {
+            return true
+        }
+        
+        // Common authentication patterns
+        val authPatterns = listOf(
+            "oauth", "authenticate", "signin", "login", "sso", "auth",
+            "openid", "saml", "cas", "oidc"
+        )
+        
+        // Check if URL contains authentication patterns in the path (not domain)
+        for (pattern in authPatterns) {
+            if (lowercaseUrl.contains("/$pattern") || 
+                lowercaseUrl.contains("?$pattern") ||
+                lowercaseUrl.contains("&$pattern")) {
+                return true
+            }
+        }
+        
+        // Check for common OAuth parameters
+        val oauthParams = listOf(
+            "client_id=", "redirect_uri=", "response_type=", "scope=",
+            "access_token=", "refresh_token=", "code=", "state="
+        )
+        
+        for (param in oauthParams) {
+            if (lowercaseUrl.contains(param)) {
+                return true
+            }
+        }
+        
+        return false
+    }
+
+    /**
+     * Check if domain is a legitimate service that should never be blocked
+     */
+    private fun isLegitimateServiceUrl(domain: String): Boolean {
+        val lowercaseDomain = domain.lowercase()
+        
+        // Major tech companies and their services
+        val legitimateDomains = setOf(
+            "google.com", "accounts.google.com", "oauth2.googleapis.com",
+            "microsoft.com", "login.microsoftonline.com", "apple.com",
+            "facebook.com", "amazon.com", "netflix.com", "spotify.com",
+            "github.com", "stackoverflow.com", "linkedin.com", "twitter.com",
+            "instagram.com", "youtube.com", "discord.com", "slack.com"
+        )
+        
+        // Check exact match or subdomain
+        return legitimateDomains.any { legitDomain ->
+            lowercaseDomain == legitDomain || lowercaseDomain.endsWith(".$legitDomain")
+        }
     }
 
     /**

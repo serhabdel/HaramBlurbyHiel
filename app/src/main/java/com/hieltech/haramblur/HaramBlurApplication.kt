@@ -13,6 +13,7 @@ import com.hieltech.haramblur.utils.LocaleUtils
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -98,10 +99,22 @@ class HaramBlurApplication : Application() {
         
         // Schedule prayer notifications worker
         try {
+            Log.d(TAG, "🕌 Scheduling prayer notification worker")
             PrayerNotificationWorker.schedulePrayerNotifications(this)
-            Log.d(TAG, "Prayer notification worker scheduled successfully")
+            Log.i(TAG, "✅ Prayer notification worker scheduled successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to schedule prayer notification worker", e)
+            Log.e(TAG, "❌ Failed to schedule prayer notification worker", e)
+            // Try to schedule again after a delay
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(5000) // Wait 5 seconds
+                try {
+                    Log.d(TAG, "🔄 Retrying prayer notification worker scheduling")
+                    PrayerNotificationWorker.schedulePrayerNotifications(this@HaramBlurApplication)
+                    Log.i(TAG, "✅ Prayer notification worker retry successful")
+                } catch (retryException: Exception) {
+                    Log.e(TAG, "❌ Prayer notification worker retry failed", retryException)
+                }
+            }
         }
     }
 

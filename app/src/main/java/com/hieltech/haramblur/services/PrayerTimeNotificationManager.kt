@@ -1,16 +1,19 @@
 package com.hieltech.haramblur.services
 
 import android.app.AlarmManager
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.hieltech.haramblur.MainActivity
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.SettingsRepository
@@ -84,6 +87,22 @@ class PrayerTimeNotificationManager @Inject constructor(
     private val prayerCompletionStatus = mutableMapOf<String, Boolean>()
     private val pendingReminders = mutableMapOf<String, Long>() // prayer -> timestamp
     
+    /**
+     * Check if notification permission is granted
+     */
+    private fun hasNotificationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ requires POST_NOTIFICATIONS permission
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            // Android 12 and below don't require runtime permission for notifications
+            true
+        }
+    }
+
     init {
         createNotificationChannels()
         cleanupOldPrayerCompletionData()
@@ -145,10 +164,16 @@ class PrayerTimeNotificationManager @Inject constructor(
     fun sendPrayerTimeNotification(prayerName: PrayerName, prayerTime: String) {
         serviceScope.launch {
             try {
+                // Check notification permission first
+                if (!hasNotificationPermission()) {
+                    Log.w(TAG, "🚫 Notification permission not granted - cannot send prayer time notification for $prayerName")
+                    return@launch
+                }
+
                 val settings = settingsRepository.getCurrentSettings()
                 
                 if (!settings.enablePrayerNotifications) {
-                    Log.d(TAG, "Prayer notifications disabled")
+                    Log.d(TAG, "🚫 Prayer notifications disabled")
                     return@launch
                 }
                 
@@ -157,11 +182,11 @@ class PrayerTimeNotificationManager @Inject constructor(
                 
                 // Check if notification already sent
                 if (hasNotificationBeenSent(prayerName.name, NOTIF_TYPE_AT_TIME)) {
-                    Log.d(TAG, "Prayer time notification for $prayerName already sent today, skipping")
+                    Log.d(TAG, "⏭️ Prayer time notification for $prayerName already sent today, skipping")
                     return@launch
                 }
                 
-                Log.i(TAG, "Sending prayer time notification for $prayerName at $prayerTime")
+                Log.i(TAG, "🔔 Sending prayer time notification for $prayerName at $prayerTime")
                 
                 // Create the main notification
                 val notification = createPrayerTimeNotification(prayerName, prayerTime, settings.preferredLanguage.name)
@@ -171,7 +196,7 @@ class PrayerTimeNotificationManager @Inject constructor(
                 markNotificationAsSent(prayerName.name, NOTIF_TYPE_AT_TIME)
                 
             } catch (e: Exception) {
-                Log.e(TAG, "Error sending prayer time notification", e)
+                Log.e(TAG, "❌ Error sending prayer time notification", e)
                 // Don't mark as sent if there was an error
             }
         }
@@ -185,10 +210,16 @@ class PrayerTimeNotificationManager @Inject constructor(
      */
     fun sendAdvanceNotification(prayerName: PrayerName, minutesUntil: Int, language: String) {
         try {
+            // Check notification permission first
+            if (!hasNotificationPermission()) {
+                Log.w(TAG, "🚫 Notification permission not granted - cannot send advance notification for $prayerName")
+                return
+            }
+
             // Check if prayer notifications are enabled
             val settings = settingsRepository.getCurrentSettings()
             if (!settings.enablePrayerNotifications) {
-                Log.d(TAG, "Prayer notifications disabled, skipping advance notification")
+                Log.d(TAG, "🚫 Prayer notifications disabled, skipping advance notification")
                 return
             }
             
@@ -198,11 +229,11 @@ class PrayerTimeNotificationManager @Inject constructor(
             // Determine notification type and check if already sent
             val notificationType = if (minutesUntil == 10) NOTIF_TYPE_10MIN else NOTIF_TYPE_5MIN
             if (hasNotificationBeenSent(prayerName.name, notificationType)) {
-                Log.d(TAG, "Advance notification for $prayerName ($minutesUntil min) already sent today, skipping")
+                Log.d(TAG, "⏭️ Advance notification for $prayerName ($minutesUntil min) already sent today, skipping")
                 return
             }
             
-            Log.i(TAG, "Sending advance notification for $prayerName in $minutesUntil minutes (language: $language)")
+            Log.i(TAG, "🔔 Sending advance notification for $prayerName in $minutesUntil minutes (language: $language)")
             
             // Get localized strings based on minutes
             val titleResId = if (minutesUntil == 10) R.string.prayer_advance_10min_text else R.string.prayer_advance_5min_text
@@ -244,7 +275,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             markNotificationAsSent(prayerName.name, notificationType)
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending advance notification for $prayerName in $minutesUntil minutes", e)
+            Log.e(TAG, "❌ Error sending advance notification for $prayerName in $minutesUntil minutes", e)
             // Don't mark as sent if there was an error
         }
     }
@@ -357,7 +388,8 @@ class PrayerTimeNotificationManager @Inject constructor(
         
         val prayerKey = "${prayerName}_${getCurrentDateKey()}"
         prayerCompletionStatus[prayerKey] = true
-        
+        prefs.edit().putBoolean(prayerKey, true).apply()
+
         // Cancel reminder notification
         notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID)
         
@@ -545,7 +577,8 @@ class PrayerTimeNotificationManager @Inject constructor(
         
         val prayerKey = "${prayerName}_${getCurrentDateKey()}"
         prayerCompletionStatus[prayerKey] = true
-        
+        prefs.edit().putBoolean(prayerKey, true).apply()
+
         notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID)
         showPrayerCompletionAcknowledgment(prayerName)
     }
