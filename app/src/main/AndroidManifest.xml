@@ -82,6 +82,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.HaramBlur">
+        
+        <!-- ML Kit Face Detection - ensure model is available -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="face" />
         <activity
             android:name=".MainActivity"
             android:exported="true">

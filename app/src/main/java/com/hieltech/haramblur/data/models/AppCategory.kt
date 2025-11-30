@@ -6,13 +6,15 @@ package com.hieltech.haramblur.data.models
 enum class AppCategory(val displayName: String, val description: String, val defaultApps: Set<String>) {
     SOCIAL_MEDIA(
         "Social Media",
-        "Instagram, Facebook, TikTok, Twitter, Snapchat",
+        "Instagram, Facebook, TikTok, LinkedIn, Twitter, Snapchat",
         setOf(
             "com.instagram.android",
             "com.facebook.katana",
             "com.zhiliaoapp.musically", // TikTok
+            "com.ss.android.ugc.trill", // TikTok variant
             "com.twitter.android",
             "com.snapchat.android",
+            "com.linkedin.android", // LinkedIn
             "com.pinterest",
             "com.reddit.frontpage",
             "com.tumblr"

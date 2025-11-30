@@ -71,7 +71,16 @@ class StatsRepository @Inject constructor(
         val peakHour: Int = 0,
         val mostUsedMode: String = "unknown",
         val trendDirection: TrendDirection = TrendDirection.STABLE,
-        val dataPoints: List<DataPoint> = emptyList()
+        val dataPoints: List<DataPoint> = emptyList(),
+        // Detailed face stats
+        val maleFaceCount: Int = 0,
+        val femaleFaceCount: Int = 0,
+        val unknownFaceCount: Int = 0,
+        val blurredFaceCount: Int = 0,
+        val skippedFaceCount: Int = 0,
+        val averageNsfwConfidence: Float = 0f,
+        val maxProcessingTime: Long = 0L,
+        val minProcessingTime: Long = 0L
     ) {
         enum class TrendDirection {
             IMPROVING, DECLINING, STABLE
@@ -304,6 +313,16 @@ class StatsRepository @Inject constructor(
         val processingTimes = mutableListOf<Double>()
         val dataPoints = mutableListOf<HistoricalStats.DataPoint>()
         val modeCount = mutableMapOf<String, Int>()
+        // New detailed stats
+        var maleFaceCount = 0
+        var femaleFaceCount = 0
+        var unknownFaceCount = 0
+        var blurredFaceCount = 0
+        var skippedFaceCount = 0
+        var totalNsfwConfidence = 0f
+        var nsfwConfidenceCount = 0
+        var maxProcessingTime = 0L
+        var minProcessingTime = Long.MAX_VALUE
 
         // Group by hour for data points
         val hourlyData = detectionLogs.groupBy { log ->
@@ -331,15 +350,30 @@ class StatsRepository @Inject constructor(
 
                 if (metrics.success) successfulDetections++ else failedDetections++
                 faceDetectionCount += metrics.faceCount
-                if (metrics.isNsfw) nsfwDetectionCount++
+                // Aggregate new detailed stats
+                maleFaceCount += metrics.maleCount
+                femaleFaceCount += metrics.femaleCount
+                unknownFaceCount += metrics.unknownCount
+                blurredFaceCount += metrics.blurredCount
+                skippedFaceCount += metrics.skippedCount
+                
+                if (metrics.isNsfw) {
+                    nsfwDetectionCount++
+                    totalNsfwConfidence += metrics.nsfwConfidence
+                    nsfwConfidenceCount++
+                }
                 processingTimes.add(metrics.processingTime)
                 modeCount[metrics.performanceMode] = modeCount.getOrDefault(metrics.performanceMode, 0) + 1
+                
+                maxProcessingTime = maxOf(maxProcessingTime, metrics.processingTime.toLong())
+                minProcessingTime = minOf(minProcessingTime, metrics.processingTime.toLong())
             }
         }
 
-        val averageProcessingTime = processingTimes.average()
+        val averageProcessingTime = if (processingTimes.isNotEmpty()) processingTimes.average() else 0.0
         val successRate = if (totalDetections > 0) (successfulDetections.toFloat() / totalDetections) * 100f else 100f
         val performanceScore = successRate // Simplified performance score
+        val averageNsfwConfidence = if (nsfwConfidenceCount > 0) totalNsfwConfidence / nsfwConfidenceCount else 0f
 
         // Find peak hour
         val peakHourDataPoint = dataPoints.maxByOrNull { it.detections }
@@ -376,7 +410,16 @@ class StatsRepository @Inject constructor(
             peakHour = peakHour,
             mostUsedMode = mostUsedMode,
             trendDirection = trendDirection,
-            dataPoints = dataPoints.sortedBy { it.timestamp }
+            dataPoints = dataPoints.sortedBy { it.timestamp },
+            // New detailed stats
+            maleFaceCount = maleFaceCount,
+            femaleFaceCount = femaleFaceCount,
+            unknownFaceCount = unknownFaceCount,
+            blurredFaceCount = blurredFaceCount,
+            skippedFaceCount = skippedFaceCount,
+            averageNsfwConfidence = averageNsfwConfidence,
+            maxProcessingTime = maxProcessingTime,
+            minProcessingTime = if (minProcessingTime == Long.MAX_VALUE) 0L else minProcessingTime
         )
     }
 
@@ -474,7 +517,13 @@ class StatsRepository @Inject constructor(
         // Same parsing logic as in LogRepository
         val parts = message.split("|")
         var faceCount = 0
+        var maleCount = 0
+        var femaleCount = 0
+        var unknownCount = 0
+        var blurredCount = 0
+        var skippedCount = 0
         var isNsfw = false
+        var nsfwConfidence = 0.0f
         var processingTime = 0.0
         var success = true
         var performanceMode = "unknown"
@@ -482,7 +531,13 @@ class StatsRepository @Inject constructor(
         parts.forEach { part ->
             when {
                 part.startsWith("faces:") -> faceCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("male:") -> maleCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("female:") -> femaleCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("unknown:") -> unknownCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("blurred:") -> blurredCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("skipped:") -> skippedCount = part.substringAfter(":").toIntOrNull() ?: 0
                 part.startsWith("nsfw:") -> isNsfw = part.substringAfter(":").toBoolean()
+                part.startsWith("nsfw_confidence:") -> nsfwConfidence = part.substringAfter(":").toFloatOrNull() ?: 0.0f
                 part.startsWith("processing_time:") -> processingTime = part.substringAfter(":").removeSuffix("ms").toDoubleOrNull() ?: 0.0
                 part.startsWith("success:") -> success = part.substringAfter(":").toBoolean()
                 part.startsWith("performance_mode:") -> performanceMode = part.substringAfter(":")
@@ -492,7 +547,13 @@ class StatsRepository @Inject constructor(
 
         return DetectionMetrics(
             faceCount = faceCount,
+            maleCount = maleCount,
+            femaleCount = femaleCount,
+            unknownCount = unknownCount,
+            blurredCount = blurredCount,
+            skippedCount = skippedCount,
             isNsfw = isNsfw,
+            nsfwConfidence = nsfwConfidence,
             processingTime = processingTime,
             success = success,
             performanceMode = performanceMode
@@ -501,7 +562,13 @@ class StatsRepository @Inject constructor(
 
     private data class DetectionMetrics(
         val faceCount: Int,
+        val maleCount: Int,
+        val femaleCount: Int,
+        val unknownCount: Int,
+        val blurredCount: Int,
+        val skippedCount: Int,
         val isNsfw: Boolean,
+        val nsfwConfidence: Float,
         val processingTime: Double,
         val success: Boolean,
         val performanceMode: String

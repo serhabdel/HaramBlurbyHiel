@@ -32,6 +32,7 @@ fun ModernNavigationBar(
     currentRoute: String? = null,
     onNavigateToHome: () -> Unit = {},
     onNavigateToBlockAppsSites: () -> Unit = {},
+    onNavigateToInsights: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -52,6 +53,13 @@ fun ModernNavigationBar(
             icon = Icons.Default.Lock,
             selectedIcon = Icons.Default.Lock,
             description = "Content blocking and filtering"
+        ),
+        NavigationItem(
+            route = NavRoutes.INSIGHTS,
+            label = "Insights",
+            icon = Icons.Default.Info,
+            selectedIcon = Icons.Default.Info,
+            description = "Stats and feature status"
         ),
         NavigationItem(
             route = NavRoutes.SETTINGS,
@@ -89,6 +97,7 @@ fun ModernNavigationBar(
                         when (item.route) {
                             NavRoutes.HOME -> onNavigateToHome()
                             NavRoutes.BLOCK_APPS_SITES -> onNavigateToBlockAppsSites()
+                            NavRoutes.INSIGHTS -> onNavigateToInsights()
                             NavRoutes.SETTINGS -> onNavigateToSettings()
                         }
                     }

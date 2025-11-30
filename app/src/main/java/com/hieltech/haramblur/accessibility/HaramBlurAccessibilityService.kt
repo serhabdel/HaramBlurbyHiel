@@ -1566,10 +1566,19 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                             }
                         } else {
                             // Start screen capture for monitored apps (if needed and service is active)
-                            if (!screenCaptureManager.isCapturingActive() && isProcessingActive) {
-                                Log.d(TAG, "Starting screen capture for monitored app: $currentAppPackage")
-                                logInfoToDatabase("Starting screen capture for monitored app: $currentAppPackage", LogRepository.LogCategory.DETECTION)
+                            Log.i(TAG, "Starting screen capture for monitored app: $currentAppPackage")
+                            logInfoToDatabase("Starting screen capture for monitored app: $currentAppPackage", LogRepository.LogCategory.DETECTION)
+                            
+                            // Force restart screen capture if not active
+                            if (!screenCaptureManager.isCapturingActive()) {
+                                Log.d(TAG, "📸 Screen capture not active - starting now")
+                                // Reset processing state to allow startContentMonitoring to run
+                                if (isProcessingActive) {
+                                    isProcessingActive = false
+                                }
                                 startContentMonitoring()
+                            } else {
+                                Log.d(TAG, "✅ Screen capture already active")
                             }
                         }
                     } catch (e: Exception) {

@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
+import com.hieltech.haramblur.ml.MLModelManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,10 +16,15 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class MainViewModel @Inject constructor() : ViewModel() {
+class MainViewModel @Inject constructor(
+    private val mlModelManager: MLModelManager
+) : ViewModel() {
     
     private val _serviceRunning = MutableStateFlow(false)
     val serviceRunning: StateFlow<Boolean> = _serviceRunning.asStateFlow()
+    
+    /** ML Status for UI observation - shows health of ML detection subsystem */
+    val mlStatus: StateFlow<MLModelManager.MLStatus> = mlModelManager.mlStatus
     
     init {
         // Start monitoring service status

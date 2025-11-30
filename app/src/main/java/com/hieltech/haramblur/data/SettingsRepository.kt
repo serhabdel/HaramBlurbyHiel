@@ -2350,54 +2350,67 @@ class SettingsRepository @Inject constructor(
             imageDownscaleRatio = qualityMode.imageDownscaleRatio,
             enableGPUAcceleration = qualityMode.enableGPUAcceleration,
             enableRealTimeProcessing = qualityMode.enableRealTimeProcessing,
-            // NEW: Apply blur optimization defaults based on QualityMode
+            // NEW: Apply blur optimization defaults based on QualityMode (including MAXIMUM_PRECISION)
             enableSmoothBlurAnimations = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> true
                 QualityMode.HIGH_QUALITY -> true
                 QualityMode.BALANCED -> true
                 QualityMode.BATTERY_SAVER -> false // Disable animations for battery saving
             },
             enableHardwareBlurAcceleration = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> true
                 QualityMode.HIGH_QUALITY -> true
                 QualityMode.BALANCED -> true
                 QualityMode.BATTERY_SAVER -> false // Disable hardware acceleration for battery saving
             },
             blurRenderingMode = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> BlurRenderingMode.QUALITY // Full quality rendering
                 QualityMode.HIGH_QUALITY -> BlurRenderingMode.SMOOTH
                 QualityMode.BALANCED -> BlurRenderingMode.ADAPTIVE
                 QualityMode.BATTERY_SAVER -> BlurRenderingMode.SMOOTH // Use smooth cached patterns
             },
             enableBlurEdgeRefinement = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> true
                 QualityMode.HIGH_QUALITY -> true
                 QualityMode.BALANCED -> true
                 QualityMode.BATTERY_SAVER -> false // Disable edge refinement for battery saving
             },
             blurEdgeAntiAliasing = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> true
                 QualityMode.HIGH_QUALITY -> true
                 QualityMode.BALANCED -> true
                 QualityMode.BATTERY_SAVER -> false // Disable anti-aliasing for battery saving
             },
             blurBoundaryPrecision = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> 1.0f // Maximum precision for blur boundaries
                 QualityMode.HIGH_QUALITY -> 0.8f // High precision for quality mode
                 QualityMode.BALANCED -> 0.6f // Medium precision for balanced mode
                 QualityMode.BATTERY_SAVER -> 0.3f // Low precision for battery saving
             },
             maxBlurRegionsPerFrame = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> 20 // Highest limit for max precision
                 QualityMode.HIGH_QUALITY -> 15 // Higher limit for quality mode
                 QualityMode.BALANCED -> 12 // Standard limit for balanced mode
                 QualityMode.BATTERY_SAVER -> 8 // Lower limit for battery saving
             },
-            enableBlurFrameRateLimiting = true, // Always enable frame rate limiting
+            enableBlurFrameRateLimiting = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> false // No frame limiting for precision
+                else -> true // Enable frame rate limiting for other modes
+            },
             enableBlurRegionInterpolation = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> true
                 QualityMode.HIGH_QUALITY -> true
                 QualityMode.BALANCED -> true
                 QualityMode.BATTERY_SAVER -> false // Disable interpolation for battery saving
             },
             blurAnimationDuration = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> 150 // Fast animations
                 QualityMode.HIGH_QUALITY -> 200 // Fast animations for responsiveness
                 QualityMode.BALANCED -> 250 // Standard animation duration
                 QualityMode.BATTERY_SAVER -> 300 // Slower animations for battery saving
             },
             blurTransitionDuration = when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> 75 // Quick transitions
                 QualityMode.HIGH_QUALITY -> 100 // Quick transitions
                 QualityMode.BALANCED -> 150 // Standard transition duration
                 QualityMode.BATTERY_SAVER -> 200 // Slower transitions for battery saving

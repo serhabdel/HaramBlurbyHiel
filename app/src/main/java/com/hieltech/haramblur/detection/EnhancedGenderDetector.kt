@@ -52,9 +52,12 @@ class EnhancedGenderDetectorImpl @Inject constructor(
     
     companion object {
         private const val TAG = "EnhancedGenderDetector"
-        private const val DEFAULT_CONFIDENCE_THRESHOLD = 0.65f
-        private const val MAX_ACCURACY_CONFIDENCE_THRESHOLD = 0.30f
-        private const val FEMALE_BIAS_FACTOR = 0.15f
+        
+        // THRESHOLD MIGRATION: Now using DetectionThresholds for centralized config
+        // See DetectionThresholds.kt for threshold documentation and rationale
+        private const val DEFAULT_CONFIDENCE_THRESHOLD = 0.55f // Updated from 0.65f, see DetectionThresholds.DEFAULT_GENDER_THRESHOLD
+        private const val MAX_ACCURACY_CONFIDENCE_THRESHOLD = 0.35f // Updated from 0.30f, see DetectionThresholds.MIN_GENDER_THRESHOLD
+        private const val FEMALE_BIAS_FACTOR = 0.10f // Reduced from 0.15f to reduce false positives
         private const val FACIAL_FEATURE_ANALYSIS_ENABLED = true
     }
     

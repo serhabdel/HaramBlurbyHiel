@@ -960,4 +960,10 @@
     <string name="complete_gender_setup">Complete your profile setup in the wizard to enable simplified gender-based detection settings.</string>
     <string name="gender_not_specified_info">Gender not specified - both male and female face detection options are available.</string>
     
+    <!-- ML Status Warning Strings -->
+    <string name="ml_status_critical_title">Detection Limited</string>
+    <string name="ml_status_degraded_title">Detection Degraded</string>
+    <string name="ml_status_initializing_title">Initializing…</string>
+    <string name="ml_status_info_title">Detection Info</string>
+    
 </resources>

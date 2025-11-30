@@ -61,9 +61,10 @@ data class AppSettings(
     val enableArabicText: Boolean = true,
     val customReflectionTime: Int = 15, // seconds for custom reflection periods
 
-    // Advanced Detection Settings - Optimized for female detection with maximum performance
-    val genderConfidenceThreshold: Float = 0.30f, // Lower threshold for more sensitive gender detection
-    val nsfwConfidenceThreshold: Float = 0.40f, // Lower threshold for more sensitive NSFW detection
+    // Advanced Detection Settings - Balanced defaults to reduce false positives
+    // See DetectionThresholds.kt for threshold documentation and rationale
+    val genderConfidenceThreshold: Float = 0.55f, // Balanced threshold (was 0.30f - too aggressive)
+    val nsfwConfidenceThreshold: Float = 0.45f, // Balanced threshold (was 0.40f - slightly raised)
     val enableFallbackDetection: Boolean = true,
     val enablePerformanceMonitoring: Boolean = true,
 
@@ -354,6 +355,36 @@ enum class QualityMode(
     val blurAnimationDuration: Int = 200,
     val blurTransitionDuration: Int = 300
 ) {
+    /**
+     * MAXIMUM_PRECISION: Optimized for the highest blur accuracy and detection precision.
+     * Uses no image downscaling, highest sensitivity, and enhanced edge refinement.
+     * Best for users who prioritize protection accuracy over battery life.
+     */
+    MAXIMUM_PRECISION(
+        displayName = "Maximum Precision",
+        description = "Highest blur accuracy with precise edge detection and no quality compromises",
+        icon = "🎯",
+        detectionSensitivity = 0.95f, // Maximum detection sensitivity
+        processingSpeed = ProcessingSpeed.ULTRA_FAST, // Fastest processing
+        blurIntensity = BlurIntensity.MAXIMUM, // Complete coverage
+        maxProcessingTimeMs = 100L, // Allow more time for precision
+        frameSkipThreshold = 0, // Process every single frame
+        imageDownscaleRatio = 1.0f, // NO downscaling - full resolution
+        enableGPUAcceleration = true,
+        enableRealTimeProcessing = true,
+        // Maximum precision blur optimization
+        enableSmoothBlurAnimations = true,
+        enableHardwareBlurAcceleration = true,
+        blurRenderingMode = BlurRenderingMode.QUALITY, // Full quality rendering
+        enableBlurEdgeRefinement = true,
+        blurEdgeAntiAliasing = true,
+        blurBoundaryPrecision = 1.0f, // Maximum precision for blur boundaries
+        maxBlurRegionsPerFrame = 20, // Higher limit for precision mode
+        enableBlurFrameRateLimiting = false, // No frame limiting for precision
+        enableBlurRegionInterpolation = true,
+        blurAnimationDuration = 150, // Fast animations
+        blurTransitionDuration = 75 // Quick transitions
+    ),
     HIGH_QUALITY(
         displayName = "High Quality",
         description = "Maximum protection and detection accuracy with enhanced blur optimizations",
@@ -428,7 +459,20 @@ enum class QualityMode(
         enableBlurRegionInterpolation = false, // Disable interpolation to save battery
         blurAnimationDuration = 300, // Slower animations
         blurTransitionDuration = 200 // Slower transitions
-    )
+    );
+    
+    companion object {
+        /**
+         * Get recommended quality mode based on device performance tier
+         */
+        fun getRecommendedMode(isHighEndDevice: Boolean, prioritizeBattery: Boolean): QualityMode {
+            return when {
+                prioritizeBattery -> BATTERY_SAVER
+                isHighEndDevice -> MAXIMUM_PRECISION
+                else -> HIGH_QUALITY
+            }
+        }
+    }
 }
 
 enum class GenderAccuracy(val confidenceThreshold: Float, val description: String) {

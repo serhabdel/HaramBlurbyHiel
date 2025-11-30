@@ -18,6 +18,7 @@ import com.hieltech.haramblur.data.AppSettings
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.max
@@ -31,9 +32,27 @@ class FaceDetectionManager @Inject constructor(
     companion object {
         private const val TAG = "FaceDetectionManager"
         private const val FEMALE_CONFIDENCE_MIN = 0.25f
-        private const val UNKNOWN_CONFIDENCE_MAX = 0.35f
+        private const val UNKNOWN_CONFIDENCE_MAX = 0.60f  // Increased to include uncertain faces at high sensitivity
         private const val MALE_CONFIDENCE_MIN = 0.80f
+        private const val ML_KIT_VERIFICATION_TIMEOUT_MS = 5000L
+        private const val CONSECUTIVE_FAILURES_THRESHOLD = 10
     }
+    
+    // Track ML Kit actual working status (not just initialized)
+    @Volatile
+    private var mlKitVerified = false
+    
+    @Volatile
+    private var mlKitLastVerificationTime = 0L
+    
+    @Volatile
+    private var consecutiveEmptyResults = 0
+    
+    @Volatile
+    private var totalDetectionAttempts = 0
+    
+    @Volatile 
+    private var totalFacesEverDetected = 0
     
     private val faceDetector: FaceDetector by lazy {
         val options = FaceDetectorOptions.Builder()
@@ -71,6 +90,7 @@ class FaceDetectionManager @Inject constructor(
                     return@withContext FaceDetectionResult(
                         facesDetected = 0,
                         detectedFaces = emptyList(),
+                        allDetectedFaces = emptyList(),
                         success = false,
                         error = "ML Kit face detection initialization failed"
                     )
@@ -91,13 +111,30 @@ class FaceDetectionManager @Inject constructor(
                 val faces = detector.process(inputImage).await()
                 Log.d(TAG, "🔍 ML Kit raw detection: ${faces.size} faces (filtering for females only)")
                 
+                // Track detection attempts
+                totalDetectionAttempts++
+                
                 // Enhanced logging for 0 faces detected
                 if (faces.isEmpty()) {
-                    Log.w(TAG, "⚠️ ML Kit detected 0 faces - possible native library loading issue")
+                    consecutiveEmptyResults++
+                    Log.w(TAG, "⚠️ ML Kit detected 0 faces (consecutive empty: $consecutiveEmptyResults)")
                     Log.w(TAG, "   • Image dimensions: ${bitmap.width}x${bitmap.height}")
                     Log.w(TAG, "   • Image format: ${bitmap.config}")
                     Log.w(TAG, "   • Detector type: ${if (appSettings?.enableGPUAcceleration == true) "GPU" else "CPU"}")
                     Log.w(TAG, "   • Min face size: 0.02f (2% of image)")
+                    Log.w(TAG, "   • Total attempts: $totalDetectionAttempts, Total faces ever: $totalFacesEverDetected")
+                    
+                    // Alert if too many consecutive empty results
+                    if (consecutiveEmptyResults >= CONSECUTIVE_FAILURES_THRESHOLD) {
+                        Log.e(TAG, "🚨 ALERT: $consecutiveEmptyResults consecutive empty face detection results!")
+                        Log.e(TAG, "   This suggests ML Kit may not be functioning correctly.")
+                        Log.e(TAG, "   Possible causes: native library not loaded, model not downloaded, or image quality issues.")
+                    }
+                } else {
+                    // Reset consecutive empty counter on success
+                    consecutiveEmptyResults = 0
+                    totalFacesEverDetected += faces.size
+                    Log.d(TAG, "✅ ML Kit detected ${faces.size} faces (total ever: $totalFacesEverDetected)")
                 }
             
                 val faceInfo = coroutineScope {
@@ -183,20 +220,38 @@ class FaceDetectionManager @Inject constructor(
                     Log.w(TAG, "⚠️ CPU detection slower than expected: ${processingTime}ms")
                 }
                 
-                FaceDetectionResult(
+                val result = FaceDetectionResult(
                     facesDetected = detectedFaces.size,
                     detectedFaces = detectedFaces,
+                    allDetectedFaces = faceInfo, // Include ALL faces for stats
                     success = true,
                     error = null
                 )
                 
+                // Log detection health status periodically and update MLModelManager
+                if (totalDetectionAttempts % 50 == 0 || faces.isNotEmpty()) {
+                    val diagnostics = getDiagnosticInfo()
+                    Log.i(TAG, "📈 Face Detection Health: ${diagnostics.statusMessage}")
+                    
+                    // Update MLModelManager with face detection status
+                    mlModelManager.updateFaceDetectionStatus(
+                        verified = mlKitVerified,
+                        healthy = diagnostics.isHealthy,
+                        consecutiveEmptyResults = consecutiveEmptyResults
+                    )
+                }
+                
+                result
+                
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Face detection failed", e)
+                consecutiveEmptyResults++
+                Log.e(TAG, "❌ Face detection failed (consecutive failures: $consecutiveEmptyResults)", e)
                 Log.e(TAG, "   • Error type: ${e.javaClass.simpleName}")
                 Log.e(TAG, "   • Error message: ${e.message}")
                 FaceDetectionResult(
                     facesDetected = 0,
                     detectedFaces = emptyList(),
+                    allDetectedFaces = emptyList(),
                     success = false,
                     error = e.message
                 )
@@ -249,7 +304,7 @@ class FaceDetectionManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Enhanced face detection failed", e)
             EnhancedFaceDetectionResult(
-                baseResult = FaceDetectionResult(0, emptyList(), false, e.message),
+                baseResult = FaceDetectionResult(0, emptyList(), emptyList(), false, e.message),
                 facesToBlur = emptyList(),
                 genderAnalysis = null,
                 processingTimeMs = System.currentTimeMillis() - startTime,
@@ -288,22 +343,68 @@ class FaceDetectionManager @Inject constructor(
     }
     
     /**
-     * Verify ML Kit face detection is properly initialized
+     * Verify ML Kit face detection is properly initialized AND working
+     * This actually waits for ML Kit to process a test image
      */
-    private fun verifyMLKitInitialization(): Boolean {
+    private suspend fun verifyMLKitInitialization(): Boolean {
+        // Skip verification if recently verified (within 60 seconds)
+        val currentTime = System.currentTimeMillis()
+        if (mlKitVerified && (currentTime - mlKitLastVerificationTime) < 60000L) {
+            return true
+        }
+        
         return try {
-            // Test ML Kit with a small dummy bitmap to verify initialization
-            val testBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.RGB_565)
+            Log.d(TAG, "🔍 Verifying ML Kit face detection is actually working...")
+            
+            // Create a test bitmap - use a larger size for better ML Kit compatibility
+            val testBitmap = Bitmap.createBitmap(200, 200, Bitmap.Config.ARGB_8888)
+            testBitmap.eraseColor(android.graphics.Color.WHITE)
             val inputImage = InputImage.fromBitmap(testBitmap, 0)
             
-            // Try to process a simple test image
-            val testResult = faceDetector.process(inputImage)
-            Log.d(TAG, "✅ ML Kit face detection initialized successfully")
-            true
+            // ACTUALLY WAIT for ML Kit to process (this is the key fix!)
+            val startTime = System.currentTimeMillis()
+            val faces = withTimeoutOrNull(ML_KIT_VERIFICATION_TIMEOUT_MS) {
+                faceDetector.process(inputImage).await()
+            }
+            val processingTime = System.currentTimeMillis() - startTime
+            
+            if (faces != null) {
+                mlKitVerified = true
+                mlKitLastVerificationTime = currentTime
+                Log.d(TAG, "✅ ML Kit face detection VERIFIED working (processed in ${processingTime}ms, found ${faces.size} faces in test image)")
+                true
+            } else {
+                Log.e(TAG, "❌ ML Kit face detection TIMEOUT after ${ML_KIT_VERIFICATION_TIMEOUT_MS}ms - native library may not be loaded")
+                mlKitVerified = false
+                false
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ ML Kit face detection initialization failed", e)
+            Log.e(TAG, "❌ ML Kit face detection verification FAILED", e)
+            Log.e(TAG, "   Exception: ${e.javaClass.simpleName}: ${e.message}")
+            mlKitVerified = false
             false
         }
+    }
+    
+    /**
+     * Check if ML Kit has been verified as working
+     */
+    fun isMlKitVerified(): Boolean = mlKitVerified
+    
+    /**
+     * Get diagnostic info about face detection status
+     */
+    fun getDiagnosticInfo(): FaceDetectionDiagnostics {
+        return FaceDetectionDiagnostics(
+            mlKitVerified = mlKitVerified,
+            lastVerificationTime = mlKitLastVerificationTime,
+            consecutiveEmptyResults = consecutiveEmptyResults,
+            totalAttempts = totalDetectionAttempts,
+            totalFacesDetected = totalFacesEverDetected,
+            detectionSuccessRate = if (totalDetectionAttempts > 0) {
+                ((totalDetectionAttempts - consecutiveEmptyResults).toFloat() / totalDetectionAttempts * 100)
+            } else 0f
+        )
     }
     
     /**
@@ -410,10 +511,11 @@ class FaceDetectionManager @Inject constructor(
     data class FaceDetectionResult(
         val facesDetected: Int,
         val detectedFaces: List<DetectedFace>,
+        val allDetectedFaces: List<DetectedFace> = emptyList(), // ALL faces before filtering (for stats)
         val success: Boolean,
         val error: String?
     ) {
-        fun hasFaces(): Boolean = facesDetected > 0 && success
+        fun hasFaces(): Boolean = allDetectedFaces.isNotEmpty() && success
         
         val faceRectangles: List<Rect>
             get() = detectedFaces.map { it.boundingBox }
@@ -515,4 +617,31 @@ class FaceDetectionManager @Inject constructor(
         val mlKitStatus: String,
         val errorMessage: String?
     )
+    
+    /**
+     * Face detection diagnostics for monitoring
+     */
+    data class FaceDetectionDiagnostics(
+        val mlKitVerified: Boolean,
+        val lastVerificationTime: Long,
+        val consecutiveEmptyResults: Int,
+        val totalAttempts: Int,
+        val totalFacesDetected: Int,
+        val detectionSuccessRate: Float
+    ) {
+        val isHealthy: Boolean
+            get() = mlKitVerified && consecutiveEmptyResults < CONSECUTIVE_FAILURES_THRESHOLD
+        
+        val statusMessage: String
+            get() = when {
+                !mlKitVerified -> "ML Kit not verified - may not be working"
+                consecutiveEmptyResults >= CONSECUTIVE_FAILURES_THRESHOLD -> "Warning: $consecutiveEmptyResults consecutive empty results"
+                totalFacesDetected == 0 && totalAttempts > 10 -> "No faces detected yet after $totalAttempts attempts"
+                else -> "Healthy - detected $totalFacesDetected faces in $totalAttempts attempts"
+            }
+        
+        companion object {
+            private const val CONSECUTIVE_FAILURES_THRESHOLD = 10
+        }
+    }
 }

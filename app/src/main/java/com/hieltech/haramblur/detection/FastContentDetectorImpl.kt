@@ -25,8 +25,11 @@ class FastContentDetectorImpl @Inject constructor(
         private const val GRID_SIZE = 4 // 4x4 grid for density analysis
         private const val CACHE_EXPIRATION_MS = 2000L // 2 seconds cache
         private const val MAX_CACHE_SIZE = 50
-        private const val SKIN_TONE_THRESHOLD = 0.25f // Lowered for better sensitivity
-        private const val FULL_SCREEN_DENSITY_THRESHOLD = 0.35f // Lowered for earlier full-screen blur
+        
+        // THRESHOLD MIGRATION: Now using DetectionThresholds for centralized config
+        // See DetectionThresholds.kt for threshold documentation and rationale
+        private const val SKIN_TONE_THRESHOLD = 0.25f // Use DetectionThresholds.SKIN_TONE_THRESHOLD
+        private const val FULL_SCREEN_DENSITY_THRESHOLD = 0.35f // Use DetectionThresholds.FULL_SCREEN_DENSITY_THRESHOLD
         private const val FAST_DETECTION_CONFIDENCE_MULTIPLIER = 0.85f // Multiplier for more sensitive thresholds in fast mode
         private const val MIN_CELL_SIZE = 32 // Minimum cell size for analysis
     }
@@ -53,6 +56,9 @@ class FastContentDetectorImpl @Inject constructor(
         withContext(Dispatchers.Default) {
             val startTime = System.currentTimeMillis()
             
+            // Track downscaled bitmap for cleanup
+            var downscaledBitmap: Bitmap? = null
+            
             try {
                 // Check if we should skip this frame for performance
                 if (shouldSkipFrame()) {
@@ -75,7 +81,7 @@ class FastContentDetectorImpl @Inject constructor(
                 val shouldReduceQuality = shouldReduceQuality(settings)
                 val downscaleRatio = if (shouldReduceQuality) currentPerformanceMode.imageDownscaleRatio else 1.0f
                 val processedBitmap = if (shouldReduceQuality) {
-                    downscaleBitmap(bitmap, downscaleRatio)
+                    downscaleBitmap(bitmap, downscaleRatio).also { downscaledBitmap = it }
                 } else {
                     bitmap
                 }
@@ -92,7 +98,7 @@ class FastContentDetectorImpl @Inject constructor(
                     if (settings.enableFaceDetection) {
                         faceDetectionManager.detectFaces(processedBitmap, settings)
                     } else {
-                        FaceDetectionManager.FaceDetectionResult(0, emptyList(), true, null)
+                        FaceDetectionManager.FaceDetectionResult(0, emptyList(), emptyList(), true, null)
                     }
                 }
                 detectionJobs.add(faceDetectionJob)
@@ -147,9 +153,9 @@ class FastContentDetectorImpl @Inject constructor(
                     originalHeight
                 )
                 
-                // CRITICAL FIX: Scale blur regions back to original bitmap coordinates
+                // CRITICAL FIX: Scale blur regions back to original bitmap coordinates with precision settings
                 val blurRegions = if (shouldReduceQuality && downscaleRatio < 1.0f) {
-                    scaleRegionsToOriginalSize(blurRegionsDownscaled, downscaleRatio, originalWidth, originalHeight)
+                    scaleRegionsToOriginalSize(blurRegionsDownscaled, downscaleRatio, originalWidth, originalHeight, settings)
                 } else {
                     blurRegionsDownscaled
                 }
@@ -191,12 +197,27 @@ class FastContentDetectorImpl @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Fast content detection failed", e)
                 return@withContext createErrorResult(startTime, e)
+            } finally {
+                // MEMORY FIX: Always recycle downscaled bitmap if we created one
+                downscaledBitmap?.let { scaledBmp ->
+                    if (!scaledBmp.isRecycled && scaledBmp !== bitmap) {
+                        try {
+                            scaledBmp.recycle()
+                            Log.d(TAG, "Recycled downscaled bitmap in detectContentFast")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to recycle downscaled bitmap: ${e.message}")
+                        }
+                    }
+                }
             }
         }
     
     override suspend fun analyzeContentDensity(bitmap: Bitmap): ContentDensityResult = 
         withContext(Dispatchers.Default) {
             val startTime = System.currentTimeMillis()
+            
+            // Track scaled bitmap for cleanup
+            var scaledBitmapToRecycle: Bitmap? = null
             
             try {
                 // Check cache first
@@ -212,6 +233,10 @@ class FastContentDetectorImpl @Inject constructor(
                 
                 // Downscale for faster processing
                 val scaledBitmap = downscaleBitmap(bitmap, 0.5f)
+                // Track for cleanup only if it's a new bitmap (not the original)
+                if (scaledBitmap !== bitmap) {
+                    scaledBitmapToRecycle = scaledBitmap
+                }
                 
                 // Create grid analysis
                 val distributionMap = Array(GRID_SIZE) { Array(GRID_SIZE) { 0.0f } }
@@ -300,6 +325,18 @@ class FastContentDetectorImpl @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Content density analysis failed", e)
                 return@withContext createErrorDensityResult(startTime, e)
+            } finally {
+                // MEMORY FIX: Always recycle scaled bitmap if we created one
+                scaledBitmapToRecycle?.let { scaledBmp ->
+                    if (!scaledBmp.isRecycled) {
+                        try {
+                            scaledBmp.recycle()
+                            Log.d(TAG, "Recycled scaled bitmap in analyzeContentDensity")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to recycle scaled bitmap: ${e.message}")
+                        }
+                    }
+                }
             }
         }
     
@@ -521,8 +558,8 @@ class FastContentDetectorImpl @Inject constructor(
         // IMPORTANT: Face bounding boxes are already in downscaled coordinates
         if (settings.enableFaceDetection && faceResult.hasFaces()) {
             faceResult.detectedFaces.forEach { face ->
-                // Face boundingBox is in downscaled coordinates, use for edge detection
-                val expandedRect = expandRectWithEdgeDetection(face.boundingBox, 30, bitmap)
+                // Face boundingBox is in downscaled coordinates, use for edge detection with precision settings
+                val expandedRect = expandRectWithEdgeDetection(face.boundingBox, 30, bitmap, settings)
                 regions.add(expandedRect)
                 Log.d(TAG, "   Face region (downscaled): [${expandedRect.left},${expandedRect.top}-${expandedRect.right},${expandedRect.bottom}]")
             }
@@ -537,35 +574,71 @@ class FastContentDetectorImpl @Inject constructor(
     
     /**
      * CRITICAL FIX: Scale blur regions from downscaled coordinates back to original screen coordinates
+     * ENHANCED: Now with sub-pixel precision and edge-aware margin adjustments for better blur alignment
      * This fixes the bug where blurs appeared in wrong positions
      */
     private fun scaleRegionsToOriginalSize(
         regions: List<Rect>,
         downscaleRatio: Float,
         originalWidth: Int,
-        originalHeight: Int
+        originalHeight: Int,
+        settings: AppSettings? = null
     ): List<Rect> {
         if (regions.isEmpty() || downscaleRatio >= 1.0f) {
             return regions
         }
         
         val scaleUpFactor = 1.0f / downscaleRatio
+        val precision = settings?.blurBoundaryPrecision ?: 0.5f
+        
+        // Calculate edge margin based on precision
+        // Higher precision = smaller margin for tighter fit
+        // Lower precision = larger margin for more coverage (safety)
+        val edgeMargin = ((1.0f - precision) * 10 + 2).toInt()
         
         return regions.map { rect ->
-            val scaledLeft = (rect.left * scaleUpFactor).toInt()
-            val scaledTop = (rect.top * scaleUpFactor).toInt()
-            val scaledRight = (rect.right * scaleUpFactor).toInt()
-            val scaledBottom = (rect.bottom * scaleUpFactor).toInt()
+            // Use sub-pixel precision for more accurate scaling
+            val scaledLeftFloat = rect.left * scaleUpFactor
+            val scaledTopFloat = rect.top * scaleUpFactor
+            val scaledRightFloat = rect.right * scaleUpFactor
+            val scaledBottomFloat = rect.bottom * scaleUpFactor
             
-            // Ensure coordinates don't exceed original bounds
+            // Apply precision-based rounding
+            // High precision: round normally for tight fit
+            // Low precision: expand outward for more coverage
+            val scaledLeft = if (precision > 0.7f) {
+                kotlin.math.round(scaledLeftFloat).toInt()
+            } else {
+                kotlin.math.floor(scaledLeftFloat).toInt()
+            }
+            
+            val scaledTop = if (precision > 0.7f) {
+                kotlin.math.round(scaledTopFloat).toInt()
+            } else {
+                kotlin.math.floor(scaledTopFloat).toInt()
+            }
+            
+            val scaledRight = if (precision > 0.7f) {
+                kotlin.math.round(scaledRightFloat).toInt()
+            } else {
+                kotlin.math.ceil(scaledRightFloat).toInt()
+            }
+            
+            val scaledBottom = if (precision > 0.7f) {
+                kotlin.math.round(scaledBottomFloat).toInt()
+            } else {
+                kotlin.math.ceil(scaledBottomFloat).toInt()
+            }
+            
+            // Apply edge margin for better coverage (especially important for lower precision)
             Rect(
-                maxOf(0, scaledLeft),
-                maxOf(0, scaledTop),
-                minOf(originalWidth, scaledRight),
-                minOf(originalHeight, scaledBottom)
+                maxOf(0, scaledLeft - edgeMargin),
+                maxOf(0, scaledTop - edgeMargin),
+                minOf(originalWidth, scaledRight + edgeMargin),
+                minOf(originalHeight, scaledBottom + edgeMargin)
             )
         }.also {
-            Log.d(TAG, "🎯 COORDINATE FIX: Scaled ${regions.size} regions from downscaled (${downscaleRatio}x) back to original ${originalWidth}x${originalHeight}")
+            Log.d(TAG, "🎯 COORDINATE FIX: Scaled ${regions.size} regions from downscaled (${downscaleRatio}x) to original ${originalWidth}x${originalHeight} (precision=$precision, margin=$edgeMargin)")
             regions.forEachIndexed { index, original ->
                 val scaled = it[index]
                 Log.d(TAG, "   Region $index: [${original.left},${original.top}-${original.right},${original.bottom}] → [${scaled.left},${scaled.top}-${scaled.right},${scaled.bottom}]")
@@ -584,32 +657,49 @@ class FastContentDetectorImpl @Inject constructor(
     
     /**
      * Expand rectangle with edge detection for better coverage
+     * Now uses blurBoundaryPrecision from settings for precision control
      */
-    private fun expandRectWithEdgeDetection(rect: Rect, expansion: Int, bitmap: Bitmap): Rect {
+    private fun expandRectWithEdgeDetection(rect: Rect, expansion: Int, bitmap: Bitmap, settings: AppSettings? = null): Rect {
+        // Adjust expansion based on precision setting
+        val precision = settings?.blurBoundaryPrecision ?: 0.5f
+        // Higher precision = less expansion for tighter fit
+        val adjustedExpansion = (expansion * (1.5f - precision)).toInt().coerceAtLeast(5)
+        
         // First expand the rectangle
         val expandedRect = Rect(
-            maxOf(0, rect.left - expansion),
-            maxOf(0, rect.top - expansion),
-            minOf(bitmap.width, rect.right + expansion),
-            minOf(bitmap.height, rect.bottom + expansion)
+            maxOf(0, rect.left - adjustedExpansion),
+            maxOf(0, rect.top - adjustedExpansion),
+            minOf(bitmap.width, rect.right + adjustedExpansion),
+            minOf(bitmap.height, rect.bottom + adjustedExpansion)
         )
         
-        // Apply fast edge detection to refine the expanded boundaries
-        return applyFastEdgeDetection(expandedRect, bitmap)
+        // Apply fast edge detection to refine the expanded boundaries with precision settings
+        return if (settings?.enableBlurEdgeRefinement == true) {
+            applyFastEdgeDetection(expandedRect, bitmap, settings)
+        } else {
+            expandedRect
+        }
     }
     
     /**
      * Apply fast edge detection to refine region boundaries
+     * Now uses blurBoundaryPrecision from settings for dynamic threshold control
      */
-    private fun applyFastEdgeDetection(rect: Rect, bitmap: Bitmap): Rect {
+    private fun applyFastEdgeDetection(rect: Rect, bitmap: Bitmap, settings: AppSettings? = null): Rect {
         try {
             var refinedLeft = rect.left
             var refinedRight = rect.right
             var refinedTop = rect.top
             var refinedBottom = rect.bottom
             
-            // Sample edges to find content boundaries with simplified approach
-            val edgeThreshold = 0.25f // Lower threshold for more sensitive detection
+            // Get precision setting for dynamic threshold calculation
+            val precision = settings?.blurBoundaryPrecision ?: 0.5f
+            
+            // Dynamic edge threshold based on precision setting
+            // precision 1.0 -> threshold 0.12 (very sensitive - finds subtle edges)
+            // precision 0.5 -> threshold 0.25 (balanced)
+            // precision 0.3 -> threshold 0.32 (less sensitive - only strong edges)
+            val edgeThreshold = 0.40f - (precision * 0.28f)
             
             // Check left boundary
             if (rect.left > 0) {

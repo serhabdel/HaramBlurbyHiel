@@ -32,12 +32,19 @@ class ScreenCaptureManager @Inject constructor() {
     private var mediaProjection: MediaProjection? = null
     
     fun startCapturing(onScreenCaptured: (Bitmap) -> Unit) {
-        if (isCapturing) {
-            Log.w(TAG, "Screen capture already running")
+        if (isCapturing && captureJob?.isActive == true) {
+            Log.w(TAG, "Screen capture already running and active")
             return
         }
         
+        // Reset state if capture job is not active
+        if (isCapturing && captureJob?.isActive != true) {
+            Log.w(TAG, "⚠️ isCapturing was true but job not active - resetting state")
+            isCapturing = false
+        }
+        
         isCapturing = true
+        Log.d(TAG, "🎬 Starting screen capture loop...")
         captureJob = CoroutineScope(Dispatchers.Main).launch {
             var consecutiveFailures = 0
             val maxFailures = 5
@@ -46,7 +53,7 @@ class ScreenCaptureManager @Inject constructor() {
                 try {
                     val screenshot = captureScreen()
                     if (screenshot != null && !screenshot.isRecycled) {
-                        Log.d(TAG, "Screenshot captured: ${screenshot.width}x${screenshot.height}")
+                        Log.d(TAG, "📸 Screenshot captured: ${screenshot.width}x${screenshot.height}")
                         
                         // Validate bitmap before passing to callback
                         if (screenshot.width > 0 && screenshot.height > 0 && screenshot.config != null) {
@@ -83,9 +90,9 @@ class ScreenCaptureManager @Inject constructor() {
             
             // Clean up when exiting
             isCapturing = false
-            Log.d(TAG, "Screen capture loop ended")
+            Log.w(TAG, "🛑 Screen capture loop ended - isCapturing set to false")
         }
-        Log.d(TAG, "Screen capture started with ${captureDelay}ms interval")
+        Log.d(TAG, "✅ Screen capture started with ${captureDelay}ms interval")
     }
     
     fun stopCapturing() {

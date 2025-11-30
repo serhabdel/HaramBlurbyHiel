@@ -15,6 +15,7 @@ import com.hieltech.haramblur.data.models.DetectionScope
 import com.hieltech.haramblur.data.AppRegistry
 import com.hieltech.haramblur.data.AppCategoryDetector
 import com.hieltech.haramblur.data.AppFilteringManager
+import com.hieltech.haramblur.detection.Gender
 import kotlinx.coroutines.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -84,10 +85,28 @@ class ContentDetectionEngine @Inject constructor(
         try {
             // Always log essential detection data (faces/NSFW) for stats - no sampling
             val appCategory = currentAppPackage?.let { determineAppCategory(it) }
+            
+            // Extract detailed face stats from detection result
+            // Use allDetectedFaces for accurate stats (includes all faces before filtering)
+            val faceResult = result.faceDetectionResult
+            val totalFaces = faceResult?.allDetectedFaces?.size ?: 0
+            val maleCount = faceResult?.allDetectedFaces?.count { it.estimatedGender == Gender.MALE } ?: 0
+            val femaleCount = faceResult?.allDetectedFaces?.count { it.estimatedGender == Gender.FEMALE } ?: 0
+            val unknownCount = faceResult?.allDetectedFaces?.count { it.estimatedGender == Gender.UNKNOWN } ?: 0
+            // Use detectedFaces for blur count (faces selected for blurring after filtering)
+            val blurredCount = faceResult?.detectedFaces?.size ?: 0
+            val skippedCount = maxOf(0, totalFaces - blurredCount)
+            
             val essentialLogMessage = buildString {
                 append("DETECTION|")
-                append("faces:${result.faceDetectionResult?.detectedFaces?.size ?: 0}|")
+                append("faces:$totalFaces|")
+                append("male:$maleCount|")
+                append("female:$femaleCount|")
+                append("unknown:$unknownCount|")
+                append("blurred:$blurredCount|")
+                append("skipped:$skippedCount|")
                 append("nsfw:${result.nsfwDetectionResult?.isNSFW ?: false}|")
+                append("nsfw_confidence:${result.nsfwDetectionResult?.confidence ?: 0.0f}|")
                 append("processing_time:${result.processingTimeMs}ms|")
                 append("success:${result.success}|")
                 append("performance_mode:${performanceMode ?: "unknown"}")
@@ -238,13 +257,13 @@ class ContentDetectionEngine @Inject constructor(
                         result
                     } catch (e: Exception) {
                         Log.e(TAG, "Face detection failed", e)
-                        FaceDetectionManager.FaceDetectionResult(0, emptyList(), false, e.message)
+                        FaceDetectionManager.FaceDetectionResult(0, emptyList(), emptyList(), false, e.message)
                     }
                 }
             } else {
                 async {
                     Log.d(TAG, "👤 Face detection disabled or not ready")
-                    FaceDetectionManager.FaceDetectionResult(0, emptyList(), true, null)
+                    FaceDetectionManager.FaceDetectionResult(0, emptyList(), emptyList(), true, null)
                 }
             }
 
@@ -522,11 +541,24 @@ class ContentDetectionEngine @Inject constructor(
     
     /**
      * Refine blur region using edge detection for precise boundaries
+     * Now uses blurBoundaryPrecision setting to control threshold and expansion
      */
-    private fun refineBlurRegionWithEdgeDetection(rect: Rect, bitmap: Bitmap): Rect {
+    private fun refineBlurRegionWithEdgeDetection(rect: Rect, bitmap: Bitmap, appSettings: AppSettings? = null): Rect {
         try {
-            val edgeThreshold = 0.3f
-            val expansion = 5
+            // Get precision setting - higher precision = lower threshold (more sensitive)
+            val precision = appSettings?.blurBoundaryPrecision ?: 0.5f
+            
+            // Dynamic edge threshold based on precision setting
+            // precision 1.0 -> threshold 0.15 (very sensitive)
+            // precision 0.5 -> threshold 0.30 (balanced)
+            // precision 0.3 -> threshold 0.40 (less sensitive)
+            val edgeThreshold = 0.45f - (precision * 0.3f)
+            
+            // Dynamic expansion based on precision
+            // Higher precision = smaller expansion for tighter boundaries
+            val expansion = ((1.0f - precision) * 10 + 2).toInt().coerceIn(2, 10)
+            
+            Log.d(TAG, "Edge detection with precision=$precision, threshold=$edgeThreshold, expansion=$expansion")
             
             // Analyze border pixels for content boundaries
             val leftBoundary = findLeftContentBoundary(rect, bitmap, edgeThreshold)
@@ -542,7 +574,7 @@ class ContentDetectionEngine @Inject constructor(
                 minOf(bitmap.height, bottomBoundary + expansion)
             )
             
-            Log.d(TAG, "Edge detection refined region: $rect -> $refinedRect")
+            Log.d(TAG, "Edge detection refined region: $rect -> $refinedRect (precision=$precision)")
             return refinedRect
         } catch (e: Exception) {
             Log.w(TAG, "Edge detection refinement failed, using original region", e)
@@ -705,9 +737,9 @@ class ContentDetectionEngine @Inject constructor(
 
             // Enhanced expansion for better coverage of female faces/hair with edge refinement
             val expandedFaceRegions = facesToBlur.map { face ->
-                // Apply edge detection refinement before expansion
-                val refinedFace = if (bitmap != null) {
-                    refineBlurRegionWithEdgeDetection(face, bitmap)
+                // Apply edge detection refinement before expansion using blurBoundaryPrecision
+                val refinedFace = if (bitmap != null && appSettings.enableBlurEdgeRefinement) {
+                    refineBlurRegionWithEdgeDetection(face, bitmap, appSettings)
                 } else {
                     face
                 }
@@ -747,9 +779,9 @@ class ContentDetectionEngine @Inject constructor(
                     
                     // Only include regions that are meaningful in size
                     if (expandedRect.width() > 30 && expandedRect.height() > 30) {
-                        // Apply edge refinement to targeted region
-                        if (bitmap != null) {
-                            refineBlurRegionWithEdgeDetection(expandedRect, bitmap)
+                        // Apply edge refinement to targeted region using blurBoundaryPrecision
+                        if (bitmap != null && appSettings.enableBlurEdgeRefinement) {
+                            refineBlurRegionWithEdgeDetection(expandedRect, bitmap, appSettings)
                         } else {
                             expandedRect
                         }
@@ -787,8 +819,8 @@ class ContentDetectionEngine @Inject constructor(
             }
         }
         
-        // Apply edge-aware merging to final blur regions
-        return mergeOverlappingRegionsWithEdgeAwareness(blurRegions, bitmap)
+        // Apply edge-aware merging to final blur regions with precision settings
+        return mergeOverlappingRegionsWithEdgeAwareness(blurRegions, bitmap, appSettings)
     }
     
     private fun mergeOverlappingRegions(regions: List<Rect>): List<Rect> {
@@ -824,8 +856,9 @@ class ContentDetectionEngine @Inject constructor(
      * Enhanced region merging with edge awareness for better precision
      * @param regions List of regions to merge
      * @param bitmap Optional bitmap for edge refinement (can be null)
+     * @param appSettings App settings for precision control
      */
-    private fun mergeOverlappingRegionsWithEdgeAwareness(regions: List<Rect>, bitmap: Bitmap? = null): List<Rect> {
+    private fun mergeOverlappingRegionsWithEdgeAwareness(regions: List<Rect>, bitmap: Bitmap? = null, appSettings: AppSettings? = null): List<Rect> {
         if (regions.size <= 1) return regions
         
         val merged = mutableListOf<Rect>()
@@ -867,12 +900,12 @@ class ContentDetectionEngine @Inject constructor(
         
         merged.add(current)
         
-        // Apply final edge refinement pass after merging
+        // Apply final edge refinement pass after merging using blurBoundaryPrecision
         return merged.map { region ->
             // Apply edge detection refinement to merged regions if bitmap is available
             // This provides more precise boundaries for the final blur regions
-            if (bitmap != null) {
-                refineBlurRegionWithEdgeDetection(region, bitmap)
+            if (bitmap != null && appSettings?.enableBlurEdgeRefinement == true) {
+                refineBlurRegionWithEdgeDetection(region, bitmap, appSettings)
             } else {
                 region
             }

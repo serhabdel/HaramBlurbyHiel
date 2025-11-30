@@ -36,6 +36,7 @@ import com.hieltech.haramblur.ui.SettingsViewModel
 import com.hieltech.haramblur.ui.PermissionHelper
 import com.hieltech.haramblur.detection.AppBlockingManager
 import com.hieltech.haramblur.detection.EnhancedSiteBlockingManager
+import com.hieltech.haramblur.ml.MLModelManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -79,6 +80,7 @@ private fun CompactHomeScreen(
     val dashboardState by statsViewModel.dashboardState.collectAsState()
     val settings by settingsViewModel.settings.collectAsState()
     val permissionStatus by permissionHelper.permissionStatusFlow.collectAsState()
+    val mlStatus by viewModel.mlStatus.collectAsState()
 
     val enhancedPermissionStatus = permissionHelper.getEnhancedBlockingPermissionStatus()
     val hasRequiredPermissions = enhancedPermissionStatus.isComplete
@@ -192,6 +194,20 @@ private fun CompactHomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp) // Center the status card
+            )
+        }
+
+        // ML Status Warning Banner (shows when detection is degraded)
+        AnimatedVisibility(
+            visible = !showWelcome && mlStatus.shouldShowWarning(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            MLStatusWarningBanner(
+                mlStatus = mlStatus,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
             )
         }
 
@@ -1604,6 +1620,77 @@ private fun DhikrBar(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Warning banner displayed when ML detection quality is degraded
+ */
+@Composable
+private fun MLStatusWarningBanner(
+    mlStatus: MLModelManager.MLStatus,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor = when (mlStatus.overallHealth) {
+        MLModelManager.MLHealth.CRITICAL -> MaterialTheme.colorScheme.errorContainer
+        MLModelManager.MLHealth.DEGRADED -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+        MLModelManager.MLHealth.NOT_INITIALIZED -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    
+    val contentColor = when (mlStatus.overallHealth) {
+        MLModelManager.MLHealth.CRITICAL -> MaterialTheme.colorScheme.onErrorContainer
+        MLModelManager.MLHealth.DEGRADED -> MaterialTheme.colorScheme.onErrorContainer
+        MLModelManager.MLHealth.NOT_INITIALIZED -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    
+    val icon = when (mlStatus.overallHealth) {
+        MLModelManager.MLHealth.CRITICAL -> "⚠️"
+        MLModelManager.MLHealth.DEGRADED -> "⚡"
+        MLModelManager.MLHealth.NOT_INITIALIZED -> "⏳"
+        else -> "ℹ️"
+    }
+    
+    val title = when (mlStatus.overallHealth) {
+        MLModelManager.MLHealth.CRITICAL -> stringResource(R.string.ml_status_critical_title)
+        MLModelManager.MLHealth.DEGRADED -> stringResource(R.string.ml_status_degraded_title)
+        MLModelManager.MLHealth.NOT_INITIALIZED -> stringResource(R.string.ml_status_initializing_title)
+        else -> stringResource(R.string.ml_status_info_title)
+    }
+    
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = icon,
+                style = MaterialTheme.typography.titleLarge
+            )
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = contentColor
+                )
+                Text(
+                    text = mlStatus.statusMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.8f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }

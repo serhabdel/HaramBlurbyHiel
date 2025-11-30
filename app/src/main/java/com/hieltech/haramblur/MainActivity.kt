@@ -28,6 +28,7 @@ import com.hieltech.haramblur.ui.DebugScreen
 import com.hieltech.haramblur.ui.LogsViewerScreen
 import com.hieltech.haramblur.ui.SupportScreen
 import com.hieltech.haramblur.ui.DiagnosticsScreen
+import com.hieltech.haramblur.ui.insights.InsightsScreen
 import com.hieltech.haramblur.ui.PermissionWizardScreen
 import com.hieltech.haramblur.ui.PermissionWizardViewModel
 import com.hieltech.haramblur.ui.PermissionHelper
@@ -271,6 +272,17 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     },
+                                    onNavigateToInsights = {
+                                        if (currentRoute != NavRoutes.INSIGHTS) {
+                                            navController.navigate(NavRoutes.INSIGHTS) {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
+                                                }
+                                            }
+                                        }
+                                    },
                                     onNavigateToSettings = {
                                         if (currentRoute != NavRoutes.SETTINGS) {
                                             navController.navigate(NavRoutes.SETTINGS) {
@@ -348,6 +360,9 @@ class MainActivity : ComponentActivity() {
                                     siteBlockingManager = siteBlockingManager
                                 )
                             }
+                                composable(NavRoutes.INSIGHTS) {
+                                    InsightsScreen()
+                                }
                                                             composable(NavRoutes.SETTINGS) {
                                     SettingsScreen(
                                         onNavigateBack = { navController.popBackStack() },

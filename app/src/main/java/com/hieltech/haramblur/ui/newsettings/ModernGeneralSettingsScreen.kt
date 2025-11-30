@@ -6,6 +6,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,8 +16,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -177,39 +180,77 @@ private fun LanguageSettingsSection(
     settings: AppSettings,
     onLanguageSelected: (com.hieltech.haramblur.detection.Language) -> Unit
 ) {
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    
     ModernSettingsSection(
         title = stringResource(R.string.language_settings_title),
         subtitle = stringResource(R.string.app_language_title)
     ) {
-        RadioButtonGroup(
-            title = stringResource(R.string.select_language_title),
-            options = com.hieltech.haramblur.detection.Language.values().map {
-                it.displayName to stringResource(R.string.language_settings_title)
-            },
-            selectedIndex = com.hieltech.haramblur.detection.Language.values().indexOf(settings.preferredLanguage),
-            onSelectionChange = { index ->
-                val selectedLanguage = com.hieltech.haramblur.detection.Language.values()[index]
-                onLanguageSelected(selectedLanguage)
+        // Compact language selector card
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showLanguageDialog = true },
+            tonalElevation = 2.dp,
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "🌍",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Column {
+                        Text(
+                            text = stringResource(R.string.select_language_title),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = settings.preferredLanguage.displayName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Select",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-        )
+        }
 
         if (settings.preferredLanguage != com.hieltech.haramblur.detection.Language.ENGLISH) {
+            Spacer(modifier = Modifier.height(8.dp))
             Surface(
                 tonalElevation = 0.dp,
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = settings.preferredLanguage.displayName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Medium
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = stringResource(R.string.language_changed_restart),
@@ -220,6 +261,89 @@ private fun LanguageSettingsSection(
             }
         }
     }
+    
+    // Language selection dialog
+    if (showLanguageDialog) {
+        LanguageSelectionDialog(
+            currentLanguage = settings.preferredLanguage,
+            onLanguageSelected = { language ->
+                onLanguageSelected(language)
+                showLanguageDialog = false
+            },
+            onDismiss = { showLanguageDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun LanguageSelectionDialog(
+    currentLanguage: com.hieltech.haramblur.detection.Language,
+    onLanguageSelected: (com.hieltech.haramblur.detection.Language) -> Unit,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.select_language_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                com.hieltech.haramblur.detection.Language.values().forEach { language ->
+                    val isSelected = language == currentLanguage
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onLanguageSelected(language) },
+                        shape = MaterialTheme.shapes.medium,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            Color.Transparent
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = language.displayName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable

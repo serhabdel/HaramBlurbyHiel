@@ -437,7 +437,7 @@ class LogRepository @Inject constructor(
     // Helper data classes for analytics
 
     /**
-     * Detection summary data class
+     * Detection summary data class with detailed face and blur stats
      */
     data class DetectionSummary(
         val totalDetections: Int = 0,
@@ -451,7 +451,13 @@ class LogRepository @Inject constructor(
         val uniqueProcessingModes: Set<String> = emptySet(),
         val averageNsfwConfidence: Float = 0.0f,
         val maxProcessingTime: Long = 0L,
-        val minProcessingTime: Long = Long.MAX_VALUE
+        val minProcessingTime: Long = Long.MAX_VALUE,
+        // New detailed face stats
+        val maleFaceCount: Int = 0,
+        val femaleFaceCount: Int = 0,
+        val unknownFaceCount: Int = 0,
+        val blurredFaceCount: Int = 0,
+        val skippedFaceCount: Int = 0
     ) {
         companion object {
             fun empty() = DetectionSummary()
@@ -505,6 +511,12 @@ class LogRepository @Inject constructor(
         var nsfwConfidenceCount = 0
         var maxProcessingTime = 0L
         var minProcessingTime = Long.MAX_VALUE
+        // New gender breakdown stats
+        var maleFaceCount = 0
+        var femaleFaceCount = 0
+        var unknownFaceCount = 0
+        var blurredFaceCount = 0
+        var skippedFaceCount = 0
 
         logs.forEach { log ->
             totalDetections++
@@ -512,6 +524,13 @@ class LogRepository @Inject constructor(
 
             totalProcessingTime += metrics.processingTime
             faceDetections += metrics.faceCount
+            // Aggregate gender breakdown
+            maleFaceCount += metrics.maleCount
+            femaleFaceCount += metrics.femaleCount
+            unknownFaceCount += metrics.unknownCount
+            blurredFaceCount += metrics.blurredCount
+            skippedFaceCount += metrics.skippedCount
+            
             if (metrics.isNsfw) {
                 nsfwDetections++
                 totalNsfwConfidence += metrics.nsfwConfidence
@@ -541,7 +560,13 @@ class LogRepository @Inject constructor(
             uniqueProcessingModes = processingModes,
             averageNsfwConfidence = averageNsfwConfidence,
             maxProcessingTime = maxProcessingTime,
-            minProcessingTime = if (minProcessingTime == Long.MAX_VALUE) 0L else minProcessingTime
+            minProcessingTime = if (minProcessingTime == Long.MAX_VALUE) 0L else minProcessingTime,
+            // New gender breakdown stats
+            maleFaceCount = maleFaceCount,
+            femaleFaceCount = femaleFaceCount,
+            unknownFaceCount = unknownFaceCount,
+            blurredFaceCount = blurredFaceCount,
+            skippedFaceCount = skippedFaceCount
         )
     }
 
@@ -568,10 +593,15 @@ class LogRepository @Inject constructor(
 
     private fun parseDetectionMetrics(message: String): DetectionMetrics {
         // Parse structured detection log message
-        // Format: DETECTION|faces:X|nsfw:true|false|nsfw_confidence:X.X|processing_time:Xms|...
+        // Format: DETECTION|faces:X|male:X|female:X|unknown:X|blurred:X|skipped:X|nsfw:true|false|nsfw_confidence:X.X|processing_time:Xms|...
 
         val parts = message.split("|")
         var faceCount = 0
+        var maleCount = 0
+        var femaleCount = 0
+        var unknownCount = 0
+        var blurredCount = 0
+        var skippedCount = 0
         var isNsfw = false
         var nsfwConfidence = 0.0f
         var processingTime = 0.0
@@ -581,6 +611,11 @@ class LogRepository @Inject constructor(
         parts.forEach { part ->
             when {
                 part.startsWith("faces:") -> faceCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("male:") -> maleCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("female:") -> femaleCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("unknown:") -> unknownCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("blurred:") -> blurredCount = part.substringAfter(":").toIntOrNull() ?: 0
+                part.startsWith("skipped:") -> skippedCount = part.substringAfter(":").toIntOrNull() ?: 0
                 part.startsWith("nsfw:") -> isNsfw = part.substringAfter(":").toBoolean()
                 part.startsWith("nsfw_confidence:") -> nsfwConfidence = part.substringAfter(":").toFloatOrNull() ?: 0.0f
                 part.startsWith("processing_time:") -> processingTime = part.substringAfter(":").removeSuffix("ms").toDoubleOrNull() ?: 0.0
@@ -592,6 +627,11 @@ class LogRepository @Inject constructor(
 
         return DetectionMetrics(
             faceCount = faceCount,
+            maleCount = maleCount,
+            femaleCount = femaleCount,
+            unknownCount = unknownCount,
+            blurredCount = blurredCount,
+            skippedCount = skippedCount,
             isNsfw = isNsfw,
             nsfwConfidence = nsfwConfidence,
             processingTime = processingTime,
@@ -602,6 +642,11 @@ class LogRepository @Inject constructor(
 
     private data class DetectionMetrics(
         val faceCount: Int,
+        val maleCount: Int,
+        val femaleCount: Int,
+        val unknownCount: Int,
+        val blurredCount: Int,
+        val skippedCount: Int,
         val isNsfw: Boolean,
         val nsfwConfidence: Float,
         val processingTime: Double,

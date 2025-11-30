@@ -13,6 +13,9 @@ import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
@@ -33,9 +36,16 @@ class MLModelManager @Inject constructor(
         private const val GENDER_MODEL_PATH = "models/model_lite_gender_q.tflite"
         private const val INPUT_SIZE = 224
         private const val GENDER_INPUT_SIZE = 96 // Smaller input for gender model
-        private const val CONFIDENCE_THRESHOLD = 0.25f // Lowered for maximum sensitivity
-        private const val GENDER_CONFIDENCE_THRESHOLD = 0.60f // Lowered for better gender detection
-        private const val MAX_ACCURACY_NSFW_THRESHOLD = 0.20f // Ultra-sensitive NSFW detection
+        
+        // THRESHOLD MIGRATION: Now using DetectionThresholds for centralized config
+        // These legacy constants are kept for backward compatibility but should use DetectionThresholds
+        @Deprecated("Use DetectionThresholds.DEFAULT_NSFW_THRESHOLD instead")
+        private const val CONFIDENCE_THRESHOLD = 0.45f // Updated from 0.25f to reduce false positives
+        @Deprecated("Use DetectionThresholds.DEFAULT_GENDER_THRESHOLD instead")
+        private const val GENDER_CONFIDENCE_THRESHOLD = 0.55f // Updated from 0.60f for balanced detection
+        @Deprecated("Use DetectionThresholds.MIN_NSFW_THRESHOLD instead")
+        private const val MAX_ACCURACY_NSFW_THRESHOLD = 0.30f // Updated from 0.20f - was too aggressive
+        
         private const val DEFAULT_TIMEOUT_MS = 5000L
         private const val FAST_TIMEOUT_MS = 100L
         private const val ULTRA_FAST_TIMEOUT_MS = 50L
@@ -57,6 +67,10 @@ class MLModelManager @Inject constructor(
     private val genderCache = mutableMapOf<Int, GenderCacheEntry>()
     private val nsfwCache = mutableMapOf<Int, NSFWCacheEntry>()
     private val cacheExpirationMs = 5000L // 5 seconds cache
+    
+    // ML Status exposed as StateFlow for UI observation
+    private val _mlStatus = MutableStateFlow(MLStatus())
+    val mlStatus: StateFlow<MLStatus> = _mlStatus.asStateFlow()
     
     suspend fun initialize(context: Context): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
@@ -94,10 +108,92 @@ class MLModelManager @Inject constructor(
             
             isInitialized = true
             Log.d(TAG, "ML models initialized successfully with GPU support: ${gpuAccelerationManager.isGPUActive()}")
+            
+            // Update ML status for UI observation
+            updateMLStatus()
+            
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize ML models", e)
+            updateMLStatus(initializationError = e.message)
             false
+        }
+    }
+    
+    /**
+     * Update the ML status StateFlow for UI observation
+     */
+    private fun updateMLStatus(initializationError: String? = null) {
+        val nsfwAvailable = nsfwInterpreter != null
+        val genderAvailable = genderInterpreter != null
+        val gpuActive = gpuAccelerationManager.isGPUActive()
+        
+        // Determine detection mode based on what's available
+        val detectionMode = when {
+            !isInitialized -> "Not initialized"
+            nsfwAvailable && genderAvailable -> "ML Models"
+            nsfwAvailable || genderAvailable -> "Hybrid (ML + Heuristic)"
+            else -> "Heuristic Only"
+        }
+        
+        val status = MLStatus(
+            isInitialized = isInitialized,
+            nsfwModelAvailable = nsfwAvailable,
+            genderModelAvailable = genderAvailable,
+            gpuAccelerationActive = gpuActive,
+            initializationError = initializationError,
+            overallHealth = when {
+                !isInitialized -> MLHealth.NOT_INITIALIZED
+                !nsfwAvailable && !genderAvailable -> MLHealth.CRITICAL
+                !nsfwAvailable || !genderAvailable -> MLHealth.DEGRADED
+                !gpuActive -> MLHealth.REDUCED_PERFORMANCE
+                else -> MLHealth.HEALTHY
+            },
+            statusMessage = buildStatusMessage(nsfwAvailable, genderAvailable, gpuActive, initializationError),
+            // Enhanced fields
+            nsfwUsingHeuristics = !nsfwAvailable,
+            genderUsingHeuristics = !genderAvailable,
+            faceDetectionAvailable = isInitialized, // ML Kit is available when initialized
+            detectionMode = detectionMode,
+            nsfwCacheSize = nsfwCache.size,
+            genderCacheSize = genderCache.size
+        )
+        
+        _mlStatus.value = status
+        Log.d(TAG, "ML Status updated: ${status.overallHealth} - ${status.statusMessage}")
+    }
+    
+    /**
+     * Update face detection status from FaceDetectionManager
+     * This allows the ML status to reflect actual face detection health
+     */
+    fun updateFaceDetectionStatus(
+        verified: Boolean,
+        healthy: Boolean,
+        consecutiveEmptyResults: Int
+    ) {
+        val currentStatus = _mlStatus.value
+        _mlStatus.value = currentStatus.copy(
+            faceDetectionVerified = verified,
+            faceDetectionHealthy = healthy,
+            consecutiveEmptyFaceResults = consecutiveEmptyResults
+        )
+        Log.d(TAG, "Face detection status updated: verified=$verified, healthy=$healthy, consecutiveEmpty=$consecutiveEmptyResults")
+    }
+    
+    private fun buildStatusMessage(
+        nsfwAvailable: Boolean,
+        genderAvailable: Boolean,
+        gpuActive: Boolean,
+        error: String?
+    ): String {
+        return when {
+            error != null -> "Initialization failed: $error"
+            !nsfwAvailable && !genderAvailable -> "All ML models unavailable - using heuristic detection only"
+            !nsfwAvailable -> "NSFW model unavailable - using heuristic NSFW detection"
+            !genderAvailable -> "Gender model unavailable - using heuristic gender detection"
+            !gpuActive -> "GPU acceleration unavailable - detection may be slower"
+            else -> "All systems operational"
         }
     }
     
@@ -1506,4 +1602,57 @@ class MLModelManager @Inject constructor(
         val genderCacheSize: Int,
         val nsfwCacheSize: Int
     )
+    
+    /**
+     * ML Status for UI observation - indicates overall health of ML subsystem
+     */
+    data class MLStatus(
+        val isInitialized: Boolean = false,
+        val nsfwModelAvailable: Boolean = false,
+        val genderModelAvailable: Boolean = false,
+        val gpuAccelerationActive: Boolean = false,
+        val initializationError: String? = null,
+        val overallHealth: MLHealth = MLHealth.NOT_INITIALIZED,
+        val statusMessage: String = "ML models not yet initialized",
+        // Enhanced status fields for detailed monitoring
+        val nsfwUsingHeuristics: Boolean = true,      // True when NSFW falls back to skin-tone detection
+        val genderUsingHeuristics: Boolean = true,    // True when gender uses heuristics
+        val faceDetectionAvailable: Boolean = false,  // ML Kit face detection status
+        val faceDetectionVerified: Boolean = false,   // True only after ML Kit successfully detected faces
+        val faceDetectionHealthy: Boolean = false,    // True if face detection is working well
+        val consecutiveEmptyFaceResults: Int = 0,     // Track consecutive empty results
+        val detectionMode: String = "Not initialized", // "ML", "Heuristic", or "Hybrid"
+        val nsfwCacheSize: Int = 0,
+        val genderCacheSize: Int = 0
+    ) {
+        /**
+         * Returns true if detection quality is degraded and user should be notified
+         */
+        fun shouldShowWarning(): Boolean = overallHealth in listOf(
+            MLHealth.DEGRADED,
+            MLHealth.CRITICAL,
+            MLHealth.NOT_INITIALIZED
+        )
+        
+        /**
+         * Returns true if the system can still perform detection (even if degraded)
+         */
+        fun canPerformDetection(): Boolean = isInitialized || overallHealth != MLHealth.CRITICAL
+    }
+    
+    /**
+     * Health status levels for ML subsystem
+     */
+    enum class MLHealth {
+        /** All models loaded and GPU active */
+        HEALTHY,
+        /** Models loaded but GPU not available - slower performance */
+        REDUCED_PERFORMANCE,
+        /** Some models unavailable - using heuristic fallbacks */
+        DEGRADED,
+        /** All models unavailable - detection severely limited */
+        CRITICAL,
+        /** Models not yet initialized */
+        NOT_INITIALIZED
+    }
 }

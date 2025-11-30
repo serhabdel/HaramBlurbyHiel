@@ -6,9 +6,11 @@ package com.hieltech.haramblur.data.models
 data class DetectionScope(
     val mode: DetectionMode = DetectionMode.SPECIFIC_CATEGORIES,
     val monitoredCategories: Set<AppCategory> = setOf(
-        AppCategory.SOCIAL_MEDIA,
-        AppCategory.BROWSERS,
-        AppCategory.DATING
+        AppCategory.SOCIAL_MEDIA,    // Instagram, Facebook, TikTok, LinkedIn, Twitter, Snapchat
+        AppCategory.BROWSERS,        // Chrome, Firefox, Edge, Opera, etc.
+        AppCategory.MESSAGING,       // WhatsApp, Telegram, Discord, Messenger
+        AppCategory.ENTERTAINMENT,   // YouTube, Netflix, Twitch
+        AppCategory.DATING           // Tinder, Bumble, etc.
     ),
     val customIncludedApps: Set<String> = emptySet(),
     val excludedApps: Set<String> = emptySet()
