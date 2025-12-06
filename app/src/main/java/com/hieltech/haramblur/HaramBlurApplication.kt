@@ -3,6 +3,8 @@ package com.hieltech.haramblur
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.detection.AppBlockingManager
@@ -18,7 +20,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltAndroidApp
-class HaramBlurApplication : Application() {
+class HaramBlurApplication : Application(), Configuration.Provider {
 
     private val TAG = "HaramBlurApplication"
 
@@ -41,11 +43,53 @@ class HaramBlurApplication : Application() {
         super.onCreate()
         Log.d(TAG, "HaramBlur Application created")
 
+        // Initialize WorkManager first (required for Glance widgets)
+        initializeWorkManager()
+        
+        // Schedule periodic widget updates for prayer countdown
+        scheduleWidgetUpdates()
+        
         // Verify ML capabilities before initializing components
         verifyMLCapabilities()
         
         // Initialize app-level components here
         initializeComponents()
+    }
+    
+    /**
+     * Initialize WorkManager manually since we disabled auto-initialization
+     */
+    private fun initializeWorkManager() {
+        try {
+            // Check if already initialized
+            try {
+                WorkManager.getInstance(this)
+                Log.d(TAG, "✅ WorkManager already initialized")
+            } catch (e: IllegalStateException) {
+                // Not initialized, do it now
+                WorkManager.initialize(this, workManagerConfiguration)
+                Log.d(TAG, "✅ WorkManager initialized successfully")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to initialize WorkManager", e)
+        }
+    }
+    
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(Log.INFO)
+            .build()
+    
+    /**
+     * Schedule periodic widget updates for prayer countdown
+     */
+    private fun scheduleWidgetUpdates() {
+        try {
+            com.hieltech.haramblur.widget.WidgetUpdateWorker.schedule(this)
+            Log.d(TAG, "✅ Widget update worker scheduled")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to schedule widget updates", e)
+        }
     }
 
     override fun attachBaseContext(base: Context) {

@@ -127,6 +127,7 @@ class DhikrRepository @Inject constructor(
             DhikrTime.MORNING -> settings.morningEnabled
             DhikrTime.EVENING -> settings.eveningEnabled
             DhikrTime.ANYTIME -> settings.anytimeEnabled
+            DhikrTime.AFTER_PRAYER -> true // Always enabled for after prayer
         }
         
         Log.d(TAG, "Current time type: $currentTime, enabled for this time: $timeEnabled")
@@ -173,6 +174,7 @@ class DhikrRepository @Inject constructor(
             DhikrTime.MORNING -> DhikrDataSource.morningDhikr
             DhikrTime.EVENING -> DhikrDataSource.eveningDhikr
             DhikrTime.ANYTIME -> DhikrDataSource.anytimeDhikr
+            DhikrTime.AFTER_PRAYER -> DhikrDataSource.afterPrayerDhikr
         }
         
         return if (dhikrList.isNotEmpty()) dhikrList.random() else null

@@ -17,8 +17,11 @@ import com.hieltech.haramblur.data.AppCategoryDetector
 import com.hieltech.haramblur.data.AppFilteringManager
 import com.hieltech.haramblur.detection.Gender
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.hieltech.haramblur.data.QualityMode
+import com.hieltech.haramblur.data.ProcessingSpeed
 
 @Singleton
 class ContentDetectionEngine @Inject constructor(
@@ -39,6 +42,18 @@ class ContentDetectionEngine @Inject constructor(
         private const val TAG = "ContentDetectionEngine"
         private const val DETECTION_TIMEOUT_MS = 5000L
         private const val LOGGING_SAMPLE_RATE = 10 // Log detailed events every 10 detections
+        
+        /**
+         * Derive PerformanceMode from QualityMode settings
+         */
+        fun derivePerformanceMode(qualityMode: QualityMode): PerformanceMode {
+            return when (qualityMode) {
+                QualityMode.MAXIMUM_PRECISION -> PerformanceMode.QUALITY
+                QualityMode.HIGH_QUALITY -> PerformanceMode.QUALITY
+                QualityMode.BALANCED -> PerformanceMode.BALANCED
+                QualityMode.BATTERY_SAVER -> PerformanceMode.FAST
+            }
+        }
     }
 
     /**
@@ -311,6 +326,9 @@ class ContentDetectionEngine @Inject constructor(
             
             Log.d(TAG, "✅ Content analysis completed in ${processingTime}ms")
 
+            // Derive performance mode from settings
+            val performanceMode = derivePerformanceMode(appSettings.qualityMode)
+            
             val result = ContentAnalysisResult(
                 shouldBlur = blurRegions.isNotEmpty(),
                 blurRegions = blurRegions,
@@ -323,7 +341,7 @@ class ContentDetectionEngine @Inject constructor(
 
             // Log detection event for analytics
             detectionScope.launch {
-                logDetectionEvent(result, PerformanceMode.BALANCED, appSettings, currentAppPackage)
+                logDetectionEvent(result, performanceMode, appSettings, currentAppPackage)
             }
 
             return@withContext result
@@ -333,6 +351,9 @@ class ContentDetectionEngine @Inject constructor(
             Log.e(TAG, "   • Error type: ${e.javaClass.simpleName}")
             Log.e(TAG, "   • Error message: ${e.message}")
 
+            // Derive performance mode from settings for error logging
+            val performanceMode = derivePerformanceMode(appSettings.qualityMode)
+            
             val failedResult = ContentAnalysisResult(
                 shouldBlur = false,
                 blurRegions = emptyList(),
@@ -345,7 +366,7 @@ class ContentDetectionEngine @Inject constructor(
 
             // Log failed detection event for analytics
             detectionScope.launch {
-                logDetectionEvent(failedResult, PerformanceMode.BALANCED, appSettings, currentAppPackage)
+                logDetectionEvent(failedResult, performanceMode, appSettings, currentAppPackage)
             }
 
             return@withContext failedResult

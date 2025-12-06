@@ -56,7 +56,10 @@ class PrayerNotificationWorker @AssistedInject constructor(
         private const val ADVANCE_10_MIN_MS = 10 * 60 * 1000L
         private const val ADVANCE_5_MIN_MS = 5 * 60 * 1000L
         private const val LATE_10_MIN_MS = 10 * 60 * 1000L
-        private const val TIME_WINDOW_TOLERANCE_MS = 3 * 60 * 1000L // 3 minutes tolerance (increased from 1 minute)
+        private const val TIME_WINDOW_TOLERANCE_MS = 4 * 60 * 1000L // 4 minutes tolerance to ensure we catch notifications between 5-min worker runs
+        
+        // SharedPreferences name - must match PrayerTimeNotificationManager
+        private const val NOTIFICATION_TRACKING_PREFS = "prayer_notification_tracking"
 
         fun schedulePrayerNotifications(context: Context) {
             // Get settings to check if prayer notifications are enabled
@@ -293,23 +296,20 @@ class PrayerNotificationWorker @AssistedInject constructor(
     
     /**
      * Check if a notification has been sent today for a specific prayer and type
+     * Uses the same SharedPreferences as PrayerTimeNotificationManager for consistency
      */
     private fun hasNotificationBeenSent(prayerName: String, notificationType: String): Boolean {
-        val prefs = applicationContext.getSharedPreferences("haramblur_settings", Context.MODE_PRIVATE)
-        val dateKey = getCurrentDateKey()
-        val key = "prayer_notif_${prayerName}_${notificationType}_$dateKey"
-        val storedDate = prefs.getString(key, null)
-        return storedDate == dateKey
+        // Use the manager's tracking method for consistency
+        return prayerTimeNotificationManager.hasNotificationBeenSent(prayerName, notificationType)
     }
     
     /**
      * Mark a notification as sent for today
+     * Uses the same SharedPreferences as PrayerTimeNotificationManager for consistency
      */
     private fun markNotificationAsSent(prayerName: String, notificationType: String) {
-        val prefs = applicationContext.getSharedPreferences("haramblur_settings", Context.MODE_PRIVATE)
-        val dateKey = getCurrentDateKey()
-        val key = "prayer_notif_${prayerName}_${notificationType}_$dateKey"
-        prefs.edit().putString(key, dateKey).apply()
+        // Use the manager's tracking method for consistency
+        prayerTimeNotificationManager.markNotificationAsSent(prayerName, notificationType)
     }
     
     /**

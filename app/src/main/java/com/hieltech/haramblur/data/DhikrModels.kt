@@ -8,7 +8,22 @@ import androidx.compose.runtime.Immutable
 enum class DhikrTime(val displayName: String) {
     MORNING("Morning"),
     EVENING("Evening"),
-    ANYTIME("Anytime")
+    ANYTIME("Anytime"),
+    AFTER_PRAYER("After Prayer")
+}
+
+/**
+ * Category for dhikr grouping
+ */
+enum class DhikrCategory(val displayNameEn: String, val displayNameAr: String, val displayNameFr: String) {
+    MORNING_REMEMBRANCE("Morning Remembrance", "أذكار الصباح", "Rappels du matin"),
+    EVENING_REMEMBRANCE("Evening Remembrance", "أذكار المساء", "Rappels du soir"),
+    AFTER_PRAYER("After Prayer", "أذكار بعد الصلاة", "Après la prière"),
+    GENERAL("General", "عام", "Général"),
+    TASBIH("Tasbih", "تسبيح", "Tasbih"),
+    ISTIGHFAR("Seeking Forgiveness", "استغفار", "Demande de pardon"),
+    SALAWAT("Salawat", "صلوات", "Salawat"),
+    DUA("Du'a", "دعاء", "Du'a")
 }
 
 /**
@@ -191,8 +206,84 @@ object DhikrDataSource {
         )
     )
     
+    /**
+     * After-prayer dhikr (Adhkar after Salah)
+     * These are the recommended dhikr to recite after each prayer
+     */
+    val afterPrayerDhikr = listOf(
+        Dhikr(
+            id = "after_prayer_1",
+            arabicText = "أَسْتَغْفِرُ اللهَ",
+            transliteration = "Astaghfiru Allah",
+            englishTranslation = "I seek forgiveness from Allah.",
+            time = DhikrTime.AFTER_PRAYER,
+            estimatedReadingTimeSeconds = 3,
+            category = "After Prayer"
+        ),
+        Dhikr(
+            id = "after_prayer_2",
+            arabicText = "اللَّهُمَّ أَنْتَ السَّلاَمُ وَمِنْكَ السَّلاَمُ، تَبَارَكْتَ يَا ذَا الْجَلاَلِ وَالإِكْرَامِ",
+            transliteration = "Allāhumma anta as-salām wa minka as-salām, tabārakta yā dhal-jalāli wal-ikrām",
+            englishTranslation = "O Allah, You are Peace and from You comes peace. Blessed are You, O Owner of majesty and honor.",
+            time = DhikrTime.AFTER_PRAYER,
+            estimatedReadingTimeSeconds = 10,
+            category = "After Prayer"
+        ),
+        Dhikr(
+            id = "after_prayer_3",
+            arabicText = "لاَ إِلَهَ إِلاَّ اللهُ وَحْدَهُ لاَ شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
+            transliteration = "Lā ilāha illā Allāhu waḥdahu lā sharīka lahu, lahu al-mulku wa lahu al-ḥamdu wa huwa ʿalā kulli shay'in qadīr",
+            englishTranslation = "None has the right to be worshipped except Allah, alone, without partner, to Him belongs all sovereignty and praise, and He is over all things omnipotent.",
+            time = DhikrTime.AFTER_PRAYER,
+            estimatedReadingTimeSeconds = 12,
+            category = "After Prayer"
+        ),
+        Dhikr(
+            id = "after_prayer_4",
+            arabicText = "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ",
+            transliteration = "Allāhumma aʿinnī ʿalā dhikrika wa shukrika wa ḥusni ʿibādatika",
+            englishTranslation = "O Allah, help me to remember You, to thank You, and to worship You in the best manner.",
+            time = DhikrTime.AFTER_PRAYER,
+            estimatedReadingTimeSeconds = 8,
+            category = "After Prayer"
+        )
+    )
+    
+    /**
+     * Tasbih dhikr for counter (33 times each)
+     */
+    val tasbihDhikr = listOf(
+        Dhikr(
+            id = "tasbih_subhanallah",
+            arabicText = "سُبْحَانَ اللهِ",
+            transliteration = "Subḥān Allāh",
+            englishTranslation = "Glory be to Allah",
+            time = DhikrTime.AFTER_PRAYER,
+            estimatedReadingTimeSeconds = 2,
+            category = "Tasbih"
+        ),
+        Dhikr(
+            id = "tasbih_alhamdulillah",
+            arabicText = "الْحَمْدُ للهِ",
+            transliteration = "Al-ḥamdu lillāh",
+            englishTranslation = "All praise is for Allah",
+            time = DhikrTime.AFTER_PRAYER,
+            estimatedReadingTimeSeconds = 2,
+            category = "Tasbih"
+        ),
+        Dhikr(
+            id = "tasbih_allahuakbar",
+            arabicText = "اللهُ أَكْبَرُ",
+            transliteration = "Allāhu Akbar",
+            englishTranslation = "Allah is the Greatest",
+            time = DhikrTime.AFTER_PRAYER,
+            estimatedReadingTimeSeconds = 2,
+            category = "Tasbih"
+        )
+    )
+    
     fun getAllDhikr(): List<Dhikr> {
-        return morningDhikr + eveningDhikr + anytimeDhikr
+        return morningDhikr + eveningDhikr + anytimeDhikr + afterPrayerDhikr + tasbihDhikr
     }
     
     fun getDhikrByTime(time: DhikrTime): List<Dhikr> {
@@ -200,8 +291,11 @@ object DhikrDataSource {
             DhikrTime.MORNING -> morningDhikr
             DhikrTime.EVENING -> eveningDhikr
             DhikrTime.ANYTIME -> anytimeDhikr
+            DhikrTime.AFTER_PRAYER -> afterPrayerDhikr + tasbihDhikr
         }
     }
+    
+    // afterPrayerDhikr and tasbihDhikr are already accessible as properties
     
     fun getDhikrById(id: String): Dhikr? {
         return getAllDhikr().find { it.id == id }
@@ -212,3 +306,30 @@ object DhikrDataSource {
         return if (dhikrList.isNotEmpty()) dhikrList.random() else null
     }
 }
+
+/**
+ * Tasbih counter state for tracking dhikr counts
+ */
+@Immutable
+data class TasbihCounter(
+    val dhikrId: String,
+    val currentCount: Int = 0,
+    val targetCount: Int = 33,
+    val totalCompleted: Int = 0
+) {
+    val isComplete: Boolean get() = currentCount >= targetCount
+    val progress: Float get() = if (targetCount > 0) currentCount.toFloat() / targetCount else 0f
+}
+
+/**
+ * Daily dhikr progress tracking
+ */
+@Immutable
+data class DailyDhikrProgress(
+    val date: String,
+    val morningCompleted: Boolean = false,
+    val eveningCompleted: Boolean = false,
+    val afterPrayerCount: Int = 0,
+    val tasbihSets: Int = 0, // Number of complete 33x3 sets
+    val totalDhikrCount: Int = 0
+)

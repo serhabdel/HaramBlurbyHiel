@@ -1049,44 +1049,71 @@ class SettingsViewModel @Inject constructor(
      */
     fun refreshLocation() {
         viewModelScope.launch(Dispatchers.IO) {
-            val permission = locationHelper.getLocationPermissionStatus()
-            val current = settings.value
-            if (permission != LocationPermissionStatus.GRANTED) {
-                settingsRepository.updateSettings(current.copy(locationPermissionStatus = permission))
-                return@launch
-            }
-
-            val loc = locationHelper.getBestLocation()
-            val updated = if (loc != null) {
-                val ts = System.currentTimeMillis()
-
-                // Auto-detect calculation method for new location
-                val recommendedMethod = autoCalculationMethodDetector.detectCalculationMethod(loc.latitude, loc.longitude)
-                val shouldUpdateMethod = current.prayerCalculationMethod != recommendedMethod.id
-
-                current.copy(
-                    locationLatitude = loc.latitude,
-                    locationLongitude = loc.longitude,
-                    // Keep existing city/country if we don't have reverse geocode here
-                    locationAccuracy = loc.accuracy,
-                    locationLastUpdated = ts,
-                    locationPermissionStatus = LocationPermissionStatus.GRANTED,
-                    // Auto-update calculation method if it's different and recommended
-                    prayerCalculationMethod = if (shouldUpdateMethod) recommendedMethod.id else current.prayerCalculationMethod
-                )
-            } else {
-                current.copy(locationPermissionStatus = permission)
-            }
-            settingsRepository.updateSettings(updated)
-
-            // Log the auto-detection if method was changed
-            if (loc != null) {
-                val recommendedMethod = autoCalculationMethodDetector.detectCalculationMethod(loc.latitude, loc.longitude)
-                if (current.prayerCalculationMethod != recommendedMethod.id) {
-                    Log.d("SettingsViewModel", "Auto-updated calculation method to ${recommendedMethod.displayName} based on location")
-                }
-            }
+            refreshLocationInternal()
         }
+    }
+    
+    /**
+     * Suspend version that actually waits and returns success/failure.
+     * Use this when you need to know if location was fetched.
+     */
+    suspend fun refreshLocationAndWait(): Boolean {
+        return withContext(Dispatchers.IO) {
+            refreshLocationInternal()
+        }
+    }
+    
+    /**
+     * Internal implementation with longer timeout and retries for reliable location fetch.
+     */
+    private suspend fun refreshLocationInternal(): Boolean {
+        val permission = locationHelper.getLocationPermissionStatus()
+        val current = settings.value
+        
+        if (permission != LocationPermissionStatus.GRANTED) {
+            Log.w("SettingsViewModel", "Location permission not granted: $permission")
+            settingsRepository.updateSettings(current.copy(locationPermissionStatus = permission))
+            return false
+        }
+
+        // Try with longer timeout and more retries - GPS can take 15-30 seconds on first fix
+        val loc = locationHelper.getBestLocation(
+            timeoutMs = 20_000L,  // 20 seconds per attempt
+            retries = 2,          // Try 3 times total
+            useLastKnownFallback = true,
+            useCacheFallback = true
+        )
+        
+        if (loc == null) {
+            Log.w("SettingsViewModel", "Failed to get location after retries")
+            settingsRepository.updateSettings(current.copy(locationPermissionStatus = permission))
+            return false
+        }
+        
+        val ts = System.currentTimeMillis()
+        Log.d("SettingsViewModel", "Location obtained: ${loc.latitude}, ${loc.longitude}")
+
+        // Auto-detect calculation method for new location
+        val recommendedMethod = autoCalculationMethodDetector.detectCalculationMethod(loc.latitude, loc.longitude)
+        val shouldUpdateMethod = current.prayerCalculationMethod != recommendedMethod.id
+
+        val updated = current.copy(
+            locationLatitude = loc.latitude,
+            locationLongitude = loc.longitude,
+            locationAccuracy = loc.accuracy,
+            locationLastUpdated = ts,
+            locationPermissionStatus = LocationPermissionStatus.GRANTED,
+            locationMethod = LocationMethod.GPS,
+            // Auto-update calculation method based on location
+            prayerCalculationMethod = if (shouldUpdateMethod) recommendedMethod.id else current.prayerCalculationMethod
+        )
+        settingsRepository.updateSettings(updated)
+
+        if (shouldUpdateMethod) {
+            Log.d("SettingsViewModel", "Auto-updated calculation method to ${recommendedMethod.displayName} based on location")
+        }
+        
+        return true
     }
 
     /**

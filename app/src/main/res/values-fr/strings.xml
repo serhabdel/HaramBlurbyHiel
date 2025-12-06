@@ -841,4 +841,31 @@
     <string name="prayer_will_pray_acknowledgment">Qu\'Allah vous bénisse! Qu\'Allah accepte votre prière.</string>
     <string name="prayer_will_pray_acknowledgment_bilingual">Qu\'Allah vous bénisse! Qu\'Allah accepte votre prière.</string>
 
+    <!-- Widget Strings -->
+    <string name="widget_islamic_dashboard_name">Tableau de bord islamique</string>
+    <string name="widget_islamic_dashboard_description">Horaires de prière, date Hijri et compteur de Tasbih</string>
+    <string name="widget_dhikr_counter_name">Compteur de Dhikr</string>
+    <string name="widget_dhikr_counter_description">Appuyez pour compter SubhanAllah, Alhamdulillah, AllahuAkbar</string>
+    <string name="widget_prayer_times_name">Horaires de prière</string>
+    <string name="widget_prayer_times_description">Les 5 prières quotidiennes avec compte à rebours</string>
+    <string name="widget_loading">Chargement…</string>
+    <string name="widget_tap_to_count">Appuyez pour compter</string>
+    <string name="widget_open_app">Ouvrez l\'application pour charger les données</string>
+    
+    <!-- Dhikr Screen Strings -->
+    <string name="dhikr_screen_title">Dhikr et Rappel</string>
+    <string name="dhikr_screen_subtitle">Rappelez-vous d\'Allah tout au long de la journée</string>
+    <string name="dhikr_today_count_full">%d dhikr aujourd\'hui</string>
+    <string name="dhikr_list_title">Collection de Dhikr</string>
+    <string name="tasbih_counter_title">Compteur de Tasbih</string>
+    <string name="toggle_haptic">Activer/désactiver le retour haptique</string>
+    <string name="tasbih_progress">%1$d / %2$d</string>
+    <string name="tasbih_sets_completed">%d séries complétées</string>
+    <string name="reset_current">Réinitialiser</string>
+    <string name="reset_all">Tout réinitialiser</string>
+    <string name="daily_progress_title">Progrès quotidien</string>
+    <string name="morning_adhkar">Matin</string>
+    <string name="evening_adhkar">Soir</string>
+    <string name="tasbih_sets_label">Tasbih</string>
+
 </resources>

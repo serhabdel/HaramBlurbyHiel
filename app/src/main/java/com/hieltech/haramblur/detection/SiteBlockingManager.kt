@@ -364,21 +364,20 @@ class SiteBlockingManagerImpl @Inject constructor(
         }
 
         // High-confidence porn keywords (immediate block) - ONLY check domain, not full URL
+        // These are explicit terms that are ONLY found in porn domain names
         val highConfidencePornKeywords = listOf(
-            "porn", "xxx", "nude", "naked", "fuck", "pornography",
-            "erotica", "nsfw", "adultcontent", "sexvideo", "pornstar",
-            "milf", "teenporn", "gayporn", "lesbian", "bdsm", "fetish",
-            "hentai", "animeporn", "cartoonporn", "rule34", "onlyfans",
-            "manyvids", "camgirl", "webcamsex", "liveporn", "sexchat",
-            "adultwebcam", "pornchat", "sextoy", "vibrator", "dildo"
+            "pornhub", "xvideos", "xnxx", "xhamster", "redtube", "youporn",
+            "brazzers", "bangbros", "realitykings", "naughtyamerica",
+            "pornography", "sexvideo", "pornstar", "teenporn", "gayporn",
+            "animeporn", "cartoonporn", "rule34", "webcamsex", "liveporn",
+            "sexchat", "adultwebcam", "pornchat", "hentaihaven"
         )
 
-        // Medium-confidence adult keywords - with context checks (domain only)
+        // Medium-confidence adult keywords - only match as whole words in domain
+        // REMOVED overly generic terms like "adult", "massage", "bikini" that cause false positives
         val mediumConfidenceAdultKeywords = listOf(
-            "adult", "escort", "stripper", "massage", "sensual",
-            "erotic", "intimate", "seductive", "provocative",
-            "lingerie", "bikini", "thong", "panties", "bra",
-            "playboy", "penthouse", "maxim", "fhm"
+            "onlyfans", "fansly", "manyvids", "chaturbate", "stripchat",
+            "camgirl", "playboy", "penthouse"
         )
 
         // Context indicators that suggest legitimate content

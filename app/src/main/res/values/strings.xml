@@ -966,4 +966,31 @@
     <string name="ml_status_initializing_title">Initializing…</string>
     <string name="ml_status_info_title">Detection Info</string>
     
+    <!-- Widget Strings -->
+    <string name="widget_islamic_dashboard_name">Islamic Dashboard</string>
+    <string name="widget_islamic_dashboard_description">Prayer times, Hijri date, and Tasbih counter</string>
+    <string name="widget_dhikr_counter_name">Dhikr Counter</string>
+    <string name="widget_dhikr_counter_description">Tap to count SubhanAllah, Alhamdulillah, AllahuAkbar</string>
+    <string name="widget_prayer_times_name">Prayer Times</string>
+    <string name="widget_prayer_times_description">All 5 daily prayer times with countdown</string>
+    <string name="widget_loading">Loading…</string>
+    <string name="widget_tap_to_count">Tap to count</string>
+    <string name="widget_open_app">Open app to load data</string>
+    
+    <!-- Dhikr Screen Strings -->
+    <string name="dhikr_screen_title">Dhikr &amp; Remembrance</string>
+    <string name="dhikr_screen_subtitle">Remember Allah throughout your day</string>
+    <string name="dhikr_today_count_full">%d dhikr today</string>
+    <string name="dhikr_list_title">Dhikr Collection</string>
+    <string name="tasbih_counter_title">Tasbih Counter</string>
+    <string name="toggle_haptic">Toggle haptic feedback</string>
+    <string name="tasbih_progress">%1$d / %2$d</string>
+    <string name="tasbih_sets_completed">%d sets completed</string>
+    <string name="reset_current">Reset</string>
+    <string name="reset_all">Reset All</string>
+    <string name="daily_progress_title">Daily Progress</string>
+    <string name="morning_adhkar">Morning</string>
+    <string name="evening_adhkar">Evening</string>
+    <string name="tasbih_sets_label">Tasbih</string>
+    
 </resources>

@@ -566,4 +566,31 @@
     <string name="already_prayed">✅ صليت بالفعل</string>
     <string name="remind_later">⏰ ذكرني لاحقاً</string>
 
+    <!-- Widget Strings -->
+    <string name="widget_islamic_dashboard_name">لوحة إسلامية</string>
+    <string name="widget_islamic_dashboard_description">أوقات الصلاة، التاريخ الهجري، وعداد التسبيح</string>
+    <string name="widget_dhikr_counter_name">عداد الذكر</string>
+    <string name="widget_dhikr_counter_description">اضغط للعد: سبحان الله، الحمد لله، الله أكبر</string>
+    <string name="widget_prayer_times_name">أوقات الصلاة</string>
+    <string name="widget_prayer_times_description">أوقات الصلوات الخمس مع العد التنازلي</string>
+    <string name="widget_loading">جاري التحميل…</string>
+    <string name="widget_tap_to_count">اضغط للعد</string>
+    <string name="widget_open_app">افتح التطبيق لتحميل البيانات</string>
+    
+    <!-- Dhikr Screen Strings -->
+    <string name="dhikr_screen_title">الذكر والتسبيح</string>
+    <string name="dhikr_screen_subtitle">اذكر الله طوال يومك</string>
+    <string name="dhikr_today_count_full">%d ذكر اليوم</string>
+    <string name="dhikr_list_title">مجموعة الأذكار</string>
+    <string name="tasbih_counter_title">عداد التسبيح</string>
+    <string name="toggle_haptic">تبديل الاهتزاز</string>
+    <string name="tasbih_progress">%1$d / %2$d</string>
+    <string name="tasbih_sets_completed">%d مجموعات مكتملة</string>
+    <string name="reset_current">إعادة تعيين</string>
+    <string name="reset_all">إعادة تعيين الكل</string>
+    <string name="daily_progress_title">التقدم اليومي</string>
+    <string name="morning_adhkar">الصباح</string>
+    <string name="evening_adhkar">المساء</string>
+    <string name="tasbih_sets_label">التسبيح</string>
+
 </resources>

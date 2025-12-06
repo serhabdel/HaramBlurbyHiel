@@ -12,11 +12,14 @@ import com.hieltech.haramblur.detection.PerformanceState
 import com.hieltech.haramblur.data.StatsRepository
 import com.hieltech.haramblur.data.PrayerTimesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
+import com.hieltech.haramblur.widget.WidgetUpdateManager
 import javax.inject.Inject
 
 /**
@@ -25,6 +28,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class StatsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val performanceMonitor: PerformanceMonitor,
     private val logRepository: LogRepository,
     private val appBlockingManager: AppBlockingManager,
@@ -323,6 +327,8 @@ class StatsViewModel @Inject constructor(
                         prayerTimes = prayerData,
                         hijriDate = prayerData.date.hijri
                     )
+                    // Update widgets with prayer data
+                    WidgetUpdateManager.updatePrayerData(context, prayerData, _dashboardState.value.nextPrayer)
                 }.onFailure { error ->
                     // Log error but don't show to user unless critical
                     println("Error loading prayer times: ${error.message}")
@@ -333,6 +339,8 @@ class StatsViewModel @Inject constructor(
                     _dashboardState.value = _dashboardState.value.copy(
                         nextPrayer = nextPrayer
                     )
+                    // Update widgets with next prayer
+                    WidgetUpdateManager.updateNextPrayer(context, nextPrayer)
                 }.onFailure { error ->
                     println("Error loading next prayer: ${error.message}")
                 }

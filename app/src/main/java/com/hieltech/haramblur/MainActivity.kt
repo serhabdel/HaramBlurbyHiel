@@ -45,6 +45,7 @@ import com.hieltech.haramblur.ui.SettingsViewModel
 import com.hieltech.haramblur.detection.Language
 import com.hieltech.haramblur.presentation.InitializationHelper
 import dagger.hilt.android.AndroidEntryPoint
+import com.hieltech.haramblur.widget.WidgetUpdateManager
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -105,6 +106,9 @@ class MainActivity : ComponentActivity() {
                 // Initialize test NSFW URLs including nsfw.ma
                 initializationHelper.initializeTestUrls()
                 
+                // Refresh widgets when app starts - ensures widgets have latest data
+                WidgetUpdateManager.refreshAllWidgets(this@MainActivity)
+                
                 android.util.Log.d("MainActivity", "✅ App initialization completed with High Quality defaults")
             } catch (e: Exception) {
                 android.util.Log.e("MainActivity", "Error during app initialization", e)
@@ -156,8 +160,14 @@ class MainActivity : ComponentActivity() {
                         val permissionStatus = permissionHelper.getEnhancedBlockingPermissionStatus()
 
                         // Enhanced wizard logic: show wizard only when needed
-                        // Show wizard if onboarding is not completed OR if critical permissions are missing
-                        val shouldShowWizard = !settings.onboardingCompleted || !permissionStatus.isComplete
+                        // Skip wizard if all critical permissions are granted (handles reinstall case)
+                        // Only show wizard if permissions are incomplete
+                        val shouldShowWizard = !permissionStatus.isComplete
+                        
+                        // If permissions are complete but onboarding wasn't marked, mark it now
+                        if (permissionStatus.isComplete && !settings.onboardingCompleted) {
+                            settingsRepository.markOnboardingCompleted()
+                        }
 
                         android.util.Log.d("MainActivity", "Setup check - Onboarding: ${settings.onboardingCompleted}, " +
                             "Permissions complete: ${permissionStatus.isComplete}, " +
@@ -272,6 +282,17 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     },
+                                    onNavigateToDhikr = {
+                                        if (currentRoute != NavRoutes.DHIKR) {
+                                            navController.navigate(NavRoutes.DHIKR) {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
+                                                }
+                                            }
+                                        }
+                                    },
                                     onNavigateToInsights = {
                                         if (currentRoute != NavRoutes.INSIGHTS) {
                                             navController.navigate(NavRoutes.INSIGHTS) {
@@ -362,6 +383,9 @@ class MainActivity : ComponentActivity() {
                             }
                                 composable(NavRoutes.INSIGHTS) {
                                     InsightsScreen()
+                                }
+                                composable(NavRoutes.DHIKR) {
+                                    com.hieltech.haramblur.ui.dhikr.DhikrScreen()
                                 }
                                                             composable(NavRoutes.SETTINGS) {
                                     SettingsScreen(

@@ -32,6 +32,7 @@ fun ModernNavigationBar(
     currentRoute: String? = null,
     onNavigateToHome: () -> Unit = {},
     onNavigateToBlockAppsSites: () -> Unit = {},
+    onNavigateToDhikr: () -> Unit = {},
     onNavigateToInsights: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -53,6 +54,13 @@ fun ModernNavigationBar(
             icon = Icons.Default.Lock,
             selectedIcon = Icons.Default.Lock,
             description = "Content blocking and filtering"
+        ),
+        NavigationItem(
+            route = NavRoutes.DHIKR,
+            label = "Dhikr",
+            icon = Icons.Default.FavoriteBorder,
+            selectedIcon = Icons.Default.Favorite,
+            description = "Islamic remembrance and tasbih"
         ),
         NavigationItem(
             route = NavRoutes.INSIGHTS,
@@ -97,6 +105,7 @@ fun ModernNavigationBar(
                         when (item.route) {
                             NavRoutes.HOME -> onNavigateToHome()
                             NavRoutes.BLOCK_APPS_SITES -> onNavigateToBlockAppsSites()
+                            NavRoutes.DHIKR -> onNavigateToDhikr()
                             NavRoutes.INSIGHTS -> onNavigateToInsights()
                             NavRoutes.SETTINGS -> onNavigateToSettings()
                         }

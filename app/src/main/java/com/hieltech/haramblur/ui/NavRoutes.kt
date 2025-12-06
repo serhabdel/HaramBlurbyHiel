@@ -7,6 +7,7 @@ object NavRoutes {
     const val PERMISSION_WIZARD = "permission_wizard"
     const val HOME = "home"
     const val BLOCK_APPS_SITES = "block_apps_sites"
+    const val DHIKR = "dhikr"
     const val INSIGHTS = "insights"
     const val SETTINGS = "settings"
     const val LOGS = "logs"
@@ -17,5 +18,5 @@ object NavRoutes {
     /**
      * Primary routes that show bottom navigation
      */
-    val PRIMARY_ROUTES = listOf(HOME, BLOCK_APPS_SITES, INSIGHTS, SETTINGS)
+    val PRIMARY_ROUTES = listOf(HOME, BLOCK_APPS_SITES, DHIKR, INSIGHTS, SETTINGS)
 }

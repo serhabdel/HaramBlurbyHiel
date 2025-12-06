@@ -1525,8 +1525,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        safeExecute("onAccessibilityEvent") {
-            when (event?.eventType) {
+        // Top-level try-catch to prevent any crash from killing the service
+        try {
+            if (event == null) return
+            
+            safeExecute("onAccessibilityEvent") {
+                when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 val newPackageName = event.packageName?.toString()
                 val oldApp = currentAppPackage
@@ -1626,6 +1630,17 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
             }
             true
+        }
+        } catch (e: Exception) {
+            // Catch any uncaught exception to prevent service crash
+            Log.e(TAG, "💥 Critical error in onAccessibilityEvent - service protected", e)
+            logErrorToDatabase("Critical error in onAccessibilityEvent: ${e.message}", e)
+            // Attempt recovery
+            try {
+                performEmergencyReset()
+            } catch (recoveryError: Exception) {
+                Log.e(TAG, "Recovery failed after accessibility event error", recoveryError)
+            }
         }
     }
     
@@ -1769,35 +1784,65 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
     /**
      * Quick check if URL is likely porn content
+     * FIXED: Only checks domain (not full URL) and uses word boundaries to prevent false positives
      */
     private fun isLikelyPornUrl(url: String): Boolean {
-        val lowercaseUrl = url.lowercase()
-
-        // Quick porn keywords for immediate detection
-        val quickPornKeywords = listOf(
-            "porn", "sex", "xxx", "nude", "naked", "fuck", "pussy", "dick",
-            "boobs", "tits", "ass", "cum", "blowjob", "handjob", "anal",
-            "milf", "teen", "gay", "lesbian", "hentai", "onlyfans"
+        // Extract domain only - don't check query params or paths
+        val domain = try {
+            val cleanUrl = if (url.startsWith("http")) url else "https://$url"
+            java.net.URI(cleanUrl).host?.lowercase() ?: return false
+        } catch (e: Exception) {
+            // Fallback: extract domain manually
+            url.lowercase()
+                .removePrefix("https://")
+                .removePrefix("http://")
+                .split("/").firstOrNull()
+                ?.split("?")?.firstOrNull()
+                ?: return false
+        }
+        
+        // Whitelist check - never flag these domains
+        val safeDomains = listOf(
+            "google.com", "youtube.com", "facebook.com", "twitter.com", "instagram.com",
+            "linkedin.com", "github.com", "stackoverflow.com", "reddit.com", "amazon.com",
+            "wikipedia.org", "microsoft.com", "apple.com", "netflix.com", "spotify.com",
+            "bbc.com", "cnn.com", "nytimes.com", "theguardian.com", "reuters.com",
+            "edu", "gov", "ac.uk", "edu.au", "webmd.com", "mayoclinic.org", "nih.gov"
         )
+        if (safeDomains.any { domain.contains(it) || domain.endsWith(".$it") }) {
+            return false
+        }
 
-        // Check for porn TLDs
-        val pornTlds = listOf(".porn", ".sex", ".xxx", ".cam", ".tube", ".video")
+        // Check for porn TLDs (these are definitive)
+        val pornTlds = listOf(".porn", ".sex", ".xxx", ".adult")
         for (tld in pornTlds) {
-            if (lowercaseUrl.contains(tld)) {
+            if (domain.endsWith(tld)) {
                 return true
             }
         }
 
-        // Check for porn keywords
-        for (keyword in quickPornKeywords) {
-            if (lowercaseUrl.contains(keyword)) {
+        // High-confidence porn domains (exact or subdomain match only)
+        val knownPornDomains = listOf(
+            "pornhub", "xvideos", "xnxx", "xhamster", "redtube", "youporn",
+            "brazzers", "bangbros", "realitykings", "naughtyamerica",
+            "onlyfans", "fansly", "manyvids", "chaturbate", "stripchat"
+        )
+        for (pornDomain in knownPornDomains) {
+            if (domain.contains(pornDomain)) {
                 return true
             }
         }
 
-        // Check for suspicious patterns
-        if (lowercaseUrl.contains("%") && lowercaseUrl.length > 50) {
-            return true // Likely encoded porn content
+        // Word-boundary check for explicit keywords in domain ONLY
+        // Use regex word boundaries to avoid false positives like "essex", "class", "teenager"
+        val explicitKeywords = listOf(
+            "\\bporn\\b", "\\bxxx\\b", "\\bnude\\b", "\\bnaked\\b", 
+            "\\bhentai\\b", "\\bnsfw\\b", "\\badult(?:video|content|site)\\b"
+        )
+        for (pattern in explicitKeywords) {
+            if (Regex(pattern, RegexOption.IGNORE_CASE).containsMatchIn(domain)) {
+                return true
+            }
         }
 
         return false
@@ -2037,13 +2082,15 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
     /**
      * Show reflective porn blocking dialog with background tasks and user interaction
+     * FIXED: Close button ALWAYS works - user should never be stuck
      */
     private fun showReflectivePornBlockingDialog(url: String, blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
         try {
             Log.w(TAG, "🚨 Showing reflective porn blocking dialog with background tasks")
             
-            var backgroundTasksComplete = false
-            var reflectionTimeComplete = false
+            // Track dialog start time for failsafe timeout
+            val dialogStartTime = System.currentTimeMillis()
+            val maxDialogTimeMs = 60000L // 60 seconds max before force-close allowed
             
             // Use the existing porn blocking overlay with enhanced interaction
             blurOverlayManager.showPornBlockingOverlay(
@@ -2052,66 +2099,73 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 onAction = { action ->
                     when (action) {
                         is com.hieltech.haramblur.data.WarningDialogAction.Close -> {
-                            // Only allow closing if background tasks and reflection time are complete
-                            if (backgroundTasksComplete && reflectionTimeComplete) {
-                                Log.d(TAG, "User dismissed dialog after reflection - tasks complete")
-                                blurOverlayManager.emergencyHideAllOverlays()
-                                logPornBlockingEvent(url, blockingResult, "user_dismissed_after_reflection")
-                            } else {
-                                Log.d(TAG, "User tried to close dialog too early - tasks still running")
-                                // Could show a message that tasks are still running
+                            // FIXED: Always allow closing the dialog
+                            Log.d(TAG, "User clicked Close - hiding dialog immediately")
+                            blurOverlayManager.emergencyHideAllOverlays()
+                            logPornBlockingEvent(url, blockingResult, "user_dismissed_dialog")
+                            
+                            // Also navigate away in background
+                            serviceScope.launch {
+                                try {
+                                    navigateAwayFromBlockedSite()
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error navigating away after dialog close", e)
+                                }
                             }
                         }
+                        is com.hieltech.haramblur.data.WarningDialogAction.Continue -> {
+                            // User chose to continue - hide dialog
+                            Log.d(TAG, "User chose to continue - hiding dialog")
+                            blurOverlayManager.emergencyHideAllOverlays()
+                            logPornBlockingEvent(url, blockingResult, "user_continued")
+                        }
+                        is com.hieltech.haramblur.data.WarningDialogAction.Dismiss -> {
+                            // User dismissed - hide dialog
+                            Log.d(TAG, "User dismissed dialog - hiding")
+                            blurOverlayManager.emergencyHideAllOverlays()
+                            logPornBlockingEvent(url, blockingResult, "user_dismissed")
+                        }
                         else -> {
-                            Log.d(TAG, "Dialog action during background tasks: $action")
+                            Log.d(TAG, "Dialog action: $action")
                         }
                     }
                 }
             )
             
-            // Start background tasks immediately while dialog is visible
+            // Start background navigation task (non-blocking)
             serviceScope.launch {
                 try {
                     pornClosureInFlight = true
-                    
-                    Log.d(TAG, "🔄 Starting background tab closure while dialog is visible")
-                    
-                    // Perform background tab closure
+                    Log.d(TAG, "🔄 Starting background tab closure")
+                    delay(2000) // Brief delay before navigating
                     navigateAwayFromBlockedSite()
-                    
-                    backgroundTasksComplete = true
-                    Log.d(TAG, "✅ Background tasks completed")
-                    logPornBlockingEvent(url, blockingResult, "background_tasks_completed")
-                    
+                    Log.d(TAG, "✅ Background navigation completed")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error in background porn site closure", e)
-                    backgroundTasksComplete = true // Mark as complete even on error
-                    logPornBlockingEvent(url, blockingResult, "background_tasks_error", error = e.message)
+                    Log.e(TAG, "Error in background navigation", e)
                 } finally {
                     pornClosureInFlight = false
                 }
             }
             
-            // Start reflection timer
+            // Failsafe: Auto-hide dialog after max time to prevent stuck state
             serviceScope.launch {
-                val reflectionTimeSeconds = blockingResult.reflectionTimeSeconds.coerceAtLeast(5) // Minimum 5 seconds
-                Log.d(TAG, "⏱️ Starting reflection timer: ${reflectionTimeSeconds} seconds")
-                
-                delay(reflectionTimeSeconds * 1000L)
-                
-                reflectionTimeComplete = true
-                Log.d(TAG, "✅ Reflection time completed")
-                logPornBlockingEvent(url, blockingResult, "reflection_time_completed")
-                
-                // If both tasks and reflection are complete, show completion message
-                if (backgroundTasksComplete && reflectionTimeComplete) {
-                    Log.d(TAG, "🎯 All tasks complete - user can now dismiss dialog")
-                    // Could update dialog UI to show "OK" button or completion message
+                delay(maxDialogTimeMs)
+                Log.w(TAG, "⚠️ Dialog timeout - force hiding to prevent stuck state")
+                try {
+                    blurOverlayManager.emergencyHideAllOverlays()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in failsafe dialog hide", e)
                 }
             }
             
         } catch (e: Exception) {
             Log.e(TAG, "Error showing reflective porn blocking dialog", e)
+            // On error, ensure overlay is hidden
+            try {
+                blurOverlayManager.emergencyHideAllOverlays()
+            } catch (hideError: Exception) {
+                Log.e(TAG, "Error hiding overlay after dialog error", hideError)
+            }
         }
     }
 

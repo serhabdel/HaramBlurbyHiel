@@ -160,58 +160,69 @@ class FaceDetectionManager @Inject constructor(
 
                 val detectionSensitivity = appSettings?.detectionSensitivity ?: 0.5f
                 val femaleBlurEnabled = appSettings?.blurFemaleFaces ?: true
+                val maleBlurEnabled = appSettings?.blurMaleFaces ?: false
                 val configuredThreshold = appSettings?.genderConfidenceThreshold ?: 0.30f
-                val femaleConfidenceThreshold = max(FEMALE_CONFIDENCE_MIN, configuredThreshold - 0.15f)
+                val genderConfidenceThreshold = max(FEMALE_CONFIDENCE_MIN, configuredThreshold - 0.15f)
 
-                val detectedFaces = if (femaleBlurEnabled) {
-                    faceInfo.filter { face ->
-                        when (face.estimatedGender) {
-                            Gender.FEMALE -> {
-                                val keep = face.genderConfidence >= femaleConfidenceThreshold ||
-                                        (detectionSensitivity > 0.7f && face.genderConfidence >= FEMALE_CONFIDENCE_MIN) ||
-                                        (face.genderConfidence < 0.3f && femaleBlurEnabled) // Additional safety check
+                Log.d(TAG, "🎯 Blur settings: blurFemale=$femaleBlurEnabled, blurMale=$maleBlurEnabled, sensitivity=$detectionSensitivity")
+
+                // Filter faces based on gender blur settings
+                val detectedFaces = faceInfo.filter { face ->
+                    when (face.estimatedGender) {
+                        Gender.FEMALE -> {
+                            if (!femaleBlurEnabled) {
+                                Log.d(TAG, "👩 FEMALE SKIPPED (blur disabled): confidence=${"%.2f".format(face.genderConfidence)}")
+                                false
+                            } else {
+                                val keep = face.genderConfidence >= genderConfidenceThreshold ||
+                                        (detectionSensitivity > 0.7f && face.genderConfidence >= FEMALE_CONFIDENCE_MIN)
                                 if (keep) {
-                                    Log.d(TAG, "✅ FEMALE KEPT: confidence=${"%.2f".format(face.genderConfidence)}")
+                                    Log.d(TAG, "✅ FEMALE KEPT for blur: confidence=${"%.2f".format(face.genderConfidence)}")
                                 } else {
                                     Log.d(TAG, "⛔ FEMALE DROPPED (low confidence=${"%.2f".format(face.genderConfidence)})")
                                 }
                                 keep
                             }
-                            Gender.UNKNOWN -> {
-                                val keep = detectionSensitivity > 0.7f && face.genderConfidence < UNKNOWN_CONFIDENCE_MAX
+                        }
+                        Gender.MALE -> {
+                            if (!maleBlurEnabled) {
+                                Log.d(TAG, "🧔 MALE SKIPPED (blur disabled): confidence=${"%.2f".format(face.genderConfidence)}")
+                                false
+                            } else {
+                                val keep = face.genderConfidence >= genderConfidenceThreshold ||
+                                        (detectionSensitivity > 0.7f && face.genderConfidence >= FEMALE_CONFIDENCE_MIN)
                                 if (keep) {
-                                    Log.d(TAG, "❓ POSSIBLE FEMALE (unknown, confidence=${"%.2f".format(face.genderConfidence)})")
+                                    Log.d(TAG, "✅ MALE KEPT for blur: confidence=${"%.2f".format(face.genderConfidence)}")
                                 } else {
-                                    Log.d(TAG, "⛔ UNKNOWN EXCLUDED: confidence=${"%.2f".format(face.genderConfidence)}")
+                                    Log.d(TAG, "⛔ MALE DROPPED (low confidence=${"%.2f".format(face.genderConfidence)})")
                                 }
                                 keep
                             }
-                            Gender.MALE -> {
-                                // ENHANCED: Lower the threshold for considering males as potential females
-                                val isModerateConfidenceMale = face.genderConfidence < 0.75f // Reduced from 0.80f to 0.75f
-                                if (!isModerateConfidenceMale) {
-                                    Log.d(TAG, "🚫 HIGH-CONFIDENCE MALE EXCLUDED: confidence=${"%.2f".format(face.genderConfidence)}")
-                                } else {
-                                    Log.d(TAG, "❓ MODERATE-CONFIDENCE MALE (potential female): confidence=${"%.2f".format(face.genderConfidence)}")
-                                }
-                                isModerateConfidenceMale // Return true for moderate-confidence males (potential females), false for high-confidence males
+                        }
+                        Gender.UNKNOWN -> {
+                            // For UNKNOWN gender, blur if either male or female blur is enabled AND sensitivity is high
+                            val shouldBlurUnknown = (femaleBlurEnabled || maleBlurEnabled) && 
+                                    detectionSensitivity > 0.7f && 
+                                    face.genderConfidence < UNKNOWN_CONFIDENCE_MAX
+                            if (shouldBlurUnknown) {
+                                Log.d(TAG, "❓ UNKNOWN KEPT for blur (high sensitivity): confidence=${"%.2f".format(face.genderConfidence)}")
+                            } else {
+                                Log.d(TAG, "⛔ UNKNOWN EXCLUDED: confidence=${"%.2f".format(face.genderConfidence)}, blurEnabled=${femaleBlurEnabled || maleBlurEnabled}")
                             }
+                            shouldBlurUnknown
                         }
                     }
-                } else {
-                    Log.d(TAG, "♀️ Female face blurring disabled in settings; skipping detected faces")
-                    emptyList()
                 }
 
                 val femaleCount = faceInfo.count { it.estimatedGender == Gender.FEMALE }
                 val maleCount = faceInfo.count { it.estimatedGender == Gender.MALE }
                 val unknownCount = faceInfo.count { it.estimatedGender == Gender.UNKNOWN }
                 Log.d(TAG, "📊 Gender detection summary - total:${faceInfo.size}, female:$femaleCount, male:$maleCount, unknown:$unknownCount")
-                Log.d(TAG, "🎯 FILTERED FOR BLUR: ${detectedFaces.size} female faces retained")
+                Log.d(TAG, "🎯 FILTERED FOR BLUR: ${detectedFaces.size} faces retained (blurFemale=$femaleBlurEnabled, blurMale=$maleBlurEnabled)")
                 
                 val processingTime = System.currentTimeMillis() - startTime
                 Log.d(TAG, "✅ PRECISION detection completed in ${processingTime}ms")
-                Log.d(TAG, "📊 FINAL RESULTS: ${detectedFaces.size} female faces (males excluded)")
+                Log.d(TAG, "📊 FINAL RESULTS: ${detectedFaces.size} faces to blur")
                 
                 // Performance logging for optimization
                 if (appSettings?.enableGPUAcceleration == true && processingTime > 100) {

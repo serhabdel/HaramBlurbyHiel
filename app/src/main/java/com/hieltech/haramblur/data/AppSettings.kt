@@ -61,10 +61,10 @@ data class AppSettings(
     val enableArabicText: Boolean = true,
     val customReflectionTime: Int = 15, // seconds for custom reflection periods
 
-    // Advanced Detection Settings - Balanced defaults to reduce false positives
+    // Advanced Detection Settings - HIGH PRECISION defaults for maximum protection
     // See DetectionThresholds.kt for threshold documentation and rationale
-    val genderConfidenceThreshold: Float = 0.55f, // Balanced threshold (was 0.30f - too aggressive)
-    val nsfwConfidenceThreshold: Float = 0.45f, // Balanced threshold (was 0.40f - slightly raised)
+    val genderConfidenceThreshold: Float = 0.35f, // High precision - lower threshold catches more faces
+    val nsfwConfidenceThreshold: Float = 0.35f, // High precision - lower threshold for better NSFW detection
     val enableFallbackDetection: Boolean = true,
     val enablePerformanceMonitoring: Boolean = true,
 

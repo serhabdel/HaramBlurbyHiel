@@ -5,10 +5,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -21,6 +25,8 @@ import com.hieltech.haramblur.data.LocationPermissionStatus
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.hieltech.haramblur.data.prayer.PrayerCalculationMethod
 import com.hieltech.haramblur.utils.MoroccanLocationHelper
 import androidx.compose.ui.platform.LocalContext
@@ -28,10 +34,12 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.delay
 
 /**
  * Islamic Features Onboarding Step
  * Allows users to configure Islamic features during initial setup
+ * IMPROVED UX: Auto-detects location if permission granted, adds Dhikr config
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,14 +51,32 @@ fun IslamicOnboardingStep(
 ) {
     val settings by settingsViewModel.settings.collectAsState()
     var enableIslamicFeatures by remember { mutableStateOf(true) }
-    var locationMethod by remember { mutableStateOf(settings.locationMethod) }
+    var showManualCitySelector by remember { mutableStateOf(false) }
     var selectedSelection by remember { mutableStateOf<CitySelection?>(null) }
-    var showCitySelector by remember { mutableStateOf(false) }
+    var isLoadingLocation by remember { mutableStateOf(false) }
+    
+    // Dhikr settings
+    var enableDhikrReminders by remember { mutableStateOf(settings.dhikrEnabled) }
+    var dhikrIntervalMinutes by remember { mutableStateOf(settings.dhikrIntervalMinutes.toFloat()) }
 
     val context = LocalContext.current
     val moroccanLocationHelper = remember {
         EntryPointAccessors.fromApplication(context, MoroccanLocationHelperEntryPoint::class.java)
             .getMoroccanLocationHelper()
+    }
+
+    // Check if location permission is already granted
+    val hasLocationPermission = remember(Unit) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+    
+    // Location should already be fetched in SimpleLocationPermissionStep
+    // Only show loading briefly if location is still being fetched
+    LaunchedEffect(settings.locationLatitude) {
+        if (settings.locationLatitude != null) {
+            isLoadingLocation = false
+        }
     }
 
     // Morocco detection
@@ -62,33 +88,43 @@ fun IslamicOnboardingStep(
         } ?: false
     }
 
-    // Suggested Moroccan cities
-    val suggestedMoroccanCities = remember(settings.locationLatitude, settings.locationLongitude) {
+    // Get closest Moroccan city name
+    val detectedCityName = remember(settings.locationLatitude, settings.locationLongitude, isInMorocco) {
         if (isInMorocco && settings.locationLatitude != null && settings.locationLongitude != null) {
-            moroccanLocationHelper.getSuggestedMoroccanCities(
+            val cities = moroccanLocationHelper.getSuggestedMoroccanCities(
                 settings.locationLatitude!!,
                 settings.locationLongitude!!
             )
+            cities.firstOrNull()?.name ?: "Morocco"
+        } else if (settings.selectedCityName != null) {
+            "${settings.selectedCityName}, ${settings.selectedCountry ?: ""}"
+        } else if (settings.locationLatitude != null) {
+            "Location detected"
         } else {
-            emptyList()
+            null
         }
     }
 
+    // Has valid location
+    val hasValidLocation = settings.locationLatitude != null && settings.locationLongitude != null
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) {
-        // Sync permission and try to refresh location
-        settingsViewModel.syncLocationPermissionStatus()
-        settingsViewModel.refreshLocation()
+    ) { permissions ->
+        if (permissions.values.any { it }) {
+            isLoadingLocation = true
+            settingsViewModel.syncLocationPermissionStatus()
+            settingsViewModel.refreshLocation()
+        }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header
         Text(
@@ -99,310 +135,230 @@ fun IslamicOnboardingStep(
         )
 
         Text(
-            text = "Enhance your experience with Islamic prayer times, calendar, and spiritual features",
-            style = MaterialTheme.typography.bodyLarge,
+            text = "Configure prayer times, dhikr reminders, and spiritual features",
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        // Islamic Features Toggle
+        // ============ LOCATION STATUS ============
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                containerColor = if (hasValidLocation) 
+                    Color(0xFF4CAF50).copy(alpha = 0.1f) 
+                else 
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
             )
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Enable Islamic Features",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = if (hasValidLocation) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
                     )
-                    Text(
-                        text = "Prayer times, Islamic calendar, and spiritual reminders",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Switch(
-                    checked = enableIslamicFeatures,
-                    onCheckedChange = { enableIslamicFeatures = it }
-                )
-            }
-        }
-
-        // Islamic Features Details (when enabled)
-        if (enableIslamicFeatures) {
-            // Prayer Times Feature
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("🕌", style = MaterialTheme.typography.titleLarge)
-                        Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (hasValidLocation) "📍 Your Location" else "📍 Location Required",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        
+                        if (isLoadingLocation) {
                             Text(
-                                text = "Prayer Times",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = "Accurate prayer times for your location",
+                                text = "Detecting your location...",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = "Enabled",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            // Islamic Calendar Feature
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("📅", style = MaterialTheme.typography.titleLarge)
-                        Column(modifier = Modifier.weight(1f)) {
+                        } else if (hasValidLocation && detectedCityName != null) {
                             Text(
-                                text = "Islamic Calendar",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
+                                text = detectedCityName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF2E7D32)
                             )
+                            if (isInMorocco) {
+                                Text(
+                                    text = "🇲🇦 Using Morocco Ministry prayer times",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
                             Text(
-                                text = "Hijri dates and Islamic events",
+                                text = "No location set - prayer times won't be accurate",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
+                    }
+                    
+                    if (isLoadingLocation) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else if (hasValidLocation) {
                         Icon(
                             Icons.Default.Check,
-                            contentDescription = "Enabled",
-                            tint = MaterialTheme.colorScheme.primary
+                            contentDescription = "Location set",
+                            tint = Color(0xFF4CAF50)
                         )
                     }
                 }
-            }
-
-            // Qibla Direction Feature
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("🧭", style = MaterialTheme.typography.titleLarge)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Qibla Direction",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = "Find direction to Mecca for prayer",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = "Enabled",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            // Morocco-specific section
-            if (isInMorocco) {
-                Card(
+                
+                // Action buttons
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text("🇲🇦", style = MaterialTheme.typography.titleLarge)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Morocco Detected",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = "Using Morocco Ministry method (18° Fajr, 17° Isha) - official calculation method",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-
-                        if (suggestedMoroccanCities.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Suggested Cities:",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                suggestedMoroccanCities.take(3).forEach { city ->
-                                    AssistChip(
-                                        onClick = {
-                                            selectedSelection = CitySelection(city.name, "Morocco", "", 0.0, 0.0)
-                                            locationMethod = LocationMethod.MANUAL_CITY
-                                        },
-                                        label = { Text(city.name, style = MaterialTheme.typography.bodySmall) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Location Setup
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Location Setup",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Text(
-                        text = "Configure how prayer times are calculated for your location",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // Location Method Selection
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterChip(
-                            selected = locationMethod == LocationMethod.GPS,
-                            onClick = { locationMethod = LocationMethod.GPS },
-                            label = { Text("Use GPS") }
-                        )
-                        FilterChip(
-                            selected = locationMethod == LocationMethod.MANUAL_CITY,
-                            onClick = { locationMethod = LocationMethod.MANUAL_CITY },
-                            label = { Text("Select City Manually") }
-                        )
-                    }
-
-                    if (locationMethod == LocationMethod.GPS) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            OutlinedButton(onClick = {
+                    if (!hasValidLocation || !hasLocationPermission) {
+                        Button(
+                            onClick = {
                                 permissionLauncher.launch(
                                     arrayOf(
                                         Manifest.permission.ACCESS_FINE_LOCATION,
                                         Manifest.permission.ACCESS_COARSE_LOCATION
                                     )
                                 )
-                            }) {
-                                Text("Grant Location Permission")
-                            }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Use GPS")
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = {
+                                isLoadingLocation = true
+                                settingsViewModel.refreshLocation()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Refresh")
                         }
                     }
-
-                    // Manual City Selection (when Method is Manual City)
-                    if (locationMethod == LocationMethod.MANUAL_CITY) {
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "Select Your City",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Text(
-                            text = "Choose your city for accurate prayer times",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // City Selector
-                        CitySelector(
-                            selectedCity = selectedSelection?.name,
-                            selectedCountry = selectedSelection?.country,
-                            onCitySelected = { selection ->
-                                selectedSelection = selection
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                    
+                    OutlinedButton(
+                        onClick = { showManualCitySelector = true },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Change City")
                     }
                 }
             }
+        }
 
-            // Calculation Method
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+        // ============ DHIKR REMINDERS ============
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("📿", style = MaterialTheme.typography.titleLarge)
+                        Column {
+                            Text(
+                                text = "Dhikr Reminders",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "Spiritual reminders throughout the day",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = enableDhikrReminders,
+                        onCheckedChange = { enableDhikrReminders = it }
+                    )
+                }
+                
+                if (enableDhikrReminders) {
+                    Divider()
+                    
                     Text(
-                        text = "Prayer Calculation Method",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "Reminder Frequency",
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium
                     )
-
-                    Text(
-                        text = "Choose the calculation method for prayer times",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // Simple method selection
+                    
+                    // Frequency selector
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = { /* Select ISNA */ },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("ISNA")
+                        listOf(5, 15, 30, 60).forEach { minutes ->
+                            FilterChip(
+                                selected = dhikrIntervalMinutes.toInt() == minutes,
+                                onClick = { dhikrIntervalMinutes = minutes.toFloat() },
+                                label = { 
+                                    Text(
+                                        if (minutes == 60) "1 hour" else "$minutes min",
+                                        style = MaterialTheme.typography.bodySmall
+                                    ) 
+                                }
+                            )
                         }
+                    }
+                    
+                    Text(
+                        text = "You'll receive dhikr notifications every ${dhikrIntervalMinutes.toInt()} minutes during active hours",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
 
-                        OutlinedButton(
-                            onClick = { /* Select Muslim World League */ },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Muslim League")
+        // ============ FEATURES PREVIEW ============
+        if (enableIslamicFeatures) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Features Enabled",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AssistChip(onClick = {}, label = { Text("🕌 Prayer Times") })
+                        AssistChip(onClick = {}, label = { Text("📅 Hijri Calendar") })
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AssistChip(onClick = {}, label = { Text("🧭 Qibla Direction") })
+                        if (enableDhikrReminders) {
+                            AssistChip(onClick = {}, label = { Text("📿 Dhikr") })
                         }
                     }
                 }
@@ -419,19 +375,27 @@ fun IslamicOnboardingStep(
                     settingsViewModel.updatePrayerTimesEnabled(true)
                     settingsViewModel.updateIslamicCalendarEnabled(true)
                     settingsViewModel.updateQiblaDirectionEnabled(true)
+                    
+                    // Save Dhikr settings
+                    settingsViewModel.updateDhikrEnabled(enableDhikrReminders)
+                    if (enableDhikrReminders) {
+                        settingsViewModel.updateDhikrInterval(dhikrIntervalMinutes.toInt())
+                    }
 
-                    // Set Morocco Ministry method if user is in Morocco (official method)
+                    // Set Morocco Ministry method if user is in Morocco
                     if (isInMorocco) {
                         settingsViewModel.updateCalculationMethod(PrayerCalculationMethod.MOROCCO_MINISTRY.id)
                     }
 
-                    // Save location settings using LocationMethod
-                    settingsViewModel.updateLocationMethod(locationMethod)
-                    settingsViewModel.syncLocationPermissionStatus()
-                    if (locationMethod == LocationMethod.GPS) {
-                        settingsViewModel.refreshLocation()
-                    } else if (selectedSelection != null) {
+                    // Use GPS if we have location, otherwise manual
+                    if (hasValidLocation) {
+                        settingsViewModel.updateLocationMethod(LocationMethod.GPS)
+                    }
+                    
+                    // Save manual city if selected
+                    if (selectedSelection != null) {
                         settingsViewModel.updateSelectedCity(selectedSelection!!)
+                        settingsViewModel.updateLocationMethod(LocationMethod.MANUAL_CITY)
                     }
                 } else {
                     settingsViewModel.updatePrayerTimesEnabled(false)
@@ -439,25 +403,34 @@ fun IslamicOnboardingStep(
                     settingsViewModel.updateQiblaDirectionEnabled(false)
                 }
                 
-                // Mark the Islamic features configuration as completed
                 viewModel.completeIslamicFeaturesConfiguration()
                 onNext()
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = hasValidLocation || selectedSelection != null || !enableIslamicFeatures
         ) {
-            Text("Complete")
+            Text(if (hasValidLocation || !enableIslamicFeatures) "Complete Setup" else "Select a Location First")
         }
         
+        // Skip option
+        if (!hasValidLocation && enableIslamicFeatures) {
+            TextButton(onClick = {
+                viewModel.completeIslamicFeaturesConfiguration()
+                onSkip()
+            }) {
+                Text("Skip for now (configure later in Settings)")
+            }
+        }
     }
 
     // City Selector Dialog
-    if (showCitySelector) {
+    if (showManualCitySelector) {
         CitySelectorDialog(
             onCitySelected = { selection ->
                 selectedSelection = selection
-                showCitySelector = false
+                showManualCitySelector = false
             },
-            onDismiss = { showCitySelector = false }
+            onDismiss = { showManualCitySelector = false }
         )
     }
 }
