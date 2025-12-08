@@ -44,8 +44,9 @@ class ScreenCaptureManager @Inject constructor() {
         }
         
         isCapturing = true
-        Log.d(TAG, "🎬 Starting screen capture loop...")
-        captureJob = CoroutineScope(Dispatchers.Main).launch {
+        Log.d(TAG, "🎬 Starting screen capture loop (background)...")
+        // OPTIMIZATION: Run capture loop on Default dispatcher to avoid blocking Main thread
+        captureJob = CoroutineScope(Dispatchers.Default).launch {
             var consecutiveFailures = 0
             val maxFailures = 5
             
@@ -161,8 +162,8 @@ class ScreenCaptureManager @Inject constructor() {
     }
     
     @Suppress("DEPRECATION")
-    private fun createSimulatedScreenshot(service: AccessibilityService): Bitmap? {
-        return try {
+    private suspend fun createSimulatedScreenshot(service: AccessibilityService): Bitmap? = withContext(Dispatchers.Main) {
+        try {
             val windowManager = service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
             val display = windowManager.defaultDisplay
             val displayMetrics = DisplayMetrics()

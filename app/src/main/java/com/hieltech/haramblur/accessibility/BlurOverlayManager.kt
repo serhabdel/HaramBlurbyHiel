@@ -595,8 +595,20 @@ class BlurOverlayManager @Inject constructor(
             val oldRegions = cachedBlurRegions
             val optimizedRegions = BlurAnimationUtils.optimizeRegionTransitions(newRegions)
             
+            // Adaptive animation duration based on update frequency
+            // If updates are coming in fast (scrolling), snap faster
+            val timeSinceLastFrame = startTime - lastFrameTime
+            lastFrameTime = startTime
+            
+            val adaptiveDuration = if (timeSinceLastFrame < 100) {
+                 // Fast updates -> Fast animations (almost snap)
+                 minOf(animationDuration, 50L) 
+            } else {
+                 animationDuration
+            }
+
             regionTransitionAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = animationDuration
+                duration = adaptiveDuration
                 addUpdateListener { animator ->
                     val progress = animator.animatedValue as Float
                     

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.data.QualityMode
+import com.hieltech.haramblur.utils.LocationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -20,6 +21,7 @@ import javax.inject.Inject
 class PermissionWizardViewModel @Inject constructor(
     private val permissionHelper: PermissionHelper,
     private val settingsRepository: SettingsRepository,
+    private val locationHelper: LocationHelper,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -167,6 +169,11 @@ class PermissionWizardViewModel @Inject constructor(
                             permissionHelper.permissionStatusFlow.value[step.permissionType] ?: PermissionResult.Denied(step.permissionType)
                         }
 
+                        // Check if we need to fetch location for the first time
+                        if (step.permissionType == "LOCATION_PERMISSION" && permissionResult is PermissionResult.Granted) {
+                            fetchAndSaveLocation()
+                        }
+
                         step.copy(
                             status = when (permissionResult) {
                                 is PermissionResult.Granted -> PermissionStatus.GRANTED
@@ -210,6 +217,14 @@ class PermissionWizardViewModel @Inject constructor(
                 .collect { (permissions, settings) ->
                     val updatedSteps = _wizardState.value.steps.map { step ->
                         val permissionResult = permissions[step.permissionType]
+
+                        // Trigger location fetch if just granted and missing from settings
+                        if (step.permissionType == "LOCATION_PERMISSION" && 
+                            permissionResult is PermissionResult.Granted &&
+                            settings.locationCity == null) {
+                            fetchAndSaveLocation()
+                        }
+
                         step.copy(
                             status = when (permissionResult) {
                                 is PermissionResult.Granted -> PermissionStatus.GRANTED
@@ -320,6 +335,14 @@ class PermissionWizardViewModel @Inject constructor(
             try {
                 // Mark onboarding as completed
                 settingsRepository.markOnboardingCompleted()
+                
+                // Final check to fetch location if missing
+                if (locationHelper.hasLocationPermission()) {
+                    val currentSettings = settingsRepository.getCurrentSettings()
+                    if (currentSettings.locationCity == null) {
+                        fetchAndSaveLocation()
+                    }
+                }
                 
                 // CRUCIAL: Ensure content detection is enabled after wizard completion with High Quality mode
                 val currentSettings = settingsRepository.getCurrentSettings()
@@ -613,6 +636,60 @@ class PermissionWizardViewModel @Inject constructor(
                 _wizardState.value = _wizardState.value.copy(
                     error = "Failed to reset wizard: ${e.message}"
                 )
+            }
+        }
+    }
+
+    /**
+     * Map country name to prayer calculation method ID
+     */
+    private fun getCalculationMethodForCountry(country: String?): Int {
+        if (country == null) return 2 // Default to ISNA
+        return when (country.lowercase()) {
+            "morocco" -> 15 // Morocco Ministry
+            "turkey" -> 13 // Diyanet
+            "saudi arabia" -> 4 // Umm Al-Qura
+            "pakistan" -> 1 // Karachi
+            "egypt" -> 5 // Egyptian General Authority
+            "kuwait" -> 9 // Kuwait
+            "qatar" -> 10 // Qatar
+            "singapore" -> 11 // Singapore
+            "iran" -> 7 // Tehran
+            else -> 2 // ISNA default
+        }
+    }
+
+    /**
+     * Fetch location and save to settings
+     */
+    private fun fetchAndSaveLocation() {
+        viewModelScope.launch {
+            try {
+                // Check if already has valid location to avoid redundant calls
+                val currentSettings = settingsRepository.getCurrentSettings()
+                if (currentSettings.locationCity != null && currentSettings.locationCountry != null) {
+                    return@launch
+                }
+
+                if (!locationHelper.hasLocationPermission()) return@launch
+
+                val location = locationHelper.getBestLocation()
+                if (location != null) {
+                    // Update settings with new location
+                    val calcMethod = getCalculationMethodForCountry(location.country)
+                    
+                    settingsRepository.updateSettings(currentSettings.copy(
+                        locationLatitude = location.latitude,
+                        locationLongitude = location.longitude,
+                        locationCity = location.city,
+                        locationCountry = location.country,
+                        prayerCalculationMethod = calcMethod,
+                        locationLastUpdated = System.currentTimeMillis()
+                    ))
+                    android.util.Log.d("PermissionWizardViewModel", "Location saved: ${location.city}, ${location.country}, Method: $calcMethod")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PermissionWizardViewModel", "Failed to save location", e)
             }
         }
     }

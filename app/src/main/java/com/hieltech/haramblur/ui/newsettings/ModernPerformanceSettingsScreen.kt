@@ -135,7 +135,7 @@ private fun ResourceManagementSection(
             title = stringResource(R.string.max_processing_time_title),
             description = stringResource(R.string.max_processing_time_description),
             value = settings.maxProcessingTimeMs.toFloat(),
-            range = 25f..200f,
+            range = 10f..200f,
             onValueChange = { viewModel.updateMaxProcessingTime(it.toLong()) },
             valueFormatter = { "${it.toInt()}ms" }
         )

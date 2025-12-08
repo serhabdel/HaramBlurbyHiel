@@ -35,11 +35,19 @@ class ContentDensityAnalyzerImpl @Inject constructor(
             try {
                 Log.d(TAG, "Starting screen content analysis for ${bitmap.width}x${bitmap.height} image")
                 
+                val width = bitmap.width
+                val height = bitmap.height
+                
+                // OPTIMIZATION: Extract pixels once for all analysis
+                // This avoids millions of JNI calls to getPixel()
+                val pixels = IntArray(width * height)
+                bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+                
                 withTimeout(PROCESSING_TIMEOUT_MS) {
                     // Perform parallel analysis
-                    val gridAnalysisJob = async { performGridAnalysis(bitmap) }
-                    val spatialDistributionJob = async { analyzeSpatialDistribution(bitmap) }
-                    val criticalRegionsJob = async { identifyCriticalRegions(bitmap) }
+                    val gridAnalysisJob = async { performGridAnalysis(pixels, width, height) }
+                    val spatialDistributionJob = async { analyzeSpatialDistribution(pixels, width, height) }
+                    val criticalRegionsJob = async { identifyCriticalRegions(pixels, width, height) }
                     
                     // Wait for all analysis to complete
                     val gridAnalysis = gridAnalysisJob.await()
@@ -118,6 +126,14 @@ class ContentDensityAnalyzerImpl @Inject constructor(
         withContext(Dispatchers.Default) {
             val width = bitmap.width
             val height = bitmap.height
+            val pixels = IntArray(width * height)
+            bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+            return@withContext analyzeSpatialDistribution(pixels, width, height)
+        }
+
+    private suspend fun analyzeSpatialDistribution(pixels: IntArray, width: Int, height: Int): SpatialDistribution = 
+        withContext(Dispatchers.Default) {
+            // width and height are passed in
             
             // Define regions
             val halfWidth = width / 2
@@ -126,13 +142,13 @@ class ContentDensityAnalyzerImpl @Inject constructor(
             val quarterHeight = height / 4
             
             // Analyze each quadrant
-            val topLeft = analyzeRegionDensity(bitmap, Rect(0, 0, halfWidth, halfHeight))
-            val topRight = analyzeRegionDensity(bitmap, Rect(halfWidth, 0, width, halfHeight))
-            val bottomLeft = analyzeRegionDensity(bitmap, Rect(0, halfHeight, halfWidth, height))
-            val bottomRight = analyzeRegionDensity(bitmap, Rect(halfWidth, halfHeight, width, height))
+            val topLeft = analyzeRegionDensity(pixels, width, height, Rect(0, 0, halfWidth, halfHeight))
+            val topRight = analyzeRegionDensity(pixels, width, height, Rect(halfWidth, 0, width, halfHeight))
+            val bottomLeft = analyzeRegionDensity(pixels, width, height, Rect(0, halfHeight, halfWidth, height))
+            val bottomRight = analyzeRegionDensity(pixels, width, height, Rect(halfWidth, halfHeight, width, height))
             
             // Analyze center region
-            val center = analyzeRegionDensity(bitmap, Rect(quarterWidth, quarterHeight, 3 * quarterWidth, 3 * quarterHeight))
+            val center = analyzeRegionDensity(pixels, width, height, Rect(quarterWidth, quarterHeight, 3 * quarterWidth, 3 * quarterHeight))
             
             // Analyze edge regions (combined)
             val edgeRegions = listOf(
@@ -141,7 +157,7 @@ class ContentDensityAnalyzerImpl @Inject constructor(
                 Rect(0, quarterHeight, quarterWidth, 3 * quarterHeight), // Left edge
                 Rect(3 * quarterWidth, quarterHeight, width, 3 * quarterHeight) // Right edge
             )
-            val edges = edgeRegions.map { analyzeRegionDensity(bitmap, it) }.average().toFloat()
+            val edges = edgeRegions.map { analyzeRegionDensity(pixels, width, height, it) }.average().toFloat()
             
             // Calculate statistics
             val densities = listOf(topLeft, topRight, bottomLeft, bottomRight, center)
@@ -355,10 +371,10 @@ class ContentDensityAnalyzerImpl @Inject constructor(
     
     // Private helper methods
     
-    private suspend fun performGridAnalysis(bitmap: Bitmap): GridAnalysis = withContext(Dispatchers.Default) {
+    private suspend fun performGridAnalysis(pixels: IntArray, width: Int, height: Int): GridAnalysis = withContext(Dispatchers.Default) {
         val gridSize = DEFAULT_GRID_SIZE
-        val cellWidth = bitmap.width / gridSize
-        val cellHeight = bitmap.height / gridSize
+        val cellWidth = width / gridSize
+        val cellHeight = height / gridSize
         
         val cellDensities = Array(gridSize) { Array(gridSize) { 0.0f } }
         var highDensityCells = 0
@@ -374,11 +390,11 @@ class ContentDensityAnalyzerImpl @Inject constructor(
                 val x = col * cellWidth
                 val y = row * cellHeight
                 val cellRect = Rect(x, y, 
-                    minOf(x + cellWidth, bitmap.width), 
-                    minOf(y + cellHeight, bitmap.height)
+                    minOf(x + cellWidth, width), 
+                    minOf(y + cellHeight, height)
                 )
                 
-                val cellDensity = analyzeRegionDensity(bitmap, cellRect)
+                val cellDensity = analyzeRegionDensity(pixels, width, height, cellRect)
                 cellDensities[row][col] = cellDensity
                 totalDensity += cellDensity
                 
@@ -408,11 +424,11 @@ class ContentDensityAnalyzerImpl @Inject constructor(
         )
     }
     
-    private suspend fun identifyCriticalRegions(bitmap: Bitmap): List<Rect> = withContext(Dispatchers.Default) {
+    private suspend fun identifyCriticalRegions(pixels: IntArray, width: Int, height: Int): List<Rect> = withContext(Dispatchers.Default) {
         val criticalRegions = mutableListOf<Rect>()
         val gridSize = DEFAULT_GRID_SIZE
-        val cellWidth = bitmap.width / gridSize
-        val cellHeight = bitmap.height / gridSize
+        val cellWidth = width / gridSize
+        val cellHeight = height / gridSize
         
         // Scan grid for high-density regions
         for (row in 0 until gridSize) {
@@ -420,15 +436,15 @@ class ContentDensityAnalyzerImpl @Inject constructor(
                 val x = col * cellWidth
                 val y = row * cellHeight
                 val cellRect = Rect(x, y, 
-                    minOf(x + cellWidth, bitmap.width), 
-                    minOf(y + cellHeight, bitmap.height)
+                    minOf(x + cellWidth, width), 
+                    minOf(y + cellHeight, height)
                 )
                 
-                val cellDensity = analyzeRegionDensity(bitmap, cellRect)
+                val cellDensity = analyzeRegionDensity(pixels, width, height, cellRect)
                 
                 if (cellDensity > HIGH_DENSITY_THRESHOLD) {
                     // Expand region slightly for better coverage
-                    val expandedRect = expandRect(cellRect, 20, bitmap.width, bitmap.height)
+                    val expandedRect = expandRect(cellRect, 20, width, height)
                     criticalRegions.add(expandedRect)
                 }
             }
@@ -438,17 +454,17 @@ class ContentDensityAnalyzerImpl @Inject constructor(
         return@withContext mergeOverlappingRegions(criticalRegions)
     }
     
-    private fun analyzeRegionDensity(bitmap: Bitmap, region: Rect): Float {
-        if (region.isEmpty || region.left >= bitmap.width || region.top >= bitmap.height) {
+    private fun analyzeRegionDensity(pixels: IntArray, width: Int, height: Int, region: Rect): Float {
+        if (region.isEmpty || region.left >= width || region.top >= height) {
             return 0.0f
         }
         
-        // Ensure region is within bitmap bounds
+        // Ensure region is within bounds
         val clampedRegion = Rect(
             maxOf(0, region.left),
             maxOf(0, region.top),
-            minOf(bitmap.width, region.right),
-            minOf(bitmap.height, region.bottom)
+            minOf(width, region.right),
+            minOf(height, region.bottom)
         )
         
         if (clampedRegion.isEmpty) return 0.0f
@@ -457,18 +473,21 @@ class ContentDensityAnalyzerImpl @Inject constructor(
         val sampleStep = 3 // Sample every 3rd pixel for performance
         var skinPixels = 0
         var totalPixels = 0
-        var colorVarianceSum = 0.0f
         val colors = mutableListOf<Int>()
         
         for (x in clampedRegion.left until clampedRegion.right step sampleStep) {
             for (y in clampedRegion.top until clampedRegion.bottom step sampleStep) {
-                val pixel = bitmap.getPixel(x, y)
-                colors.add(pixel)
-                
-                if (isSkinTonePixel(pixel)) {
-                    skinPixels++
+                // Access pixel from IntArray
+                val index = y * width + x
+                if (index >= 0 && index < pixels.size) {
+                    val pixel = pixels[index]
+                    colors.add(pixel)
+                    
+                    if (isSkinTonePixel(pixel)) {
+                        skinPixels++
+                    }
+                    totalPixels++
                 }
-                totalPixels++
             }
         }
         

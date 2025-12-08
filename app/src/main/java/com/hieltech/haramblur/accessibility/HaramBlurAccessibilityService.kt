@@ -1720,10 +1720,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     
     private fun getProcessingInterval(settings: AppSettings): Long {
         return when (settings.processingSpeed) {
-            ProcessingSpeed.FAST -> 50L  // Faster for immediate response
-            ProcessingSpeed.BALANCED -> 100L  // Reduced for better responsiveness 
-            ProcessingSpeed.BATTERY_SAVER -> 300L  // Still faster than before
-            ProcessingSpeed.ULTRA_FAST -> 25L  // Super fast for real-time
+            ProcessingSpeed.FAST -> 32L  // ~30fps target
+            ProcessingSpeed.BALANCED -> 60L  // ~16fps target
+            ProcessingSpeed.BATTERY_SAVER -> 200L  // Conservative
+            ProcessingSpeed.ULTRA_FAST -> 10L  // ~100fps target (bounded by analysis speed)
         }
     }
     
