@@ -114,9 +114,11 @@ class ScreenCaptureManager @Inject constructor() {
     }
     
     fun setCaptureDelay(delayMs: Long) {
-        captureDelay = delayMs.coerceAtLeast(500L) // Minimum 500ms to prevent excessive CPU usage
+        captureDelay = delayMs.coerceAtLeast(200L) // Minimum 200ms for high-alert mode
         Log.d(TAG, "Capture delay set to ${captureDelay}ms")
     }
+    
+    fun getCurrentDelay(): Long = captureDelay
     
     private suspend fun captureScreen(): Bitmap? = withContext(Dispatchers.IO) {
         var bitmap: Bitmap? = null

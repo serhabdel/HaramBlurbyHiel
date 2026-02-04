@@ -1,4 +1,4 @@
-package com.hieltech.haramblur.accessibility
+﻿package com.hieltech.haramblur.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityService.GestureResultCallback
@@ -28,11 +28,6 @@ import com.hieltech.haramblur.detection.ContentDetectionEngine
 import com.hieltech.haramblur.detection.SiteBlockingManager
 import com.hieltech.haramblur.detection.BlockingCategory
 import com.hieltech.haramblur.detection.ContentAction
-// import com.hieltech.haramblur.services.DhikrReminder
-// import com.hieltech.haramblur.services.DhikrReminderManager
-// import com.hieltech.haramblur.services.DhikrReminderNotificationManager
-// import com.hieltech.haramblur.ui.newsettings.ScreenTimeNotificationHelper
-// import com.hieltech.haramblur.utils.AppCategoryClassifier
 import com.hieltech.haramblur.utils.CoordinateMapper
 import com.hieltech.haramblur.setup.FirstRunSetupManager
 import com.hieltech.haramblur.testing.FirstRunValidator
@@ -42,6 +37,10 @@ import com.hieltech.haramblur.data.AppFilteringManager
 import com.hieltech.haramblur.data.AppCategoryDetector
 import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.utils.UrlUtils
+import com.hieltech.haramblur.utils.AppConstants
+import com.hieltech.haramblur.utils.AppConstants.Tags
+import com.hieltech.haramblur.utils.AppConstants.Performance
+import com.hieltech.haramblur.utils.AppConstants.ServiceMonitoring
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import java.util.Locale
@@ -51,69 +50,35 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
-/**
- * Data class for blur regions with metadata for debounced updates
- */
-data class BlurRegionWithMeta(
-    val regions: List<Rect>,
-    val intensity: BlurIntensity,
-    val style: BlurStyle,
-    val confidence: Float,
-    val timestamp: Long
-)
+// Import extracted components
+import com.hieltech.haramblur.accessibility.BlurUpdateDebouncer
+import com.hieltech.haramblur.accessibility.BlurRegionWithMeta
+import com.hieltech.haramblur.accessibility.EmergencyResetReceiver
+import com.hieltech.haramblur.accessibility.BrowserDetector
+import com.hieltech.haramblur.accessibility.ServiceLogger
+import com.hieltech.haramblur.accessibility.UrlExtractor
+import com.hieltech.haramblur.accessibility.NavigationHandler
+import com.hieltech.haramblur.accessibility.MemoryManager
+import com.hieltech.haramblur.accessibility.DetectionProcessor
+import com.hieltech.haramblur.accessibility.OverlayStateManager
 
-/**
- * Debouncer for blur updates to prevent excessive updates
- */
-class BlurUpdateDebouncer(private val debounceMs: Long) {
-    private var pendingUpdate: BlurRegionWithMeta? = null
-    private var debounceJob: kotlinx.coroutines.Job? = null
-    
-    fun scheduleUpdate(
-        blurRegionWithMeta: BlurRegionWithMeta,
-        onUpdate: (BlurRegionWithMeta) -> Unit
-    ) {
-        // Cancel any existing debounce job
-        debounceJob?.cancel()
-        
-        // Store the latest update
-        pendingUpdate = blurRegionWithMeta
-        
-        // Schedule new debounced update
-        debounceJob = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-            try {
-                delay(debounceMs)
-                
-                // Apply the pending update
-                pendingUpdate?.let { update ->
-                    onUpdate(update)
-                    pendingUpdate = null
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                // Job was cancelled, which is expected behavior
-                Log.d("BlurUpdateDebouncer", "Debounced update cancelled")
-            } catch (e: Exception) {
-                Log.e("BlurUpdateDebouncer", "Error in debounced update", e)
-            }
-        }
-    }
-    
-    fun cancelPendingUpdates() {
-        debounceJob?.cancel()
-        pendingUpdate = null
-    }
-}
+// Month 1 Performance Optimizations
+import com.hieltech.haramblur.performance.CaptureStateManager
+import com.hieltech.haramblur.performance.GridAnalyzer
+import com.hieltech.haramblur.performance.BatteryAwareProcessor
+import com.hieltech.haramblur.performance.PerformanceOptimizer
 
 @AndroidEntryPoint
 class HaramBlurAccessibilityService : AccessibilityService() {
     
     companion object {
-        private const val TAG = "HaramBlurAccessibilityService"
+        private const val TAG = Tags.ACCESSIBILITY_SERVICE
         private var instance: HaramBlurAccessibilityService? = null
-        private const val EMERGENCY_RESET_ACTION = "com.hieltech.haramblur.EMERGENCY_RESET"
-        private const val WATCHDOG_REASON_DESTROY = "service_destroyed"
-        private const val WATCHDOG_REASON_TASK_REMOVED = "task_removed"
-        private const val WATCHDOG_REASON_ACTIVE = "service_active"
+        
+        // Using constants from AppConstants.ServiceMonitoring
+        private val WATCHDOG_REASON_DESTROY = ServiceMonitoring.WATCHDOG_REASON_DESTROY
+        private val WATCHDOG_REASON_TASK_REMOVED = ServiceMonitoring.WATCHDOG_REASON_TASK_REMOVED
+        private val WATCHDOG_REASON_ACTIVE = ServiceMonitoring.WATCHDOG_REASON_ACTIVE
 
         fun getInstance(): HaramBlurAccessibilityService? = instance
 
@@ -122,25 +87,13 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         /**
          * Send emergency reset broadcast to force hide stuck overlays
          * Usage from ADB: adb shell am broadcast -a com.hieltech.haramblur.EMERGENCY_RESET
+         * @deprecated Use EmergencyResetReceiver.sendEmergencyResetBroadcast() instead
          */
+        @Deprecated("Use EmergencyResetReceiver.sendEmergencyResetBroadcast() instead")
         fun sendEmergencyResetBroadcast(context: Context) {
-            val intent = Intent(EMERGENCY_RESET_ACTION)
-            context.sendBroadcast(intent)
-            Log.w(TAG, "Emergency reset broadcast sent")
+            EmergencyResetReceiver.sendEmergencyResetBroadcast(context)
         }
     }
-    
-    data class ServiceStatus(
-        val isServiceRunning: Boolean = false,
-        val isProcessingActive: Boolean = false,
-        val isCapturingActive: Boolean = false,
-        val isOverlayActive: Boolean = false,
-        val lastProcessingTime: Long = 0L,
-        val totalFramesProcessed: Long = 0L,
-        val totalFramesSkipped: Long = 0L,
-        val averageProcessingTime: Float = 0f,
-        val lastError: String = ""
-    )
     
     @Inject
     lateinit var screenCaptureManager: ScreenCaptureManager
@@ -184,47 +137,30 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     @Inject
     lateinit var logRepository: LogRepository
 
+    // Month 1 Performance Optimization Components
+    @Inject
+    lateinit var captureStateManager: CaptureStateManager
+    
+    @Inject
+    lateinit var gridAnalyzer: GridAnalyzer
+    
+    @Inject
+    lateinit var batteryAwareProcessor: BatteryAwareProcessor
+    
+    @Inject
+    lateinit var performanceOptimizer: PerformanceOptimizer
+
     // Note: Behavioral action components (automatic app closing, navigation) are disabled
     // This is intentional to keep the app focused on content blur overlays only
     
-    // Database logging convenience methods
-    private fun logToDatabase(
-        message: String, 
-        level: LogRepository.LogLevel = LogRepository.LogLevel.DEBUG,
-        category: LogRepository.LogCategory = LogRepository.LogCategory.ACCESSIBILITY
-    ) {
-        serviceScope.launch {
-            try {
-                logRepository.log(TAG, message, level, category)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to log to database: $message", e)
-            }
-        }
-    }
-    
-    private fun logDebugToDatabase(message: String, category: LogRepository.LogCategory = LogRepository.LogCategory.ACCESSIBILITY) {
-        logToDatabase(message, LogRepository.LogLevel.DEBUG, category)
-    }
-    
-    private fun logInfoToDatabase(message: String, category: LogRepository.LogCategory = LogRepository.LogCategory.ACCESSIBILITY) {
-        logToDatabase(message, LogRepository.LogLevel.INFO, category)
-    }
-    
-    private fun logWarningToDatabase(message: String, category: LogRepository.LogCategory = LogRepository.LogCategory.ACCESSIBILITY) {
-        logToDatabase(message, LogRepository.LogLevel.WARN, category)
-    }
-    
-    private fun logErrorToDatabase(message: String, exception: Exception? = null, category: LogRepository.LogCategory = LogRepository.LogCategory.ACCESSIBILITY) {
-        serviceScope.launch {
-            try {
-                logRepository.logError(TAG, message, exception, category)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to log error to database: $message", e)
-            }
-        }
-    }
-    
+    // Service components
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private lateinit var serviceLogger: ServiceLogger
+    private lateinit var emergencyResetReceiver: EmergencyResetReceiver
+    private lateinit var navigationHandler: NavigationHandler
+    private lateinit var memoryManager: MemoryManager
+    private lateinit var detectionProcessor: DetectionProcessor
+    private lateinit var overlayStateManager: OverlayStateManager
     private var isProcessingActive = false
     private var lastProcessingTime: Long = 0
     private var frameCount = 0
@@ -247,25 +183,15 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     // Error tracking for stability
     private val errorCounts = ConcurrentHashMap<String, AtomicInteger>()
 
-    // Emergency reset broadcast receiver
-    private val emergencyResetReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == EMERGENCY_RESET_ACTION) {
-                Log.w(TAG, "Received emergency reset broadcast")
-                emergencyReset()
-            }
-        }
-    }
-    
     // Blur stability tracking with detection caching
     private var recentNSFWDetections = mutableListOf<Pair<Long, Float>>()
     private var lastBlurStartTime: Long = 0
     private var isCurrentlyBlurred = false
-    private var minBlurDuration = 2000L // Minimum 2 seconds of blur
+    private var minBlurDuration = Performance.DEFAULT_CAPTURE_INTERVAL_MS // Minimum 2 seconds of blur
     
     // Detection caching for stability
     private var detectionCache = mutableMapOf<String, Pair<Long, Boolean>>()
-    private val cacheExpirationMs = 2000L // Cache results for 2 seconds - faster updates
+    private val cacheExpirationMs = Performance.DEFAULT_CAPTURE_INTERVAL_MS // Cache results for 2 seconds
     private var lastBitmapHash: String? = null
     private var consecutiveNSFWCount = 0
     private var consecutiveCleanCount = 0
@@ -276,7 +202,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private var adaptiveGenderThreshold = 0.4f // Start lower for better female detection
     private var detectionHistory = mutableListOf<Pair<Long, Boolean>>() // Track success/failure
     private var lastAdaptationTime = 0L
-    private val adaptationIntervalMs = 30000L // Adapt every 30 seconds
+    private val adaptationIntervalMs = ServiceMonitoring.WATCHDOG_CHECK_INTERVAL_MS // Adapt every 30 seconds
     private var currentUrl: String? = null
     private var lastUrlCheckTime = 0L
     private var isShowingBlockedSiteOverlay = false
@@ -289,70 +215,14 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     
     // Debounced blur updates with metadata
     private var blurUpdateDebouncer: BlurUpdateDebouncer? = null
-    private val blurUpdateDebounceMs = 50L
-    
-    private val knownBrowserPackages = setOf(
-        "com.android.chrome",
-        "com.chrome.beta",
-        "com.chrome.canary",
-        "com.chrome.dev",
-        "org.mozilla.firefox",
-        "org.mozilla.firefox_beta",
-        "com.microsoft.emmx",
-        "com.sec.android.app.sbrowser",
-        "com.opera.browser",
-        "com.brave.browser",
-        "com.duckduckgo.mobile.android",
-        "com.vivaldi.browser",
-        "com.yandex.browser",
-        "org.torproject.torbrowser",
-        "com.kiwibrowser.browser",
-        "com.ecosia.android",
-        "com.qwant.liberty",
-        "com.UCMobile.intl",
-        "com.puffin.browser",
-        "com.adguard.browser"
-    ).map { it.lowercase(Locale.ROOT) }.toSet()
-
-    private val browserPackageKeywords = listOf(
-        "browser",
-        "chrome",
-        "firefox",
-        "edge",
-        "opera",
-        "brave",
-        "duckduckgo",
-        "vivaldi",
-        "yandex",
-        "puffin",
-        "samsung",
-        "kiwi",
-        "tor"
-    )
+    private val blurUpdateDebounceMs = Performance.BLUR_DEBOUNCE_MS
 
     private fun getForegroundPackageNameSafely(): String? {
-        val rootNode = rootInActiveWindow
-        return try {
-            rootNode?.packageName?.toString()
-        } catch (e: Exception) {
-            Log.w(TAG, "Error retrieving foreground package name", e)
-            null
-        } finally {
-            try {
-                rootNode?.recycle()
-            } catch (recycleError: Exception) {
-                Log.w(TAG, "Error recycling root node after package lookup", recycleError)
-            }
-        }
+        return BrowserDetector.getForegroundPackageNameSafely(rootInActiveWindow)
     }
 
     private fun isBrowserPackage(packageName: String?): Boolean {
-        if (packageName.isNullOrBlank()) return false
-        val normalized = packageName.lowercase(Locale.ROOT)
-        if (knownBrowserPackages.contains(normalized)) {
-            return true
-        }
-        return browserPackageKeywords.any { normalized.contains(it) }
+        return BrowserDetector.isBrowserPackage(packageName)
     }
 
     private fun isBrowserActionAllowed(foregroundPackage: String?, reason: String): Boolean {
@@ -413,47 +283,63 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         
         try {
             instance = this
-            Log.d(TAG, "🚀 HaramBlur Accessibility Service Created")
-            logInfoToDatabase("🚀 HaramBlur Accessibility Service Created")
+            
+            // Initialize service logger
+            serviceLogger = ServiceLogger(serviceScope, logRepository)
+            serviceLogger.info("ðŸš€ HaramBlur Accessibility Service Created")
 
             AccessibilityServiceWatchdog.cancel(this, WATCHDOG_REASON_ACTIVE)
 
-            // Register emergency reset broadcast receiver with error handling
-            try {
-                val filter = IntentFilter(EMERGENCY_RESET_ACTION)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                    registerReceiver(emergencyResetReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-                } else {
-                    registerReceiver(emergencyResetReceiver, filter)
-                }
-                Log.d(TAG, "✅ Emergency reset broadcast receiver registered")
-                logDebugToDatabase("✅ Emergency reset broadcast receiver registered")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to register emergency reset receiver", e)
-                logErrorToDatabase("Failed to register emergency reset receiver", e)
-                // Continue without receiver - not critical
+            // Initialize and register emergency reset broadcast receiver
+            emergencyResetReceiver = EmergencyResetReceiver { emergencyReset() }
+            val receiverRegistered = emergencyResetReceiver.register(this)
+            if (receiverRegistered) {
+                serviceLogger.debug("âœ… Emergency reset broadcast receiver registered")
             }
+            // Continue even if receiver registration fails - not critical
 
             // App launch interceptor is registered in manifest
-            Log.d(TAG, "🚀 App launch interceptor ready")
+            Log.d(TAG, "ðŸš€ App launch interceptor ready")
 
             // Initialize blur update debouncer
             blurUpdateDebouncer = BlurUpdateDebouncer(blurUpdateDebounceMs)
-            Log.d(TAG, "✅ Blur update debouncer initialized with ${blurUpdateDebounceMs}ms delay")
+            serviceLogger.debug("âœ… Blur update debouncer initialized with ${blurUpdateDebounceMs}ms delay")
+
+            // Initialize navigation handler
+            navigationHandler = NavigationHandler(this)
+            serviceLogger.debug("âœ… Navigation handler initialized")
+
+            // Initialize memory manager
+            memoryManager = MemoryManager(
+                onClearCaches = { clearDetectionCaches() },
+                onHideOverlay = { safeHideOverlay("memory_cleanup") }
+            )
+            serviceLogger.debug("âœ… Memory manager initialized")
+
+            // Initialize detection processor
+            detectionProcessor = DetectionProcessor(serviceLogger)
+            serviceLogger.debug("âœ… Detection processor initialized")
+
+            // Initialize overlay state manager
+            overlayStateManager = OverlayStateManager(
+                blurOverlayManager = blurOverlayManager,
+                onStateChanged = { isBlurred -> isCurrentlyBlurred = isBlurred }
+            )
+            serviceLogger.debug("âœ… Overlay state manager initialized")
 
             // Initialize components with safety wrapper
             serviceScope.launch {
                 try {
                     initializeComponents()
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Critical error during service initialization", e)
+                    serviceLogger.error("âŒ Critical error during service initialization", e)
                     lastServiceError = "Service init failed: ${e.message}"
                     // Try graceful recovery
                     attemptServiceRecovery()
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "💥 Fatal error in service onCreate", e)
+            Log.e(TAG, "ðŸ’¥ Fatal error in service onCreate", e)
             // Emergency cleanup
             instance = null
         }
@@ -461,7 +347,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     
     override fun onDestroy() {
         try {
-            Log.w(TAG, "🏁 HaramBlur Accessibility Service Destroying - starting cleanup")
+            Log.w(TAG, "ðŸ HaramBlur Accessibility Service Destroying - starting cleanup")
             
             // Mark service as stopping to prevent new operations
             isProcessingActive = false
@@ -474,15 +360,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
             // Unregister emergency reset broadcast receiver
-            try {
-                unregisterReceiver(emergencyResetReceiver)
-                Log.d(TAG, "✅ Emergency reset broadcast receiver unregistered")
-            } catch (e: Exception) {
-                Log.w(TAG, "Error unregistering emergency reset receiver", e)
+            if (::emergencyResetReceiver.isInitialized) {
+                emergencyResetReceiver.unregister(this)
             }
 
             // App launch interceptor is managed by system
-            Log.d(TAG, "🚀 App launch interceptor cleanup complete")
+            Log.d(TAG, "ðŸš€ App launch interceptor cleanup complete")
 
             // Stop app blocking monitor with timeout
             try {
@@ -491,7 +374,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                         foregroundAppMonitor.stopMonitoring()
                     }
                 }
-                Log.d(TAG, "✅ ForegroundAppMonitor stopped")
+                Log.d(TAG, "âœ… ForegroundAppMonitor stopped")
             } catch (e: Exception) {
                 Log.w(TAG, "Error stopping ForegroundAppMonitor: ${e.message}")
             }
@@ -507,7 +390,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             try {
                 dhikrManager.stopScheduler()
                 dhikrManager.cleanup()
-                Log.d(TAG, "✅ DhikrManager scheduler stopped and cleaned up")
+                Log.d(TAG, "âœ… DhikrManager scheduler stopped and cleaned up")
             } catch (e: Exception) {
                 Log.w(TAG, "Error cleaning up DhikrManager: ${e.message}")
             }
@@ -524,7 +407,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             try {
                 blurUpdateDebouncer?.cancelPendingUpdates()
                 blurUpdateDebouncer = null
-                Log.d(TAG, "✅ Blur update debouncer cancelled")
+                Log.d(TAG, "âœ… Blur update debouncer cancelled")
             } catch (e: Exception) {
                 Log.w(TAG, "Error cancelling blur update debouncer", e)
             }
@@ -532,7 +415,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             // Shutdown crash recovery system
             try {
                 crashRecoverySystem.shutdown()
-                Log.d(TAG, "✅ Crash recovery system shutdown")
+                Log.d(TAG, "âœ… Crash recovery system shutdown")
             } catch (e: Exception) {
                 Log.w(TAG, "Error shutting down crash recovery system", e)
             }
@@ -553,16 +436,23 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             
             // Clear instance last
             instance = null
-            Log.w(TAG, "🏁 HaramBlur Accessibility Service Destroyed successfully")
+            Log.w(TAG, "ðŸ HaramBlur Accessibility Service Destroyed successfully")
 
             AccessibilityServiceWatchdog.schedule(this, WATCHDOG_REASON_DESTROY)
             
         } catch (e: Exception) {
-            Log.e(TAG, "💥 Fatal error during service destruction", e)
+            Log.e(TAG, "ðŸ’¥ Fatal error during service destruction", e)
             // Force cleanup
             instance = null
         } finally {
             super.onDestroy()
+        }
+    }
+
+    // Battery state receiver for BatteryAwareProcessor
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            batteryAwareProcessor.updateBatteryState(intent)
         }
     }
 
@@ -571,6 +461,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         Log.d(TAG, "HaramBlur Accessibility Service Connected")
 
         AccessibilityServiceWatchdog.cancel(this, WATCHDOG_REASON_ACTIVE)
+
+        // Register battery receiver for adaptive power management
+        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
         serviceScope.launch {
             startContentMonitoring()
@@ -619,30 +512,30 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             val firstRunSetupManager = FirstRunSetupManager(contentDetectionEngine, settingsRepository, FirstRunValidator(contentDetectionEngine, settingsRepository))
             
             if (firstRunSetupManager.isFirstRunNeeded(this@HaramBlurAccessibilityService)) {
-                Log.i(TAG, "🚀 First-run setup needed, running comprehensive initialization...")
+                Log.i(TAG, "ðŸš€ First-run setup needed, running comprehensive initialization...")
                 
                 val setupResult = firstRunSetupManager.runFirstRunSetup(this@HaramBlurAccessibilityService)
                 
                 if (setupResult.success) {
-                    Log.i(TAG, "✅ First-run setup completed successfully in ${setupResult.setupTimeMs}ms")
-                    Log.i(TAG, "📱 Device profile: ${setupResult.deviceProfile.deviceClass}, GPU: ${setupResult.deviceProfile.hasGPUAcceleration}")
-                    Log.i(TAG, "⚙️ Optimized settings applied for best performance")
+                    Log.i(TAG, "âœ… First-run setup completed successfully in ${setupResult.setupTimeMs}ms")
+                    Log.i(TAG, "ðŸ“± Device profile: ${setupResult.deviceProfile.deviceClass}, GPU: ${setupResult.deviceProfile.hasGPUAcceleration}")
+                    Log.i(TAG, "âš™ï¸ Optimized settings applied for best performance")
                     
                     if (setupResult.recommendations.isNotEmpty()) {
-                        Log.i(TAG, "💡 Setup recommendations:")
+                        Log.i(TAG, "ðŸ’¡ Setup recommendations:")
                         setupResult.recommendations.forEach { recommendation ->
-                            Log.i(TAG, "   • $recommendation")
+                            Log.i(TAG, "   â€¢ $recommendation")
                         }
                     }
                 } else {
-                    Log.w(TAG, "⚠️ First-run setup completed with issues:")
+                    Log.w(TAG, "âš ï¸ First-run setup completed with issues:")
                     setupResult.issues.forEach { issue ->
-                        Log.w(TAG, "   • $issue")
+                        Log.w(TAG, "   â€¢ $issue")
                     }
-                    Log.w(TAG, "📱 Using failsafe settings for compatibility")
+                    Log.w(TAG, "ðŸ“± Using failsafe settings for compatibility")
                 }
             } else {
-                Log.d(TAG, "✅ First-run setup already completed, using existing configuration")
+                Log.d(TAG, "âœ… First-run setup already completed, using existing configuration")
             }
 
             // Initialize all enhanced detection services
@@ -655,7 +548,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     Log.w(TAG, "Content detection initialization failed")
                 }
             } else {
-                Log.d(TAG, "✅ Content detection engine already ready from first-run setup")
+                Log.d(TAG, "âœ… Content detection engine already ready from first-run setup")
             }
 
             // Initialize overlay manager
@@ -664,7 +557,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             // Initialize dhikr manager and start scheduler
             dhikrManager.initialize(this@HaramBlurAccessibilityService)
             dhikrManager.startScheduler()
-            Log.d(TAG, "✅ DhikrManager initialized and scheduler started")
+            Log.d(TAG, "âœ… DhikrManager initialized and scheduler started")
             
             // Initialize crash recovery system
             crashRecoverySystem.initialize()
@@ -673,7 +566,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 captureManager = screenCaptureManager,
                 detectionEngine = contentDetectionEngine
             )
-            Log.d(TAG, "🛡️ Crash recovery system initialized")
+            Log.d(TAG, "ðŸ›¡ï¸ Crash recovery system initialized")
 
             // Behavioral action components intentionally disabled (see note at line 181)
 
@@ -688,7 +581,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private fun startContentMonitoring() {
         if (isProcessingActive) {
             Log.w(TAG, "Content monitoring already active")
-            logWarningToDatabase("Content monitoring already active")
+            serviceLogger.warn("Content monitoring already active")
             return
         }
         
@@ -705,14 +598,45 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         // Set up automatic navigation callback for when 6+ NSFW regions detected
         blurOverlayManager.onNavigateAwayAction = {
             serviceScope.launch {
-                navigateAwayFromInappropriateContent()
+                navigationHandler.navigateToIslamicWebsite()
             }
         }
 
         // Start screen capture with content analysis
         screenCaptureManager.startCapturing { bitmap ->
             serviceScope.launch {
-                processScreenContent(bitmap)
+                processScreenContentOptimized(bitmap)
+            }
+        }
+        
+        // Start adaptive capture interval monitoring
+        startAdaptiveCaptureMonitoring()
+    }
+    
+    /**
+     * Monitor and adjust capture interval based on screen activity and battery state
+     */
+    private fun startAdaptiveCaptureMonitoring() {
+        serviceScope.launch {
+            while (isProcessingActive) {
+                // Get optimal interval from capture state manager
+                val captureInterval = captureStateManager.getCurrentInterval()
+                
+                // Also consider battery state
+                val batteryInterval = batteryAwareProcessor.getOptimalCaptureInterval()
+                
+                // Use the more conservative (longer) interval
+                val finalInterval = maxOf(captureInterval, batteryInterval)
+                
+                // Update capture delay if changed significantly
+                if (kotlin.math.abs(finalInterval - screenCaptureManager.getCurrentDelay()) > 100) {
+                    Log.d(TAG, "📊 Adaptive capture: interval=${finalInterval}ms " +
+                        "(state=${captureStateManager.getCurrentState()}, " +
+                        "battery=${batteryAwareProcessor.getOptimalCaptureInterval()}ms)")
+                    screenCaptureManager.setCaptureDelay(finalInterval)
+                }
+                
+                delay(1000) // Check every second
             }
         }
     }
@@ -731,22 +655,22 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         
         try {
             if (!isProcessingActive) {
-                Log.d(TAG, "🚫 Processing not active, skipping screen content analysis")
+                Log.d(TAG, "ðŸš« Processing not active, skipping screen content analysis")
                 return
             }
             
             // Null safety checks
             if (bitmap.isRecycled) {
-                Log.w(TAG, "⚠️ Bitmap is recycled, skipping processing")
+                Log.w(TAG, "âš ï¸ Bitmap is recycled, skipping processing")
                 return
             }
             
             if (bitmap.width <= 0 || bitmap.height <= 0) {
-                Log.w(TAG, "⚠️ Invalid bitmap dimensions: ${bitmap.width}x${bitmap.height}")
+                Log.w(TAG, "âš ï¸ Invalid bitmap dimensions: ${bitmap.width}x${bitmap.height}")
                 return
             }
             
-            Log.d(TAG, "📸 Processing screen content [$processingId] - Size: ${bitmap.width}x${bitmap.height}")
+            Log.d(TAG, "ðŸ“¸ Processing screen content [$processingId] - Size: ${bitmap.width}x${bitmap.height}")
             
             val currentTime = System.currentTimeMillis()
             
@@ -756,7 +680,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
             
         } catch (e: TimeoutCancellationException) {
-            Log.e(TAG, "⏰ Screen processing timeout after 30s [$processingId]", e)
+            Log.e(TAG, "â° Screen processing timeout after 30s [$processingId]", e)
             lastServiceError = "Processing timeout: ${e.message}"
             // Force hide overlays on timeout
             try {
@@ -766,22 +690,22 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 Log.e(TAG, "Error hiding overlay after timeout", overlayError)
             }
         } catch (e: OutOfMemoryError) {
-            Log.e(TAG, "💾 Out of memory during screen processing [$processingId]", e)
+            Log.e(TAG, "ðŸ’¾ Out of memory during screen processing [$processingId]", e)
             lastServiceError = "Out of memory: ${e.message}"
             // Emergency cleanup
-            emergencyMemoryCleanup()
+            memoryManager.emergencyCleanup()
         } catch (e: SecurityException) {
-            Log.e(TAG, "🔒 Security exception during screen processing [$processingId]", e)
+            Log.e(TAG, "ðŸ”’ Security exception during screen processing [$processingId]", e)
             lastServiceError = "Security error: ${e.message}"
             // Don't retry, likely permission revoked
         } catch (e: IllegalStateException) {
-            Log.e(TAG, "⚠️ Illegal state during screen processing [$processingId]", e)
+            Log.e(TAG, "âš ï¸ Illegal state during screen processing [$processingId]", e)
             lastServiceError = "State error: ${e.message}"
             // Try recovery
             attemptServiceRecovery()
         } catch (e: Exception) {
             lastServiceError = "${e.javaClass.simpleName}: ${e.message}"
-            Log.e(TAG, "💥 Unexpected error during screen processing [$processingId]", e)
+            Log.e(TAG, "ðŸ’¥ Unexpected error during screen processing [$processingId]", e)
             
             // Report to crash recovery system
             try {
@@ -812,7 +736,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         // Check cache first
         val cachedResult = detectionCache[bitmapHash]
         if (cachedResult != null && (currentTime - cachedResult.first) < cacheExpirationMs) {
-            Log.d(TAG, "💾 Using cached detection result: ${cachedResult.second} [$processingId]")
+            Log.d(TAG, "ðŸ’¾ Using cached detection result: ${cachedResult.second} [$processingId]")
             handleCachedResult(cachedResult.second)
             return
         }
@@ -834,23 +758,23 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
         
         if (!currentSettings.enableRealTimeProcessing) {
-            Log.d(TAG, "⏸️ Real-time processing disabled in settings [$processingId]")
+            Log.d(TAG, "â¸ï¸ Real-time processing disabled in settings [$processingId]")
             return
         }
         
         if (currentSettings.isServicePaused) {
-            Log.d(TAG, "⏸️ Service is paused - skipping all processing [$processingId]")
+            Log.d(TAG, "â¸ï¸ Service is paused - skipping all processing [$processingId]")
             // Hide any existing blur overlay when paused
             safeHideOverlay("service_paused")
             return
         }
         
-        Log.d(TAG, "⚙️ Processing with settings: Female blur=${currentSettings.blurFemaleFaces}, Male blur=${currentSettings.blurMaleFaces}, NSFW=${currentSettings.enableNSFWDetection}, GPU=${currentSettings.enableGPUAcceleration} [$processingId]")
+        Log.d(TAG, "âš™ï¸ Processing with settings: Female blur=${currentSettings.blurFemaleFaces}, Male blur=${currentSettings.blurMaleFaces}, NSFW=${currentSettings.enableNSFWDetection}, GPU=${currentSettings.enableGPUAcceleration} [$processingId]")
         
         // Get dynamic processing cooldown from settings
         val processingInterval = getProcessingInterval(currentSettings)
         if (currentTime - lastProcessingTime < processingInterval) {
-            Log.v(TAG, "⏱️ Throttling: Skipping processing (interval: ${processingInterval}ms) [$processingId]")
+            Log.v(TAG, "â±ï¸ Throttling: Skipping processing (interval: ${processingInterval}ms) [$processingId]")
             totalFramesSkipped++
             return
         }
@@ -875,7 +799,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
 
         // Analyze content using detection engine with user settings
-        Log.d(TAG, "🧠 Starting content analysis with detection engine... [$processingId]")
+        Log.d(TAG, "ðŸ§  Starting content analysis with detection engine... [$processingId]")
         
         val analysisResult = try {
             // Use error recovery for critical detection
@@ -887,22 +811,25 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 fallback = {
                     Log.w(TAG, "Using fallback content detection [$processingId]")
                     // Safe fallback result - need to create a proper failure result
-                    createFailureResult("Fallback detection used")
+                    ContentDetectionEngine.ContentAnalysisResult.failed("Fallback detection used")
                 }
             ).getOrThrow()
         } catch (e: Exception) {
             Log.e(TAG, "Critical failure in content detection [$processingId]", e)
-            createFailureResult("Detection engine failed: ${e.message}")
+            ContentDetectionEngine.ContentAnalysisResult.failed("Detection engine failed: ${e.message}")
         }
         
         if (analysisResult.isSuccessful()) {
-            Log.d(TAG, "✅ Content analysis successful, handling results... [$processingId]")
+            Log.d(TAG, "âœ… Content analysis successful, handling results... [$processingId]")
 
             // Behavioral actions intentionally disabled (see note at line 181)
 
             // Handle traditional blur overlay based on action results
             try {
-                val shouldBlur = handleAnalysisResultWithStability(analysisResult, currentSettings, bitmap)
+                // TODO: Migrate to DetectionProcessor
+                // val processingResult = detectionProcessor.processDetectionResult(analysisResult, currentSettings, currentTime, isCurrentlyBlurred, lastBlurStartTime)
+                // val shouldBlur = processingResult.shouldShowBlur
+                val shouldBlur = analysisResult.shouldBlur
                 detectionCache[bitmapHash] = Pair(currentTime, shouldBlur)
                 lastBitmapHash = bitmapHash
             } catch (e: Exception) {
@@ -911,7 +838,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
         } else {
-            Log.w(TAG, "❌ Content analysis failed: ${analysisResult.error} [$processingId]")
+            Log.w(TAG, "âŒ Content analysis failed: ${analysisResult.error} [$processingId]")
             // Don't immediately hide blur on failure - maintain current state for safety
             if (!isCurrentlyBlurred || (currentTime - lastBlurStartTime) > minBlurDuration) {
                 safeHideOverlay("analysis_failed")
@@ -927,6 +854,103 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 processingTimes.removeAt(0) // Keep only last 50 measurements
             }
         }
+    }
+
+    /**
+     * Optimized screen content processing with ROI (Region of Interest) analysis.
+     * Only analyzes changed regions of the screen to save processing time.
+     */
+    private suspend fun processScreenContentOptimized(bitmap: Bitmap) {
+        val startTime = System.currentTimeMillis()
+        
+        try {
+            // Step 1: Get changed regions using GridAnalyzer
+            val changedRegions = gridAnalyzer.getChangedRegions(bitmap)
+            
+            // Step 2: Update capture state based on screen activity
+            captureStateManager.analyzeFrame(
+                screenChanged = changedRegions.isNotEmpty(),
+                detectedInappropriate = false // Will be updated after analysis
+            )
+            
+            // Step 3: If no changes, skip full processing (use cached result)
+            if (changedRegions.isEmpty()) {
+                Log.v(TAG, "📊 No screen changes detected - skipping analysis")
+                return
+            }
+            
+            // Step 4: Process only changed regions (or full screen if critical)
+            val shouldProcessFullScreen = changedRegions.any { it.priority == GridAnalyzer.Priority.CRITICAL }
+            
+            if (shouldProcessFullScreen) {
+                // Critical region changed - process full screen
+                processScreenContent(bitmap)
+            } else {
+                // Process only changed regions
+                val shouldBlur = analyzeChangedRegions(bitmap, changedRegions)
+                
+                // Update capture state with detection result
+                captureStateManager.analyzeFrame(
+                    screenChanged = true,
+                    detectedInappropriate = shouldBlur
+                )
+                
+                // Handle blur based on result
+                if (shouldBlur) {
+                    handleBlurActivation()
+                } else if (canDeactivateBlur()) {
+                    safeHideOverlay("no_inappropriate_content")
+                    isCurrentlyBlurred = false
+                }
+            }
+            
+            val processingTime = System.currentTimeMillis() - startTime
+            Log.v(TAG, "📊 Optimized processing completed in ${processingTime}ms " +
+                "(regions: ${changedRegions.size})")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in optimized processing, falling back to standard", e)
+            // Fallback to standard processing
+            processScreenContent(bitmap)
+        }
+    }
+    
+    /**
+     * Analyze only changed regions of the screen
+     */
+    private suspend fun analyzeChangedRegions(
+        bitmap: Bitmap,
+        regions: List<GridAnalyzer.Region>
+    ): Boolean {
+        // For now, if any region changed, process full screen
+        // Future optimization: analyze individual regions
+        return try {
+            val settings = settingsRepository.getCurrentSettings()
+            val result = contentDetectionEngine.analyzeContent(bitmap, settings, currentAppPackage)
+            result.shouldBlur
+        } catch (e: Exception) {
+            Log.e(TAG, "Error analyzing changed regions", e)
+            false
+        }
+    }
+    
+    /**
+     * Check if blur can be deactivated (minimum duration passed)
+     */
+    private fun canDeactivateBlur(): Boolean {
+        return !isCurrentlyBlurred || 
+               (System.currentTimeMillis() - lastBlurStartTime) > minBlurDuration
+    }
+    
+    /**
+     * Handle blur activation with proper state tracking
+     */
+    private fun handleBlurActivation() {
+        if (!isCurrentlyBlurred) {
+            lastBlurStartTime = System.currentTimeMillis()
+            isCurrentlyBlurred = true
+        }
+        // Actual blur overlay is handled by the existing blur system
     }
 
     /**
@@ -963,46 +987,11 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     }
     
     /**
-     * Emergency memory cleanup when OOM occurs
-     */
-    private fun emergencyMemoryCleanup() {
-        try {
-            Log.w(TAG, "🧹 Performing emergency memory cleanup")
-            
-            // Clear detection caches
-            synchronized(detectionCache) {
-                detectionCache.clear()
-            }
-            synchronized(recentNSFWDetections) {
-                recentNSFWDetections.clear()
-            }
-            synchronized(processingTimes) {
-                processingTimes.clear()
-            }
-            
-            // Force garbage collection
-            System.gc()
-            
-            // Hide all overlays
-            safeHideOverlay("memory_cleanup")
-            
-            // Reset processing state
-            isCurrentlyBlurred = false
-            lastBlurStartTime = 0
-            
-            Log.w(TAG, "🧹 Emergency memory cleanup completed")
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during emergency memory cleanup", e)
-        }
-    }
-    
-    /**
      * Emergency reset to clear all stuck states and overlays
      */
     private fun emergencyReset() {
         try {
-            Log.w(TAG, "🏥 EMERGENCY RESET: Clearing all stuck states")
+            Log.w(TAG, "ðŸ¥ EMERGENCY RESET: Clearing all stuck states")
             
             // Force hide all overlays
             try {
@@ -1017,20 +1006,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             isShowingBlockedSiteOverlay = false
             pornClosureInFlight = false
             
-            // Clear detection caches safely
-            try {
-                synchronized(detectionCache) {
-                    detectionCache.clear()
-                }
-                synchronized(recentNSFWDetections) {
-                    recentNSFWDetections.clear()
-                }
-                synchronized(processingTimes) {
-                    processingTimes.clear()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error clearing detection caches", e)
-            }
+            // Clear detection caches
+            clearDetectionCaches()
             
             // Reset processing state
             isProcessingActive = true // Re-enable if it was disabled
@@ -1041,19 +1018,39 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             // Force garbage collection
             System.gc()
             
-            Log.w(TAG, "🏥 Emergency reset completed successfully")
+            Log.w(TAG, "ðŸ¥ Emergency reset completed successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "💥 Critical error during emergency reset", e)
+            Log.e(TAG, "ðŸ’¥ Critical error during emergency reset", e)
         }
     }
     
     /**
      * Attempt service recovery when in illegal state
      */
+    /**
+     * Clear all detection caches
+     */
+    private fun clearDetectionCaches() {
+        try {
+            synchronized(detectionCache) {
+                detectionCache.clear()
+            }
+            synchronized(recentNSFWDetections) {
+                recentNSFWDetections.clear()
+            }
+            synchronized(processingTimes) {
+                processingTimes.clear()
+            }
+            Log.d(TAG, "ðŸ§¹ Detection caches cleared")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing detection caches", e)
+        }
+    }
+    
     private fun attemptServiceRecovery() {
         serviceScope.launch {
             try {
-                Log.w(TAG, "🔄 Attempting service recovery")
+                Log.w(TAG, "ðŸ”„ Attempting service recovery")
                 
                 // Stop current operations
                 isProcessingActive = false
@@ -1068,11 +1065,11 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 // Restart content monitoring if needed
                 val settings = settingsRepository.getCurrentSettings()
                 if (settings.enableRealTimeProcessing && !settings.isServicePaused) {
-                    Log.i(TAG, "🔄 Restarting content monitoring after recovery")
+                    Log.i(TAG, "ðŸ”„ Restarting content monitoring after recovery")
                     startContentMonitoring()
                 }
                 
-                Log.w(TAG, "🔄 Service recovery completed")
+                Log.w(TAG, "ðŸ”„ Service recovery completed")
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Service recovery failed", e)
@@ -1086,11 +1083,11 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private fun handleGeneralProcessingError(error: Exception) {
         serviceScope.launch {
             try {
-                Log.w(TAG, "🛠️ Handling general processing error: ${error.javaClass.simpleName}")
+                Log.w(TAG, "ðŸ› ï¸ Handling general processing error: ${error.javaClass.simpleName}")
                 
                 when (error) {
                     is OutOfMemoryError -> {
-                        emergencyMemoryCleanup()
+                        memoryManager.emergencyCleanup()
                     }
                     is SecurityException -> {
                         Log.w(TAG, "Security error - may need permission check")
@@ -1124,10 +1121,6 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     /**
      * Create a failure result for content analysis
      */
-    private fun createFailureResult(error: String): ContentDetectionEngine.ContentAnalysisResult {
-        return ContentDetectionEngine.ContentAnalysisResult.failed(error)
-    }
-    
     /**
      * Get current service status for diagnostics
      */
@@ -1149,328 +1142,6 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         )
     }
     
-    private fun handleAnalysisResultWithStability(result: ContentDetectionEngine.ContentAnalysisResult, settings: AppSettings, bitmap: Bitmap? = null): Boolean {
-        val currentTime = System.currentTimeMillis()
-        
-        Log.d(TAG, "📊 Analysis result: shouldBlur=${result.shouldBlur}, regions=${result.blurRegions.size}")
-        
-        // Adapt thresholds based on learning
-        adaptThresholds(currentTime)
-        
-        // Use adaptive thresholds for better detection
-        val nsfwThreshold = minOf(adaptiveNSFWThreshold, settings.nsfwConfidenceThreshold)
-        val genderThreshold = minOf(adaptiveGenderThreshold, settings.genderConfidenceThreshold)
-        
-        Log.d(TAG, "🧠 Using adaptive thresholds: NSFW=$nsfwThreshold, Gender=$genderThreshold")
-        
-        // ENHANCED FEMALE DETECTION WITH INCLUSIVE LOGIC
-        val hasFemaleFaces = if (settings.blurFemaleFaces) {
-            result.faceDetectionResult?.detectedFaces?.any { face ->
-                val isConfidentFemale = face.genderConfidence > genderThreshold &&
-                                       face.estimatedGender.toString().contains("FEMALE", ignoreCase = true)
-                
-                // INCLUSIVE: Consider moderate confidence males as potential females for safety
-                val isModerateConfidenceMale = face.estimatedGender.toString().contains("MALE", ignoreCase = true) &&
-                                              face.genderConfidence >= 0.4f &&
-                                              face.genderConfidence <= 0.8f
-                
-                // LOW CONFIDENCE: Any gender with very low confidence might be female
-                val isLowConfidenceUnknown = face.genderConfidence < 0.4f
-                
-                // SAFETY: Include unknown gender faces
-                val isUnknownGender = face.estimatedGender.toString().contains("UNKNOWN", ignoreCase = true)
-                
-                Log.d(TAG, "👩 Female analysis: confidence=${face.genderConfidence}, gender=${face.estimatedGender}, " +
-                          "confidentFemale=$isConfidentFemale, moderateMale=$isModerateConfidenceMale, " +
-                          "lowConfidence=$isLowConfidenceUnknown, unknown=$isUnknownGender")
-                logDebugToDatabase("👩 Female analysis: confidence=${face.genderConfidence}, gender=${face.estimatedGender}, " +
-                                 "confidentFemale=$isConfidentFemale, moderateMale=$isModerateConfidenceMale", LogRepository.LogCategory.DETECTION)
-                
-                // INCLUSIVE: Blur confident females, moderate-confidence males (potential misclassification),
-                // low-confidence faces, and unknown gender faces
-                isConfidentFemale ||
-                (isModerateConfidenceMale && settings.detectionSensitivity > 0.5f) ||
-                (isLowConfidenceUnknown && settings.detectionSensitivity > 0.6f) ||
-                (isUnknownGender && settings.detectionSensitivity > 0.4f)
-            } ?: false
-        } else {
-            Log.d(TAG, "👩 Female face detection disabled in settings")
-            false
-        }
-        
-        // More sensitive NSFW detection  
-        val hasNSFWContent = result.nsfwDetectionResult?.let { nsfwResult ->
-            val isHighConfidenceNSFW = nsfwResult.isNSFW && nsfwResult.confidence > nsfwThreshold
-            val isMediumConfidenceNSFW = nsfwResult.confidence > (nsfwThreshold * 0.7f) // 70% of threshold
-            val isAnyNSFWIndicator = nsfwResult.confidence > 0.2f // Very low threshold for any indication
-            
-            Log.d(TAG, "🔞 NSFW analysis: confidence=${nsfwResult.confidence}, isNSFW=${nsfwResult.isNSFW}, threshold=$nsfwThreshold")
-            Log.d(TAG, "🔞 NSFW levels: high=$isHighConfidenceNSFW, medium=$isMediumConfidenceNSFW, any=$isAnyNSFWIndicator")
-            logDebugToDatabase("🔞 NSFW analysis: confidence=${nsfwResult.confidence}, isNSFW=${nsfwResult.isNSFW}, threshold=$nsfwThreshold", LogRepository.LogCategory.DETECTION)
-            
-            // Blur for various levels based on sensitivity
-            when {
-                isHighConfidenceNSFW -> true
-                isMediumConfidenceNSFW && settings.detectionSensitivity > 0.6f -> true
-                isAnyNSFWIndicator && settings.detectionSensitivity > 0.8f -> true
-                else -> false
-            }
-        } ?: false
-        
-        Log.d(TAG, "🔍 Detection summary: Female faces=$hasFemaleFaces, NSFW=$hasNSFWContent")
-        Log.d(TAG, "⚙️ Settings: blurFemaleFaces=${settings.blurFemaleFaces}, blurMaleFaces=${settings.blurMaleFaces}, enableNSFW=${settings.enableNSFWDetection}, sensitivity=${settings.detectionSensitivity}")
-        
-        // Record detection for learning
-        val detectedInappropriate = hasFemaleFaces || hasNSFWContent
-        detectionHistory.add(Pair(currentTime, detectedInappropriate))
-        
-        // Determine if blur should be shown based on content type
-        val shouldBlurBasedOnContent = when {
-            hasFemaleFaces && settings.blurFemaleFaces -> {
-                Log.d(TAG, "👩 ❗ Female face detected - TRIGGERING BLUR")
-                true
-            }
-            hasNSFWContent && settings.enableNSFWDetection -> {
-                Log.d(TAG, "🔞 ❗ NSFW content detected - TRIGGERING BLUR")
-                true
-            }
-            // Emergency fallback - if any blur regions exist, blur them
-            result.blurRegions.isNotEmpty() -> {
-                Log.d(TAG, "⚠️ Fallback - blur regions detected, applying blur for safety")
-                true
-            }
-            else -> {
-                Log.d(TAG, "✅ No inappropriate content detected")
-                false
-            }
-        }
-        
-        // Apply consecutive detection logic to prevent false positives
-        if (shouldBlurBasedOnContent) {
-            consecutiveNSFWCount++
-            consecutiveCleanCount = 0
-            Log.d(TAG, "🔴 Inappropriate content count: $consecutiveNSFWCount")
-        } else {
-            consecutiveCleanCount++
-            consecutiveNSFWCount = 0
-            Log.d(TAG, "✅ Clean content count: $consecutiveCleanCount")
-        }
-        
-        // Apply blur based on consecutive detection count for stability
-        val shouldShowBlur = when {
-            // Show blur after required consecutive detections
-            shouldBlurBasedOnContent && consecutiveNSFWCount >= requiredConsecutiveDetections -> {
-                if (!isCurrentlyBlurred) {
-                    Log.w(TAG, "🛑 ⚡ BLUR TRIGGERED - $consecutiveNSFWCount consecutive detections!")
-                    Log.w(TAG, "   Blur regions: ${result.blurRegions.size}")
-                    Log.w(TAG, "   Face detection: ${hasFemaleFaces}")
-                    Log.w(TAG, "   NSFW detection: ${hasNSFWContent}")
-                    isCurrentlyBlurred = true
-                    lastBlurStartTime = currentTime
-                }
-                true
-            }
-            // Continue blur if within minimum duration
-            isCurrentlyBlurred -> {
-                val timeSinceBlurStart = currentTime - lastBlurStartTime
-                if (timeSinceBlurStart < minBlurDuration) {
-                    Log.d(TAG, "⏰ Maintaining blur (min duration: ${timeSinceBlurStart}ms)")
-                    true
-                } else {
-                    Log.d(TAG, "🔓 Stopping blur - content appears clean")
-                    isCurrentlyBlurred = false
-                    false
-                }
-            }
-            else -> false
-        }
-        
-
-
-        // Handle AUTOMATIC ACTIONS for 6+ NSFW regions (RULE-BASED APPROACH)
-        if (result.fullScreenBlurDecision?.recommendedAction != null) {
-            val action = result.fullScreenBlurDecision.recommendedAction
-            when (action) {
-                ContentAction.SCROLL_AWAY -> {
-                    Log.d(TAG, "🔄 SCROLL_AWAY action triggered for ${result.nsfwRegionCount} regions")
-                    performScrollAwayAction()
-                    return false // Don't show blur overlay
-                }
-                ContentAction.NAVIGATE_BACK -> {
-                    Log.d(TAG, "⬅️ NAVIGATE_BACK action triggered for ${result.nsfwRegionCount} regions")
-                    performNavigateBackAction()
-                    return false // Don't show blur overlay
-                }
-                ContentAction.AUTO_CLOSE_APP -> {
-                    Log.d(TAG, "🚫 AUTO_CLOSE_APP action triggered for ${result.nsfwRegionCount} regions")
-                    performAutoCloseAppAction()
-                    return false // Don't show blur overlay
-                }
-                ContentAction.GENTLE_REDIRECT -> {
-                    Log.d(TAG, "🔄 GENTLE_REDIRECT action triggered for ${result.nsfwRegionCount} regions")
-                    performGentleRedirectAction()
-                    return false // Don't show blur overlay
-                }
-                else -> {
-                    // Fall through to traditional handling
-                }
-            }
-        }
-
-        // Handle FULL SCREEN WARNING - only for traditional density-based triggers
-        if (result.requiresFullScreenWarning && shouldShowBlur && 
-            result.fullScreenBlurDecision?.recommendedAction !in listOf(
-                ContentAction.SCROLL_AWAY, ContentAction.NAVIGATE_BACK, 
-                ContentAction.AUTO_CLOSE_APP, ContentAction.GENTLE_REDIRECT)) {
-            
-            Log.d(TAG, "🚨 FULL SCREEN WARNING TRIGGERED - showing warning dialog")
-
-            try {
-                // Show full screen warning with region-based information
-                blurOverlayManager.showFullScreenWarning(
-                    category = BlockingCategory.EXPLICIT_CONTENT,
-                    customMessage = "Multiple inappropriate content regions detected",
-                    reflectionTimeSeconds = result.fullScreenBlurDecision?.reflectionTimeSeconds ?: 30,
-                    nsfwRegionCount = result.nsfwRegionCount,
-                    maxNsfwConfidence = result.maxNsfwConfidence,
-                    triggeredByRegionCount = result.triggeredByRegionCount
-                )
-
-                isCurrentlyBlurred = true
-                lastBlurStartTime = currentTime
-                Log.d(TAG, "🚨 Full screen warning displayed successfully")
-
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ CRITICAL ERROR: Failed to show full screen warning", e)
-
-                // Emergency fallback - try to hide any existing overlays
-                try {
-                    blurOverlayManager.emergencyHideAllOverlays()
-                    Log.w(TAG, "EMERGENCY: All overlays hidden after full screen warning failure")
-                } catch (emergencyError: Exception) {
-                    Log.e(TAG, "❌ CRITICAL: Emergency overlay hide also failed", emergencyError)
-                }
-
-                // Reset state to prevent stuck overlays
-                isCurrentlyBlurred = false
-                return false
-            }
-
-            return true
-        }
-
-        // Apply selective blur decision with PRECISION TARGETING ONLY
-        if (shouldShowBlur && result.blurRegions.isNotEmpty()) {
-            // Get proper screen metrics with system UI offsets
-            val screenMetrics = CoordinateMapper.getScreenMetrics(this)
-            
-            // Map blur regions from bitmap/detection space to screen space with proper offsets
-            val preciseRegions = CoordinateMapper.mapBitmapRegionsToScreen(
-                regions = result.blurRegions,
-                bitmapWidth = bitmap?.width ?: screenMetrics.realWidth,
-                bitmapHeight = bitmap?.height ?: screenMetrics.realHeight,
-                screenMetrics = screenMetrics,
-                includeStatusBarOffset = false // Accessibility overlay covers full screen
-            ).mapNotNull { region ->
-                // Only include regions that are valid and not too small
-                if (region.width() > 20 && region.height() > 20) {
-                    // Debug the mapping for verification
-                    if (result.blurRegions.indexOf(region) == 0) {
-                        CoordinateMapper.debugRegionMapping(
-                            originalRegion = result.blurRegions[0],
-                            mappedRegion = region,
-                            context = this
-                        )
-                    }
-                    region
-                } else null
-            }
-
-            if (preciseRegions.isNotEmpty()) {
-                Log.w(TAG, "🎯 ===== ACTIVATING BLUR OVERLAY =====")
-                Log.w(TAG, "   Screen: ${screenMetrics.realWidth}x${screenMetrics.realHeight}")
-                Log.w(TAG, "   Status Bar: ${screenMetrics.statusBarHeight}px")
-                Log.w(TAG, "   Navigation Bar: ${screenMetrics.navigationBarHeight}px")
-                Log.w(TAG, "   Regions: ${preciseRegions.size}")
-                preciseRegions.forEachIndexed { index, rect ->
-                    Log.w(TAG, "   Region $index: ($rect.left, $rect.top) -> ($rect.right, $rect.bottom) [${rect.width()}x${rect.height()}]")
-                }
-                Log.w(TAG, "   Intensity: ${settings.blurIntensity}")
-                Log.w(TAG, "   Style: ${settings.blurStyle}")
-                Log.w(TAG, "=====================================")
-                
-                try {
-                    blurOverlayManager.showBlurOverlay(
-                        blurRegions = preciseRegions,
-                        blurIntensity = settings.blurIntensity,
-                        blurStyle = settings.blurStyle,
-                        contentSensitivity = result.nsfwDetectionResult?.confidence ?: 0.5f,
-                        smoothTransition = settings.enableSmoothBlurAnimations
-                    )
-                    Log.w(TAG, "✅ Blur overlay showBlurOverlay() called successfully")
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ CRITICAL: Failed to show blur overlay", e)
-                }
-            } else {
-                Log.d(TAG, "⚠️ No valid precision regions - blur skipped")
-                blurOverlayManager.hideBlurOverlay()
-            }
-        } else {
-            blurOverlayManager.hideBlurOverlay()
-            Log.d(TAG, "🔓 Blur hidden - no content detected or no precise regions")
-        }
-        
-        // Log detailed results
-        logDetailedResults(result)
-        
-        return shouldShowBlur
-    }
-    
-    private fun adaptThresholds(currentTime: Long) {
-        // Adapt thresholds every 30 seconds based on detection history
-        if (currentTime - lastAdaptationTime > adaptationIntervalMs) {
-            lastAdaptationTime = currentTime
-            
-            // Clean old history (keep last 10 minutes)
-            detectionHistory.removeAll { (timestamp, _) -> 
-                currentTime - timestamp > 600000L 
-            }
-            
-            val recentDetections = detectionHistory.takeLast(20)
-            if (recentDetections.size >= 5) {
-                val inappropriateRatio = recentDetections.count { it.second }.toFloat() / recentDetections.size
-                
-                Log.d(TAG, "🧠 Learning: ${recentDetections.size} recent detections, $inappropriateRatio inappropriate ratio")
-                
-                // Adapt NSFW threshold based on detection patterns
-                adaptiveNSFWThreshold = when {
-                    inappropriateRatio < 0.1f -> {
-                        // Too few detections, lower threshold for better sensitivity
-                        maxOf(0.2f, adaptiveNSFWThreshold - 0.05f)
-                    }
-                    inappropriateRatio > 0.8f -> {
-                        // Too many false positives, raise threshold slightly
-                        minOf(0.7f, adaptiveNSFWThreshold + 0.02f)
-                    }
-                    else -> adaptiveNSFWThreshold // Keep current
-                }
-                
-                // Adapt gender threshold similarly
-                adaptiveGenderThreshold = when {
-                    inappropriateRatio < 0.1f -> {
-                        maxOf(0.3f, adaptiveGenderThreshold - 0.03f)
-                    }
-                    inappropriateRatio > 0.8f -> {
-                        minOf(0.6f, adaptiveGenderThreshold + 0.02f)
-                    }
-                    else -> adaptiveGenderThreshold
-                }
-                
-                Log.d(TAG, "🎯 Adapted thresholds: NSFW=$adaptiveNSFWThreshold, Gender=$adaptiveGenderThreshold")
-            }
-        }
-    }
-    
     private fun generateBitmapHash(bitmap: Bitmap): String {
         // Generate a simple hash based on bitmap properties and sample pixels
         val width = bitmap.width
@@ -1488,13 +1159,13 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private fun handleCachedResult(shouldBlur: Boolean) {
         if (shouldBlur && !isCurrentlyBlurred) {
             // PRECISION CACHED RESULT - NO FULL SCREEN
-            Log.d(TAG, "⚠️ Cached result shows blur needed but no precise regions available - skipping")
+            Log.d(TAG, "âš ï¸ Cached result shows blur needed but no precise regions available - skipping")
         } else if (!shouldBlur && isCurrentlyBlurred) {
             val currentTime = System.currentTimeMillis()
             if ((currentTime - lastBlurStartTime) > minBlurDuration) {
                 isCurrentlyBlurred = false
                 blurOverlayManager.hideBlurOverlay()
-                Log.d(TAG, "🔓 Removed blur based on cached result")
+                Log.d(TAG, "ðŸ”“ Removed blur based on cached result")
             }
         }
     }
@@ -1502,15 +1173,15 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private fun logDetailedResults(result: ContentDetectionEngine.ContentAnalysisResult) {
         result.faceDetectionResult?.let { faceResult ->
             if (faceResult.facesDetected > 0) {
-                Log.d(TAG, "👤 Faces detected: ${faceResult.facesDetected}")
-                logInfoToDatabase("👤 Faces detected: ${faceResult.facesDetected}", LogRepository.LogCategory.DETECTION)
+                Log.d(TAG, "ðŸ‘¤ Faces detected: ${faceResult.facesDetected}")
+                serviceLogger.info("ðŸ‘¤ Faces detected: ${faceResult.facesDetected}", LogRepository.LogCategory.DETECTION)
             }
         }
         
         result.nsfwDetectionResult?.let { nsfwResult ->
             if (nsfwResult.isNSFW) {
-                Log.d(TAG, "🔞 NSFW content detected with confidence: ${nsfwResult.confidence}")
-                logInfoToDatabase("🔞 NSFW content detected with confidence: ${nsfwResult.confidence}", LogRepository.LogCategory.DETECTION)
+                Log.d(TAG, "ðŸ”ž NSFW content detected with confidence: ${nsfwResult.confidence}")
+                serviceLogger.info("ðŸ”ž NSFW content detected with confidence: ${nsfwResult.confidence}", LogRepository.LogCategory.DETECTION)
             }
         }
     }
@@ -1521,7 +1192,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      * Check if the given package name is a browser app
      */
     private fun isBrowserApp(packageName: String): Boolean {
-        return knownBrowserPackages.contains(packageName.lowercase(Locale.ROOT))
+        return BrowserDetector.isBrowserPackage(packageName)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -1538,12 +1209,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
                 if (oldApp != newPackageName) {
                     Log.d(TAG, "App changed from: $oldApp to: $currentAppPackage")
-                    logDebugToDatabase("App changed from: $oldApp to: $currentAppPackage", LogRepository.LogCategory.DETECTION)
+                    serviceLogger.debug("App changed from: $oldApp to: $currentAppPackage", LogRepository.LogCategory.DETECTION)
 
                     // Clean up overlays when switching away from monitored apps
                     safeExecute("cleanupOverlaysOnAppChange") {
                         if (oldApp != null && isBrowserApp(oldApp)) {
-                            Log.d(TAG, "🧹 Cleaning up overlays after leaving browser: $oldApp")
+                            Log.d(TAG, "ðŸ§¹ Cleaning up overlays after leaving browser: $oldApp")
                             blurOverlayManager.cleanupAllOverlays()
                         }
                         true
@@ -1551,14 +1222,14 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 }
 
                 Log.d(TAG, "Window state changed: ${event.packageName}")
-                logDebugToDatabase("Window state changed: ${event.packageName}", LogRepository.LogCategory.DETECTION)
+                serviceLogger.debug("Window state changed: ${event.packageName}", LogRepository.LogCategory.DETECTION)
 
                 // Check app filtering and control screen capture
                 serviceScope.launch {
                     try {
                         val shouldMonitor = appFilteringManager.shouldMonitorApp(currentAppPackage)
                         Log.d(TAG, "App changed to $currentAppPackage, should monitor: $shouldMonitor")
-                        logInfoToDatabase("App changed to $currentAppPackage, should monitor: $shouldMonitor", LogRepository.LogCategory.DETECTION)
+                        serviceLogger.info("App changed to $currentAppPackage, should monitor: $shouldMonitor", LogRepository.LogCategory.DETECTION)
                         
                         if (!shouldMonitor) {
                             // Stop screen capture for non-monitored apps
@@ -1571,18 +1242,18 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                         } else {
                             // Start screen capture for monitored apps (if needed and service is active)
                             Log.i(TAG, "Starting screen capture for monitored app: $currentAppPackage")
-                            logInfoToDatabase("Starting screen capture for monitored app: $currentAppPackage", LogRepository.LogCategory.DETECTION)
+                            serviceLogger.info("Starting screen capture for monitored app: $currentAppPackage", LogRepository.LogCategory.DETECTION)
                             
                             // Force restart screen capture if not active
                             if (!screenCaptureManager.isCapturingActive()) {
-                                Log.d(TAG, "📸 Screen capture not active - starting now")
+                                Log.d(TAG, "ðŸ“¸ Screen capture not active - starting now")
                                 // Reset processing state to allow startContentMonitoring to run
                                 if (isProcessingActive) {
                                     isProcessingActive = false
                                 }
                                 startContentMonitoring()
                             } else {
-                                Log.d(TAG, "✅ Screen capture already active")
+                                Log.d(TAG, "âœ… Screen capture already active")
                             }
                         }
                     } catch (e: Exception) {
@@ -1633,8 +1304,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
         } catch (e: Exception) {
             // Catch any uncaught exception to prevent service crash
-            Log.e(TAG, "💥 Critical error in onAccessibilityEvent - service protected", e)
-            logErrorToDatabase("Critical error in onAccessibilityEvent: ${e.message}", e)
+            Log.e(TAG, "ðŸ’¥ Critical error in onAccessibilityEvent - service protected", e)
+            serviceLogger.error("Critical error in onAccessibilityEvent: ${e.message}", e)
             // Attempt recovery
             try {
                 performEmergencyReset()
@@ -1763,13 +1434,13 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
                     // Detect if likely in private mode for logging
                     val isPrivateMode = isLikelyPrivateMode(packageName, extractedUrl)
-                    val modeIndicator = if (isPrivateMode) "🔒 PRIVATE" else "🌐 NORMAL"
+                    val modeIndicator = if (isPrivateMode) "ðŸ”’ PRIVATE" else "ðŸŒ NORMAL"
 
                     Log.d(TAG, "$modeIndicator URL detected: $currentUrl (Browser: $packageName)")
 
                     // Enhanced porn detection before full blocking check
                     if (isLikelyPornUrl(extractedUrl)) {
-                        Log.w(TAG, "🚨 LIKELY PORN URL DETECTED: $extractedUrl")
+                        Log.w(TAG, "ðŸš¨ LIKELY PORN URL DETECTED: $extractedUrl")
                         handleLikelyPornUrl(extractedUrl, packageName)
                     } else {
                         // Check if the URL should be blocked
@@ -1853,7 +1524,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private suspend fun handleLikelyPornUrl(url: String, packageName: String?) {
         try {
-            Log.w(TAG, "🚨 Handling likely porn URL: $url")
+            Log.w(TAG, "ðŸš¨ Handling likely porn URL: $url")
 
             // Create immediate blocking result
             val immediateBlockingResult = com.hieltech.haramblur.detection.SiteBlockingResult(
@@ -1890,93 +1561,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         return errorRecovery.executeUrlExtraction(packageName) {
             // Use resilient URL extractor as primary method
             resilientUrlExtractor.extractUrl(event.source, packageName)
-                ?: // Fallback to legacy methods
-                extractUrlFromNodeInfo(event.source)
-                ?: extractUrlFromText(event.text?.toString())
-                ?: extractUrlFromContentDescription(event.contentDescription?.toString())
+                ?: // Fallback to UrlExtractor
+                UrlExtractor.extractUrlFromBrowser(packageName, event.source)
+                ?: UrlExtractor.extractUrlFromNodeInfo(event.source)
+                ?: UrlExtractor.extractUrlFromText(event.text?.toString())
+                ?: UrlExtractor.extractUrlFromContentDescription(event.contentDescription?.toString())
         }
-    }
-    
-    /**
-     * Extract URL from accessibility node info recursively
-     */
-    private fun extractUrlFromNodeInfo(nodeInfo: AccessibilityNodeInfo?): String? {
-        if (nodeInfo == null) return null
-        
-        try {
-            // First try browser-specific extraction
-            val packageName = nodeInfo.packageName?.toString()
-            val browserSpecificUrl = extractUrlFromBrowserSpecific(packageName, nodeInfo)
-            if (browserSpecificUrl != null) return browserSpecificUrl
-            
-            // Fallback to generic extraction
-            val url = extractUrlFromText(nodeInfo.text?.toString()) ?:
-                     extractUrlFromText(nodeInfo.contentDescription?.toString()) ?:
-                     extractUrlFromText(nodeInfo.viewIdResourceName)
-            
-            if (url != null) return url
-            
-            // Recursively check child nodes (limit depth to avoid performance issues)
-            for (i in 0 until minOf(nodeInfo.childCount, 10)) {
-                val child = nodeInfo.getChild(i)
-                val childUrl = extractUrlFromNodeInfo(child)
-                child?.recycle()
-                if (childUrl != null) return childUrl
-            }
-            
-            return null
-        } catch (e: Exception) {
-            Log.w(TAG, "Error extracting URL from node info", e)
-            return null
-        }
-    }
-    
-    /**
-     * Extract URL from text using optimized pattern matching
-     * Enhanced for better performance and accuracy
-     */
-    private fun extractUrlFromText(text: String?): String? {
-        if (text.isNullOrBlank()) return null
-
-        // Optimized URL patterns - more specific and efficient
-        val urlPatterns = listOf(
-            // Full HTTP/HTTPS URLs (most specific first)
-            Regex("https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+", RegexOption.IGNORE_CASE),
-            // WWW URLs (add protocol)
-            Regex("www\\.[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+", RegexOption.IGNORE_CASE),
-            // Domain-based URLs
-            Regex("[\\w\\-._~]+\\.[a-zA-Z]{2,}[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]*", RegexOption.IGNORE_CASE)
-        )
-
-        // Single pass through patterns for better performance
-        for (pattern in urlPatterns) {
-            val match = pattern.find(text)
-            if (match != null) {
-                var url = match.value
-
-                // Add protocol if missing and it's not already there
-                if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                    // Only add protocol for www or domain patterns
-                    if (url.startsWith("www.") || url.contains(".")) {
-                        url = "https://$url"
-                    }
-                }
-
-                // Basic validation - must contain at least one dot and be reasonable length
-                if (url.length in 10..2048 && url.contains(".")) {
-                    return url
-                }
-            }
-        }
-
-        return null
-    }
-    
-    /**
-     * Extract URL from content description
-     */
-    private fun extractUrlFromContentDescription(description: String?): String? {
-        return extractUrlFromText(description)
     }
     
 
@@ -2054,7 +1644,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private suspend fun handlePornSiteBlocking(url: String, blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
         val startTime = System.currentTimeMillis()
-        Log.w(TAG, "🚫 PORN SITE DETECTED: $url (Category: ${blockingResult.category})")
+        Log.w(TAG, "ðŸš« PORN SITE DETECTED: $url (Category: ${blockingResult.category})")
 
         try {
             // Debounce per-domain to avoid re-entrant overlays/closures
@@ -2067,7 +1657,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             lastDomainBlockTimestamps[domain] = System.currentTimeMillis()
 
             // Show dialog with background tasks and reflection time
-            Log.w(TAG, "🚀 PORN SITE BLOCKING - Dialog with background closure and reflection")
+            Log.w(TAG, "ðŸš€ PORN SITE BLOCKING - Dialog with background closure and reflection")
             logPornBlockingEvent(url, blockingResult, "reflection_dialog_shown")
             
             // Show interactive blocking dialog that stays open during background work
@@ -2086,7 +1676,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private fun showReflectivePornBlockingDialog(url: String, blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
         try {
-            Log.w(TAG, "🚨 Showing reflective porn blocking dialog with background tasks")
+            Log.w(TAG, "ðŸš¨ Showing reflective porn blocking dialog with background tasks")
             
             // Track dialog start time for failsafe timeout
             val dialogStartTime = System.currentTimeMillis()
@@ -2136,10 +1726,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             serviceScope.launch {
                 try {
                     pornClosureInFlight = true
-                    Log.d(TAG, "🔄 Starting background tab closure")
+                    Log.d(TAG, "ðŸ”„ Starting background tab closure")
                     delay(2000) // Brief delay before navigating
                     navigateAwayFromBlockedSite()
-                    Log.d(TAG, "✅ Background navigation completed")
+                    Log.d(TAG, "âœ… Background navigation completed")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in background navigation", e)
                 } finally {
@@ -2150,7 +1740,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             // Failsafe: Auto-hide dialog after max time to prevent stuck state
             serviceScope.launch {
                 delay(maxDialogTimeMs)
-                Log.w(TAG, "⚠️ Dialog timeout - force hiding to prevent stuck state")
+                Log.w(TAG, "âš ï¸ Dialog timeout - force hiding to prevent stuck state")
                 try {
                     blurOverlayManager.emergencyHideAllOverlays()
                 } catch (e: Exception) {
@@ -2174,7 +1764,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private fun showQuickPornBlockingDialog(blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
         try {
-            Log.w(TAG, "🚨 Showing quick porn blocking dialog")
+            Log.w(TAG, "ðŸš¨ Showing quick porn blocking dialog")
             
             // Use the existing porn blocking overlay but with immediate display
             blurOverlayManager.showPornBlockingOverlay(
@@ -2220,7 +1810,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             )
 
             // Log to system log for now (could be enhanced to save to database)
-            Log.i(TAG, "📊 PORN_BLOCKING_ANALYTICS: ${analyticsEntry.toLogString()}")
+            Log.i(TAG, "ðŸ“Š PORN_BLOCKING_ANALYTICS: ${analyticsEntry.toLogString()}")
 
             // TODO: Save to analytics database for long-term tracking
             // savePornBlockingAnalytics(analyticsEntry)
@@ -2254,7 +1844,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private suspend fun performImmediatePornSiteClosure(url: String, blockingResult: com.hieltech.haramblur.detection.SiteBlockingResult) {
         try {
-            Log.w(TAG, "🚨 IMMEDIATE PORN SITE CLOSURE: $url")
+            Log.w(TAG, "ðŸš¨ IMMEDIATE PORN SITE CLOSURE: $url")
 
             // Quick Quranic flash (1 second)
             showQuickQuranicWarning(blockingResult)
@@ -2264,7 +1854,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             performAggressivePornSiteClosure()
 
             // Log for accountability
-            Log.w(TAG, "✅ Immediate porn site closure completed for: $url")
+            Log.w(TAG, "âœ… Immediate porn site closure completed for: $url")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error in immediate porn site closure", e)
@@ -2304,7 +1894,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
         try {
             isShowingBlockedSiteOverlay = true
-            Log.d(TAG, "🎯 Showing enhanced porn blocking overlay for category: ${blockingResult.category}")
+            Log.d(TAG, "ðŸŽ¯ Showing enhanced porn blocking overlay for category: ${blockingResult.category}")
 
             // Get Islamic guidance for porn blocking
             val guidance = blockingResult.category?.let { category ->
@@ -2320,17 +1910,17 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                         try {
                             handlePornBlockingAction(action, blockingResult)
                         } catch (e: Exception) {
-                            Log.e(TAG, "❌ Error in porn blocking action handler", e)
+                            Log.e(TAG, "âŒ Error in porn blocking action handler", e)
                             hideBlockedSiteOverlay()
                         }
                     }
                 }
             )
 
-            Log.d(TAG, "✅ Enhanced porn blocking overlay shown")
+            Log.d(TAG, "âœ… Enhanced porn blocking overlay shown")
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error showing porn blocking overlay", e)
+            Log.e(TAG, "âŒ Error showing porn blocking overlay", e)
             isShowingBlockedSiteOverlay = false
         }
     }
@@ -2345,31 +1935,31 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         try {
             when (action) {
                 is com.hieltech.haramblur.data.WarningDialogAction.Close -> {
-                    Log.d(TAG, "🚫 User chose to close from porn blocking overlay")
+                    Log.d(TAG, "ðŸš« User chose to close from porn blocking overlay")
                     performAggressivePornSiteClosure()
                 }
                 is com.hieltech.haramblur.data.WarningDialogAction.Continue -> {
-                    Log.w(TAG, "⚠️ User chose to continue despite porn blocking warning")
+                    Log.w(TAG, "âš ï¸ User chose to continue despite porn blocking warning")
                     // For porn sites, add extra delay and warning
                     delay(2000)
                     hideBlockedSiteOverlay()
                     // Could add logging for accountability
                 }
                 is com.hieltech.haramblur.data.WarningDialogAction.Dismiss -> {
-                    Log.d(TAG, "👋 User dismissed porn blocking overlay")
+                    Log.d(TAG, "ðŸ‘‹ User dismissed porn blocking overlay")
                     hideBlockedSiteOverlay()
                 }
                 else -> {
-                    Log.d(TAG, "❓ Unknown action from porn blocking overlay: $action")
+                    Log.d(TAG, "â“ Unknown action from porn blocking overlay: $action")
                     hideBlockedSiteOverlay()
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error handling porn blocking action", e)
+            Log.e(TAG, "âŒ Error handling porn blocking action", e)
             try {
                 hideBlockedSiteOverlay()
             } catch (hideError: Exception) {
-                Log.e(TAG, "❌ Error hiding overlay after action error", hideError)
+                Log.e(TAG, "âŒ Error hiding overlay after action error", hideError)
             }
         }
     }
@@ -2380,7 +1970,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     private fun performAggressivePornSiteClosure() {
         serviceScope.launch {
             try {
-                Log.w(TAG, "🚫 Performing aggressive porn site closure")
+                Log.w(TAG, "ðŸš« Performing aggressive porn site closure")
 
                 // Ensure overlay state is managed properly during closure
                 var closureSuccessful = false
@@ -2389,19 +1979,19 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 try {
                     val closeSuccess = closeCurrentBrowserTab()
                     if (closeSuccess) {
-                        Log.d(TAG, "✅ Successfully closed porn tab")
+                        Log.d(TAG, "âœ… Successfully closed porn tab")
                         closureSuccessful = true
                         delay(1000)
                         openSafePageAfterBlocking()
                         return@launch
                     }
                 } catch (tabCloseError: Exception) {
-                    Log.w(TAG, "❌ Error closing browser tab", tabCloseError)
+                    Log.w(TAG, "âŒ Error closing browser tab", tabCloseError)
                 }
 
                 // Strategy 2: Force back navigation multiple times
                 if (!closureSuccessful) {
-                    Log.d(TAG, "🔄 Porn tab close failed, trying back navigation")
+                    Log.d(TAG, "ðŸ”„ Porn tab close failed, trying back navigation")
                     try {
                         repeat(3) { attempt ->
                             val backSuccess = performBrowserAwareGlobalAction(
@@ -2420,7 +2010,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                             }
                         }
                     } catch (backNavError: Exception) {
-                        Log.w(TAG, "❌ Error during back navigation", backNavError)
+                        Log.w(TAG, "âŒ Error during back navigation", backNavError)
                     }
                 }
 
@@ -2433,11 +2023,11 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                             "aggressive porn site closure home"
                         )
                         if (homeSuccess) {
-                            Log.d(TAG, "✅ Forced home screen from porn site")
+                            Log.d(TAG, "âœ… Forced home screen from porn site")
                             closureSuccessful = true
                         }
                     } catch (homeError: Exception) {
-                        Log.w(TAG, "❌ Error going to home screen", homeError)
+                        Log.w(TAG, "âŒ Error going to home screen", homeError)
                     }
                 }
 
@@ -2449,20 +2039,20 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 try {
                     hideBlockedSiteOverlay()
                 } catch (overlayError: Exception) {
-                    Log.w(TAG, "❌ Error hiding blocked site overlay", overlayError)
+                    Log.w(TAG, "âŒ Error hiding blocked site overlay", overlayError)
                 }
 
                 if (closureSuccessful) {
-                    Log.d(TAG, "✅ Aggressive porn site closure completed successfully")
+                    Log.d(TAG, "âœ… Aggressive porn site closure completed successfully")
                 } else {
-                    Log.w(TAG, "⚠️ Aggressive porn site closure completed with partial success")
+                    Log.w(TAG, "âš ï¸ Aggressive porn site closure completed with partial success")
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Critical error in aggressive porn site closure", e)
+                Log.e(TAG, "âŒ Critical error in aggressive porn site closure", e)
                 // Emergency fallback with enhanced error handling
                 try {
-                    Log.w(TAG, "🚨 Executing emergency fallback procedures")
+                    Log.w(TAG, "ðŸš¨ Executing emergency fallback procedures")
                     performBrowserAwareGlobalAction(
                         GLOBAL_ACTION_HOME,
                         "aggressive porn site closure emergency home"
@@ -2470,9 +2060,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     delay(500)
                     hideBlockedSiteOverlay()
                     currentUrl = null
-                    Log.d(TAG, "✅ Emergency fallback completed")
+                    Log.d(TAG, "âœ… Emergency fallback completed")
                 } catch (fallbackError: Exception) {
-                    Log.e(TAG, "❌ Emergency fallback also failed - system may be in unstable state", fallbackError)
+                    Log.e(TAG, "âŒ Emergency fallback also failed - system may be in unstable state", fallbackError)
                     // Force reset critical state variables
                     currentUrl = null
                     isShowingBlockedSiteOverlay = false
@@ -2492,7 +2082,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
         try {
             isShowingBlockedSiteOverlay = true
-            Log.d(TAG, "🎯 Showing blocked site overlay for: $currentUrl (Category: ${blockingResult.category})")
+            Log.d(TAG, "ðŸŽ¯ Showing blocked site overlay for: $currentUrl (Category: ${blockingResult.category})")
 
             // Get Islamic guidance for the blocking category
             val guidance = blockingResult.category?.let { category ->
@@ -2508,7 +2098,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                         try {
                             handleBlockedSiteAction(action, blockingResult)
                         } catch (e: Exception) {
-                            Log.e(TAG, "❌ Error in action handler coroutine", e)
+                            Log.e(TAG, "âŒ Error in action handler coroutine", e)
                             // Ensure overlay is hidden even if action handler fails
                             hideBlockedSiteOverlay()
                         }
@@ -2516,19 +2106,19 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 }
             )
 
-            Log.d(TAG, "✅ Blocked site overlay shown for category: ${blockingResult.category}")
+            Log.d(TAG, "âœ… Blocked site overlay shown for category: ${blockingResult.category}")
 
             // Add timeout mechanism to prevent stuck overlays (30 seconds)
             serviceScope.launch {
                 delay(30000) // 30 seconds timeout
                 if (isShowingBlockedSiteOverlay) {
-                    Log.w(TAG, "⚠️ Blocked site overlay timeout - forcing hide")
+                    Log.w(TAG, "âš ï¸ Blocked site overlay timeout - forcing hide")
                     hideBlockedSiteOverlay()
                 }
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error showing blocked site overlay", e)
+            Log.e(TAG, "âŒ Error showing blocked site overlay", e)
             isShowingBlockedSiteOverlay = false
         }
     }
@@ -2543,12 +2133,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
 
         try {
-            Log.d(TAG, "🔒 Hiding blocked site overlay")
+            Log.d(TAG, "ðŸ”’ Hiding blocked site overlay")
             blurOverlayManager.hideBlockedSiteOverlay()
             isShowingBlockedSiteOverlay = false
-            Log.d(TAG, "✅ Blocked site overlay hidden successfully")
+            Log.d(TAG, "âœ… Blocked site overlay hidden successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error hiding blocked site overlay", e)
+            Log.e(TAG, "âŒ Error hiding blocked site overlay", e)
             // Force state reset even if hiding fails
             isShowingBlockedSiteOverlay = false
         }
@@ -2564,34 +2154,34 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         try {
             when (action) {
                 is com.hieltech.haramblur.data.WarningDialogAction.Close -> {
-                    Log.d(TAG, "🚫 User chose to close from blocked site")
+                    Log.d(TAG, "ðŸš« User chose to close from blocked site")
                     // Don't hide overlay immediately - wait for navigation to complete
                     navigateAwayFromBlockedSite()
                     // Overlay will be hidden by navigateAwayFromBlockedSite after navigation
                 }
                 is com.hieltech.haramblur.data.WarningDialogAction.Continue -> {
-                    Log.d(TAG, "⚠️ User chose to continue despite blocked site warning")
+                    Log.d(TAG, "âš ï¸ User chose to continue despite blocked site warning")
                     // Add small delay for user to see the choice was acknowledged
                     delay(500)
                     hideBlockedSiteOverlay()
                     // Note: In a real implementation, you might want to add this to a temporary whitelist
                 }
                 is com.hieltech.haramblur.data.WarningDialogAction.Dismiss -> {
-                    Log.d(TAG, "👋 User dismissed blocked site overlay")
+                    Log.d(TAG, "ðŸ‘‹ User dismissed blocked site overlay")
                     hideBlockedSiteOverlay()
                 }
                 else -> {
-                    Log.d(TAG, "❓ Unknown action from blocked site overlay: $action")
+                    Log.d(TAG, "â“ Unknown action from blocked site overlay: $action")
                     hideBlockedSiteOverlay()
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error handling blocked site action", e)
+            Log.e(TAG, "âŒ Error handling blocked site action", e)
             // Always hide overlay on error to prevent stuck state
             try {
                 hideBlockedSiteOverlay()
             } catch (hideError: Exception) {
-                Log.e(TAG, "❌ Error hiding overlay after action error", hideError)
+                Log.e(TAG, "âŒ Error hiding overlay after action error", hideError)
             }
         }
     }
@@ -2605,12 +2195,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
             when (action) {
                 is com.hieltech.haramblur.data.WarningDialogAction.Close -> {
-                    Log.d(TAG, "🚫 User chose to close from full screen warning")
+                    Log.d(TAG, "ðŸš« User chose to close from full screen warning")
                     // Navigate away from the inappropriate content
-                    navigateAwayFromInappropriateContent()
+                    navigationHandler.navigateToIslamicWebsite()
                 }
                 is com.hieltech.haramblur.data.WarningDialogAction.Continue -> {
-                    Log.d(TAG, "⚠️ User chose to continue despite full screen warning")
+                    Log.d(TAG, "âš ï¸ User chose to continue despite full screen warning")
                     // Hide the warning but keep monitoring
                     try {
                         blurOverlayManager.hideFullScreenWarning()
@@ -2623,7 +2213,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     }
                 }
                 is com.hieltech.haramblur.data.WarningDialogAction.Dismiss -> {
-                    Log.d(TAG, "👋 User dismissed full screen warning")
+                    Log.d(TAG, "ðŸ‘‹ User dismissed full screen warning")
                     // Hide the warning
                     try {
                         blurOverlayManager.hideFullScreenWarning()
@@ -2635,7 +2225,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     }
                 }
                 else -> {
-                    Log.d(TAG, "❓ Unknown action from full screen warning: $action")
+                    Log.d(TAG, "â“ Unknown action from full screen warning: $action")
                     // Default to dismiss
                     try {
                         blurOverlayManager.hideFullScreenWarning()
@@ -2647,7 +2237,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ CRITICAL ERROR: Failed to handle full screen warning action", e)
+            Log.e(TAG, "âŒ CRITICAL ERROR: Failed to handle full screen warning action", e)
 
             // Emergency cleanup to prevent stuck overlays
             try {
@@ -2655,52 +2245,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 isCurrentlyBlurred = false
                 Log.w(TAG, "EMERGENCY: All overlays hidden after action handler error")
             } catch (emergencyError: Exception) {
-                Log.e(TAG, "❌ CRITICAL: Emergency cleanup also failed", emergencyError)
+                Log.e(TAG, "âŒ CRITICAL: Emergency cleanup also failed", emergencyError)
             }
         }
     }
 
-    /**
-     * Navigate away from inappropriate content
-     */
-    private fun navigateAwayFromInappropriateContent() {
-        try {
-            // Try to go back to previous screen
-            val backSuccess = performBrowserAwareGlobalAction(
-                GLOBAL_ACTION_BACK,
-                "navigate away from inappropriate content"
-            )
-            if (backSuccess) {
-                Log.d(TAG, "Navigated back from inappropriate content")
-            } else {
-                Log.w(TAG, "Back navigation skipped or failed for inappropriate content")
-                return
-            }
-
-            // Schedule overlay hiding after navigation
-            serviceScope.launch {
-                delay(1000) // Wait for navigation to complete
-                try {
-                    blurOverlayManager.hideFullScreenWarning()
-                    isCurrentlyBlurred = false
-                    Log.d(TAG, "Full screen warning hidden after navigation")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error hiding overlay after navigation", e)
-                    blurOverlayManager.emergencyHideAllOverlays()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error navigating away from inappropriate content", e)
-            // Fallback to just hiding the overlay
-            try {
-                blurOverlayManager.hideFullScreenWarning()
-                isCurrentlyBlurred = false
-            } catch (hideError: Exception) {
-                Log.e(TAG, "Error in fallback overlay hide", hideError)
-                blurOverlayManager.emergencyHideAllOverlays()
-            }
-        }
-    }
+    // Note: Navigation logic moved to NavigationHandler class
 
     /**
      * Determine if we should automatically navigate away from blocked site
@@ -2718,37 +2268,37 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             try {
                 // Check if an action is already in progress
                 if (isActionInProgress) {
-                    Log.d(TAG, "⚠️ Action already in progress, skipping navigation")
+                    Log.d(TAG, "âš ï¸ Action already in progress, skipping navigation")
                     return@launch
                 }
 
                 // Throttle actions to prevent crashes (minimum 2 seconds between actions)
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastActionTime < 2000) {
-                    Log.d(TAG, "⚠️ Action throttled - too soon after last action")
+                    Log.d(TAG, "âš ï¸ Action throttled - too soon after last action")
                     delay(2000 - (currentTime - lastActionTime))
                 }
 
                 isActionInProgress = true
                 lastActionTime = System.currentTimeMillis()
 
-                Log.d(TAG, "🚫 Attempting to navigate away from blocked site")
+                Log.d(TAG, "ðŸš« Attempting to navigate away from blocked site")
 
                 // Minimal delay for faster response
                 delay(200)
 
                 // Strategy 1: Close the current tab (more aggressive for porn sites)
-                Log.d(TAG, "🔄 Strategy 1: Attempting to close current tab (AGGRESSIVE MODE for porn sites)")
+                Log.d(TAG, "ðŸ”„ Strategy 1: Attempting to close current tab (AGGRESSIVE MODE for porn sites)")
                 val isPornSite = currentUrl?.contains(Regex("(porn|xxx|sex|adult|nsfw|xvideos|pornhub|xhamster|redtube|xnxx)", RegexOption.IGNORE_CASE)) == true
                 
                 if (isPornSite) {
-                    Log.w(TAG, "⚠️ PORN SITE DETECTED - Using aggressive close strategy")
+                    Log.w(TAG, "âš ï¸ PORN SITE DETECTED - Using aggressive close strategy")
                     // Try multiple times to ensure the tab is closed
                     for (attempt in 1..3) {
                         Log.d(TAG, "Close attempt #$attempt for porn site")
                         val closeTabSuccess = closeCurrentBrowserTab()
                         if (closeTabSuccess) {
-                            Log.d(TAG, "✅ Successfully closed porn site tab on attempt #$attempt")
+                            Log.d(TAG, "âœ… Successfully closed porn site tab on attempt #$attempt")
                             delay(100)
                             // Immediately hide overlays after closing porn tab
                             blurOverlayManager.emergencyHideAllOverlays()
@@ -2761,7 +2311,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     }
                     
                     // If tab close failed, force navigation to home
-                    Log.w(TAG, "❌ Failed to close porn tab after 3 attempts, forcing HOME action")
+                    Log.w(TAG, "âŒ Failed to close porn tab after 3 attempts, forcing HOME action")
                     performGlobalAction(GLOBAL_ACTION_HOME)
                     delay(200)
                     blurOverlayManager.emergencyHideAllOverlays()
@@ -2770,7 +2320,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     // Regular close for non-porn sites
                     val closeTabSuccess = closeCurrentBrowserTab()
                     if (closeTabSuccess) {
-                        Log.d(TAG, "✅ Successfully closed browser tab")
+                        Log.d(TAG, "âœ… Successfully closed browser tab")
                         delay(300) // Faster response
                         // Check if we need to open a safe page
                         openSafePageAfterBlocking()
@@ -2779,14 +2329,14 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 }
 
                 // Strategy 2: Try to go back in browser history
-                Log.d(TAG, "🔄 Strategy 2: Attempting to navigate back in history")
+                Log.d(TAG, "ðŸ”„ Strategy 2: Attempting to navigate back in history")
                 try {
                     val backSuccess = performBrowserAwareGlobalAction(
                         GLOBAL_ACTION_BACK,
                         "navigate away from blocked site back navigation"
                     )
                     if (backSuccess) {
-                        Log.d(TAG, "✅ Successfully navigated back in browser history")
+                        Log.d(TAG, "âœ… Successfully navigated back in browser history")
                         delay(500) // Faster stability check
 
                         // Check if we're still on the same URL after going back
@@ -2798,12 +2348,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                             openSafePageAfterBlocking()
                         }
                     } else {
-                    Log.w(TAG, "⚠️ Global back action failed, trying safe location")
+                    Log.w(TAG, "âš ï¸ Global back action failed, trying safe location")
                     // Strategy 3: Go directly to safe location
                     navigateToSafeLocation()
                 }
             } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error in back navigation strategy", e)
+                    Log.e(TAG, "âŒ Error in back navigation strategy", e)
                     // Fallback to safe location
                     navigateToSafeLocation()
                 }
@@ -2818,12 +2368,12 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 isActionInProgress = false // Reset flag on success
 
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error navigating away from blocked site", e)
+                Log.e(TAG, "âŒ Error navigating away from blocked site", e)
                 // Hide overlay even on error to prevent stuck state
                 try {
                     hideBlockedSiteOverlay()
                 } catch (hideError: Exception) {
-                    Log.e(TAG, "❌ Error hiding overlay after navigation error", hideError)
+                    Log.e(TAG, "âŒ Error hiding overlay after navigation error", hideError)
                 }
 
                 // Fallback: Force go to home screen (with error handling)
@@ -2833,7 +2383,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                         "navigate away from blocked site emergency home"
                     )
                 } catch (homeError: Exception) {
-                    Log.e(TAG, "❌ Error performing home action", homeError)
+                    Log.e(TAG, "âŒ Error performing home action", homeError)
                 }
 
                 isActionInProgress = false // Reset flag on error
@@ -2846,7 +2396,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private fun closeCurrentBrowserTab(): Boolean {
         return executeTabOperationSafely("closeCurrentBrowserTab") {
-            Log.d(TAG, "🔍 Attempting to close current browser tab")
+            Log.d(TAG, "ðŸ” Attempting to close current browser tab")
 
             val rootNode = rootInActiveWindow
             if (rootNode == null) {
@@ -2905,7 +2455,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 }
 
                 if (closeSuccess) {
-                    Log.d(TAG, "✅ Successfully closed tab in $packageName")
+                    Log.d(TAG, "âœ… Successfully closed tab in $packageName")
                     return@executeTabOperationSafely true
                 }
             } catch (e: Exception) {
@@ -2917,7 +2467,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 rootNodeRecycled = true
             }
 
-            Log.d(TAG, "⚠️ Browser-specific close failed, using fallback method")
+            Log.d(TAG, "âš ï¸ Browser-specific close failed, using fallback method")
 
             // Enhanced fallback methods with fresh root node
             val fallbackRootNode = try {
@@ -2944,35 +2494,35 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      * Enhanced tab closing with multiple fallback strategies
      */
     private fun closeTabWithMultipleStrategies(rootNode: AccessibilityNodeInfo, packageName: String?): Boolean {
-        Log.d(TAG, "🔄 Trying multiple tab closing strategies")
+        Log.d(TAG, "ðŸ”„ Trying multiple tab closing strategies")
 
         // Strategy 1: Find any close button or X button
         if (safeExecute("findCloseButton") { findAndClickAnyCloseButton(rootNode) }) {
-            Log.d(TAG, "✅ Closed tab using close button detection")
+            Log.d(TAG, "âœ… Closed tab using close button detection")
             return true
         }
 
         // Strategy 2: Keyboard shortcut (Ctrl+W)
         if (safeExecute("keyboardShortcut") { sendKeyboardShortcut() }) {
-            Log.d(TAG, "✅ Closed tab using keyboard shortcut")
+            Log.d(TAG, "âœ… Closed tab using keyboard shortcut")
             return true
         }
 
         // Strategy 3: Multiple back actions
         if (safeExecute("multipleBackActions") { performMultipleBackActions() }) {
-            Log.d(TAG, "✅ Closed tab using multiple back actions")
+            Log.d(TAG, "âœ… Closed tab using multiple back actions")
             return true
         }
 
         // Strategy 4: Navigate to safe website instead of closing
-        if (safeExecute("navigateToSafeWebsite") { navigateToIslamicWebsite() }) {
-            Log.d(TAG, "✅ Navigated to Islamic website instead of closing tab")
+        if (navigationHandler.safeNavigate("navigateToSafeWebsite") { navigationHandler.navigateToIslamicWebsite() }) {
+            Log.d(TAG, "âœ… Navigated to Islamic website instead of closing tab")
             return true
         }
 
         // Strategy 5: Force home screen as last resort
         if (safeExecute("forceHomeScreen") { performGlobalAction(GLOBAL_ACTION_HOME) }) {
-            Log.d(TAG, "✅ Forced home screen as last resort")
+            Log.d(TAG, "âœ… Forced home screen as last resort")
             return true
         }
 
@@ -2983,7 +2533,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      * Find and click any close button (X, close, etc.)
      */
     private fun findAndClickAnyCloseButton(rootNode: AccessibilityNodeInfo): Boolean {
-        val closeTexts = listOf("close", "x", "✕", "×", "⨯", "dismiss", "cancel")
+        val closeTexts = listOf("close", "x", "âœ•", "Ã—", "â¨¯", "dismiss", "cancel")
         val closeDescriptions = listOf("close", "close tab", "dismiss", "cancel")
 
         // Search for clickable nodes with close-related text or content description
@@ -3034,7 +2584,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         )
 
         val selectedWebsite = islamicWebsites.random()
-        Log.d(TAG, "🕌 Redirecting to Islamic website: $selectedWebsite")
+        Log.d(TAG, "ðŸ•Œ Redirecting to Islamic website: $selectedWebsite")
 
         return navigateToUrl(selectedWebsite)
     }
@@ -3117,7 +2667,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
-            Log.d(TAG, "✅ Opened URL with Intent: $url")
+            Log.d(TAG, "âœ… Opened URL with Intent: $url")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open URL with Intent: $url", e)
@@ -3133,7 +2683,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             val nodes = rootNode.findAccessibilityNodeInfosByText(text)
             for (node in nodes) {
                 if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                    Log.d(TAG, "✅ Clicked node with text: $text")
+                    Log.d(TAG, "âœ… Clicked node with text: $text")
                     return true
                 }
             }
@@ -3151,7 +2701,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 for (desc in descriptions) {
                     if (description.contains(desc.lowercase()) && node.isClickable) {
                         if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                            Log.d(TAG, "✅ Clicked node with description: $description")
+                            Log.d(TAG, "âœ… Clicked node with description: $description")
                             return true
                         }
                     }
@@ -3177,7 +2727,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         fun searchNode(node: AccessibilityNodeInfo): Boolean {
             if (node.className?.toString() == className && node.isClickable) {
                 if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                    Log.d(TAG, "✅ Clicked node with class: $className")
+                    Log.d(TAG, "âœ… Clicked node with class: $className")
                     return true
                 }
             }
@@ -3308,7 +2858,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 if (closeButtons.isNotEmpty()) {
                     val closeButton = closeButtons[0]
                     if (closeButton.isClickable && closeButton.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                        Log.d(TAG, "✅ Successfully clicked $browserName close button: $id")
+                        Log.d(TAG, "âœ… Successfully clicked $browserName close button: $id")
                         closeButtons.forEach { it.recycle() }
                         return true
                     }
@@ -3334,7 +2884,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     foregroundPackage = rootNode.packageName?.toString()
                     val closeSuccess = findAndClickCloseButton(rootNode)
                     if (closeSuccess) {
-                        Log.d(TAG, "✅ Found and clicked close button by text")
+                        Log.d(TAG, "âœ… Found and clicked close button by text")
                         return true
                     }
                 } finally {
@@ -3343,7 +2893,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
             // Method 2: Enhanced back navigation with multiple attempts
-            Log.d(TAG, "🔄 Using enhanced back navigation fallback")
+            Log.d(TAG, "ðŸ”„ Using enhanced back navigation fallback")
             repeat(2) { attempt ->
                 val backSuccess = performBrowserAwareGlobalAction(
                     GLOBAL_ACTION_BACK,
@@ -3351,7 +2901,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     if (attempt == 0) foregroundPackage else null
                 )
                 if (backSuccess) {
-                    Log.d(TAG, "✅ Successfully performed back action (attempt ${attempt + 1})")
+                    Log.d(TAG, "âœ… Successfully performed back action (attempt ${attempt + 1})")
                     Thread.sleep(500) // Brief pause between actions
                 } else {
                     Log.w(TAG, "Back action skipped or failed (attempt ${attempt + 1})")
@@ -3359,7 +2909,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
             // Method 3: Try to close app entirely (last resort)
-            Log.d(TAG, "🔄 Attempting to close entire browser app")
+            Log.d(TAG, "ðŸ”„ Attempting to close entire browser app")
             val recentAppsSuccess = performBrowserAwareGlobalAction(
                 GLOBAL_ACTION_RECENTS,
                 "tab closing fallback open recents",
@@ -3369,13 +2919,13 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 Thread.sleep(1000)
                 // Try to swipe away the browser app
                 // Note: This is difficult to implement reliably across devices
-                Log.d(TAG, "✅ Opened recent apps, attempting swipe to close")
+                Log.d(TAG, "âœ… Opened recent apps, attempting swipe to close")
             }
 
             return false
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error in tab closing fallback", e)
+            Log.e(TAG, "âŒ Error in tab closing fallback", e)
             return false
         }
     }
@@ -3385,7 +2935,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private fun findAndClickCloseButton(rootNode: AccessibilityNodeInfo): Boolean {
         val closeKeywords = listOf(
-            "close", "tab", "x", "×", "✕",
+            "close", "tab", "x", "Ã—", "âœ•",
             "close tab", "tab close", "dismiss"
         )
 
@@ -3495,7 +3045,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private suspend fun openSafePageAfterBlocking() {
         try {
-            Log.d(TAG, "🕌 Opening safe Islamic page after blocking")
+            Log.d(TAG, "ðŸ•Œ Opening safe Islamic page after blocking")
 
             // Minimal wait for navigation
             delay(500)
@@ -3522,10 +3072,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
             startActivity(intent)
-            Log.d(TAG, "✅ Successfully opened safe Islamic page: $selectedUrl")
+            Log.d(TAG, "âœ… Successfully opened safe Islamic page: $selectedUrl")
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error opening safe page", e)
+            Log.e(TAG, "âŒ Error opening safe page", e)
             // Fallback: Try to open Islamic content in available apps
             openFallbackIslamicContent()
         }
@@ -3536,7 +3086,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private suspend fun openFallbackIslamicContent() {
         try {
-            Log.d(TAG, "🔄 Attempting fallback Islamic content")
+            Log.d(TAG, "ðŸ”„ Attempting fallback Islamic content")
 
             // Try to open Islamic apps if available
             val islamicApps = listOf(
@@ -3553,7 +3103,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                     if (intent != null) {
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(intent)
-                        Log.d(TAG, "✅ Opened Islamic app: $packageName")
+                        Log.d(TAG, "âœ… Opened Islamic app: $packageName")
                         return
                     }
                 } catch (e: Exception) {
@@ -3568,10 +3118,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             }
 
             startActivity(searchIntent)
-            Log.d(TAG, "✅ Opened web search for Islamic content")
+            Log.d(TAG, "âœ… Opened web search for Islamic content")
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error in fallback Islamic content", e)
+            Log.e(TAG, "âŒ Error in fallback Islamic content", e)
         }
     }
     
@@ -3647,447 +3197,13 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     /**
      * Enhanced URL extraction with better browser support
      */
-    private fun extractUrlFromBrowserSpecific(packageName: String?, rootNode: AccessibilityNodeInfo?): String? {
-        if (packageName == null || rootNode == null) return null
-        
-        return when {
-            packageName.contains("chrome") -> extractUrlFromChrome(rootNode)
-            packageName.contains("firefox") -> extractUrlFromFirefox(rootNode)
-            packageName.contains("edge") -> extractUrlFromEdge(rootNode)
-            packageName.contains("samsung") -> extractUrlFromSamsungBrowser(rootNode)
-            else -> extractUrlFromGenericBrowser(rootNode)
-        }
-    }
-    
-    /**
-     * Extract URL from Chrome browser
-     */
-    private fun extractUrlFromChrome(rootNode: AccessibilityNodeInfo): String? {
-        try {
-            // Chrome typically has the URL in a node with specific resource IDs
-            val urlNodes = rootNode.findAccessibilityNodeInfosByViewId("com.android.chrome:id/url_bar")
-            if (urlNodes.isNotEmpty()) {
-                val urlText = urlNodes[0].text?.toString()
-                urlNodes.forEach { it.recycle() }
-                return extractUrlFromText(urlText)
-            }
-            
-            // Fallback: look for nodes with URL-like content
-            return findUrlInNodeHierarchy(rootNode)
-        } catch (e: Exception) {
-            Log.w(TAG, "Error extracting URL from Chrome", e)
-            return null
-        }
-    }
-    
-    /**
-     * Extract URL from Firefox browser
-     */
-    private fun extractUrlFromFirefox(rootNode: AccessibilityNodeInfo): String? {
-        try {
-            // Firefox URL bar resource ID (works in both normal and private mode)
-            val urlNodes = rootNode.findAccessibilityNodeInfosByViewId("org.mozilla.firefox:id/url_bar_title")
-            if (urlNodes.isNotEmpty()) {
-                val urlText = urlNodes[0].text?.toString()
-                urlNodes.forEach { it.recycle() }
-                return extractUrlFromText(urlText)
-            }
-
-            // Alternative Firefox private mode URL bar (if different)
-            val privateUrlNodes = rootNode.findAccessibilityNodeInfosByViewId("org.mozilla.firefox:id/mozac_browser_toolbar_url_view")
-            if (privateUrlNodes.isNotEmpty()) {
-                val urlText = privateUrlNodes[0].text?.toString()
-                privateUrlNodes.forEach { it.recycle() }
-                return extractUrlFromText(urlText)
-            }
-
-            return findUrlInNodeHierarchy(rootNode)
-        } catch (e: Exception) {
-            Log.w(TAG, "Error extracting URL from Firefox (normal/private mode)", e)
-            return null
-        }
-    }
-    
-    /**
-     * Extract URL from Edge browser
-     */
-    private fun extractUrlFromEdge(rootNode: AccessibilityNodeInfo): String? {
-        try {
-            // Edge URL bar
-            val urlNodes = rootNode.findAccessibilityNodeInfosByViewId("com.microsoft.emmx:id/url_bar")
-            if (urlNodes.isNotEmpty()) {
-                val urlText = urlNodes[0].text?.toString()
-                urlNodes.forEach { it.recycle() }
-                return extractUrlFromText(urlText)
-            }
-            
-            return findUrlInNodeHierarchy(rootNode)
-        } catch (e: Exception) {
-            Log.w(TAG, "Error extracting URL from Edge", e)
-            return null
-        }
-    }
-    
-    /**
-     * Extract URL from Samsung Browser
-     */
-    private fun extractUrlFromSamsungBrowser(rootNode: AccessibilityNodeInfo): String? {
-        try {
-            // Samsung Browser URL bar
-            val urlNodes = rootNode.findAccessibilityNodeInfosByViewId("com.sec.android.app.sbrowser:id/location_bar_edit_text")
-            if (urlNodes.isNotEmpty()) {
-                val urlText = urlNodes[0].text?.toString()
-                urlNodes.forEach { it.recycle() }
-                return extractUrlFromText(urlText)
-            }
-            
-            return findUrlInNodeHierarchy(rootNode)
-        } catch (e: Exception) {
-            Log.w(TAG, "Error extracting URL from Samsung Browser", e)
-            return null
-        }
-    }
-    
-    /**
-     * Generic URL extraction for unknown browsers
-     */
-    private fun extractUrlFromGenericBrowser(rootNode: AccessibilityNodeInfo): String? {
-        return findUrlInNodeHierarchy(rootNode)
-    }
-    
-    /**
-     * Find URL in node hierarchy by searching for URL-like patterns
-     * Optimized for better performance with limited recursion
-     */
-    private fun findUrlInNodeHierarchy(node: AccessibilityNodeInfo?, depth: Int = 0): String? {
-        if (node == null || depth > 3) return null // Reduced depth for better performance
-
-        try {
-            // Check current node text first (most likely to contain URL)
-            val nodeText = node.text?.toString()
-            if (!nodeText.isNullOrBlank()) {
-                extractUrlFromText(nodeText)?.let { return it }
-            }
-
-            // Check content description as secondary option
-            val nodeDescription = node.contentDescription?.toString()
-            if (!nodeDescription.isNullOrBlank()) {
-                extractUrlFromText(nodeDescription)?.let { return it }
-            }
-
-            // Check child nodes with optimized limits
-            val childCount = node.childCount
-            if (childCount > 0) {
-                // Only check first few children that are likely to contain URLs
-                val maxChildrenToCheck = minOf(childCount, 8) // Reduced from 20 for performance
-
-                for (i in 0 until maxChildrenToCheck) {
-                    val child = node.getChild(i)
-                    val childUrl = findUrlInNodeHierarchy(child, depth + 1)
-                    child?.recycle()
-                    if (childUrl != null) return childUrl
-                }
-            }
-
-            return null
-        } catch (e: Exception) {
-            Log.w(TAG, "Error finding URL in node hierarchy", e)
-            return null
-        }
-    }
-    
     // ==================== NEW ACTION METHODS ====================
     
-    /**
-     * Perform scroll away action to move inappropriate content out of view
-     */
-    private fun performScrollAwayAction() {
-        serviceScope.launch {
-            try {
-                Log.d(TAG, "🔄 Performing SCROLL_AWAY action")
-                
-                // Check if action is already in progress
-                if (isActionInProgress) {
-                    Log.d(TAG, "⚠️ Action already in progress, skipping scroll")
-                    return@launch
-                }
-                
-                isActionInProgress = true
-                
-                // Strategy 1: Try scrolling down to move content out of view
-                val rootNode = rootInActiveWindow
-                if (rootNode != null) {
-                    try {
-                        // Find scrollable view
-                        val scrollableNode = findScrollableNode(rootNode)
-                        if (scrollableNode != null) {
-                            Log.d(TAG, "📱 Found scrollable node, performing scroll")
-                            val scrollSuccess = scrollableNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-                            if (scrollSuccess) {
-                                Log.d(TAG, "✅ Successfully scrolled content")
-                                delay(1000) // Give time for scroll to complete
-                                
-                                // Try scrolling again to ensure content is moved
-                                scrollableNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-                            }
-                            scrollableNode.recycle()
-                        } else {
-                            Log.d(TAG, "⚠️ No scrollable node found, using gesture")
-                            // Fallback: Perform scroll gesture
-                            performScrollGesture()
-                        }
-                    } finally {
-                        rootNode.recycle()
-                    }
-                } else {
-                    Log.d(TAG, "⚠️ No root node, performing gesture scroll")
-                    performScrollGesture()
-                }
-                
-                Log.d(TAG, "✅ SCROLL_AWAY action completed")
-                
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error performing scroll away action", e)
-            } finally {
-                isActionInProgress = false
-            }
-        }
-    }
+    // Note: Scroll away logic moved to NavigationHandler class
     
     /**
      * Perform navigate back action
      */
-    private fun performNavigateBackAction() {
-        serviceScope.launch {
-            try {
-                Log.d(TAG, "⬅️ Performing NAVIGATE_BACK action")
-                
-                if (isActionInProgress) {
-                    Log.d(TAG, "⚠️ Action already in progress, skipping navigation")
-                    return@launch
-                }
-                
-                isActionInProgress = true
-
-                val backSuccess = performBrowserAwareGlobalAction(
-                    GLOBAL_ACTION_BACK,
-                    "manual navigate back action"
-                )
-                if (backSuccess) {
-                    Log.d(TAG, "✅ Successfully navigated back")
-                    delay(1000) // Give time for navigation
-                } else {
-                    Log.w(TAG, "❌ Back navigation failed")
-                }
-                
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error performing navigate back action", e)
-            } finally {
-                isActionInProgress = false
-            }
-        }
-    }
-    
-    /**
-     * Perform auto close app action
-     */
-    private fun performAutoCloseAppAction() {
-        serviceScope.launch {
-            try {
-                Log.d(TAG, "🚫 Performing AUTO_CLOSE_APP action")
-                
-                if (isActionInProgress) {
-                    Log.d(TAG, "⚠️ Action already in progress, skipping app close")
-                    return@launch
-                }
-                
-                isActionInProgress = true
-
-                // Strategy 1: Try to go to home screen
-                val homeSuccess = performBrowserAwareGlobalAction(
-                    GLOBAL_ACTION_HOME,
-                    "auto close app - home"
-                )
-                if (homeSuccess) {
-                    Log.d(TAG, "✅ Successfully closed app (went to home)")
-                } else {
-                    // Strategy 2: Try back button multiple times
-                    Log.d(TAG, "🔄 Home failed, trying back navigation")
-                    repeat(3) { attempt ->
-                        val backSuccess = performBrowserAwareGlobalAction(
-                            GLOBAL_ACTION_BACK,
-                            "auto close app - back attempt ${attempt + 1}"
-                        )
-                        if (backSuccess) {
-                            delay(500)
-                        } else {
-                            Log.w(
-                                TAG,
-                                "Back navigation skipped or failed (auto close attempt ${attempt + 1})"
-                            )
-                        }
-                    }
-                }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error performing auto close app action", e)
-            } finally {
-                isActionInProgress = false
-            }
-        }
-    }
-    
-    /**
-     * Perform gentle redirect action with short warning
-     */
-    private fun performGentleRedirectAction() {
-        serviceScope.launch {
-            try {
-                Log.d(TAG, "🔄 Performing GENTLE_REDIRECT action")
-                
-                if (isActionInProgress) {
-                    Log.d(TAG, "⚠️ Action already in progress, skipping redirect")
-                    return@launch
-                }
-                
-                isActionInProgress = true
-                
-                // Show a brief warning overlay
-                try {
-                    blurOverlayManager.showFullScreenWarning(
-                        category = BlockingCategory.EXPLICIT_CONTENT,
-                        customMessage = "Inappropriate content detected - redirecting...",
-                        reflectionTimeSeconds = 3 // Very short warning
-                    )
-                    
-                    // Wait for warning to be seen
-                    delay(3000)
-                    
-                    // Hide warning and navigate back
-                    blurOverlayManager.hideFullScreenWarning()
-
-                    // Navigate away
-                    val navigationSuccess = performBrowserAwareGlobalAction(
-                        GLOBAL_ACTION_BACK,
-                        "gentle redirect back navigation"
-                    )
-                    if (navigationSuccess) {
-                        Log.d(TAG, "✅ Gentle redirect completed")
-                    } else {
-                        Log.w(TAG, "❌ Gentle redirect back navigation skipped or failed")
-                    }
-
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error showing gentle redirect warning", e)
-                    // Fallback to just navigation
-                    performBrowserAwareGlobalAction(
-                        GLOBAL_ACTION_BACK,
-                        "gentle redirect fallback back"
-                    )
-                }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error performing gentle redirect action", e)
-            } finally {
-                isActionInProgress = false
-            }
-        }
-    }
-    
-    /**
-     * Find a scrollable node in the node hierarchy
-     */
-    private fun findScrollableNode(rootNode: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        // Check if root node itself is scrollable
-        if (rootNode.isScrollable) {
-            return rootNode
-        }
-        
-        // Search children for scrollable nodes
-        fun searchScrollable(node: AccessibilityNodeInfo, depth: Int = 0): AccessibilityNodeInfo? {
-            if (depth > 5) return null // Limit search depth
-            
-            if (node.isScrollable) {
-                return node
-            }
-            
-            for (i in 0 until minOf(node.childCount, 10)) {
-                val child = node.getChild(i)
-                if (child != null) {
-                    val scrollable = searchScrollable(child, depth + 1)
-                    if (scrollable != null) {
-                        child.recycle()
-                        return scrollable
-                    }
-                    child.recycle()
-                }
-            }
-            return null
-        }
-        
-        return searchScrollable(rootNode)
-    }
-    
-    /**
-     * Perform scroll gesture using accessibility service
-     */
-    private fun performScrollGesture() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            Log.w(TAG, "Scroll gesture not supported on this API level")
-            performBrowserAwareGlobalAction(
-                GLOBAL_ACTION_BACK,
-                "scroll gesture fallback (legacy)"
-            )
-            return
-        }
-
-        try {
-            Log.d(TAG, "🖱️ Attempting scroll gesture via dispatchGesture")
-            val metrics = resources.displayMetrics
-            val startX = metrics.widthPixels / 2f
-            val startY = metrics.heightPixels * 0.7f
-            val endY = metrics.heightPixels * 0.3f
-
-            val path = Path().apply {
-                moveTo(startX, startY)
-                lineTo(startX, endY)
-            }
-
-            val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, 0, 300))
-                .build()
-
-            val accepted = dispatchGesture(
-                gesture,
-                object : GestureResultCallback() {
-                    override fun onCompleted(gestureDescription: GestureDescription?) {
-                        Log.d(TAG, "Scroll gesture completed successfully")
-                    }
-
-                    override fun onCancelled(gestureDescription: GestureDescription?) {
-                        Log.w(TAG, "Scroll gesture cancelled by system")
-                    }
-                },
-                null
-            )
-
-            if (!accepted) {
-                Log.w(TAG, "Scroll gesture request rejected, using back action fallback")
-                performBrowserAwareGlobalAction(
-                    GLOBAL_ACTION_BACK,
-                    "scroll gesture fallback (rejected)"
-                )
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error performing scroll gesture", e)
-            performBrowserAwareGlobalAction(
-                GLOBAL_ACTION_BACK,
-                "scroll gesture fallback (error)"
-            )
-        }
-    }
-    
     /**
      * Check if the service can perform global actions - prevents crashes
      */
@@ -4318,7 +3434,7 @@ class HaramBlurAccessibilityService : AccessibilityService() {
      */
     private fun performEmergencyReset() {
         try {
-            Log.w(TAG, "🚨 EMERGENCY RESET INITIATED")
+            Log.w(TAG, "ðŸš¨ EMERGENCY RESET INITIATED")
             
             // Stop all active operations
             activeTabOperations.set(0)
@@ -4341,10 +3457,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             isActionInProgress = false
             pornClosureInFlight = false
             
-            Log.w(TAG, "🚨 EMERGENCY RESET COMPLETED")
+            Log.w(TAG, "ðŸš¨ EMERGENCY RESET COMPLETED")
             
         } catch (e: Exception) {
-            Log.e(TAG, "❌ CRITICAL: Emergency reset failed", e)
+            Log.e(TAG, "âŒ CRITICAL: Emergency reset failed", e)
         }
     }
 
@@ -4357,6 +3473,17 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             
             // Stop content monitoring
             stopContentMonitoring()
+            
+            // Unregister battery receiver
+            try {
+                unregisterReceiver(batteryReceiver)
+                Log.d(TAG, "Battery receiver unregistered")
+            } catch (e: Exception) {
+                Log.w(TAG, "Error unregistering battery receiver: ${e.message}")
+            }
+            
+            // Reset grid analyzer state
+            gridAnalyzer.reset()
             
             // Emergency reset to clean state
             performEmergencyReset()

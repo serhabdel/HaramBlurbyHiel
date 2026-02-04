@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.provider.Settings
 import android.util.Log
 import com.hieltech.haramblur.accessibility.HaramBlurAccessibilityService
+import com.hieltech.haramblur.accessibility.ServiceStatus
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.detection.EnhancedSiteBlockingManager
 import com.hieltech.haramblur.detection.AppBlockingManager
@@ -363,7 +364,7 @@ data class AccessibilityStatus(
     val isEnabled: Boolean = false,
     val hasInstance: Boolean = false,
     val isServiceRunning: Boolean = false,
-    val serviceStatus: HaramBlurAccessibilityService.ServiceStatus? = null,
+    val serviceStatus: ServiceStatus? = null,
     val issues: List<String> = emptyList()
 )
 
@@ -396,7 +397,7 @@ data class AppFilteringStatus(
 data class ServiceInstanceStatus(
     val hasInstance: Boolean = false,
     val isRunning: Boolean = false,
-    val serviceDetails: HaramBlurAccessibilityService.ServiceStatus? = null,
+    val serviceDetails: ServiceStatus? = null,
     val issues: List<String> = emptyList()
 )
 

@@ -32,7 +32,9 @@ class MLModelManager @Inject constructor(
     
     companion object {
         private const val TAG = "MLModelManager"
-        private const val NSFW_MODEL_PATH = "models/nsfw_mobilenet_v2_140_224.1.tflite"
+        // Model paths - prefer quantized versions
+        private const val NSFW_MODEL_QUANTIZED = "models/quantized/nsfw_mobilenet_v2_140_224_quantized.tflite"
+        private const val NSFW_MODEL_FALLBACK = "models/nsfw_mobilenet_v2_140_224.1.tflite"
         private const val GENDER_MODEL_PATH = "models/model_lite_gender_q.tflite"
         private const val INPUT_SIZE = 224
         private const val GENDER_INPUT_SIZE = 96 // Smaller input for gender model
@@ -222,9 +224,20 @@ class MLModelManager @Inject constructor(
     }
     
     /**
+     * Check if using quantized model
+     */
+    fun isUsingQuantizedModel(context: Context): Boolean {
+        return try {
+            context.assets.open(NSFW_MODEL_QUANTIZED).use { true }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * Get diagnostic information about ML model status
      */
-    fun getDiagnosticInfo(): MLDiagnosticInfo {
+    fun getDiagnosticInfo(context: Context): MLDiagnosticInfo {
         return MLDiagnosticInfo(
             isInitialized = isInitialized,
             isGenderModelReady = isGenderModelReady,
@@ -233,24 +246,31 @@ class MLModelManager @Inject constructor(
             genderInterpreterAvailable = genderInterpreter != null,
             currentPerformanceMode = currentPerformanceMode,
             genderCacheSize = genderCache.size,
-            nsfwCacheSize = nsfwCache.size
+            nsfwCacheSize = nsfwCache.size,
+            usingQuantizedModel = isUsingQuantizedModel(context)
         )
     }
     
     private fun initializeNSFWModel(context: Context) {
         try {
-            // Initialize standard NSFW model with GPU acceleration
             val options = gpuAccelerationManager.createOptimizedInterpreterOptions(enableGPU = true)
 
-            // Load the actual NSFW model file
-            try {
-                val modelBuffer = FileUtil.loadMappedFile(context, NSFW_MODEL_PATH)
-                nsfwInterpreter = Interpreter(modelBuffer, options)
-                Log.d(TAG, "NSFW model loaded successfully from: $NSFW_MODEL_PATH")
+            // Try quantized model first (4MB vs 16.5MB)
+            val modelBuffer = try {
+                Log.d(TAG, "Trying quantized NSFW model...")
+                FileUtil.loadMappedFile(context, NSFW_MODEL_QUANTIZED).also {
+                    Log.i(TAG, "✅ Using QUANTIZED NSFW model (4MB)")
+                }
             } catch (e: IOException) {
-                Log.w(TAG, "NSFW model file not found at $NSFW_MODEL_PATH, falling back to heuristics", e)
+                // Fall back to full model
+                Log.w(TAG, "Quantized model not found, using full model")
+                FileUtil.loadMappedFile(context, NSFW_MODEL_FALLBACK).also {
+                    Log.i(TAG, "Using full NSFW model (16.5MB)")
+                }
             }
-
+            
+            nsfwInterpreter = Interpreter(modelBuffer, options)
+            
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing NSFW model", e)
         }
@@ -1600,7 +1620,8 @@ class MLModelManager @Inject constructor(
         val genderInterpreterAvailable: Boolean,
         val currentPerformanceMode: PerformanceMode,
         val genderCacheSize: Int,
-        val nsfwCacheSize: Int
+        val nsfwCacheSize: Int,
+        val usingQuantizedModel: Boolean = false
     )
     
     /**

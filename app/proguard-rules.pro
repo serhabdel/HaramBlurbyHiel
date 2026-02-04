@@ -63,3 +63,22 @@
 # Preserve line numbers for debugging crashes
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# Retrofit and Gson
+-keep class com.squareup.retrofit2.** { *; }
+-keep class retrofit2.** { *; }
+-keep class com.google.gson.** { *; }
+-keepattributes Signature
+-keepattributes Exceptions
+
+# Keep data models used in API responses
+-keep class com.hieltech.haramblur.data.api.** { *; }
+-keep class com.hieltech.haramblur.data.prayer.** { *; }
+-keep class com.hieltech.haramblur.data.cities.** { *; }
+
+# Keep Kotlin metadata
+-keep class kotlin.Metadata { *; }
+-keepattributes RuntimeVisibleAnnotations
+-keepattributes RuntimeInvisibleAnnotations
+-keepattributes RuntimeVisibleParameterAnnotations
+-keepattributes RuntimeInvisibleParameterAnnotations

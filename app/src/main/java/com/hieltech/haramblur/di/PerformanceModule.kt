@@ -3,6 +3,7 @@ package com.hieltech.haramblur.di
 import android.content.Context
 import androidx.work.WorkManager
 import com.hieltech.haramblur.detection.*
+import com.hieltech.haramblur.performance.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -102,5 +103,33 @@ object PerformanceModule {
         return EnhancedSiteBlockingManager(database, context, originalManager)
     }
 
-
+    // ===== Month 1 Performance Optimizations =====
+    
+    @Provides
+    @Singleton
+    fun providePerformanceOptimizer(
+        @ApplicationContext context: Context
+    ): PerformanceOptimizer {
+        return PerformanceOptimizer(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideCaptureStateManager(): CaptureStateManager {
+        return CaptureStateManager()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideGridAnalyzer(): GridAnalyzer {
+        return GridAnalyzer()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideBatteryAwareProcessor(
+        @ApplicationContext context: Context
+    ): BatteryAwareProcessor {
+        return BatteryAwareProcessor(context)
+    }
 }

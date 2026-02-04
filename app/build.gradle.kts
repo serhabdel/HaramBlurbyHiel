@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -26,7 +28,7 @@ android {
     }
     
     // 16KB page size compatibility and native library packaging
-    packagingOptions {
+    packaging {
         jniLibs {
             useLegacyPackaging = false
             pickFirsts += "**/libtensorflowlite_jni.so"
@@ -37,22 +39,62 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("../haramblur-release-key.keystore")
-            storePassword = "haramblur123"
-            keyAlias = "haramblur"
-            keyPassword = "haramblur123"
+            // Read from local.properties or environment variables
+            val localProperties = rootProject.file("local.properties")
+            val properties = Properties()
+            if (localProperties.exists()) {
+                properties.load(localProperties.inputStream())
+            }
+            
+            // Helper function to get property with fallback
+            fun getProperty(key: String, fallback: String): String {
+                return properties.getProperty(key) ?: fallback
+            }
+            
+            // Priority: Environment Variables > local.properties > fallback (debug only)
+            storeFile = file(getProperty("RELEASE_STORE_FILE", "../haramblur-release-key.keystore"))
+            storePassword = System.getenv("STORE_PASSWORD") 
+                ?: getProperty("RELEASE_STORE_PASSWORD", "android")
+            keyAlias = System.getenv("KEY_ALIAS") 
+                ?: getProperty("RELEASE_KEY_ALIAS", "androiddebugkey")
+            keyPassword = System.getenv("KEY_PASSWORD") 
+                ?: getProperty("RELEASE_KEY_PASSWORD", "android")
+                
+            // Validate that we're not using debug credentials for release
+            if (storePassword == "android" || keyPassword == "android") {
+                logger.warn("WARNING: Using debug signing credentials. " +
+                    "Set STORE_PASSWORD and KEY_PASSWORD environment variables " +
+                    "or configure local.properties for release builds.")
+            }
         }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Enable code shrinking and obfuscation for smaller APK and better performance
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            
+            // Optional: Enable more aggressive optimizations
+            // isDebuggable = false
+        }
+        
+        // Debug build with ProGuard (for testing release configuration)
+        create("proguardDebug") {
+            initWith(getByName("debug"))
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // Keep debugging symbols
+            isDebuggable = true
         }
     }
     compileOptions {

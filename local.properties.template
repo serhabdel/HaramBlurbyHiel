@@ -1,0 +1,16 @@
+# Template for local.properties
+# Copy this file to local.properties and fill in your values
+# DO NOT commit local.properties to version control!
+
+# Android SDK location
+sdk.dir=/path/to/your/android/sdk
+
+# Release Signing Configuration (Optional - for release builds)
+# For CI/CD, these can be set as environment variables instead
+RELEASE_STORE_FILE=../haramblur-release-key.keystore
+RELEASE_STORE_PASSWORD=your_store_password_here
+RELEASE_KEY_ALIAS=haramblur
+RELEASE_KEY_PASSWORD=your_key_password_here
+
+# Example for CI/CD (GitHub Actions, etc.):
+# Set these as secrets: STORE_PASSWORD, KEY_PASSWORD, KEY_ALIAS

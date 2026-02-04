@@ -37,7 +37,7 @@ class MLDiagnosticHelper @Inject constructor(
 
         return withContext(Dispatchers.IO) {
             try {
-                val mlModelInfo = mlModelManager.getDiagnosticInfo()
+                val mlModelInfo = mlModelManager.getDiagnosticInfo(context)
                 val faceDetectionTest = testFaceDetectionWithSample()
                 val genderClassificationTest = testGenderClassificationWithSample()
                 val modelFileStatus = verifyModelFiles()
