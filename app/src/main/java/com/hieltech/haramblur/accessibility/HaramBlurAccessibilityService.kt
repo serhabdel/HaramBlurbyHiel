@@ -919,7 +919,8 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 processScreenContent(bitmap)
             } else {
                 // Process only changed regions
-                val shouldBlur = analyzeChangedRegions(bitmap, changedRegions)
+                val analysisResult = analyzeChangedRegions(bitmap, changedRegions)
+                val shouldBlur = analysisResult?.shouldBlur ?: false
                 
                 // Update capture state with detection result
                 captureStateManager.analyzeFrame(
@@ -928,9 +929,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 )
                 
                 // Handle blur based on result
-                if (shouldBlur) {
-                    handleBlurActivation()
-                } else if (canDeactivateBlur()) {
+                if (shouldBlur && analysisResult != null) {
+                    handleBlurActivation(analysisResult)
+                } else if (!shouldBlur && canDeactivateBlur()) {
                     safeHideOverlay("no_inappropriate_content")
                     isCurrentlyBlurred = false
                 }
@@ -949,20 +950,20 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     
     /**
      * Analyze only changed regions of the screen
+     * Returns the full analysis result including blur regions
      */
     private suspend fun analyzeChangedRegions(
         bitmap: Bitmap,
         regions: List<GridAnalyzer.Region>
-    ): Boolean {
+    ): ContentDetectionEngine.ContentAnalysisResult? {
         // For now, if any region changed, process full screen
         // Future optimization: analyze individual regions
         return try {
             val settings = settingsRepository.getCurrentSettings()
-            val result = contentDetectionEngine.analyzeContent(bitmap, settings, currentAppPackage)
-            result.shouldBlur
+            contentDetectionEngine.analyzeContent(bitmap, settings, currentAppPackage)
         } catch (e: Exception) {
             Log.e(TAG, "Error analyzing changed regions", e)
-            false
+            null
         }
     }
     
@@ -975,14 +976,29 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     }
     
     /**
-     * Handle blur activation with proper state tracking
+     * Handle blur activation with overlay
      */
-    private fun handleBlurActivation() {
+    private suspend fun handleBlurActivation(analysisResult: ContentDetectionEngine.ContentAnalysisResult) {
         if (!isCurrentlyBlurred) {
             lastBlurStartTime = System.currentTimeMillis()
             isCurrentlyBlurred = true
+            
+            // Actually SHOW the blur overlay with detected regions
+            if (analysisResult.blurRegions.isNotEmpty()) {
+                val settings = settingsRepository.getCurrentSettings()
+                val blurShown = overlayStateManager.showBlurOverlay(
+                    regions = analysisResult.blurRegions,
+                    settings = settings,
+                    contentSensitivity = analysisResult.maxNsfwConfidence
+                )
+                
+                if (blurShown) {
+                    Log.w(TAG, "🛑 BLUR OVERLAY SHOWN - ${analysisResult.blurRegions.size} regions")
+                } else {
+                    Log.e(TAG, "❌ Failed to show blur overlay")
+                }
+            }
         }
-        // Actual blur overlay is handled by the existing blur system
     }
 
     /**
