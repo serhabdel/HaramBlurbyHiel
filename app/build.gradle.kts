@@ -167,8 +167,8 @@ dependencies {
     implementation("org.tensorflow:tensorflow-lite:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-gpu:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
-    // Bundled ML Kit face detection - model included in APK for reliability (~10MB larger)
-    implementation("com.google.android.gms:play-services-mlkit-face-detection:17.1.0")
+    // ML Kit face detection with bundled model (includes native library)
+    implementation("com.google.mlkit:face-detection:16.1.5")
 
     // Play Services Tasks for ML Kit
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
