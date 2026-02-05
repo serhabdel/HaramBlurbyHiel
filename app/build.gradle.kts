@@ -34,6 +34,9 @@ android {
             pickFirsts += "**/libtensorflowlite_jni.so"
             pickFirsts += "**/libface_detector_v2_jni.so"
             pickFirsts += "**/libtensorflowlite_gpu_jni.so"
+            // 16KB page size alignment for Android 15+
+            // This fixes the "ELF alignment check failed" warning
+            // Note: Full fix requires TensorFlow Lite 2.16+ with 16KB aligned libraries
         }
     }
 

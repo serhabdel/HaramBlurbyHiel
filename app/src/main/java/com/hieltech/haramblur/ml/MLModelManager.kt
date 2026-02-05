@@ -231,11 +231,20 @@ class MLModelManager @Inject constructor(
      */
     fun isUsingQuantizedModel(context: Context): Boolean {
         return try {
-            context.assets.open(NSFW_MODEL_QUANTIZED).use { true }
+            context.assets.open(NSFW_MODEL_QUANTIZED).use { 
+                Log.d(TAG, "Quantized model file found: $NSFW_MODEL_QUANTIZED")
+                true 
+            }
         } catch (e: Exception) {
+            Log.d(TAG, "Quantized model not found: $NSFW_MODEL_QUANTIZED")
             false
         }
     }
+    
+    /**
+     * Check if NSFW model is loaded and ready
+     */
+    fun isNsfwModelLoaded(): Boolean = nsfwInterpreter != null
 
     /**
      * Get diagnostic information about ML model status
@@ -256,26 +265,38 @@ class MLModelManager @Inject constructor(
     
     private fun initializeNSFWModel(context: Context) {
         try {
-            val options = gpuAccelerationManager.createOptimizedInterpreterOptions(enableGPU = true)
-
             // Try quantized model first (4MB vs 16.5MB)
-            val modelBuffer = try {
+            val (modelBuffer, isQuantized) = try {
                 Log.d(TAG, "Trying quantized NSFW model...")
-                FileUtil.loadMappedFile(context, NSFW_MODEL_QUANTIZED).also {
-                    Log.i(TAG, "✅ Using QUANTIZED NSFW model (4MB)")
-                }
+                Pair(FileUtil.loadMappedFile(context, NSFW_MODEL_QUANTIZED), true)
             } catch (e: IOException) {
                 // Fall back to full model
                 Log.w(TAG, "Quantized model not found, using full model")
-                FileUtil.loadMappedFile(context, NSFW_MODEL_FALLBACK).also {
-                    Log.i(TAG, "Using full NSFW model (16.5MB)")
+                Pair(FileUtil.loadMappedFile(context, NSFW_MODEL_FALLBACK), false)
+            }
+            
+            // Create interpreter options - INT8 models work better without GPU delegate
+            val options = if (isQuantized) {
+                Log.i(TAG, "✅ Using QUANTIZED NSFW model (INT8)")
+                // For INT8 quantized models, use CPU with XNNPACK (faster than GPU for INT8)
+                Interpreter.Options().apply {
+                    numThreads = 4
+                    useXNNPACK = true
+                    // Don't use GPU delegate for INT8 - it can cause compatibility issues
                 }
+            } else {
+                Log.i(TAG, "Using full NSFW model (FP32)")
+                gpuAccelerationManager.createOptimizedInterpreterOptions(enableGPU = true)
             }
             
             nsfwInterpreter = Interpreter(modelBuffer, options)
+            Log.i(TAG, "✅ NSFW model loaded successfully")
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing NSFW model", e)
+            Log.e(TAG, "❌ Error initializing NSFW model", e)
+            // Log detailed error for debugging
+            Log.e(TAG, "Exception type: ${e.javaClass.simpleName}")
+            Log.e(TAG, "Exception message: ${e.message}")
         }
     }
     
