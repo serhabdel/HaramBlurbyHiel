@@ -399,6 +399,26 @@ class FaceDetectionManager @Inject constructor(
     }
     
     /**
+     * Initialize and verify ML Kit face detection during engine startup
+     * Call this during ContentDetectionEngine.initialize()
+     */
+    suspend fun initialize(): Boolean {
+        return try {
+            Log.d(TAG, "🔍 Initializing face detection manager...")
+            val verified = verifyMLKitInitialization()
+            if (verified) {
+                Log.i(TAG, "✅ Face detection manager initialized and verified")
+            } else {
+                Log.w(TAG, "⚠️ Face detection manager initialization failed")
+            }
+            verified
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Face detection manager initialization error", e)
+            false
+        }
+    }
+    
+    /**
      * Check if ML Kit has been verified as working
      */
     fun isMlKitVerified(): Boolean = mlKitVerified

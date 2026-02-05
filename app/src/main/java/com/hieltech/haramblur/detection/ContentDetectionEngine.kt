@@ -203,9 +203,16 @@ class ContentDetectionEngine @Inject constructor(
         return try {
             Log.d(TAG, "Initializing content detection engine...")
 
+            // Initialize ML models (NSFW, Gender)
             val mlInitialized = mlModelManager.initialize(context)
             if (!mlInitialized) {
                 Log.w(TAG, "ML model initialization failed, continuing without it")
+            }
+            
+            // Initialize face detection (ML Kit)
+            val faceDetectionInitialized = faceDetectionManager.initialize()
+            if (!faceDetectionInitialized) {
+                Log.w(TAG, "Face detection initialization failed - will retry on first detection")
             }
 
             isInitialized = true
