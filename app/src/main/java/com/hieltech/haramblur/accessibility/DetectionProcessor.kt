@@ -20,7 +20,7 @@ class DetectionProcessor(
     // Detection tracking for stability
     private var consecutiveNSFWCount = 0
     private var consecutiveCleanCount = 0
-    private val requiredConsecutiveDetections = 2
+    private val requiredConsecutiveDetections = 1 // Reduced from 2 for immediate blur
     
     // Adaptive thresholds
     private var adaptiveNSFWThreshold = 0.4f
@@ -32,7 +32,7 @@ class DetectionProcessor(
     // State tracking (managed externally via callbacks)
     private var isCurrentlyBlurred = false
     private var lastBlurStartTime = 0L
-    private var minBlurDuration = 2000L
+    private var minBlurDuration = 500L // Reduced for faster response
     
     /**
      * Data class for detection processing result

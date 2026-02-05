@@ -21,7 +21,7 @@ class OverlayStateManager(
     // State tracking
     private var isCurrentlyBlurred = false
     private var lastBlurStartTime: Long = 0
-    private var minBlurDuration = 2000L // Minimum 2 seconds of blur
+    private var minBlurDuration = 500L // Minimum 0.5 seconds for faster response
     
     /**
      * Check if overlay is currently active
