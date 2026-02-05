@@ -67,6 +67,7 @@ class MLModelManager @Inject constructor(
     private var isInitialized = false
     private var isGenderModelReady = false
     private var currentPerformanceMode = PerformanceMode.BALANCED
+    private var isNsfwModelQuantized = false // Track if using INT8 quantized model
     
     // Gender prediction cache for performance
     private val genderCache = mutableMapOf<Int, GenderCacheEntry>()
@@ -290,7 +291,8 @@ class MLModelManager @Inject constructor(
             }
             
             nsfwInterpreter = Interpreter(modelBuffer, options)
-            Log.i(TAG, "✅ NSFW model loaded successfully")
+            isNsfwModelQuantized = isQuantized
+            Log.i(TAG, "✅ NSFW model loaded successfully (quantized=$isQuantized)")
             
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error initializing NSFW model", e)
@@ -949,6 +951,7 @@ class MLModelManager @Inject constructor(
     /**
      * Run NSFW inference using the loaded TensorFlow Lite model
      * Memory-optimized with proper resource management
+     * Supports both FP32 and INT8 quantized models
      */
     private fun runNSFWInference(tensorImage: TensorImage, useFastMode: Boolean): Float {
         return nsfwInterpreter?.let { interpreter ->
@@ -956,27 +959,54 @@ class MLModelManager @Inject constructor(
             var outputBuffer: ByteBuffer? = null
 
             try {
-                // Prepare input buffer
-                inputBuffer = ByteBuffer.allocateDirect(4 * INPUT_SIZE * INPUT_SIZE * 3)
-                inputBuffer.order(ByteOrder.nativeOrder())
-
-                // Convert tensor image to input buffer
+                // Prepare input buffer based on model type
                 val imageArray = tensorImage.tensorBuffer.floatArray
-                inputBuffer.rewind()
-                for (pixel in imageArray) {
-                    inputBuffer.putFloat(pixel)
+                
+                if (isNsfwModelQuantized) {
+                    // INT8 quantized model - input should be INT8 (1 byte per pixel)
+                    inputBuffer = ByteBuffer.allocateDirect(INPUT_SIZE * INPUT_SIZE * 3)
+                    inputBuffer.order(ByteOrder.nativeOrder())
+                    
+                    // Convert float [0.0, 1.0] to int8 [0, 255]
+                    inputBuffer.rewind()
+                    for (pixel in imageArray) {
+                        // Convert to unsigned int8 [0, 255]
+                        val int8Pixel = (pixel * 255.0f).toInt().coerceIn(0, 255).toByte()
+                        inputBuffer.put(int8Pixel)
+                    }
+                    
+                    // INT8 output buffer (5 classes, 1 byte each)
+                    outputBuffer = ByteBuffer.allocateDirect(5)
+                    outputBuffer.order(ByteOrder.nativeOrder())
+                    
+                } else {
+                    // FP32 model - input is float (4 bytes per pixel)
+                    inputBuffer = ByteBuffer.allocateDirect(4 * INPUT_SIZE * INPUT_SIZE * 3)
+                    inputBuffer.order(ByteOrder.nativeOrder())
+                    
+                    // Copy float values
+                    inputBuffer.rewind()
+                    for (pixel in imageArray) {
+                        inputBuffer.putFloat(pixel)
+                    }
+                    
+                    // FP32 output buffer (5 classes, 4 bytes each)
+                    outputBuffer = ByteBuffer.allocateDirect(20)
+                    outputBuffer.order(ByteOrder.nativeOrder())
                 }
-
-                // Prepare output buffer (model outputs 5 floats = 20 bytes)
-                outputBuffer = ByteBuffer.allocateDirect(20) // 5 output values (20 bytes)
-                outputBuffer.order(ByteOrder.nativeOrder())
 
                 // Run inference
                 interpreter.run(inputBuffer, outputBuffer)
 
-                // Get result - use the first float as NSFW probability
+                // Get result
                 outputBuffer.rewind()
-                val nsfwProbability = outputBuffer.getFloat()
+                val nsfwProbability = if (isNsfwModelQuantized) {
+                    // For INT8 output, read byte and convert to float probability
+                    val byteVal = outputBuffer.get(0)
+                    (byteVal.toInt() and 0xFF) / 255.0f
+                } else {
+                    outputBuffer.getFloat()
+                }
 
                 // Ensure result is within valid range
                 nsfwProbability.coerceIn(0.0f, 1.0f)
