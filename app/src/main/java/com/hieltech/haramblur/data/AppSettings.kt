@@ -49,11 +49,11 @@ data class AppSettings(
     val ultraFastModeEnabled: Boolean = true, // Enable ultra-fast mode for maximum accuracy
     val fullScreenWarningEnabled: Boolean = true,
 
-    // Performance Enhancement Settings - Maximum accuracy regardless of performance impact
-    val maxProcessingTimeMs: Long = 30L, // Maximum accuracy mode
-    val enableGPUAcceleration: Boolean = true, // Already optimal
-    val frameSkipThreshold: Int = 1, // Maximum accuracy mode
-    val imageDownscaleRatio: Float = 0.8f, // Maximum accuracy mode
+    // Performance Enhancement Settings - Optimized for stability
+    val maxProcessingTimeMs: Long = 100L, // Increased timeout for stability
+    val enableGPUAcceleration: Boolean = false, // DISABLED - CPU is more reliable
+    val frameSkipThreshold: Int = 2, // Skip every other frame for better performance
+    val imageDownscaleRatio: Float = 0.6f, // Slightly reduced for faster processing
 
     // Islamic Guidance Settings
     val preferredLanguage: Language = Language.ENGLISH,

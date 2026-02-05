@@ -35,8 +35,8 @@ class FaceDetectionManager @Inject constructor(
         private const val FEMALE_CONFIDENCE_MIN = 0.35f  // Increased from 0.25f
         private const val UNKNOWN_CONFIDENCE_MAX = 0.60f  // Increased to include uncertain faces at high sensitivity
         private const val MALE_CONFIDENCE_MIN = 0.35f    // Decreased from 0.80f to match female threshold
-        private const val ML_KIT_VERIFICATION_TIMEOUT_MS = 5000L
-        private const val CONSECUTIVE_FAILURES_THRESHOLD = 10
+        private const val ML_KIT_VERIFICATION_TIMEOUT_MS = 2000L // Reduced from 5000ms
+        private const val CONSECUTIVE_FAILURES_THRESHOLD = 5 // Reduced threshold
     }
     
     // Track ML Kit actual working status (not just initialized)
@@ -97,12 +97,12 @@ class FaceDetectionManager @Inject constructor(
                     )
                 }
                 
-                // Choose optimal detector for maximum performance
-                val detector = if (appSettings?.enableGPUAcceleration == true) {
-                    Log.d(TAG, "⚡ GPU-accelerated detector for ultra-fast female detection")
+                // Choose detector - CPU is more reliable than GPU for ML Kit
+                val detector = if (appSettings?.enableGPUAcceleration == true && false) { // GPU disabled for stability
+                    Log.d(TAG, "⚡ GPU-accelerated detector for ultra-fast detection")
                     gpuFaceDetector
                 } else {
-                    Log.d(TAG, "🔄 CPU detector with high accuracy for female faces")
+                    Log.d(TAG, "🔄 CPU detector with high accuracy")
                     faceDetector
                 }
                 

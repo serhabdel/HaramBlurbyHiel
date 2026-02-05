@@ -20,7 +20,7 @@ class ScreenCaptureManager @Inject constructor() {
     
     companion object {
         private const val TAG = "ScreenCaptureManager"
-        private const val DEFAULT_CAPTURE_DELAY = 1000L // 1 second between captures
+        private const val DEFAULT_CAPTURE_DELAY = 500L // 500ms between captures for faster response
         private const val CAPTURE_TIMEOUT = 3000L // 3 second timeout
     }
     

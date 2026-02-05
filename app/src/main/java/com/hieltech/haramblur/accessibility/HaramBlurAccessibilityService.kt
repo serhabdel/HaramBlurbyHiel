@@ -603,9 +603,10 @@ class HaramBlurAccessibilityService : AccessibilityService() {
         }
 
         // Start screen capture with content analysis
+        // Using standard processing for reliability (optimized path caused blur issues)
         screenCaptureManager.startCapturing { bitmap ->
             serviceScope.launch {
-                processScreenContentOptimized(bitmap)
+                processScreenContent(bitmap)
             }
         }
         
