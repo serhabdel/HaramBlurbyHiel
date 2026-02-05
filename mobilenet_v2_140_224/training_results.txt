@@ -1,0 +1,10 @@
+Epoch 1/9001
+7290/7290 [==============================] - 1547s 212ms/step - loss: 0.3974 - accuracy: 0.8904 - val_loss: 0.3542 - val_accuracy: 0.9044
+Epoch 2/9001
+7290/7290 [==============================] - 1542s 212ms/step - loss: 0.3223 - accuracy: 0.9170 - val_loss: 0.3310 - val_accuracy: 0.9146
+Epoch 3/9001
+7290/7290 [==============================] - 1564s 215ms/step - loss: 0.2952 - accuracy: 0.9271 - val_loss: 0.3283 - val_accuracy: 0.9178
+Epoch 4/9001
+7290/7290 [==============================] - 1576s 216ms/step - loss: 0.2785 - accuracy: 0.9327 - val_loss: 0.3185 - val_accuracy: 0.9194
+Epoch 5/9001
+7290/7290 [==============================] - 1578s 216ms/step - loss: 0.2662 - accuracy: 0.9367 - val_loss: 0.3291 - val_accuracy: 0.9147

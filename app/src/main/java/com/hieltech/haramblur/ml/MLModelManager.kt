@@ -43,8 +43,11 @@ class MLModelManager @Inject constructor(
         // These legacy constants are kept for backward compatibility but should use DetectionThresholds
         @Deprecated("Use DetectionThresholds.DEFAULT_NSFW_THRESHOLD instead")
         private const val CONFIDENCE_THRESHOLD = 0.45f // Updated from 0.25f to reduce false positives
-        @Deprecated("Use DetectionThresholds.DEFAULT_GENDER_THRESHOLD instead")
-        private const val GENDER_CONFIDENCE_THRESHOLD = 0.55f // Updated from 0.60f for balanced detection
+        
+        // FIXED: Lower female threshold to counteract model bias
+        private const val GENDER_CONFIDENCE_THRESHOLD = 0.50f // Reduced from 0.55f for better female detection
+        private const val FEMALE_CONFIDENCE_THRESHOLD = 0.45f // Even lower threshold for female detection
+        
         @Deprecated("Use DetectionThresholds.MIN_NSFW_THRESHOLD instead")
         private const val MAX_ACCURACY_NSFW_THRESHOLD = 0.30f // Updated from 0.20f - was too aggressive
         
@@ -740,9 +743,10 @@ class MLModelManager @Inject constructor(
                 Pair(simulated[0], simulated[1])
             }
             
+            // FIXED: Use asymmetric thresholds to counteract model bias toward male detection
             val gender = when {
                 maleConfidence > femaleConfidence && maleConfidence > GENDER_CONFIDENCE_THRESHOLD -> Gender.MALE
-                femaleConfidence > maleConfidence && femaleConfidence > GENDER_CONFIDENCE_THRESHOLD -> Gender.FEMALE
+                femaleConfidence > maleConfidence && femaleConfidence > FEMALE_CONFIDENCE_THRESHOLD -> Gender.FEMALE
                 else -> Gender.UNKNOWN
             }
             

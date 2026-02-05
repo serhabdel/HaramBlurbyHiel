@@ -826,12 +826,44 @@ class HaramBlurAccessibilityService : AccessibilityService() {
 
             // Handle traditional blur overlay based on action results
             try {
-                // TODO: Migrate to DetectionProcessor
-                // val processingResult = detectionProcessor.processDetectionResult(analysisResult, currentSettings, currentTime, isCurrentlyBlurred, lastBlurStartTime)
-                // val shouldBlur = processingResult.shouldShowBlur
-                val shouldBlur = analysisResult.shouldBlur
+                // Use DetectionProcessor for stable blur decisions
+                val processingResult = detectionProcessor.processDetectionResult(
+                    analysisResult, 
+                    currentSettings, 
+                    currentTime, 
+                    isCurrentlyBlurred, 
+                    lastBlurStartTime
+                )
+                
+                val shouldBlur = processingResult.shouldShowBlur
                 detectionCache[bitmapHash] = Pair(currentTime, shouldBlur)
                 lastBitmapHash = bitmapHash
+                
+                // Apply or remove blur based on processing result
+                if (shouldBlur) {
+                    if (!isCurrentlyBlurred) {
+                        // Show blur overlay with detected regions
+                        val blurShown = overlayStateManager.showBlurOverlay(
+                            regions = processingResult.blurRegions,
+                            settings = currentSettings,
+                            contentSensitivity = processingResult.maxNsfwConfidence
+                        )
+                        
+                        if (blurShown) {
+                            isCurrentlyBlurred = true
+                            lastBlurStartTime = currentTime
+                            Log.w(TAG, "🛑 BLUR ACTIVATED - ${processingResult.blurRegions.size} regions")
+                        }
+                    }
+                } else {
+                    if (isCurrentlyBlurred && overlayStateManager.isMinBlurDurationPassed()) {
+                        // Hide blur when content is clean and minimum duration passed
+                        overlayStateManager.hideBlurOverlay("content_clean")
+                        isCurrentlyBlurred = false
+                        Log.d(TAG, "✅ BLUR DEACTIVATED - content clean")
+                    }
+                }
+                
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling analysis result [$processingId]", e)
                 // Safe fallback - maintain current state

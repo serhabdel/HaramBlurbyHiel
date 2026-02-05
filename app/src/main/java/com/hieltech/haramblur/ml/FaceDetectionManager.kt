@@ -31,9 +31,10 @@ class FaceDetectionManager @Inject constructor(
     
     companion object {
         private const val TAG = "FaceDetectionManager"
-        private const val FEMALE_CONFIDENCE_MIN = 0.25f
+        // FIXED: Use symmetric confidence thresholds to avoid gender bias
+        private const val FEMALE_CONFIDENCE_MIN = 0.35f  // Increased from 0.25f
         private const val UNKNOWN_CONFIDENCE_MAX = 0.60f  // Increased to include uncertain faces at high sensitivity
-        private const val MALE_CONFIDENCE_MIN = 0.80f
+        private const val MALE_CONFIDENCE_MIN = 0.35f    // Decreased from 0.80f to match female threshold
         private const val ML_KIT_VERIFICATION_TIMEOUT_MS = 5000L
         private const val CONSECUTIVE_FAILURES_THRESHOLD = 10
     }
