@@ -37,7 +37,7 @@ class MLModelManager @Inject constructor(
         private const val NSFW_MODEL_FALLBACK = "models/nsfw_mobilenet_v2_140_224.1.tflite"
         private const val GENDER_MODEL_PATH = "models/model_lite_gender_q.tflite"
         private const val INPUT_SIZE = 224
-        private const val GENDER_INPUT_SIZE = 96 // Smaller input for gender model
+        private const val GENDER_INPUT_SIZE = 128 // Gender model expects 128x128 input
         
         // THRESHOLD MIGRATION: Now using DetectionThresholds for centralized config
         // These legacy constants are kept for backward compatibility but should use DetectionThresholds
@@ -727,11 +727,11 @@ class MLModelManager @Inject constructor(
             // Extract face region from bitmap
             val faceRegion = extractFaceRegion(face, bitmap)
             
-            // Process image for model input
+            // Process image for model input (128x128)
             val tensorImage = TensorImage.fromBitmap(faceRegion)
             val processedImage = genderImageProcessor!!.process(tensorImage)
             
-            // Prepare input buffer
+            // Prepare input buffer (4 bytes per float * 128 * 128 * 3 channels = 196608 bytes)
             val inputBuffer = ByteBuffer.allocateDirect(4 * GENDER_INPUT_SIZE * GENDER_INPUT_SIZE * 3)
             inputBuffer.order(ByteOrder.nativeOrder())
             
