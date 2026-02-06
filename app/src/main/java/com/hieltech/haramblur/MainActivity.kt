@@ -36,7 +36,6 @@ import com.hieltech.haramblur.ui.PrayerScreen
 import com.hieltech.haramblur.ui.PermissionHelper
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.ui.components.ModernNavigationBar
-import com.hieltech.haramblur.ui.components.ModernTopAppBar
 import com.hieltech.haramblur.ui.components.ModernNavigationDrawerContent
 import com.hieltech.haramblur.ui.NavRoutes
 import com.hieltech.haramblur.ui.theme.HaramBlurTheme
@@ -240,23 +239,6 @@ class MainActivity : ComponentActivity() {
                         }
                     ) {
                         Scaffold(
-                            topBar = {
-                                // Only show top bar for non-wizard routes
-                                if (currentRoute != NavRoutes.PERMISSION_WIZARD) {
-                                    ModernTopAppBar(
-                                        onOpenDrawer = { scope.launch { drawerState.open() } },
-                                        onNavigateToSettings = {
-                                            navController.navigate(NavRoutes.SETTINGS) {
-                                                launchSingleTop = true
-                                                restoreState = true
-                                                popUpTo(navController.graph.startDestinationId) {
-                                                    saveState = true
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
-                            },
                             bottomBar = {
                                 // Only show bottom bar for primary routes
                                 if (currentRoute in primaryRoutes) {
@@ -356,7 +338,8 @@ class MainActivity : ComponentActivity() {
                                                                              if (currentRoute != NavRoutes.DHIKR) {
                                                                                  navController.navigate(NavRoutes.DHIKR)
                                                                              }
-                                                                         }
+                                                                         },
+                                                                         onOpenDrawer = { scope.launch { drawerState.open() } }
                                                                      )
                                                                  }
                                 composable(NavRoutes.BLOCK_APPS_SITES) {
@@ -377,7 +360,9 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 composable(NavRoutes.INSIGHTS) {
-                                    InsightsScreen()
+                                    InsightsScreen(
+                                        onNavigateBack = { navController.popBackStack() }
+                                    )
                                 }
                                 composable(NavRoutes.DHIKR) {
                                     com.hieltech.haramblur.ui.dhikr.DhikrScreen()

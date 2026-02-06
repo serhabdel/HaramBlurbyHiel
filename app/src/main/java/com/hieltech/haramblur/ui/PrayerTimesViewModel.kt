@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieltech.haramblur.data.PrayerTimesRepository
 // Using local NextPrayerInfo data class defined below
+import com.hieltech.haramblur.data.prayer.CalendarDay
 import com.hieltech.haramblur.data.prayer.PrayerData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,8 +32,12 @@ class PrayerTimesViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _calendarMonth = MutableStateFlow<List<CalendarDay>>(emptyList())
+    val calendarMonth: StateFlow<List<CalendarDay>> = _calendarMonth.asStateFlow()
+
     init {
         loadPrayerTimes()
+        loadIslamicCalendar()
     }
 
     fun loadPrayerTimes() {
@@ -47,6 +52,14 @@ class PrayerTimesViewModel @Inject constructor(
                 }
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    private fun loadIslamicCalendar() {
+        viewModelScope.launch {
+            prayerTimesRepository.getIslamicCalendar().onSuccess { days ->
+                _calendarMonth.value = days
             }
         }
     }

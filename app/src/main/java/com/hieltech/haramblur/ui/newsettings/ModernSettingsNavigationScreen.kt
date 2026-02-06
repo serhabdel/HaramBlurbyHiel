@@ -85,6 +85,38 @@ fun ModernSettingsHomeScreen(
     val context = LocalContext.current
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        HapticFeedback.performLightFeedback(context)
+                        viewModel.refreshSystemStatus()
+                    }) {
+                        Icon(Icons.Default.Refresh, stringResource(R.string.refresh))
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -93,26 +125,6 @@ fun ModernSettingsHomeScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ModernSettingsHeader(
-                        title = stringResource(R.string.settings_title),
-                        subtitle = stringResource(R.string.nav_general_description),
-                        modifier = Modifier.weight(1f)
-                    )
-                    
-                    IconButton(onClick = {
-                        HapticFeedback.performLightFeedback(context)
-                        viewModel.refreshSystemStatus()
-                    }) {
-                        Icon(Icons.Default.Refresh, stringResource(R.string.refresh))
-                    }
-                }
-            }
 
             // Removed search bar and settings mode toggle as they're not functional yet
             // These features can be added back when properly implemented

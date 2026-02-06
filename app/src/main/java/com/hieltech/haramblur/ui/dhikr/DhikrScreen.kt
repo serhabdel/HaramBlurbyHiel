@@ -43,70 +43,98 @@ fun DhikrScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Header
-        item {
-            DhikrHeader(totalToday = uiState.totalDhikrToday)
-        }
-
-        // Tasbih Counter Section
-        item {
-            TasbihCounterSection(
-                counters = uiState.tasbihCounters,
-                currentIndex = uiState.currentTasbihIndex,
-                onIncrement = viewModel::incrementTasbih,
-                onReset = viewModel::resetTasbih,
-                onResetAll = viewModel::resetAllTasbih,
-                onSelectIndex = viewModel::setCurrentTasbihIndex,
-                hapticEnabled = uiState.hapticEnabled,
-                onToggleHaptic = viewModel::toggleHaptic
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.dhikr_screen_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header
+            item {
+                DhikrHeader(totalToday = uiState.totalDhikrToday)
+            }
 
-        // Category Selector
-        item {
-            CategorySelector(
-                selectedCategory = uiState.selectedCategory,
-                onCategorySelected = viewModel::selectCategory
-            )
-        }
+            // Tasbih Counter Section
+            item {
+                TasbihCounterSection(
+                    counters = uiState.tasbihCounters,
+                    currentIndex = uiState.currentTasbihIndex,
+                    onIncrement = viewModel::incrementTasbih,
+                    onReset = viewModel::resetTasbih,
+                    onResetAll = viewModel::resetAllTasbih,
+                    onSelectIndex = viewModel::setCurrentTasbihIndex,
+                    hapticEnabled = uiState.hapticEnabled,
+                    onToggleHaptic = viewModel::toggleHaptic
+                )
+            }
 
-        // Daily Progress Card
-        item {
-            DailyProgressCard(
-                progress = uiState.dailyProgress,
-                onMarkMorning = viewModel::markMorningCompleted,
-                onMarkEvening = viewModel::markEveningCompleted
-            )
-        }
+            // Category Selector
+            item {
+                CategorySelector(
+                    selectedCategory = uiState.selectedCategory,
+                    onCategorySelected = viewModel::selectCategory
+                )
+            }
 
-        // Dhikr List
-        item {
-            Text(
-                text = stringResource(R.string.dhikr_list_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-        }
+            // Daily Progress Card
+            item {
+                DailyProgressCard(
+                    progress = uiState.dailyProgress,
+                    onMarkMorning = viewModel::markMorningCompleted,
+                    onMarkEvening = viewModel::markEveningCompleted
+                )
+            }
 
-        items(uiState.currentDhikrList) { dhikr ->
-            DhikrCard(
-                dhikr = dhikr,
-                showTransliteration = uiState.showTransliteration,
-                showTranslation = uiState.showTranslation
-            )
-        }
+            // Dhikr List
+            item {
+                Text(
+                    text = stringResource(R.string.dhikr_list_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
 
-        // Bottom spacing
-        item {
-            Spacer(modifier = Modifier.height(80.dp))
+            items(uiState.currentDhikrList) { dhikr ->
+                DhikrCard(
+                    dhikr = dhikr,
+                    showTransliteration = uiState.showTransliteration,
+                    showTranslation = uiState.showTranslation
+                )
+            }
+
+            // Bottom spacing
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
+            }
         }
     }
 }

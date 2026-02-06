@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -63,15 +65,15 @@ fun ModernNavigationBar(
         NavigationItem(
             route = NavRoutes.PRAYER,
             label = "Prayer",
-            icon = Icons.Default.FavoriteBorder,
-            selectedIcon = Icons.Default.Favorite,
+            icon = Icons.Default.DateRange,
+            selectedIcon = Icons.Default.DateRange,
             description = "Prayer times and Qibla"
         ),
         NavigationItem(
             route = NavRoutes.DHIKR,
             label = "Dhikr",
-            icon = Icons.Default.FavoriteBorder,
-            selectedIcon = Icons.Default.Favorite,
+            icon = Icons.Default.Star,
+            selectedIcon = Icons.Default.Star,
             description = "Islamic remembrance and tasbih"
         ),
         NavigationItem(

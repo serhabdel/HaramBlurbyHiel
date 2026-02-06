@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.R
+import com.hieltech.haramblur.ui.components.IslamicCalendarMonthGrid
 import com.hieltech.haramblur.ui.components.PrayerTimesWidget
 import com.hieltech.haramblur.ui.components.QiblaCompassWidget
 
@@ -75,9 +76,10 @@ fun PrayerScreen(
             PrayerTimesSection(
                 onLocationSettingsClick = onNavigateToSettings
             )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
+
+            // Islamic Calendar
+            IslamicCalendarSection()
+
             // Qibla Compass Widget
             QiblaCompassSection()
             
@@ -113,11 +115,6 @@ private fun PrayerTimesSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(
-                        text = "Today's Prayer Times",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
                     prayerTimes?.date?.hijri?.let { hijri ->
                         Text(
                             text = "${hijri.day} ${hijri.month.en} ${hijri.year} AH",
@@ -237,45 +234,34 @@ private fun PrayerTimeRow(
 }
 
 @Composable
-private fun QiblaCompassSection() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Qibla Direction",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Direction to Mecca",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text("🧭", fontSize = MaterialTheme.typography.headlineMedium.fontSize)
-            }
-            
-            // Compass Widget
-            QiblaCompassWidget(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
+private fun IslamicCalendarSection() {
+    val prayerViewModel: PrayerTimesViewModel = hiltViewModel()
+    val calendarMonth by prayerViewModel.calendarMonth.collectAsState()
+
+    if (calendarMonth.isNotEmpty()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.extraLarge,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
             )
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                IslamicCalendarMonthGrid(
+                    monthDays = calendarMonth,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun QiblaCompassSection() {
+    // Widget has its own header card internally
+    QiblaCompassWidget(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(400.dp)
+    )
 }

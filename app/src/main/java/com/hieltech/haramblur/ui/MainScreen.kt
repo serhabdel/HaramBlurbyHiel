@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +35,7 @@ fun MainScreen(
     onNavigateToDebug: () -> Unit = {},
     onNavigateToPrayer: () -> Unit = {},
     onNavigateToDhikr: () -> Unit = {},
+    onOpenDrawer: () -> Unit = {},
     viewModel: MainViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -50,6 +52,11 @@ fun MainScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Open navigation drawer")
+                    }
+                },
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -204,7 +211,7 @@ fun MainScreen(
                     onClick = onNavigateToSettings
                 )
                 QuickActionCard(
-                    icon = Icons.Default.Menu,
+                    icon = Icons.Default.Star,
                     title = "Dhikr",
                     subtitle = "Daily remembrance",
                     modifier = Modifier.weight(1f),
