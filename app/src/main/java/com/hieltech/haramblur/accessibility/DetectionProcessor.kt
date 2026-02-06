@@ -78,8 +78,13 @@ class DetectionProcessor(
         
         // Analyze NSFW content
         val hasNSFWContent = analyzeNSFWContent(result, settings, nsfwThreshold)
-        
-        Log.d(TAG, "🔍 Detection summary: Female faces=$hasFemaleFaces, NSFW=$hasNSFWContent")
+	    
+	    val modelIsNSFW = result.nsfwDetectionResult?.isNSFW ?: false
+	    val modelNsfwConfidence = result.nsfwDetectionResult?.confidence ?: 0.0f
+	    Log.d(
+	        TAG,
+	        "🔍 Detection summary: Female faces=$hasFemaleFaces, NSFW=$hasNSFWContent (modelIsNSFW=$modelIsNSFW, confidence=$modelNsfwConfidence, threshold=$nsfwThreshold)"
+	    )
         
         // Record for learning
         val detectedInappropriate = hasFemaleFaces || hasNSFWContent
@@ -125,8 +130,13 @@ class DetectionProcessor(
             Log.d(TAG, "👩 Female face detection disabled in settings")
             return false
         }
-        
-        return result.faceDetectionResult?.detectedFaces?.any { face ->
+	
+	        // Prefer allDetectedFaces so this stat/decision isn't affected by upstream filtering.
+	        val faces = result.faceDetectionResult?.let { faceResult ->
+	            if (faceResult.allDetectedFaces.isNotEmpty()) faceResult.allDetectedFaces else faceResult.detectedFaces
+	        } ?: emptyList()
+	
+	        return faces.any { face ->
             val isConfidentFemale = face.genderConfidence > genderThreshold &&
                     face.estimatedGender.toString().contains("FEMALE", ignoreCase = true)
             
@@ -146,7 +156,7 @@ class DetectionProcessor(
             (isModerateConfidenceMale && settings.detectionSensitivity > 0.5f) ||
             (isLowConfidenceUnknown && settings.detectionSensitivity > 0.6f) ||
             (isUnknownGender && settings.detectionSensitivity > 0.4f)
-        } ?: false
+	        }
     }
     
     /**
@@ -157,25 +167,34 @@ class DetectionProcessor(
         settings: AppSettings,
         nsfwThreshold: Float
     ): Boolean {
-        return result.nsfwDetectionResult?.let { nsfwResult ->
-            val isHighConfidenceNSFW = nsfwResult.isNSFW && nsfwResult.confidence > nsfwThreshold
-            val isMediumConfidenceNSFW = nsfwResult.confidence > (nsfwThreshold * 0.7f)
-            val isAnyNSFWIndicator = nsfwResult.confidence > 0.2f
-            
-            Log.d(TAG, "🔞 NSFW analysis: confidence=${nsfwResult.confidence}, threshold=$nsfwThreshold")
-            
-            serviceLogger.debug(
-                "🔞 NSFW analysis: confidence=${nsfwResult.confidence}, isNSFW=${nsfwResult.isNSFW}",
-                LogRepository.LogCategory.DETECTION
-            )
-            
-            when {
-                isHighConfidenceNSFW -> true
-                isMediumConfidenceNSFW && settings.detectionSensitivity > 0.6f -> true
-                isAnyNSFWIndicator && settings.detectionSensitivity > 0.8f -> true
-                else -> false
-            }
-        } ?: false
+	    if (!settings.enableNSFWDetection) return false
+
+	    return result.nsfwDetectionResult?.let { nsfwResult ->
+	        // IMPORTANT: Keep this aligned with ContentDetectionEngine's region generation.
+	        // The engine only adds NSFW regions when `nsfwResult.isNSFW == true`.
+	        // If we treat low-confidence indicators as NSFW here, logs can say "NSFW=true"
+	        // while the model boolean is false and no NSFW regions will ever be generated.
+	        val isNsfwByModel = nsfwResult.isNSFW
+	        val isAboveThreshold = nsfwResult.confidence > nsfwThreshold
+	        val isNearThreshold = nsfwResult.confidence > (nsfwThreshold * 0.7f)
+	
+	        Log.d(
+	            TAG,
+	            "🔞 NSFW analysis: modelIsNSFW=$isNsfwByModel, confidence=${nsfwResult.confidence}, threshold=$nsfwThreshold"
+	        )
+	
+	        serviceLogger.debug(
+	            "🔞 NSFW analysis: modelIsNSFW=$isNsfwByModel, confidence=${nsfwResult.confidence}, threshold=$nsfwThreshold",
+	            LogRepository.LogCategory.DETECTION
+	        )
+	
+	        when {
+	            // Strict: require model boolean, then allow sensitivity to widen confidence acceptance.
+	            isNsfwByModel && isAboveThreshold -> true
+	            isNsfwByModel && isNearThreshold && settings.detectionSensitivity > 0.6f -> true
+	            else -> false
+	        }
+	    } ?: false
     }
     
     /**
@@ -187,24 +206,38 @@ class DetectionProcessor(
         settings: AppSettings,
         result: ContentDetectionEngine.ContentAnalysisResult
     ): Boolean {
-        return when {
-            hasFemaleFaces && settings.blurFemaleFaces -> {
-                Log.d(TAG, "👩 ❗ Female face detected - TRIGGERING BLUR")
-                true
-            }
-            hasNSFWContent && settings.enableNSFWDetection -> {
-                Log.d(TAG, "🔞 ❗ NSFW content detected - TRIGGERING BLUR")
-                true
-            }
-            result.blurRegions.isNotEmpty() -> {
-                Log.d(TAG, "⚠️ Fallback - blur regions detected")
-                true
-            }
-            else -> {
-                Log.d(TAG, "✅ No inappropriate content detected")
-                false
-            }
-        }
+	        val hasRegions = result.blurRegions.isNotEmpty()
+	
+	    val hasNsfwRegions = settings.enableNSFWDetection && (
+	        (result.nsfwRegionCount > 0) ||
+	            (result.nsfwDetectionResult?.isNSFW == true)
+	    )
+
+	    return when {
+	            // Regions are the source-of-truth for whether we can actually show an overlay.
+	            hasRegions -> {
+	                when {
+	                    hasFemaleFaces && settings.blurFemaleFaces -> Log.d(TAG, "👩 ❗ Female-face blur regions detected - TRIGGERING BLUR")
+	                hasNsfwRegions -> Log.d(TAG, "🔞 ❗ NSFW blur regions detected - TRIGGERING BLUR")
+	                    else -> Log.d(TAG, "⚠️ Blur regions detected - TRIGGERING BLUR")
+	                }
+	                true
+	            }
+	
+	            // If our heuristics say "inappropriate" but there are no regions, don't claim we're blurring.
+	            hasFemaleFaces && settings.blurFemaleFaces -> {
+	                Log.w(TAG, "👩 Female faces detected but 0 blur regions - NOT triggering blur (waiting for regions)")
+	                false
+	            }
+	            hasNSFWContent && settings.enableNSFWDetection -> {
+	                Log.w(TAG, "🔞 NSFW detected but 0 blur regions - NOT triggering blur (waiting for regions)")
+	                false
+	            }
+	            else -> {
+	                Log.d(TAG, "✅ No inappropriate content detected")
+	                false
+	            }
+	        }
     }
     
     /**

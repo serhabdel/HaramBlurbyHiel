@@ -3,6 +3,7 @@ package com.hieltech.haramblur
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.hieltech.haramblur.data.LogRepository
@@ -38,6 +39,9 @@ class HaramBlurApplication : Application(), Configuration.Provider {
 
     @Inject
     lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
 
     override fun onCreate() {
         super.onCreate()
@@ -77,6 +81,8 @@ class HaramBlurApplication : Application(), Configuration.Provider {
     
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
+            // Required for @HiltWorker / @AssistedInject workers (e.g., PrayerNotificationWorker)
+            .setWorkerFactory(workerFactory)
             .setMinimumLoggingLevel(Log.INFO)
             .build()
     

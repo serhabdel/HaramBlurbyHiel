@@ -915,6 +915,10 @@
     <string name="prayer_action_yes_bilingual">Yes | نعم</string>
     <string name="prayer_action_no_bilingual">No | لا</string>
     <string name="prayer_action_already_prayed_bilingual">Already Prayed | لقد صليت</string>
+    
+    <!-- Post-Prayer Dhikr Reminder -->
+    <string name="post_prayer_title_bilingual">Dhikr Reminder | تذكير بالذكر</string>
+    <string name="post_prayer_message_bilingual">Don\'t forget to say your dhikr after %1$s!\nلا تنسَ الذكر بعد صلاة %2$s!</string>
     <string name="prayer_action_will_pray_now_bilingual">I Will Pray Now | سأصلي الآن</string>
     
     <!-- Quranic Guidance Notification Strings -->

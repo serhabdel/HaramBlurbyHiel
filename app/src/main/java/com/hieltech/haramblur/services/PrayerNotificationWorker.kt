@@ -56,7 +56,9 @@ class PrayerNotificationWorker @AssistedInject constructor(
         private const val ADVANCE_10_MIN_MS = 10 * 60 * 1000L
         private const val ADVANCE_5_MIN_MS = 5 * 60 * 1000L
         private const val LATE_10_MIN_MS = 10 * 60 * 1000L
-        private const val TIME_WINDOW_TOLERANCE_MS = 4 * 60 * 1000L // 4 minutes tolerance to ensure we catch notifications between 5-min worker runs
+        private const val LATE_5_MIN_MS = 5 * 60 * 1000L
+        // Tolerance must be >= worker interval (5 min) + buffer to ensure we catch all notifications
+        private const val TIME_WINDOW_TOLERANCE_MS = 6 * 60 * 1000L // 6 minutes tolerance
         
         // SharedPreferences name - must match PrayerTimeNotificationManager
         private const val NOTIFICATION_TRACKING_PREFS = "prayer_notification_tracking"
@@ -213,7 +215,17 @@ class PrayerNotificationWorker @AssistedInject constructor(
                                     Log.d(TAG, "⏭️ Skipping 5-minute notification for $prayerNameStr - already sent today")
                                 }
                             }
-                            // Check 10 minutes after window
+                            // Check 5 minutes after window (for post-prayer dhikr reminder)
+                            else if (isWithinTimeWindow(timeDifferenceMs, 5, isBeforeWindow = false)) {
+                                if (!hasNotificationBeenSent(prayerNameStr, "after5min")) {
+                                    Log.i(TAG, "🔔 SENDING 5-min after prayer notification for $prayerNameStr")
+                                    prayerTimeNotificationManager.sendPostPrayerNotification(prayerName)
+                                    markNotificationAsSent(prayerNameStr, "after5min")
+                                } else {
+                                    Log.d(TAG, "⏭️ Skipping 5-min after notification for $prayerNameStr - already sent today")
+                                }
+                            }
+                            // Check 10 minutes after window (late reminder)
                             else if (isWithinTimeWindow(timeDifferenceMs, 10, isBeforeWindow = false)) {
                                 if (!hasNotificationBeenSent(prayerNameStr, "late")) {
                                     Log.i(TAG, "🔔 SENDING late reminder notification for $prayerNameStr (10 minutes after)")
@@ -267,8 +279,10 @@ class PrayerNotificationWorker @AssistedInject constructor(
      */
     private fun parsePrayerTime(timeString: String): Long {
         try {
+            // Strip timezone suffix from API format, e.g. "05:30 (EET)" -> "05:30"
+            val cleanTime = timeString.replace(Regex("\\s*\\(.*\\)$"), "").trim()
             val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-            val time = timeFormat.parse(timeString)
+            val time = timeFormat.parse(cleanTime)
 
             val calendar = Calendar.getInstance()
             calendar.time = time ?: Date()

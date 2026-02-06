@@ -15,9 +15,8 @@ import com.hieltech.haramblur.detection.EnhancedGenderDetector
 import com.hieltech.haramblur.detection.Gender
 import com.hieltech.haramblur.detection.GenderDetectionResult
 import com.hieltech.haramblur.data.AppSettings
+import com.hieltech.haramblur.data.UserGender
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -138,26 +137,24 @@ class FaceDetectionManager @Inject constructor(
                     Log.d(TAG, "✅ ML Kit detected ${faces.size} faces (total ever: $totalFacesEverDetected)")
                 }
             
-                val faceInfo = coroutineScope {
-                    faces.map { face ->
-                        async {
-                            val trackingId = face.trackingId ?: face.hashCode()
-                            val rect = Rect(
-                                face.boundingBox.left,
-                                face.boundingBox.top,
-                                face.boundingBox.right,
-                                face.boundingBox.bottom
-                            )
+				// IMPORTANT: Run gender detection sequentially.
+				// Rationale: TFLite Interpreter/ImageProcessor + internal caches are not safe for concurrent access,
+				// and some devices crash in native delegates under load.
+				val faceInfo = faces.map { face ->
+					val trackingId = face.trackingId ?: face.hashCode()
+					val rect = Rect(
+						face.boundingBox.left,
+						face.boundingBox.top,
+						face.boundingBox.right,
+						face.boundingBox.bottom
+					)
 
-                            // Enhanced gender detection using multiple indicators
-                            val genderResult = enhancedGenderDetector.detectGender(face, bitmap)
-                            val isFemale = genderResult.gender == Gender.FEMALE
-                            Log.d(TAG, "  Face @$trackingId -> gender=${genderResult.gender} (${"%.2f".format(genderResult.confidence)})")
+					// Enhanced gender detection using multiple indicators
+					val genderResult = enhancedGenderDetector.detectGender(face, bitmap)
+					Log.d(TAG, "  Face @$trackingId -> gender=${genderResult.gender} (${"%.2f".format(genderResult.confidence)})")
 
-                            DetectedFace(rect, genderResult.gender, genderResult.confidence, genderResult)
-                        }
-                    }.map { it.await() }
-                }
+					DetectedFace(rect, genderResult.gender, genderResult.confidence, genderResult)
+				}
 
                 val detectionSensitivity = appSettings?.detectionSensitivity ?: 0.5f
                 val femaleBlurEnabled = appSettings?.blurFemaleFaces ?: true
@@ -564,25 +561,40 @@ class FaceDetectionManager @Inject constructor(
          * Now properly respects both blurMaleFaces and blurFemaleFaces settings
          */
         fun getFacesToBlur(appSettings: AppSettings): List<DetectedFace> {
-            return detectedFaces.filter { face ->
-                when (face.estimatedGender) {
-                    Gender.MALE -> {
-                        // STRICT: Never blur male faces regardless of settings
-                        false
-                    }
-                    Gender.FEMALE -> {
-                        // Enhanced female detection with optimized thresholds
-                        appSettings.blurFemaleFaces &&
-                        (face.genderConfidence >= 0.25f || shouldUseSaferFiltering(face, appSettings))
-                    }
-                    Gender.UNKNOWN -> {
-                        // Only blur unknown faces if female blurring is enabled and confidence is very low
-                        appSettings.blurFemaleFaces &&
-                        face.genderConfidence < 0.35f && // Very uncertain
-                        shouldUseSaferFiltering(face, appSettings)
-                    }
-                }
-            }
+	            // Prefer the unfiltered list (allDetectedFaces) so blur decisions can be made consistently
+	            // even when FaceDetectionManager filtered detectedFaces based on settings.
+	            val sourceFaces = if (allDetectedFaces.isNotEmpty()) allDetectedFaces else detectedFaces
+	
+	            return sourceFaces.filter { face ->
+	                val confidence = face.genderConfidence
+		
+		                // IMPORTANT: Only use cross-gender conservative blurring when the user did NOT
+		                // explicitly specify their gender. If the user chose MALE/FEMALE during onboarding,
+		                // they expect strict filtering (e.g., MALE profile should not blur male faces).
+		                val allowConservativeCrossGenderBlur = appSettings.userGender == UserGender.NOT_SPECIFIED
+		
+		                // Safety feature (opt-in via NOT_SPECIFIED): treat some moderate-confidence MALE
+		                // predictions as potentially FEMALE at higher sensitivities.
+		                val likelyFemaleMisclassifiedAsMale =
+		                    allowConservativeCrossGenderBlur &&
+		                    appSettings.blurFemaleFaces &&
+		                    face.estimatedGender == Gender.MALE &&
+		                    confidence in 0.4f..0.8f &&
+		                    appSettings.detectionSensitivity > 0.5f
+	
+	                when (face.estimatedGender) {
+	                    Gender.MALE -> {
+	                        (appSettings.blurMaleFaces && confidence >= 0.35f) || likelyFemaleMisclassifiedAsMale
+	                    }
+	                    Gender.FEMALE -> {
+	                        appSettings.blurFemaleFaces && (confidence >= 0.25f || shouldUseSaferFiltering(face, appSettings))
+	                    }
+	                    Gender.UNKNOWN -> {
+	                        // Only blur very-uncertain unknown faces when female blur is enabled + sensitivity is high
+	                        appSettings.blurFemaleFaces && confidence < 0.35f && shouldUseSaferFiltering(face, appSettings)
+	                    }
+	                }
+	            }
         }
         
         /**
@@ -590,9 +602,6 @@ class FaceDetectionManager @Inject constructor(
          */
         private fun shouldUseSaferFiltering(face: DetectedFace, appSettings: AppSettings): Boolean {
             return when {
-                // STRICT MALE EXCLUSION: Never use safer filtering for males
-                face.estimatedGender == Gender.MALE -> false
-                
                 // For female faces with very low confidence - use high sensitivity setting
                 face.estimatedGender == Gender.FEMALE && face.genderConfidence < 0.35f -> {
                     appSettings.blurFemaleFaces && appSettings.detectionSensitivity > 0.75f

@@ -7,6 +7,7 @@ import android.util.Log
 import com.hieltech.haramblur.ml.MLModelManager
 import com.hieltech.haramblur.ml.FaceDetectionManager
 import com.hieltech.haramblur.data.AppSettings
+import com.hieltech.haramblur.data.UserGender
 import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.data.LogRepository.LogCategory
 import com.hieltech.haramblur.data.SettingsRepository
@@ -748,23 +749,45 @@ class ContentDetectionEngine @Inject constructor(
             return listOf(Rect(0, 0, bitmapWidth, bitmapHeight))
         }
 
-        // Add female face regions with enhanced detection and edge refinement
-        if (appSettings.enableFaceDetection && faceResult.hasFaces()) {
-            val facesToBlur = mutableListOf<Rect>()
-
-            // Focus on female faces only (male faces are already excluded by FaceDetectionManager)
-            if (appSettings.blurFemaleFaces) {
-                facesToBlur.addAll(faceResult.getFemaleFaces().map { it.boundingBox })
-
-                // Enhanced: Include unknown gender faces with lower confidence for safety
-                val unknownFaces = faceResult.getUnknownGenderFaces()
-                    .filter { it.genderConfidence < 0.5f }
-                    .map { it.boundingBox }
-                facesToBlur.addAll(unknownFaces)
-            }
+	        // Add face regions with enhanced detection and edge refinement
+	        // IMPORTANT: Use allDetectedFaces so region generation is not dependent on any upstream filtering.
+	        if (appSettings.enableFaceDetection && faceResult.hasFaces()) {
+	            val sourceFaces = if (faceResult.allDetectedFaces.isNotEmpty()) {
+	                faceResult.allDetectedFaces
+	            } else {
+	                faceResult.detectedFaces
+	            }
+	
+	            val facesToBlur = sourceFaces.filter { face ->
+	                val confidence = face.genderConfidence
+	
+	                // IMPORTANT: Only allow conservative cross-gender blur when user gender is NOT specified.
+	                // If user explicitly selected MALE/FEMALE, keep strict behavior.
+	                val allowConservativeCrossGenderBlur = appSettings.userGender == UserGender.NOT_SPECIFIED
+	
+	                val likelyFemaleMisclassifiedAsMale =
+	                    allowConservativeCrossGenderBlur &&
+	                    appSettings.blurFemaleFaces &&
+	                    face.estimatedGender == Gender.MALE &&
+	                    confidence in 0.4f..0.8f &&
+	                    appSettings.detectionSensitivity > 0.5f
+	
+	                val shouldBlurFemale =
+	                    appSettings.blurFemaleFaces &&
+	                    (face.estimatedGender == Gender.FEMALE ||
+	                        (face.estimatedGender == Gender.UNKNOWN && confidence < 0.5f && appSettings.detectionSensitivity > 0.4f) ||
+	                        likelyFemaleMisclassifiedAsMale)
+	
+	                val shouldBlurMale =
+	                    appSettings.blurMaleFaces &&
+	                    face.estimatedGender == Gender.MALE &&
+	                    confidence >= 0.35f
+	
+	                shouldBlurFemale || shouldBlurMale
+	            }.map { it.boundingBox }
 
             // Enhanced expansion for better coverage of female faces/hair with edge refinement
-            val expandedFaceRegions = facesToBlur.map { face ->
+	            val expandedFaceRegions = facesToBlur.map { face ->
                 // Apply edge detection refinement before expansion using blurBoundaryPrecision
                 val refinedFace = if (bitmap != null && appSettings.enableBlurEdgeRefinement) {
                     refineBlurRegionWithEdgeDetection(face, bitmap, appSettings)
@@ -782,11 +805,20 @@ class ContentDetectionEngine @Inject constructor(
             }
             blurRegions.addAll(expandedFaceRegions)
 
-            Log.d(TAG, "Added ${expandedFaceRegions.size} female face blur regions with edge refinement (males already excluded)")
+	            Log.d(
+	                TAG,
+	                "Added ${expandedFaceRegions.size} face blur regions with edge refinement (sourceFaces=${sourceFaces.size}, blurMale=${appSettings.blurMaleFaces}, blurFemale=${appSettings.blurFemaleFaces})"
+	            )
         }
         
-        // SMART TARGETED NSFW BLUR - Use detected regions instead of large screen areas
-        if (appSettings.enableNSFWDetection && nsfwResult.isNSFW) {
+	        // SMART TARGETED NSFW BLUR - Use detected regions instead of large screen areas
+	        // IMPORTANT: Don't rely only on `isNSFW` (it uses internal MLModelManager thresholds).
+	        // Instead, use the user-configured threshold and region confidence.
+	        val nsfwTriggered = appSettings.enableNSFWDetection && (
+	            (nsfwResult.regionRects.isNotEmpty() && nsfwResult.maxRegionConfidence >= appSettings.nsfwConfidenceThreshold) ||
+	            (nsfwResult.confidence >= appSettings.nsfwConfidenceThreshold)
+	        )
+	        if (nsfwTriggered) {
             // Check if we have specific NSFW regions from the detection
             if (nsfwResult.regionCount > 0 && nsfwResult.regionRects.isNotEmpty()) {
                 // TARGETED BLUR: Use actual detected regions instead of blanket screen blur
@@ -821,7 +853,7 @@ class ContentDetectionEngine @Inject constructor(
                 blurRegions.addAll(targetedRegions)
                 Log.d(TAG, "Smart targeted blur: ${targetedRegions.size} NSFW regions with ${nsfwResult.confidence} confidence")
                 
-            } else {
+	            } else {
                 // FALLBACK: Only if no specific regions detected, use confidence-based areas
                 when {
                     nsfwResult.confidence > 0.7f -> {

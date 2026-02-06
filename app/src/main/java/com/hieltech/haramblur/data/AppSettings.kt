@@ -22,6 +22,17 @@ data class AppSettings(
     // NEW: Gender-based Settings for Islamic Compliance
     val userGender: UserGender = UserGender.NOT_SPECIFIED, // User's gender for appropriate content filtering
 
+    /**
+     * When false (default), blur targets are locked to the selected [userGender]:
+     *  - MALE    => blur female faces only
+     *  - FEMALE  => blur male faces only
+     *  - NOT_SPECIFIED => allow both
+     *
+     * When true, the user has explicitly overridden the gender-based defaults using the UI toggles.
+     * This prevents unexpected behavior (e.g., MALE profile blurring MALE faces) unless explicitly requested.
+     */
+    val allowCustomGenderBlur: Boolean = false,
+
     // Blur Settings - Enhanced privacy by default
     val blurIntensity: BlurIntensity = BlurIntensity.STRONG,
     val blurStyle: BlurStyle = BlurStyle.ARTISTIC,
@@ -35,6 +46,8 @@ data class AppSettings(
     // Privacy Settings
     val enableFullScreenBlurForNSFW: Boolean = true,
     val showBlurBorders: Boolean = true,
+	    /** Debug-only: show red precision borders around blur regions (visualization aid). */
+	    val showDebugPrecisionBorders: Boolean = false,
     val enableHoverToReveal: Boolean = false, // Tap to temporarily reveal
 
     // Enhanced Detection Settings - Maximum performance and accuracy
@@ -64,7 +77,8 @@ data class AppSettings(
     // Advanced Detection Settings - HIGH PRECISION defaults for maximum protection
     // See DetectionThresholds.kt for threshold documentation and rationale
     val genderConfidenceThreshold: Float = 0.35f, // High precision - lower threshold catches more faces
-    val nsfwConfidenceThreshold: Float = 0.35f, // High precision - lower threshold for better NSFW detection
+    // Default aligned with DetectionThresholds.DEFAULT_NSFW_THRESHOLD (0.45f)
+    val nsfwConfidenceThreshold: Float = 0.45f,
     val enableFallbackDetection: Boolean = true,
     val enablePerformanceMonitoring: Boolean = true,
 

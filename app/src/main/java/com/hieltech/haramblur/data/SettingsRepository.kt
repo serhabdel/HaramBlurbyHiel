@@ -34,7 +34,7 @@ class SettingsRepository @Inject constructor(
     companion object {
         private const val TAG = "SettingsRepository"
         private const val SETTINGS_VERSION_KEY = "settings_version"
-        private const val CURRENT_SETTINGS_VERSION = 12
+	        private const val CURRENT_SETTINGS_VERSION = 13
     }
     
     private val _settings = MutableStateFlow(loadSettingsWithMigration())
@@ -53,7 +53,42 @@ class SettingsRepository @Inject constructor(
     }
     
     private fun loadSettings(): AppSettings {
-        return AppSettings(
+	    // Load gender first so we can derive sensible defaults for blur settings when keys are missing
+	    val storedGender = try {
+	        UserGender.valueOf(prefs.getString("user_gender", UserGender.NOT_SPECIFIED.name)!!)
+	    } catch (e: Exception) {
+	        UserGender.NOT_SPECIFIED
+	    }
+
+		    val allowCustomGenderBlur = prefs.getBoolean("allow_custom_gender_blur", false)
+
+	    val (defaultBlurMale, defaultBlurFemale) = when (storedGender) {
+	        UserGender.MALE -> false to true
+	        UserGender.FEMALE -> true to false
+	        UserGender.NOT_SPECIFIED -> true to true
+	    }
+
+		    // Only apply defaults when the preference keys are missing (migration-friendly; does not override user choice)
+	    val blurMaleFaces = if (prefs.contains("blur_male_faces")) {
+	        prefs.getBoolean("blur_male_faces", defaultBlurMale)
+	    } else {
+	        defaultBlurMale
+	    }
+	    val blurFemaleFaces = if (prefs.contains("blur_female_faces")) {
+	        prefs.getBoolean("blur_female_faces", defaultBlurFemale)
+	    } else {
+	        defaultBlurFemale
+	    }
+
+		    // Enforce gender lock unless the user explicitly opted into custom blur targets.
+		    val effectiveTargets = AppSettings(
+		        userGender = storedGender,
+		        blurMaleFaces = blurMaleFaces,
+		        blurFemaleFaces = blurFemaleFaces,
+		        allowCustomGenderBlur = allowCustomGenderBlur
+		    ).effectiveBlurTargets(TAG)
+
+		    return AppSettings(
             // Quality Mode
             qualityMode = try {
                 val modeName = prefs.getString("quality_mode", QualityMode.HIGH_QUALITY.name)
@@ -65,14 +100,11 @@ class SettingsRepository @Inject constructor(
             // Basic Detection Settings
             enableFaceDetection = prefs.getBoolean("enable_face_detection", true),
             enableNSFWDetection = prefs.getBoolean("enable_nsfw_detection", true),
-            blurMaleFaces = prefs.getBoolean("blur_male_faces", true),
-            blurFemaleFaces = prefs.getBoolean("blur_female_faces", true),
+		        blurMaleFaces = effectiveTargets.blurMaleFaces,
+		        blurFemaleFaces = effectiveTargets.blurFemaleFaces,
             detectionSensitivity = prefs.getFloat("detection_sensitivity", 0.8f),
-            userGender = try {
-                UserGender.valueOf(prefs.getString("user_gender", UserGender.NOT_SPECIFIED.name)!!)
-            } catch (e: Exception) {
-                UserGender.NOT_SPECIFIED // Fallback to NOT_SPECIFIED on error
-            },
+		        userGender = storedGender,
+		        allowCustomGenderBlur = allowCustomGenderBlur,
             
             // Blur Settings
             blurIntensity = BlurIntensity.valueOf(prefs.getString("blur_intensity", BlurIntensity.MEDIUM.name)!!),
@@ -115,9 +147,11 @@ class SettingsRepository @Inject constructor(
             enableArabicText = prefs.getBoolean("enable_arabic_text", true),
             customReflectionTime = prefs.getInt("custom_reflection_time", 15),
             
-            // Advanced Detection Settings
-            genderConfidenceThreshold = prefs.getFloat("gender_confidence_threshold", 0.4f),
-            nsfwConfidenceThreshold = prefs.getFloat("nsfw_confidence_threshold", 0.7f),
+	            // Advanced Detection Settings
+	            genderConfidenceThreshold = prefs.getFloat("gender_confidence_threshold", 0.4f),
+	            // IMPORTANT: default aligned with AppSettings (0.45f). Older migrations seeded 0.7f
+	            // which makes NSFW blur feel "inactive" for many users.
+	            nsfwConfidenceThreshold = prefs.getFloat("nsfw_confidence_threshold", 0.45f),
             enableFallbackDetection = prefs.getBoolean("enable_fallback_detection", true),
             enablePerformanceMonitoring = prefs.getBoolean("enable_performance_monitoring", true),
             
@@ -379,6 +413,7 @@ class SettingsRepository @Inject constructor(
             putBoolean("enable_nsfw_detection", settings.enableNSFWDetection)
             putBoolean("blur_male_faces", settings.blurMaleFaces)
             putBoolean("blur_female_faces", settings.blurFemaleFaces)
+	        putBoolean("allow_custom_gender_blur", settings.allowCustomGenderBlur)
             putFloat("detection_sensitivity", settings.detectionSensitivity)
             putString("user_gender", settings.userGender.name) // CRITICAL: Save gender preference
             
@@ -678,6 +713,7 @@ class SettingsRepository @Inject constructor(
                 userGender = gender,
                 blurMaleFaces = blurMaleFaces,
                 blurFemaleFaces = blurFemaleFaces,
+	            allowCustomGenderBlur = false,
                 enableFaceDetection = true,
                 enableNSFWDetection = true
             )
@@ -688,6 +724,7 @@ class SettingsRepository @Inject constructor(
                 .putString("user_gender", gender.name)
                 .putBoolean("blur_male_faces", blurMaleFaces)
                 .putBoolean("blur_female_faces", blurFemaleFaces)
+	            .putBoolean("allow_custom_gender_blur", false)
                 .putBoolean("enable_face_detection", true)
                 .putBoolean("enable_nsfw_detection", true)
                 .commit()
@@ -702,6 +739,7 @@ class SettingsRepository @Inject constructor(
                     .putString("user_gender", gender.name)
                     .putBoolean("blur_male_faces", blurMaleFaces)
                     .putBoolean("blur_female_faces", blurFemaleFaces)
+	                    .putBoolean("allow_custom_gender_blur", false)
                     .putBoolean("enable_face_detection", true)
                     .putBoolean("enable_nsfw_detection", true)
                     .commit()
@@ -714,16 +752,18 @@ class SettingsRepository @Inject constructor(
                     val storedGender = prefs.getString("user_gender", null)
                     val storedBlurMale = prefs.getBoolean("blur_male_faces", false)
                     val storedBlurFemale = prefs.getBoolean("blur_female_faces", false)
+	                    val storedAllowCustom = prefs.getBoolean("allow_custom_gender_blur", false)
                     val storedFaceDetection = prefs.getBoolean("enable_face_detection", false)
                     val storedNsfwDetection = prefs.getBoolean("enable_nsfw_detection", false)
 
                     val genderMatches = storedGender == gender.name
                     val blurMaleMatches = storedBlurMale == blurMaleFaces
                     val blurFemaleMatches = storedBlurFemale == blurFemaleFaces
+	                    val allowCustomMatches = storedAllowCustom == false
                     val faceDetectionMatches = storedFaceDetection == true
                     val nsfwDetectionMatches = storedNsfwDetection == true
 
-                    val allMatch = genderMatches && blurMaleMatches && blurFemaleMatches &&
+	                    val allMatch = genderMatches && blurMaleMatches && blurFemaleMatches && allowCustomMatches &&
                                    faceDetectionMatches && nsfwDetectionMatches
 
                     if (!allMatch) {
@@ -731,6 +771,7 @@ class SettingsRepository @Inject constructor(
                         Log.w(TAG, "  Expected gender: ${gender.name}, got: $storedGender (match: $genderMatches)")
                         Log.w(TAG, "  Expected blurMale: $blurMaleFaces, got: $storedBlurMale (match: $blurMaleMatches)")
                         Log.w(TAG, "  Expected blurFemale: $blurFemaleFaces, got: $storedBlurFemale (match: $blurFemaleMatches)")
+	                        Log.w(TAG, "  Expected allowCustomGenderBlur: false, got: $storedAllowCustom (match: $allowCustomMatches)")
                         Log.w(TAG, "  Expected faceDetection: true, got: $storedFaceDetection (match: $faceDetectionMatches)")
                         Log.w(TAG, "  Expected nsfwDetection: true, got: $storedNsfwDetection (match: $nsfwDetectionMatches)")
                     }
@@ -1142,15 +1183,20 @@ class SettingsRepository @Inject constructor(
 
     // Settings Migration
     private fun loadSettingsWithMigration(): AppSettings {
-        val currentVersion = prefs.getInt(SETTINGS_VERSION_KEY, 1)
-        
-        if (currentVersion < CURRENT_SETTINGS_VERSION) {
-            Log.i(TAG, "Migrating settings from version $currentVersion to $CURRENT_SETTINGS_VERSION")
-            migrateSettings(currentVersion)
-            prefs.edit().putInt(SETTINGS_VERSION_KEY, CURRENT_SETTINGS_VERSION).apply()
-        }
-        
-        return loadSettings()
+	        var version = prefs.getInt(SETTINGS_VERSION_KEY, 1)
+	        if (version < CURRENT_SETTINGS_VERSION) {
+	            Log.i(TAG, "Migrating settings from version $version to $CURRENT_SETTINGS_VERSION")
+	        }
+	
+	        // Apply migrations sequentially (N -> N+1). This prevents skipping intermediate migrations
+	        // when jumping multiple versions at once.
+	        while (version < CURRENT_SETTINGS_VERSION) {
+	            migrateSettings(version)
+	            version += 1
+	            prefs.edit().putInt(SETTINGS_VERSION_KEY, version).apply()
+	        }
+
+	        return loadSettings()
     }
     
     private fun migrateSettings(fromVersion: Int) {
@@ -1173,7 +1219,8 @@ class SettingsRepository @Inject constructor(
                     putBoolean("enable_arabic_text", true)
                     putInt("custom_reflection_time", 15)
                     putFloat("gender_confidence_threshold", 0.4f)
-                    putFloat("nsfw_confidence_threshold", 0.7f)
+	                    // Avoid seeding an overly strict default; keep it aligned with DetectionThresholds.DEFAULT_NSFW_THRESHOLD
+	                    putFloat("nsfw_confidence_threshold", 0.45f)
                     putBoolean("enable_fallback_detection", true)
                     putBoolean("enable_performance_monitoring", true)
                     apply()
@@ -1313,12 +1360,28 @@ class SettingsRepository @Inject constructor(
                     apply()
                 }
             }
+	            12 -> {
+	                // Migration to version 13: Normalize legacy NSFW threshold default.
+	                // Many installs had the key seeded to 0.7f which is too strict and makes the
+	                // NSFW model appear "Active" but rarely blur.
+	                Log.i(TAG, "Migrating from version 12: Normalizing NSFW confidence threshold default")
+	                val legacyDefault = 0.7f
+	                val newDefault = 0.45f
+	                val current = prefs.getFloat("nsfw_confidence_threshold", legacyDefault)
+	                val shouldNormalize = !prefs.contains("nsfw_confidence_threshold") || kotlin.math.abs(current - legacyDefault) < 0.0001f
+	                if (shouldNormalize) {
+	                    prefs.edit().putFloat("nsfw_confidence_threshold", newDefault).apply()
+	                }
+	            }
         }
     }
     
     // Settings Validation
     fun validateSettings(settings: AppSettings): AppSettings {
+	    val effectiveTargets = settings.effectiveBlurTargets(TAG)
         return settings.copy(
+	        blurMaleFaces = effectiveTargets.blurMaleFaces,
+	        blurFemaleFaces = effectiveTargets.blurFemaleFaces,
             detectionSensitivity = settings.detectionSensitivity.coerceIn(0f, 1f),
             contentDensityThreshold = settings.contentDensityThreshold.coerceIn(0.1f, 0.8f),
             mandatoryReflectionTime = settings.mandatoryReflectionTime.coerceIn(5, 30),
@@ -1328,7 +1391,9 @@ class SettingsRepository @Inject constructor(
             verseDisplayDuration = settings.verseDisplayDuration.coerceIn(5, 30),
             customReflectionTime = settings.customReflectionTime.coerceIn(5, 60),
             genderConfidenceThreshold = settings.genderConfidenceThreshold.coerceIn(0.3f, 0.9f),
-            nsfwConfidenceThreshold = settings.nsfwConfidenceThreshold.coerceIn(0.5f, 0.95f),
+	            // IMPORTANT: allow thresholds below 0.5f. AppSettings default is 0.45f and
+	            // MLModelManager region analysis can meaningfully operate in the ~0.30-0.50 range.
+	            nsfwConfidenceThreshold = settings.nsfwConfidenceThreshold.coerceIn(0.3f, 0.7f),
             expandBlurArea = settings.expandBlurArea.coerceIn(0, 100),
             // Prayer enhancement ranges
             fajrOffsetMinutes = settings.fajrOffsetMinutes.coerceIn(-60, 60),
@@ -1367,6 +1432,8 @@ class SettingsRepository @Inject constructor(
             put("enableNSFWDetection", settings.enableNSFWDetection)
             put("blurMaleFaces", settings.blurMaleFaces)
             put("blurFemaleFaces", settings.blurFemaleFaces)
+	        put("userGender", settings.userGender.name)
+	        put("allowCustomGenderBlur", settings.allowCustomGenderBlur)
             put("detectionSensitivity", settings.detectionSensitivity)
             
             // Blur Settings
@@ -1524,12 +1591,20 @@ class SettingsRepository @Inject constructor(
                 return false
             }
             
-            val importedSettings = AppSettings(
+	        val importedGender = try {
+	            UserGender.valueOf(jsonObject.optString("userGender", UserGender.NOT_SPECIFIED.name))
+	        } catch (e: Exception) {
+	            UserGender.NOT_SPECIFIED
+	        }
+
+	        val importedSettings = AppSettings(
                 // Basic Detection Settings
                 enableFaceDetection = jsonObject.optBoolean("enableFaceDetection", true),
                 enableNSFWDetection = jsonObject.optBoolean("enableNSFWDetection", true),
                 blurMaleFaces = jsonObject.optBoolean("blurMaleFaces", true),
                 blurFemaleFaces = jsonObject.optBoolean("blurFemaleFaces", true),
+	            userGender = importedGender,
+	            allowCustomGenderBlur = jsonObject.optBoolean("allowCustomGenderBlur", false),
                 detectionSensitivity = jsonObject.optDouble("detectionSensitivity", 0.5).toFloat(),
                 
                 // Blur Settings
@@ -1934,6 +2009,8 @@ class SettingsRepository @Inject constructor(
                         put("enableNSFWDetection", settings.enableNSFWDetection)
                         put("blurMaleFaces", settings.blurMaleFaces)
                         put("blurFemaleFaces", settings.blurFemaleFaces)
+	                        put("userGender", settings.userGender.name)
+	                        put("allowCustomGenderBlur", settings.allowCustomGenderBlur)
                         put("detectionSensitivity", settings.detectionSensitivity)
                         put("blurIntensity", settings.blurIntensity.name)
                         put("blurStyle", settings.blurStyle.name)
@@ -2007,11 +2084,19 @@ class SettingsRepository @Inject constructor(
             val jsonObject = JSONObject(jsonString)
             val settingsJson = jsonObject.getJSONObject("settings")
 
-            val importedSettings = AppSettings(
+	            val importedGender = try {
+	                UserGender.valueOf(settingsJson.optString("userGender", UserGender.NOT_SPECIFIED.name))
+	            } catch (e: Exception) {
+	                UserGender.NOT_SPECIFIED
+	            }
+
+	            val importedSettings = AppSettings(
                 enableFaceDetection = settingsJson.optBoolean("enableFaceDetection", true),
                 enableNSFWDetection = settingsJson.optBoolean("enableNSFWDetection", true),
                 blurMaleFaces = settingsJson.optBoolean("blurMaleFaces", false),
                 blurFemaleFaces = settingsJson.optBoolean("blurFemaleFaces", true),
+	                userGender = importedGender,
+	                allowCustomGenderBlur = settingsJson.optBoolean("allowCustomGenderBlur", false),
                 detectionSensitivity = settingsJson.optDouble("detectionSensitivity", 0.8).toFloat(),
                 blurIntensity = try {
                     BlurIntensity.valueOf(settingsJson.optString("blurIntensity", BlurIntensity.STRONG.name))
@@ -2152,6 +2237,8 @@ class SettingsRepository @Inject constructor(
             put("enableNSFWDetection", settings.enableNSFWDetection)
             put("blurMaleFaces", settings.blurMaleFaces)
             put("blurFemaleFaces", settings.blurFemaleFaces)
+	        put("userGender", settings.userGender.name)
+	        put("allowCustomGenderBlur", settings.allowCustomGenderBlur)
             put("detectionSensitivity", settings.detectionSensitivity)
             put("blurIntensity", settings.blurIntensity.name)
             put("blurStyle", settings.blurStyle.name)
@@ -2462,7 +2549,8 @@ class SettingsRepository @Inject constructor(
             fullScreenWarningEnabled = true,
             enableRegionBasedFullScreen = true,
             // Align thresholds with HIGH_QUALITY detection sensitivity
-            nsfwConfidenceThreshold = if (QualityMode.HIGH_QUALITY.detectionSensitivity > 0.8f) 0.5f else 0.4f,
+	            // Keep defaults reasonably sensitive so "Active" actually produces visible blur.
+	            nsfwConfidenceThreshold = if (QualityMode.HIGH_QUALITY.detectionSensitivity > 0.8f) 0.45f else 0.4f,
             genderConfidenceThreshold = if (QualityMode.HIGH_QUALITY.detectionSensitivity > 0.8f) 0.4f else 0.3f,
             nsfwFullScreenRegionThreshold = if (QualityMode.HIGH_QUALITY.detectionSensitivity > 0.8f) 6 else 5,
             nsfwHighConfidenceThreshold = if (QualityMode.HIGH_QUALITY.detectionSensitivity > 0.8f) 0.8f else 0.65f

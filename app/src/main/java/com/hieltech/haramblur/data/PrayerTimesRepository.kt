@@ -47,15 +47,15 @@ class PrayerTimesRepository @Inject constructor(
             try {
                 // Check cache first
                 if (isCacheValid()) {
-                    cachedPrayerData?.let { 
+                    cachedPrayerData?.let {
                         Log.d(TAG, "✅ Using cached prayer times")
-                        return@withContext Result.success(it) 
+                        return@withContext Result.success(it)
                     }
                 }
 
                 val settings = settingsRepository.settings.value
                 Log.d(TAG, "🔍 Fetching prayer times - localCalc: ${settings.enableLocalCalculations}, preferLocal: ${settings.preferLocalOverApi}")
-                
+
                 // Check if local calculations are enabled and preferred
                 if (settings.enableLocalCalculations) {
                     if (settings.preferLocalOverApi) {
@@ -89,7 +89,7 @@ class PrayerTimesRepository @Inject constructor(
                         }
                     }
                 }
-                
+
                 // Default: API only mode
                 Log.d(TAG, "🌐 Using API only mode")
                 getPrayerTimesFromAPI()
@@ -105,7 +105,7 @@ class PrayerTimesRepository @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Get prayer times from API (helper method)
      */
@@ -138,9 +138,10 @@ class PrayerTimesRepository @Inject constructor(
                                 method = method,
                                 tz = tz
                             )
-                            cachedPrayerData = response.data
+                            val cleanedData = cleanPrayerTimings(response.data)
+                            cachedPrayerData = cleanedData
                             cacheTimestamp = System.currentTimeMillis()
-                            Result.success(response.data)
+                            Result.success(cleanedData)
                         } else {
                             Log.e(TAG, "API Error: ${response.status}")
                             Result.failure(Exception("API Error: ${response.status}"))
@@ -188,9 +189,10 @@ class PrayerTimesRepository @Inject constructor(
 
                 if (response.code == 200) {
                     lastLocationKey = buildLocationKey(lat = location.latitude, lon = location.longitude, method = method, tz = tz)
-                    cachedPrayerData = response.data
+                    val cleanedData = cleanPrayerTimings(response.data)
+                    cachedPrayerData = cleanedData
                     cacheTimestamp = System.currentTimeMillis()
-                    Result.success(response.data)
+                    Result.success(cleanedData)
                 } else {
                     Log.e(TAG, "API Error: ${response.status}")
                     Result.failure(Exception("API Error: ${response.status}"))
@@ -211,10 +213,10 @@ class PrayerTimesRepository @Inject constructor(
                 val settings = settingsRepository.settings.value
                 val method = settings.prayerCalculationMethod
                 val tz = TimeZone.getDefault().id
-                
+
                 // Compute cache key for the requested city/country
                 val requestedKey = buildLocationKey(city = city, country = country, method = method, tz = tz)
-                
+
                 // Check cache first - compare against the requested key and TTL
                 if (cachedPrayerData != null &&
                     (System.currentTimeMillis() - cacheTimestamp) < CACHE_DURATION_MS &&
@@ -234,9 +236,10 @@ class PrayerTimesRepository @Inject constructor(
 
                 if (response.code == 200) {
                     lastLocationKey = requestedKey
-                    cachedPrayerData = response.data
+                    val cleanedData = cleanPrayerTimings(response.data)
+                    cachedPrayerData = cleanedData
                     cacheTimestamp = System.currentTimeMillis()
-                    Result.success(response.data)
+                    Result.success(cleanedData)
                 } else {
                     Log.e(TAG, "API Error: ${response.status}")
                     Result.failure(Exception("API Error: ${response.status}"))
@@ -256,9 +259,9 @@ class PrayerTimesRepository @Inject constructor(
             try {
                 val settings = settingsRepository.settings.value
                 val location = getCurrentLocation()
-                
+
                 Log.d(TAG, "Calculating prayer times locally for: ${location.latitude}, ${location.longitude}")
-                
+
                 // Determine calculation method
                 val calculationMethod = if (settings.moroccoSpecificAdjustments &&
                     moroccanLocationHelper.isInMorocco(location.latitude, location.longitude)) {
@@ -267,7 +270,7 @@ class PrayerTimesRepository @Inject constructor(
                     PrayerCalculationMethod.values().find { it.id == settings.prayerCalculationMethod }
                         ?: PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE
                 }
-                
+
                 // Get city adjustments if in Morocco
                 val cityAdjustments = if (settings.moroccoSpecificAdjustments &&
                     moroccanLocationHelper.isInMorocco(location.latitude, location.longitude)) {
@@ -275,11 +278,11 @@ class PrayerTimesRepository @Inject constructor(
                 } else {
                     emptyMap()
                 }
-                
+
                 // Calculate prayer times
                 val calendar = Calendar.getInstance()
                 val tzOffsetHours = TimeZone.getDefault().rawOffset / (1000 * 60 * 60).toDouble()
-                
+
                 val localPrayerTimes = if (calculationMethod == PrayerCalculationMethod.MOROCCO_MINISTRY) {
                     localPrayerCalculator.computeForMorocco(
                         calendar = calendar,
@@ -299,7 +302,7 @@ class PrayerTimesRepository @Inject constructor(
                         adjustmentsMinutes = cityAdjustments
                     )
                 }
-                
+
                 // Convert to PrayerData format
                 val prayerData = PrayerData(
                     timings = PrayerTimings(
@@ -349,12 +352,12 @@ class PrayerTimesRepository @Inject constructor(
                         )
                     )
                 )
-                
+
                 // Update cache
                 lastLocationKey = buildLocationKey(lat = location.latitude, lon = location.longitude, method = calculationMethod.id, tz = TimeZone.getDefault().id)
                 cachedPrayerData = prayerData
                 cacheTimestamp = System.currentTimeMillis()
-                
+
                 Result.success(prayerData)
             } catch (e: Exception) {
                 Log.e(TAG, "Error calculating prayer times locally", e)
@@ -370,7 +373,7 @@ class PrayerTimesRepository @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 val settings = settingsRepository.settings.value
-                
+
                 // Check if local calculations are enabled and preferred
                 if (settings.enableLocalCalculations) {
                     if (settings.preferLocalOverApi) {
@@ -393,7 +396,7 @@ class PrayerTimesRepository @Inject constructor(
                         }
                     }
                 }
-                
+
                 // Default: API only mode
                 getIslamicCalendarFromAPI()
             } catch (e: Exception) {
@@ -530,30 +533,30 @@ class PrayerTimesRepository @Inject constructor(
                 val gregorianYear = calendar.get(Calendar.YEAR)
                 val gregorianMonth = calendar.get(Calendar.MONTH) + 1
                 val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-                
+
                 val calendarDays = mutableListOf<CalendarDay>()
-                
+
                 for (day in 1..daysInMonth) {
                     // Create a simple date object for each day
                     val dateCalendar = Calendar.getInstance()
                     dateCalendar.set(Calendar.YEAR, gregorianYear)
                     dateCalendar.set(Calendar.MONTH, gregorianMonth - 1)
                     dateCalendar.set(Calendar.DAY_OF_MONTH, day)
-                    
+
                     // Generate approximate Hijri date (simplified calculation)
                     val hijriDay = day
                     val hijriMonth = getHijriMonth()
                     val hijriYear = getHijriYear()
-                    
+
                     // Calculate prayer times for this day
                     dateCalendar.set(Calendar.HOUR_OF_DAY, 12)
                     dateCalendar.set(Calendar.MINUTE, 0)
                     dateCalendar.set(Calendar.SECOND, 0)
-                    
+
                     val location = getCurrentLocation()
                     val tzOffsetHours = TimeZone.getDefault().rawOffset / (1000 * 60 * 60).toDouble()
                     val settings = settingsRepository.settings.value
-                    
+
                     val calculationMethod = if (settings.moroccoSpecificAdjustments &&
                         moroccanLocationHelper.isInMorocco(location.latitude, location.longitude)) {
                         PrayerCalculationMethod.MOROCCO_MINISTRY
@@ -561,14 +564,14 @@ class PrayerTimesRepository @Inject constructor(
                         PrayerCalculationMethod.values().find { it.id == settings.prayerCalculationMethod }
                             ?: PrayerCalculationMethod.MUSLIM_WORLD_LEAGUE
                     }
-                    
+
                     val cityAdjustments = if (settings.moroccoSpecificAdjustments &&
                         moroccanLocationHelper.isInMorocco(location.latitude, location.longitude)) {
                         localPrayerCalculator.getMoroccanAdjustmentsForCoordinates(location.latitude, location.longitude)
                     } else {
                         emptyMap()
                     }
-                    
+
                     val prayerTimings = if (calculationMethod == PrayerCalculationMethod.MOROCCO_MINISTRY) {
                         localPrayerCalculator.computeForMorocco(
                             calendar = dateCalendar,
@@ -588,7 +591,7 @@ class PrayerTimesRepository @Inject constructor(
                             adjustmentsMinutes = cityAdjustments
                         )
                     }
-                    
+
                     val calendarDay = CalendarDay(
                         timings = prayerTimings,
                         date = HijriDate(
@@ -651,10 +654,10 @@ class PrayerTimesRepository @Inject constructor(
                             )
                         )
                     )
-                    
+
                     calendarDays.add(calendarDay)
                 }
-                
+
                 Result.success(calendarDays)
             } catch (e: Exception) {
                 Log.e(TAG, "Error calculating Islamic calendar locally", e)
@@ -880,12 +883,34 @@ class PrayerTimesRepository @Inject constructor(
     }
 
     /**
+     * Clean prayer timings by stripping timezone suffixes from API responses.
+     * The Aladhan API may return times like "05:30 (EET)" which cause parse failures.
+     */
+    private fun cleanPrayerTimings(data: PrayerData): PrayerData {
+        val clean = { s: String -> s.replace(Regex("\\s*\\(.*\\)$"), "").trim() }
+        return data.copy(
+            timings = data.timings.copy(
+                Fajr = clean(data.timings.Fajr),
+                Dhuhr = clean(data.timings.Dhuhr),
+                Asr = clean(data.timings.Asr),
+                Maghrib = clean(data.timings.Maghrib),
+                Isha = clean(data.timings.Isha),
+                Sunrise = clean(data.timings.Sunrise),
+                Sunset = clean(data.timings.Sunset)
+            )
+        )
+    }
+
+
+    /**
      * Parse prayer time string to timestamp
      */
     private fun parsePrayerTime(timeString: String, addDays: Int = 0): Long {
         try {
+            // Strip timezone suffix from API format, e.g. "05:30 (EET)" -> "05:30"
+            val cleanTime = timeString.replace(Regex("\\s*\\(.*\\)$"), "").trim()
             val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-            val time = timeFormat.parse(timeString)
+            val time = timeFormat.parse(cleanTime)
 
             val calendar = Calendar.getInstance()
             calendar.time = time ?: Date()

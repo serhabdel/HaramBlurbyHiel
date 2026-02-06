@@ -307,11 +307,12 @@ class EnhancedBlurEffects {
         enableBlurRegionInterpolation: Boolean = true,
         blurAnimationDuration: Int = 250
     ) {
-        // Check if we should skip this frame for performance (respect frame rate limiting setting)
-        if (enableBlurFrameRateLimiting && shouldSkipFrame()) {
-            return
-        }
-        
+        // NOTE:
+        // Frame-rate limiting must be evaluated ONCE per View.onDraw() frame, not per blur region.
+        // If evaluated per region, only the first region in a multi-face frame gets blurred and
+        // the rest can be skipped, producing "1 blurred + red rectangles".
+        // Caller (BlurOverlayView) is responsible for calling shouldSkipFrame() once per draw.
+
         val startTime = System.currentTimeMillis()
         
         try {
@@ -929,7 +930,10 @@ class EnhancedBlurEffects {
         alpha: Int,
         sensitivity: Float
     ) {
-        val colorVariation = (sensitivity * 60).toInt()
+        // NOTE: kotlin.random.Random.nextInt(from, until) requires `until > from`.
+        // When `sensitivity` is very low, (sensitivity * 60).toInt() can be 0,
+        // which would otherwise call Random.nextInt(0, 0) and crash drawing.
+        val colorVariation = (sensitivity * 60).toInt().coerceAtLeast(0)
         
         for (x in rect.left until rect.right step pixelSize) {
             for (y in rect.top until rect.bottom step pixelSize) {
@@ -941,7 +945,11 @@ class EnhancedBlurEffects {
                 )
                 
                 val baseColor = getSensitivityBasedColor(sensitivity)
-                val variation = Random.nextInt(-colorVariation, colorVariation)
+                val variation = if (colorVariation > 0) {
+                    Random.nextInt(-colorVariation, colorVariation)
+                } else {
+                    0
+                }
                 
                 val r = ((baseColor shr 16) and 0xFF) + variation
                 val g = ((baseColor shr 8) and 0xFF) + variation

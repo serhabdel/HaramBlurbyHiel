@@ -42,6 +42,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.hieltech.haramblur.utils.CoordinateMapper
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -157,6 +159,27 @@ class BlurOverlayManager @Inject constructor(
             
             if (attempt < maxRetries - 1) {
                 Thread.sleep(100) // Brief delay before retry
+            }
+        }
+        Log.e(TAG, "All retry attempts failed for operation: $operation")
+        return false
+    }
+
+    /**
+     * Suspended retry helper (non-blocking). Prefer this from Main/UI coroutines.
+     */
+    private suspend fun safeExecuteWithRetrySuspend(
+        operation: String,
+        maxRetries: Int = 2,
+        retryDelayMs: Long = 100,
+        action: () -> Unit
+    ): Boolean {
+        repeat(maxRetries) { attempt ->
+            val success = safeExecute("$operation (attempt ${attempt + 1})", action)
+            if (success) return true
+
+            if (attempt < maxRetries - 1) {
+                delay(retryDelayMs)
             }
         }
         Log.e(TAG, "All retry attempts failed for operation: $operation")
@@ -314,131 +337,240 @@ class BlurOverlayManager @Inject constructor(
         contentSensitivity: Float = 0.5f,
         transparency: Float? = null, // Use AppSettings blur intensity if not provided
         smoothTransition: Boolean = true,
-        animationDuration: Long = BlurAnimationUtils.OVERLAY_FADE_DURATION
+        animationDuration: Long = BlurAnimationUtils.OVERLAY_FADE_DURATION,
+        sourceBitmapWidth: Int? = null,
+        sourceBitmapHeight: Int? = null
     ) {
         CoroutineScope(Dispatchers.Main).launch {
-            try {
-                if (windowManager == null || context == null) {
-                    Log.w(TAG, "WindowManager or Context not initialized")
-                    return@launch
-                }
-                
-                // Get current user settings
-                val currentSettings = settingsRepository.settings.value
-                val userBlurIntensity = blurIntensity ?: currentSettings.blurIntensity
-                val userBlurStyle = blurStyle ?: currentSettings.blurStyle
-                val userTransparency = transparency ?: (currentSettings.blurIntensity.alphaValue / 255f) // Use blur intensity alpha value as transparency
-                
-                if (isOverlayVisible) {
-                    if (smoothTransition) {
-                        updateBlurRegionsSmooth(blurRegions, userBlurIntensity, userBlurStyle, contentSensitivity, animationDuration)
-                    } else {
-                        updateBlurOverlay(blurRegions, userBlurIntensity, userBlurStyle, contentSensitivity)
-                    }
-                    return@launch
-                }
-                
-                // Get actual screen dimensions for precise scaling
-                val displayMetrics = context!!.resources.displayMetrics
-                val screenWidth = displayMetrics.widthPixels
-                val screenHeight = displayMetrics.heightPixels
-                
-                // Scale and validate regions to actual screen resolution
-                val scaledRegions = blurRegions.mapNotNull { region ->
-                    val scaledRect = Rect(
-                        maxOf(0, region.left),
-                        maxOf(0, region.top),
-                        minOf(screenWidth, region.right),
-                        minOf(screenHeight, region.bottom)
-                    )
-                    
-                    // Only include meaningful regions (not too small)
-                    if (scaledRect.width() >= 20 && scaledRect.height() >= 20) {
-                        scaledRect
-                    } else null
-                }
-                
-                if (scaledRegions.isEmpty()) {
-                    Log.w(TAG, "❌ No valid scaled regions - skipping blur overlay")
-                    return@launch
-                }
-                
-                Log.w(TAG, "✅ Creating BlurOverlayView with ${scaledRegions.size} regions")
-                Log.w(TAG, "   Screen resolution: ${screenWidth}x${screenHeight}")
-                scaledRegions.forEachIndexed { index, rect ->
-                    Log.w(TAG, "   Scaled region $index: [${rect.left},${rect.top}] to [${rect.right},${rect.bottom}] = ${rect.width()}x${rect.height()}")
-                }
-                
-                overlayView = BlurOverlayView(
-                    context!!,
-                    scaledRegions,
-                    userBlurIntensity,
-                    userBlurStyle,
-                    contentSensitivity,
-                    userTransparency,
-                    isFullScreen = false,
-                    screenWidth = screenWidth,
-                    screenHeight = screenHeight,
-                    triggeredByRegionCount = false,
-                    regionCount = 0,
-                    maxConfidence = 0.0f,
-                    appSettings = currentSettings
-                )
-                
-                val params = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, // Enable hardware acceleration
-                    PixelFormat.TRANSLUCENT
-                )
-                
-                params.gravity = Gravity.TOP or Gravity.START
-                
-                // Enable hardware acceleration on the overlay view
-                if (settingsRepository.settings.value.enableHardwareBlurAcceleration) {
-                    BlurAnimationUtils.enableHardwareAcceleration(overlayView as View, isOverlayView = true)
-                    Log.d(TAG, "Hardware acceleration enabled for blur overlay (RenderEffect skipped)")
-                }
-                
-                val success = safeExecuteWithRetry("add_blur_overlay") {
-                    windowManager!!.addView(overlayView, params)
-                }
-                
-                if (success) {
-                    isOverlayVisible = true
-                    Log.w(TAG, "✅✅✅ BLUR OVERLAY SUCCESSFULLY ADDED TO WINDOW MANAGER ✅✅✅")
-                    Log.w(TAG, "🎯 PRECISION BLUR: ${scaledRegions.size} regions on ${screenWidth}x${screenHeight} screen")
-                    Log.w(TAG, "   Overlay visible flag: $isOverlayVisible")
-                    Log.w(TAG, "   Overlay view attached: ${overlayView?.isAttachedToWindow}")
-                    
-                    // Apply smooth fade-in animation if enabled
-                    if (smoothTransition && settingsRepository.settings.value.enableSmoothBlurAnimations) {
-                        BlurAnimationUtils.createFadeInAnimation(
-                            overlayView!!,
-                            animationDuration
-                        ) {
-                            Log.d(TAG, "Blur overlay fade-in animation completed")
-                        }
-                    }
-                    
-                    // Start overlay health monitoring
-                    startOverlayHealthMonitoring()
-                    
-                    // Start performance monitoring
-                    startPerformanceMonitoring()
-                } else {
-                    Log.e(TAG, "Failed to add blur overlay after retries")
-                    isOverlayVisible = false
-                    overlayView = null
-                    return@launch
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error showing blur overlay", e)
+            val shown = showBlurOverlayAwait(
+                blurRegions = blurRegions,
+                blurIntensity = blurIntensity,
+                blurStyle = blurStyle,
+                contentSensitivity = contentSensitivity,
+                transparency = transparency,
+                smoothTransition = smoothTransition,
+                animationDuration = animationDuration,
+                sourceBitmapWidth = sourceBitmapWidth,
+                sourceBitmapHeight = sourceBitmapHeight
+            )
+
+            if (!shown) {
+                Log.w(TAG, "showBlurOverlay(): overlay was not shown (await returned false)")
             }
+        }
+    }
+
+    /**
+     * Awaitable version of [showBlurOverlay] so callers can reliably know whether the overlay was actually
+     * created/updated.
+     */
+    suspend fun showBlurOverlayAwait(
+        blurRegions: List<Rect>,
+        blurIntensity: BlurIntensity? = null,
+        blurStyle: BlurStyle? = null,
+        contentSensitivity: Float = 0.5f,
+        transparency: Float? = null,
+        smoothTransition: Boolean = true,
+        animationDuration: Long = BlurAnimationUtils.OVERLAY_FADE_DURATION,
+        sourceBitmapWidth: Int? = null,
+        sourceBitmapHeight: Int? = null
+    ): Boolean = withContext(Dispatchers.Main) {
+        try {
+            val wm = windowManager
+            val ctx = context
+            if (wm == null || ctx == null) {
+                Log.w(TAG, "WindowManager or Context not initialized")
+                return@withContext false
+            }
+
+            // Get current user settings
+            val currentSettings = settingsRepository.settings.value
+            val userBlurIntensity = blurIntensity ?: currentSettings.blurIntensity
+            val userBlurStyle = blurStyle ?: currentSettings.blurStyle
+            val userTransparency = transparency ?: (currentSettings.blurIntensity.alphaValue / 255f)
+
+            // Prefer WindowMetrics-backed real dimensions to avoid mismatches with resources.displayMetrics
+            val screenMetrics = CoordinateMapper.getScreenMetrics(ctx)
+            val screenWidth = screenMetrics.realWidth
+            val screenHeight = screenMetrics.realHeight
+
+            val scaledRegions = prepareRegionsForDisplay(
+                inputRegions = blurRegions,
+                sourceBitmapWidth = sourceBitmapWidth,
+                sourceBitmapHeight = sourceBitmapHeight,
+                screenMetrics = screenMetrics
+            )
+
+            if (isOverlayVisible) {
+                if (scaledRegions.isEmpty()) {
+                    Log.w(TAG, "⚠️ No valid mapped regions for update - keeping existing overlay")
+                    return@withContext true
+                }
+
+                if (smoothTransition) {
+                    updateBlurRegionsSmooth(
+                        scaledRegions,
+                        userBlurIntensity,
+                        userBlurStyle,
+                        contentSensitivity,
+                        animationDuration
+                    )
+                } else {
+                    updateBlurOverlay(
+                        blurRegions = scaledRegions,
+                        blurIntensity = userBlurIntensity,
+                        blurStyle = userBlurStyle,
+                        contentSensitivity = contentSensitivity,
+                        transparency = userTransparency
+                    )
+                }
+
+                return@withContext true
+            }
+
+            if (scaledRegions.isEmpty()) {
+                Log.w(TAG, "❌ No valid scaled regions - skipping blur overlay")
+                return@withContext false
+            }
+
+            Log.w(TAG, "✅ Creating BlurOverlayView with ${scaledRegions.size} regions")
+            Log.w(TAG, "   Screen resolution: ${screenWidth}x${screenHeight}")
+            scaledRegions.forEachIndexed { index, rect ->
+                Log.w(
+                    TAG,
+                    "   Scaled region $index: [${rect.left},${rect.top}] to [${rect.right},${rect.bottom}] = ${rect.width()}x${rect.height()}"
+                )
+            }
+
+            overlayView = BlurOverlayView(
+                ctx,
+                scaledRegions,
+                userBlurIntensity,
+                userBlurStyle,
+                contentSensitivity,
+                userTransparency,
+                isFullScreen = false,
+                screenWidth = screenWidth,
+                screenHeight = screenHeight,
+                triggeredByRegionCount = false,
+                regionCount = 0,
+                maxConfidence = 0.0f,
+                appSettings = currentSettings
+            )
+
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                        WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                PixelFormat.TRANSLUCENT
+            )
+
+            params.gravity = Gravity.TOP or Gravity.START
+
+            // Enable hardware acceleration on the overlay view
+            if (settingsRepository.settings.value.enableHardwareBlurAcceleration) {
+                BlurAnimationUtils.enableHardwareAcceleration(overlayView as View, isOverlayView = true)
+                Log.d(TAG, "Hardware acceleration enabled for blur overlay (RenderEffect skipped)")
+            }
+
+            val success = safeExecuteWithRetrySuspend("add_blur_overlay") {
+                wm.addView(overlayView, params)
+            }
+
+            if (!success) {
+                Log.e(TAG, "Failed to add blur overlay after retries")
+                isOverlayVisible = false
+                overlayView = null
+                return@withContext false
+            }
+
+            isOverlayVisible = true
+            Log.w(TAG, "✅✅✅ BLUR OVERLAY SUCCESSFULLY ADDED TO WINDOW MANAGER ✅✅✅")
+            Log.w(TAG, "🎯 PRECISION BLUR: ${scaledRegions.size} regions on ${screenWidth}x${screenHeight} screen")
+            Log.w(TAG, "   Overlay visible flag: $isOverlayVisible")
+            Log.w(TAG, "   Overlay view attached: ${overlayView?.isAttachedToWindow}")
+
+            // Apply smooth fade-in animation if enabled
+            if (smoothTransition && settingsRepository.settings.value.enableSmoothBlurAnimations) {
+                BlurAnimationUtils.createFadeInAnimation(
+                    overlayView!!,
+                    animationDuration
+                ) {
+                    Log.d(TAG, "Blur overlay fade-in animation completed")
+                }
+            }
+
+            startOverlayHealthMonitoring()
+            startPerformanceMonitoring()
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing blur overlay", e)
+            false
+        }
+    }
+
+    private fun prepareRegionsForDisplay(
+        inputRegions: List<Rect>,
+        sourceBitmapWidth: Int?,
+        sourceBitmapHeight: Int?,
+        screenMetrics: CoordinateMapper.ScreenMetrics
+    ): List<Rect> {
+        if (inputRegions.isEmpty()) return emptyList()
+
+        // Normalize to protect against inverted rectangles from detectors/mappers.
+        val normalizedInput = inputRegions
+            .map { region ->
+                val left = minOf(region.left, region.right)
+                val right = maxOf(region.left, region.right)
+                val top = minOf(region.top, region.bottom)
+                val bottom = maxOf(region.top, region.bottom)
+                Rect(left, top, right, bottom)
+            }
+            .filter { it.width() > 0 && it.height() > 0 }
+
+        if (normalizedInput.isEmpty()) return emptyList()
+
+        val screenWidth = screenMetrics.realWidth
+        val screenHeight = screenMetrics.realHeight
+        if (screenWidth <= 0 || screenHeight <= 0) return emptyList()
+
+        val screenSpaceRegions: List<Rect> = if (
+            sourceBitmapWidth != null &&
+            sourceBitmapHeight != null &&
+            sourceBitmapWidth > 0 &&
+            sourceBitmapHeight > 0 &&
+            (sourceBitmapWidth != screenWidth || sourceBitmapHeight != screenHeight)
+        ) {
+            Log.d(
+                TAG,
+                "Mapping regions bitmap(${sourceBitmapWidth}x${sourceBitmapHeight}) -> screen(${screenWidth}x${screenHeight}), count=${normalizedInput.size}"
+            )
+            CoordinateMapper.mapBitmapRegionsToScreen(
+                regions = normalizedInput,
+                bitmapWidth = sourceBitmapWidth,
+                bitmapHeight = sourceBitmapHeight,
+                screenMetrics = screenMetrics,
+                includeStatusBarOffset = false
+            )
+        } else {
+            normalizedInput
+        }
+
+        // Clamp + filter small regions (avoid empty/degenerate overlays)
+        return screenSpaceRegions.mapNotNull { region ->
+            val clamped = Rect(
+                maxOf(0, region.left),
+                maxOf(0, region.top),
+                minOf(screenWidth, region.right),
+                minOf(screenHeight, region.bottom)
+            )
+
+            if (clamped.width() >= 20 && clamped.height() >= 20) clamped else null
         }
     }
     
@@ -875,46 +1007,32 @@ class BlurOverlayManager @Inject constructor(
     }
 
     /**
-     * Detect and clean stuck overlays - aggressive detection logic
+     * Detect and clean stuck overlays - DISABLED
+     * Blur should persist on static screens until content changes
      */
     private fun detectAndCleanStuckOverlays() {
-        try {
-            val currentTime = System.currentTimeMillis()
-            val hasAnyOverlay = isOverlayVisible || isWarningVisible || isBlockedSiteOverlayVisible
-            
-            if (hasAnyOverlay) {
-                // Check if overlay has been visible for too long
-                if (lastOverlayCheckTime == 0L) {
-                    lastOverlayCheckTime = currentTime
-                    consecutiveStuckDetections = 0
-                } else {
-                    val overlayDuration = currentTime - lastOverlayCheckTime
-                    
-                    // If overlay has been visible for more than 30 seconds, it's likely stuck
-                    if (overlayDuration > 30000L) {
-                        consecutiveStuckDetections++
-                        Log.w(TAG, "⚠️ Detected potentially stuck overlay - duration: ${overlayDuration}ms, detections: $consecutiveStuckDetections")
-                        
-                        // If we've detected this for 3+ consecutive checks (15+ seconds), force cleanup
-                        if (consecutiveStuckDetections >= 3) {
-                            Log.e(TAG, "🚨 STUCK OVERLAY CONFIRMED - Forcing emergency cleanup!")
-                            emergencyHideAllOverlays()
-                            lastOverlayCheckTime = 0L
-                            consecutiveStuckDetections = 0
-                        }
-                    } else {
-                        // Overlay duration is reasonable, reset counters
-                        consecutiveStuckDetections = 0
-                    }
-                }
-            } else {
-                // No overlays visible, reset tracking
-                lastOverlayCheckTime = 0L
-                consecutiveStuckDetections = 0
+        // DISABLED: Blur now persists on static screens indefinitely
+        // Only hide blur when new detection shows clean content or screen changes
+        // This prevents blur from disappearing while user is viewing static content
+        
+        // Keep tracking variables updated for debugging but don't auto-hide
+        val currentTime = System.currentTimeMillis()
+        val hasAnyOverlay = isOverlayVisible || isWarningVisible || isBlockedSiteOverlayVisible
+        
+        if (hasAnyOverlay && lastOverlayCheckTime == 0L) {
+            lastOverlayCheckTime = currentTime
+        } else if (!hasAnyOverlay) {
+            lastOverlayCheckTime = 0L
+            consecutiveStuckDetections = 0
+        }
+        
+        // Log overlay duration for debugging only (no auto-cleanup)
+        if (hasAnyOverlay && lastOverlayCheckTime > 0L) {
+            val duration = currentTime - lastOverlayCheckTime
+            if (duration > 60000L && duration % 60000L < 5000L) {
+                // Log every minute that blur is still active (normal behavior)
+                Log.d(TAG, "✅ Blur active for ${duration/1000}s - normal for static content")
             }
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in stuck overlay detection", e)
         }
     }
     
@@ -1735,43 +1853,64 @@ class BlurOverlayManager @Inject constructor(
                 // For full-screen mode, draw enhanced blur with warning patterns
                 drawFullScreenBlur(canvas)
             } else {
-                // PRECISION BLUR: Draw only targeted regions with enhanced effects
-                blurRegions.forEach { rect ->
-                    // Validate region bounds against actual canvas size
-                    val canvasWidth = canvas.width
-                    val canvasHeight = canvas.height
-                    
-                    val boundedRect = Rect(
-                        maxOf(0, rect.left),
-                        maxOf(0, rect.top),
-                        minOf(canvasWidth, rect.right),
-                        minOf(canvasHeight, rect.bottom)
-                    )
-                    
-                    if (boundedRect.width() > 0 && boundedRect.height() > 0) {
-                        // Apply enhanced precision blur with passed settings (NO MEMORY LEAK!)
-                        enhancedBlurEffects.applyEnhancedBlur(
-                            canvas,
-                            boundedRect,
-                            blurIntensity, // Use user's preferred intensity
-                            blurStyle, // Use user's preferred style
-                            contentSensitivity, // Use passed sensitivity
-                            enableEdgeRefinement = true,
-                            enableAntiAliasing = true,
-                            precision = appSettings.blurBoundaryPrecision,
-                            enableBlurEdgeRefinement = appSettings.enableBlurEdgeRefinement,
-                            blurEdgeAntiAliasing = appSettings.blurEdgeAntiAliasing,
-                            blurBoundaryPrecision = appSettings.blurBoundaryPrecision,
-                            enableBlurFrameRateLimiting = appSettings.enableBlurFrameRateLimiting,
-                            maxBlurRegionsPerFrame = appSettings.maxBlurRegionsPerFrame,
-                            enableBlurRegionInterpolation = appSettings.enableBlurRegionInterpolation,
-                            blurAnimationDuration = appSettings.blurAnimationDuration
-                        )
-                        
-                        // Add precision border for debugging
-                        drawPrecisionBorder(canvas, boundedRect)
-                    }
-                }
+	                // PRECISION BLUR: draw targeted regions.
+	                // IMPORTANT: frame-rate limiting must be applied once per draw, not once per region,
+	                // otherwise only the first region tends to get blurred.
+	                val canvasWidth = canvas.width
+	                val canvasHeight = canvas.height
+	                if (canvasWidth <= 0 || canvasHeight <= 0) return
+
+	                val boundedRects = blurRegions.mapNotNull { rect ->
+	                    val boundedRect = Rect(
+	                        maxOf(0, rect.left),
+	                        maxOf(0, rect.top),
+	                        minOf(canvasWidth, rect.right),
+	                        minOf(canvasHeight, rect.bottom)
+	                    )
+	                    if (boundedRect.width() > 0 && boundedRect.height() > 0) boundedRect else null
+	                }
+
+	                if (boundedRects.isEmpty()) return
+
+	                val skipExpensiveBlurThisFrame =
+	                    appSettings.enableBlurFrameRateLimiting && enhancedBlurEffects.shouldSkipFrame()
+
+	                // Prefer blurring the largest regions first if we ever hit a per-frame cap.
+	                val sortedRects = boundedRects.sortedByDescending { it.width() * it.height() }
+	                val maxExpensiveRegions = appSettings.maxBlurRegionsPerFrame.coerceAtLeast(1)
+
+	                sortedRects.forEachIndexed { index, boundedRect ->
+	                    val shouldDoExpensiveBlur = !skipExpensiveBlurThisFrame && index < maxExpensiveRegions
+
+	                    if (shouldDoExpensiveBlur) {
+	                        enhancedBlurEffects.applyEnhancedBlur(
+	                            canvas,
+	                            boundedRect,
+	                            blurIntensity,
+	                            blurStyle,
+	                            contentSensitivity,
+	                            enableEdgeRefinement = true,
+	                            enableAntiAliasing = true,
+	                            precision = appSettings.blurBoundaryPrecision,
+	                            enableBlurEdgeRefinement = appSettings.enableBlurEdgeRefinement,
+	                            blurEdgeAntiAliasing = appSettings.blurEdgeAntiAliasing,
+	                            blurBoundaryPrecision = appSettings.blurBoundaryPrecision,
+	                            // frame limiting is already applied once-per-draw above
+	                            enableBlurFrameRateLimiting = false,
+	                            maxBlurRegionsPerFrame = maxExpensiveRegions,
+	                            enableBlurRegionInterpolation = appSettings.enableBlurRegionInterpolation,
+	                            blurAnimationDuration = appSettings.blurAnimationDuration
+	                        )
+	                    } else {
+	                        // Cheap fallback coverage to avoid partial "only borders" frames.
+	                        canvas.drawRect(boundedRect, blurPaint)
+	                    }
+
+	                    // Debug border (disabled by default)
+	                    if (appSettings.showDebugPrecisionBorders) {
+	                        drawPrecisionBorder(canvas, boundedRect)
+	                    }
+	                }
             }
         }
         

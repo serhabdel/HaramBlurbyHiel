@@ -159,7 +159,8 @@ private fun DetectionSensitivitySection(
             title = stringResource(R.string.nsfw_confidence_threshold_title),
             description = stringResource(R.string.nsfw_confidence_threshold_description),
             value = settings.nsfwConfidenceThreshold,
-            valueRange = 0.4f..0.7f,
+            // Allow down to 0.30 (see DetectionThresholds.MIN_NSFW_THRESHOLD)
+            valueRange = 0.3f..0.7f,
             onValueChange = viewModel::updateNSFWConfidenceThreshold,
             valueFormatter = { "${(it * 100).toInt()}%" }
         )

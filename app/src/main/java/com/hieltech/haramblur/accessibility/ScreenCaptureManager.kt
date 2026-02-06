@@ -2,6 +2,7 @@ package com.hieltech.haramblur.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -10,8 +11,12 @@ import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.util.DisplayMetrics
 import android.util.Log
+import android.view.Surface
 import android.view.WindowManager
 import kotlinx.coroutines.*
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -139,9 +144,10 @@ class ScreenCaptureManager @Inject constructor() {
                 createSimulatedScreenshot(service)
             }
             
-            // Validate bitmap before returning
+            // Validate and normalize bitmap before returning
             if (bitmap != null && !bitmap.isRecycled && bitmap.width > 0 && bitmap.height > 0) {
-                bitmap
+                val normalized = normalizeToCurrentDisplay(bitmap!!, service)
+                normalized
             } else {
                 Log.w(TAG, "Invalid bitmap captured")
                 bitmap?.recycle() // Clean up invalid bitmap
@@ -195,35 +201,69 @@ class ScreenCaptureManager @Inject constructor() {
             try {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                     // Use the new takeScreenshot API
-                    var bitmap: Bitmap? = null
-                    val callback = object : AccessibilityService.TakeScreenshotCallback {
-                        override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
-                            val hardwareBitmap = Bitmap.wrapHardwareBuffer(
-                                screenshot.hardwareBuffer,
-                                screenshot.colorSpace
-                            )
-                            
-                            // Convert HARDWARE bitmap to software bitmap for pixel access
-                            bitmap = convertHardwareToSoftwareBitmap(hardwareBitmap)
-                            screenshot.hardwareBuffer.close()
-                            hardwareBitmap?.recycle() // Clean up hardware bitmap
-                        }
-                        
-                        override fun onFailure(errorCode: Int) {
-                            Log.e(TAG, "Screenshot failed with error code: $errorCode")
-                            bitmap = null
+                    withTimeoutOrNull(CAPTURE_TIMEOUT) {
+                        suspendCancellableCoroutine { cont ->
+                            var finished = false
+
+                            val callback = object : AccessibilityService.TakeScreenshotCallback {
+                                override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
+                                    if (finished) return
+                                    finished = true
+                                    try {
+                                        val hardwareBitmap = Bitmap.wrapHardwareBuffer(
+                                            screenshot.hardwareBuffer,
+                                            screenshot.colorSpace
+                                        )
+
+                                        // Convert HARDWARE bitmap to software bitmap for pixel access
+                                        val software = convertHardwareToSoftwareBitmap(hardwareBitmap)
+
+                                        // Always close/recycle native resources
+                                        try {
+                                            screenshot.hardwareBuffer.close()
+                                        } catch (_: Exception) {
+                                        }
+                                        try {
+                                            hardwareBitmap?.recycle()
+                                        } catch (_: Exception) {
+                                        }
+
+                                        cont.resume(software)
+                                    } catch (t: Throwable) {
+                                        try {
+                                            screenshot.hardwareBuffer.close()
+                                        } catch (_: Exception) {
+                                        }
+                                        cont.resumeWithException(t)
+                                    }
+                                }
+
+                                override fun onFailure(errorCode: Int) {
+                                    if (finished) return
+                                    finished = true
+                                    Log.e(TAG, "Screenshot failed with error code: $errorCode")
+                                    cont.resume(null)
+                                }
+                            }
+
+                            try {
+                                takeScreenshot(
+                                    android.view.Display.DEFAULT_DISPLAY,
+                                    { it.run() }, // Execute on current thread
+                                    callback
+                                )
+                            } catch (e: Exception) {
+                                if (!finished) {
+                                    finished = true
+                                    cont.resume(null)
+                                }
+                            }
+
+                            cont.invokeOnCancellation {
+                                // No additional cleanup required here; hardwareBuffer is only obtained on success.
+                            }
                         }
                     }
-                    
-                    takeScreenshot(
-                        android.view.Display.DEFAULT_DISPLAY,
-                        { it.run() }, // Execute on current thread
-                        callback
-                    )
-                    
-                    // Wait for callback (simplified - in production use proper synchronization)
-                    delay(1000)
-                    bitmap
                 } else {
                     createSimulatedScreenshot(this@takeScreenshot)
                 }
@@ -265,6 +305,101 @@ class ScreenCaptureManager @Inject constructor() {
         } catch (e: Exception) {
             Log.e(TAG, "Error converting HARDWARE bitmap to software format", e)
             return null
+        }
+    }
+
+    /**
+     * Normalizes screenshot orientation so the bitmap dimensions/orientation match the current display.
+     *
+     * Why: ML Kit face detection and overlay coordinates become unreliable if the screenshot is rotated
+     * relative to the current screen orientation.
+     */
+    private fun normalizeToCurrentDisplay(bitmap: Bitmap, service: AccessibilityService): Bitmap {
+        return try {
+            val (displayW, displayH) = getCurrentDisplaySize(service)
+            if (displayW <= 0 || displayH <= 0) return bitmap
+
+            if (bitmap.width == displayW && bitmap.height == displayH) {
+                // Already matches display.
+                return bitmap
+            }
+
+            // If dimensions are swapped, rotate to match current display orientation.
+            if (bitmap.width == displayH && bitmap.height == displayW) {
+                val rotation = getCurrentDisplayRotation(service)
+                val degrees = when (rotation) {
+                    Surface.ROTATION_90 -> 90
+                    Surface.ROTATION_180 -> 180
+                    Surface.ROTATION_270 -> 270
+                    else -> 90 // ROTATION_0 but swapped -> pick a sensible default
+                }
+
+                Log.w(
+                    TAG,
+                    "🔄 Screenshot orientation mismatch: bmp=${bitmap.width}x${bitmap.height}, display=${displayW}x${displayH}, rotation=$rotation -> rotate ${degrees}°"
+                )
+
+                val rotated = rotateBitmapSafely(bitmap, degrees)
+                return rotated
+            }
+
+            // Other mismatches (e.g., scaling) - keep as-is but log for diagnostics.
+            Log.w(TAG, "⚠️ Screenshot size differs from display: bmp=${bitmap.width}x${bitmap.height}, display=${displayW}x${displayH} (no rotation applied)")
+            bitmap
+        } catch (e: Exception) {
+            Log.w(TAG, "normalizeToCurrentDisplay failed - returning original bitmap", e)
+            bitmap
+        }
+    }
+
+    private fun getCurrentDisplayRotation(service: AccessibilityService): Int {
+        return try {
+            val wm = service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                service.display?.rotation ?: Surface.ROTATION_0
+            } else {
+                @Suppress("DEPRECATION")
+                wm.defaultDisplay.rotation
+            }
+        } catch (_: Exception) {
+            Surface.ROTATION_0
+        }
+    }
+
+    private fun getCurrentDisplaySize(service: AccessibilityService): Pair<Int, Int> {
+        return try {
+            val wm = service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                val bounds = wm.currentWindowMetrics.bounds
+                Pair(bounds.width(), bounds.height())
+            } else {
+                val metrics = DisplayMetrics()
+                @Suppress("DEPRECATION")
+                wm.defaultDisplay.getRealMetrics(metrics)
+                Pair(metrics.widthPixels, metrics.heightPixels)
+            }
+        } catch (_: Exception) {
+            Pair(0, 0)
+        }
+    }
+
+    private fun rotateBitmapSafely(source: Bitmap, degrees: Int): Bitmap {
+        if (degrees % 360 == 0) return source
+
+        return try {
+            val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
+            val rotated = Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+
+            // We own the captured bitmap. If we successfully created a rotated copy, recycle the original.
+            runCatching { if (rotated != source && !source.isRecycled) source.recycle() }
+
+            rotated
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "Out of memory rotating screenshot (${source.width}x${source.height}) by ${degrees}° - using original", e)
+            source
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to rotate screenshot by ${degrees}° - using original", e)
+            source
         }
     }
     

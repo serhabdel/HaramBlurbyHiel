@@ -5,6 +5,7 @@ import com.hieltech.haramblur.detection.Gender
 import com.hieltech.haramblur.detection.GenderDetectionResult
 import com.hieltech.haramblur.detection.FacialFeatureAnalysis
 import com.hieltech.haramblur.data.AppSettings
+import com.hieltech.haramblur.data.UserGender
 import org.junit.Before
 import org.junit.Test
 import org.junit.Assert.*
@@ -98,5 +99,80 @@ class FaceDetectionIntegrationTest {
         assertTrue("Should have valid confidence", result.confidence > 0.0f)
         assertNotNull("Should have facial features", result.facialFeatures)
         assertTrue("Should have processing time", result.processingTimeMs >= 0)
+    }
+
+    @Test
+    fun `male profile should NOT blur moderate-confidence MALE faces via conservative cross-gender rule`() {
+        val maleResult = GenderDetectionResult(
+            gender = Gender.MALE,
+            confidence = 0.6f,
+            facialFeatures = FacialFeatureAnalysis.default(),
+            processingTimeMs = 10L
+        )
+
+        val settings = AppSettings(
+            enableFaceDetection = true,
+            blurMaleFaces = false,
+            blurFemaleFaces = true,
+            detectionSensitivity = 0.9f,
+            userGender = UserGender.MALE
+        )
+
+        val detectedFaces = listOf(
+            FaceDetectionManager.DetectedFace(
+                boundingBox = Rect(100, 100, 200, 250),
+                estimatedGender = Gender.MALE,
+                genderConfidence = 0.6f,
+                genderDetectionResult = maleResult
+            )
+        )
+
+        val faceResult = FaceDetectionManager.FaceDetectionResult(
+            facesDetected = 1,
+            detectedFaces = detectedFaces,
+            success = true,
+            error = null
+        )
+
+        val facesToBlur = faceResult.getFacesToBlur(settings)
+        assertEquals("Should not blur male face for male profile", 0, facesToBlur.size)
+    }
+
+    @Test
+    fun `NOT_SPECIFIED profile may blur moderate-confidence MALE faces conservatively when blurring females`() {
+        val maleResult = GenderDetectionResult(
+            gender = Gender.MALE,
+            confidence = 0.6f,
+            facialFeatures = FacialFeatureAnalysis.default(),
+            processingTimeMs = 10L
+        )
+
+        val settings = AppSettings(
+            enableFaceDetection = true,
+            blurMaleFaces = false,
+            blurFemaleFaces = true,
+            detectionSensitivity = 0.9f,
+            userGender = UserGender.NOT_SPECIFIED
+        )
+
+        val detectedFaces = listOf(
+            FaceDetectionManager.DetectedFace(
+                boundingBox = Rect(100, 100, 200, 250),
+                estimatedGender = Gender.MALE,
+                genderConfidence = 0.6f,
+                genderDetectionResult = maleResult
+            )
+        )
+
+        val faceResult = FaceDetectionManager.FaceDetectionResult(
+            facesDetected = 1,
+            detectedFaces = detectedFaces,
+            success = true,
+            error = null
+        )
+
+        val facesToBlur = faceResult.getFacesToBlur(settings)
+        assertEquals("Should conservatively blur likely-female face when gender not specified", 1, facesToBlur.size)
+        assertEquals(Gender.MALE, facesToBlur.first().estimatedGender)
     }
 }

@@ -29,8 +29,10 @@ import com.hieltech.haramblur.ui.LogsViewerScreen
 import com.hieltech.haramblur.ui.SupportScreen
 import com.hieltech.haramblur.ui.DiagnosticsScreen
 import com.hieltech.haramblur.ui.insights.InsightsScreen
-import com.hieltech.haramblur.ui.PermissionWizardScreen
+import com.hieltech.haramblur.ui.StreamlinedOnboardingScreen
 import com.hieltech.haramblur.ui.PermissionWizardViewModel
+import com.hieltech.haramblur.ui.MainScreen
+import com.hieltech.haramblur.ui.PrayerScreen
 import com.hieltech.haramblur.ui.PermissionHelper
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.ui.components.ModernNavigationBar
@@ -282,9 +284,9 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     },
-                                    onNavigateToDhikr = {
-                                        if (currentRoute != NavRoutes.DHIKR) {
-                                            navController.navigate(NavRoutes.DHIKR) {
+                                    onNavigateToPrayer = {
+                                        if (currentRoute != NavRoutes.PRAYER) {
+                                            navController.navigate(NavRoutes.PRAYER) {
                                                 launchSingleTop = true
                                                 restoreState = true
                                                 popUpTo(navController.graph.startDestinationId) {
@@ -293,9 +295,9 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     },
-                                    onNavigateToInsights = {
-                                        if (currentRoute != NavRoutes.INSIGHTS) {
-                                            navController.navigate(NavRoutes.INSIGHTS) {
+                                    onNavigateToDhikr = {
+                                        if (currentRoute != NavRoutes.DHIKR) {
+                                            navController.navigate(NavRoutes.DHIKR) {
                                                 launchSingleTop = true
                                                 restoreState = true
                                                 popUpTo(navController.graph.startDestinationId) {
@@ -325,7 +327,7 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier.padding(paddingValues)
                             ) {
                                 composable(NavRoutes.PERMISSION_WIZARD) {
-                                    PermissionWizardScreen(
+                                    StreamlinedOnboardingScreen(
                                         onComplete = {
                                             navController.navigate(NavRoutes.HOME) {
                                                 popUpTo(NavRoutes.PERMISSION_WIZARD) { inclusive = true }
@@ -334,7 +336,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                                                  composable(NavRoutes.HOME) {
-                                                                     HomeScreenResponsive(
+                                                                     MainScreen(
                                                                          onNavigateToSettings = {
                                                                              if (currentRoute != NavRoutes.SETTINGS) {
                                                                                  navController.navigate(NavRoutes.SETTINGS)
@@ -345,33 +347,16 @@ class MainActivity : ComponentActivity() {
                                                                                  navController.navigate(NavRoutes.DEBUG)
                                                                              }
                                                                          },
-                                                                         onNavigateToBlockApps = {
-                                                                             if (currentRoute != NavRoutes.BLOCK_APPS_SITES) {
-                                                                                 navController.navigate(NavRoutes.BLOCK_APPS_SITES)
+                                                                         onNavigateToPrayer = {
+                                                                             if (currentRoute != NavRoutes.PRAYER) {
+                                                                                 navController.navigate(NavRoutes.PRAYER)
                                                                              }
                                                                          },
-                                                                         onNavigateToBlockSites = {
-                                                                             if (currentRoute != NavRoutes.BLOCK_APPS_SITES) {
-                                                                                 navController.navigate(NavRoutes.BLOCK_APPS_SITES)
+                                                                         onNavigateToDhikr = {
+                                                                             if (currentRoute != NavRoutes.DHIKR) {
+                                                                                 navController.navigate(NavRoutes.DHIKR)
                                                                              }
-                                                                         },
-                                                                         onNavigateToSupport = {
-                                                                             if (currentRoute != NavRoutes.SUPPORT) {
-                                                                                 navController.navigate(NavRoutes.SUPPORT)
-                                                                             }
-                                                                         },
-                                                                         onNavigateToLogs = {
-                                                                             if (currentRoute != NavRoutes.LOGS) {
-                                                                                 navController.navigate(NavRoutes.LOGS)
-                                                                             }
-                                                                         },
-                                                                         onOpenDrawer = { scope.launch { drawerState.open() } },
-                                                                         viewModel = hiltViewModel(),
-                                                                         statsViewModel = hiltViewModel(),
-                                                                         settingsViewModel = hiltViewModel(),
-                                                                         permissionHelper = permissionHelper,
-                                                                         appBlockingManager = appBlockingManager,
-                                                                         siteBlockingManager = siteBlockingManager
+                                                                         }
                                                                      )
                                                                  }
                                 composable(NavRoutes.BLOCK_APPS_SITES) {
@@ -381,6 +366,16 @@ class MainActivity : ComponentActivity() {
                                     siteBlockingManager = siteBlockingManager
                                 )
                             }
+                                composable(NavRoutes.PRAYER) {
+                                    PrayerScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onNavigateToSettings = {
+                                            if (currentRoute != NavRoutes.SETTINGS) {
+                                                navController.navigate(NavRoutes.SETTINGS)
+                                            }
+                                        }
+                                    )
+                                }
                                 composable(NavRoutes.INSIGHTS) {
                                     InsightsScreen()
                                 }

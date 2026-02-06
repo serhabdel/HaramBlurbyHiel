@@ -105,7 +105,8 @@ fun DetectionSettingsScreen(
                         title = stringResource(R.string.nsfw_confidence_threshold_title),
                         description = stringResource(R.string.nsfw_confidence_threshold_description),
                         value = settings.nsfwConfidenceThreshold,
-                        range = 0.4f..0.7f,
+                        // Allow down to 0.30 (see DetectionThresholds.MIN_NSFW_THRESHOLD)
+                        range = 0.3f..0.7f,
                         onValueChange = { viewModel.updateNSFWConfidenceThreshold(it) },
                         valueFormatter = { "${(it * 100).toInt()}%" }
                     )

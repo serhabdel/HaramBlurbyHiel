@@ -123,6 +123,9 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     lateinit var dhikrManager: com.hieltech.haramblur.services.DhikrManager
 
     @Inject
+    lateinit var prayerNotificationScheduler: com.hieltech.haramblur.services.PrayerNotificationScheduler
+
+    @Inject
     lateinit var appFilteringManager: AppFilteringManager
 
     @Inject
@@ -395,6 +398,15 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 Log.w(TAG, "Error cleaning up DhikrManager: ${e.message}")
             }
 
+            // Clean up prayer notification scheduler
+            try {
+                prayerNotificationScheduler.stopScheduler()
+                prayerNotificationScheduler.cleanup()
+                Log.d(TAG, "âœ… PrayerNotificationScheduler stopped and cleaned up")
+            } catch (e: Exception) {
+                Log.w(TAG, "Error cleaning up PrayerNotificationScheduler: ${e.message}")
+            }
+
             // Emergency overlay cleanup
             try {
                 blurOverlayManager.emergencyHideAllOverlays()
@@ -558,6 +570,11 @@ class HaramBlurAccessibilityService : AccessibilityService() {
             dhikrManager.initialize(this@HaramBlurAccessibilityService)
             dhikrManager.startScheduler()
             Log.d(TAG, "âœ… DhikrManager initialized and scheduler started")
+
+            // Initialize prayer notification scheduler and start
+            prayerNotificationScheduler.initialize(this@HaramBlurAccessibilityService)
+            prayerNotificationScheduler.startScheduler()
+            Log.d(TAG, "âœ… PrayerNotificationScheduler initialized and scheduler started")
             
             // Initialize crash recovery system
             crashRecoverySystem.initialize()
@@ -840,23 +857,40 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 detectionCache[bitmapHash] = Pair(currentTime, shouldBlur)
                 lastBitmapHash = bitmapHash
                 
-                // Apply or remove blur based on processing result
-                if (shouldBlur) {
-                    if (!isCurrentlyBlurred) {
-                        // Show blur overlay with detected regions
-                        val blurShown = overlayStateManager.showBlurOverlay(
-                            regions = processingResult.blurRegions,
-                            settings = currentSettings,
-                            contentSensitivity = processingResult.maxNsfwConfidence
-                        )
-                        
-                        if (blurShown) {
-                            isCurrentlyBlurred = true
-                            lastBlurStartTime = currentTime
-                            Log.w(TAG, "🛑 BLUR ACTIVATED - ${processingResult.blurRegions.size} regions")
-                        }
-                    }
-                } else {
+	                // Apply or remove blur based on processing result
+	                if (shouldBlur) {
+	                    if (processingResult.blurRegions.isEmpty()) {
+	                        // We intentionally do NOT hide blur here: a cached/stable decision may say
+	                        // "keep blurred" even if we have no new precise regions for this frame.
+	                        Log.d(TAG, "⚠️ shouldBlur=true but blurRegions is empty - cannot show/update overlay [$processingId]")
+	                    } else {
+	                        // IMPORTANT: attempt to show/update blur even when already blurred.
+	                        // Otherwise overlays won't update on scroll and a prior failed attempt can permanently gate blur.
+	                        val wasBlurred = isCurrentlyBlurred
+	                        Log.d(
+	                            TAG,
+	                            "➡️ Attempting blur overlay show/update: wasBlurred=$wasBlurred regions=${processingResult.blurRegions.size} [$processingId]"
+	                        )
+	
+	                        val blurShown = overlayStateManager.showBlurOverlay(
+	                            regions = processingResult.blurRegions,
+	                            settings = currentSettings,
+	                            contentSensitivity = processingResult.maxNsfwConfidence,
+	                            sourceBitmapWidth = bitmap.width,
+	                            sourceBitmapHeight = bitmap.height
+	                        )
+	
+	                        // Only treat this as a new activation if we were previously unblurred.
+	                        if (blurShown && !wasBlurred) {
+	                            isCurrentlyBlurred = true
+	                            lastBlurStartTime = currentTime
+	                            Log.w(TAG, "🛑 BLUR ACTIVATED - ${processingResult.blurRegions.size} regions [$processingId]")
+	                        } else if (!blurShown && !wasBlurred) {
+	                            // Ensure we never get stuck in a 'blurred' state without an overlay.
+	                            isCurrentlyBlurred = false
+	                        }
+	                    }
+	                } else {
                     if (isCurrentlyBlurred && overlayStateManager.isMinBlurDurationPassed()) {
                         // Hide blur when content is clean and minimum duration passed
                         overlayStateManager.hideBlurOverlay("content_clean")
@@ -931,7 +965,11 @@ class HaramBlurAccessibilityService : AccessibilityService() {
                 
                 // Handle blur based on result
                 if (shouldBlur && analysisResult != null) {
-                    handleBlurActivation(analysisResult)
+                    handleBlurActivation(
+                        analysisResult = analysisResult,
+                        sourceBitmapWidth = bitmap.width,
+                        sourceBitmapHeight = bitmap.height
+                    )
                 } else if (!shouldBlur && canDeactivateBlur()) {
                     safeHideOverlay("no_inappropriate_content")
                     isCurrentlyBlurred = false
@@ -979,27 +1017,47 @@ class HaramBlurAccessibilityService : AccessibilityService() {
     /**
      * Handle blur activation with overlay
      */
-    private suspend fun handleBlurActivation(analysisResult: ContentDetectionEngine.ContentAnalysisResult) {
-        if (!isCurrentlyBlurred) {
-            lastBlurStartTime = System.currentTimeMillis()
-            isCurrentlyBlurred = true
-            
-            // Actually SHOW the blur overlay with detected regions
-            if (analysisResult.blurRegions.isNotEmpty()) {
-                val settings = settingsRepository.getCurrentSettings()
-                val blurShown = overlayStateManager.showBlurOverlay(
-                    regions = analysisResult.blurRegions,
-                    settings = settings,
-                    contentSensitivity = analysisResult.maxNsfwConfidence
-                )
-                
-                if (blurShown) {
-                    Log.w(TAG, "🛑 BLUR OVERLAY SHOWN - ${analysisResult.blurRegions.size} regions")
-                } else {
-                    Log.e(TAG, "❌ Failed to show blur overlay")
-                }
-            }
-        }
+    private suspend fun handleBlurActivation(
+        analysisResult: ContentDetectionEngine.ContentAnalysisResult,
+        sourceBitmapWidth: Int? = null,
+        sourceBitmapHeight: Int? = null
+    ) {
+	        // IMPORTANT: do NOT set isCurrentlyBlurred=true until the overlay is actually shown.
+	        // Setting it early can permanently gate further overlay attempts (symptom: shouldBlur=true but no overlay).
+	        if (analysisResult.blurRegions.isEmpty()) {
+	            Log.d(TAG, "⚠️ handleBlurActivation: shouldBlur=true but no blurRegions - skipping overlay show")
+	            return
+	        }
+
+	        val settings = settingsRepository.getCurrentSettings()
+	        val wasBlurred = isCurrentlyBlurred
+	        Log.d(
+	            TAG,
+	            "➡️ handleBlurActivation: attempting overlay show/update wasBlurred=$wasBlurred regions=${analysisResult.blurRegions.size}"
+	        )
+
+	        val blurShown = overlayStateManager.showBlurOverlay(
+	            regions = analysisResult.blurRegions,
+	            settings = settings,
+	            contentSensitivity = analysisResult.maxNsfwConfidence,
+	            sourceBitmapWidth = sourceBitmapWidth,
+	            sourceBitmapHeight = sourceBitmapHeight
+	        )
+
+	        if (blurShown) {
+	            if (!wasBlurred) {
+	                lastBlurStartTime = System.currentTimeMillis()
+	                isCurrentlyBlurred = true
+	                Log.w(TAG, "🛑 BLUR OVERLAY SHOWN - ${analysisResult.blurRegions.size} regions")
+	            } else {
+	                Log.d(TAG, "🔄 BLUR OVERLAY UPDATED - ${analysisResult.blurRegions.size} regions")
+	            }
+	        } else {
+	            Log.e(TAG, "❌ Failed to show blur overlay")
+	            if (!wasBlurred) {
+	                isCurrentlyBlurred = false
+	            }
+	        }
     }
 
     /**

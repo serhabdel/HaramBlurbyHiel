@@ -693,4 +693,18 @@ class PermissionWizardViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Open system accessibility settings
+     */
+    fun openAccessibilitySettings(context: Context) {
+        permissionHelper.openAccessibilitySettings(context)
+    }
+
+    /**
+     * Open system usage access settings
+     */
+    fun openUsageAccessSettings(context: Context) {
+        permissionHelper.openUsageAccessSettings(context)
+    }
 }

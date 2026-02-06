@@ -35,36 +35,61 @@ class OverlayStateManager(
     
     /**
      * Show blur overlay with regions
+     * Uses smooth animation for first show, instant update when already visible
      */
-    fun showBlurOverlay(
+    suspend fun showBlurOverlay(
         regions: List<Rect>,
         settings: AppSettings,
         contentSensitivity: Float,
+        sourceBitmapWidth: Int? = null,
+        sourceBitmapHeight: Int? = null,
         onSuccess: () -> Unit = {},
         onError: (Exception) -> Unit = {}
     ): Boolean {
         return try {
-            Log.w(TAG, "🎯 ===== ACTIVATING BLUR OVERLAY =====")
-            Log.w(TAG, "   Regions: ${regions.size}")
-            regions.forEachIndexed { index, rect ->
-                Log.w(TAG, "   Region $index: [${rect.width()}x${rect.height()}]")
-            }
-            Log.w(TAG, "   Intensity: ${settings.blurIntensity}")
-            Log.w(TAG, "=====================================")
+            // Use smooth animation only for first show, instant update when already visible
+            // This ensures fast blur updates when user scrolls
+            val useSmoothTransition = settings.enableSmoothBlurAnimations && !isCurrentlyBlurred
             
-            blurOverlayManager.showBlurOverlay(
+            if (!isCurrentlyBlurred) {
+                Log.w(TAG, "🎯 ===== ACTIVATING BLUR OVERLAY =====")
+                Log.w(TAG, "   Regions: ${regions.size}")
+                regions.forEachIndexed { index, rect ->
+                    Log.w(TAG, "   Region $index: [${rect.width()}x${rect.height()}]")
+                }
+                Log.w(TAG, "   Intensity: ${settings.blurIntensity}")
+                Log.w(TAG, "=====================================")
+            } else {
+                // Just log update when already visible
+                Log.d(TAG, "🔄 Updating blur overlay - ${regions.size} regions (instant)")
+            }
+            
+            val shown = blurOverlayManager.showBlurOverlayAwait(
                 blurRegions = regions,
                 blurIntensity = settings.blurIntensity,
                 blurStyle = settings.blurStyle,
                 contentSensitivity = contentSensitivity,
-                smoothTransition = settings.enableSmoothBlurAnimations
+                smoothTransition = useSmoothTransition,
+                sourceBitmapWidth = sourceBitmapWidth,
+                sourceBitmapHeight = sourceBitmapHeight
             )
-            
+
+            if (!shown) {
+                // IMPORTANT: do NOT mark ourselves as blurred unless the overlay was actually shown/updated.
+                // Otherwise HaramBlurAccessibilityService will stop trying to show the overlay.
+                Log.w(TAG, "❌ Blur overlay NOT shown (manager rejected/failed) - will retry on next frame")
+                return false
+            }
+
             isCurrentlyBlurred = true
             lastBlurStartTime = System.currentTimeMillis()
             onStateChanged(true)
-            
-            Log.w(TAG, "✅ Blur overlay shown successfully")
+
+            if (!useSmoothTransition) {
+                Log.d(TAG, "✅ Blur overlay updated instantly")
+            } else {
+                Log.w(TAG, "✅ Blur overlay shown successfully")
+            }
             onSuccess()
             true
             

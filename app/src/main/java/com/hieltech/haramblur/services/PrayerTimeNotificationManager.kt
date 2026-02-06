@@ -41,52 +41,52 @@ class PrayerTimeNotificationManager @Inject constructor(
     private val prayerTimesRepository: PrayerTimesRepository,
     private val quranicRepository: QuranicRepository
 ) {
-    
+
     companion object {
         private const val TAG = "PrayerTimeNotificationManager"
-        
+
         // Notification Channels
         private const val PRAYER_TIME_CHANNEL_ID = "prayer_time_channel"
         private const val PRAYER_REMINDER_CHANNEL_ID = "prayer_reminder_channel"
-        
+
         // Notification IDs
         private const val PRAYER_TIME_NOTIFICATION_ID = 2001
         private const val PRAYER_REMINDER_NOTIFICATION_ID = 2002
         private const val ADVANCE_NOTIFICATION_BASE_ID = PRAYER_TIME_NOTIFICATION_ID
         private const val QURANIC_GUIDANCE_NOTIFICATION_ID = PRAYER_REMINDER_NOTIFICATION_ID + 200
-        
+
         // Actions for notifications
         const val ACTION_PRAYER_COMPLETED = "com.hieltech.haramblur.PRAYER_COMPLETED"
         const val ACTION_PRAYER_NOT_COMPLETED = "com.hieltech.haramblur.PRAYER_NOT_COMPLETED"
         const val ACTION_PRAYER_WILL_DO_NOW = "com.hieltech.haramblur.PRAYER_WILL_DO_NOW"
         const val ACTION_PRAYER_ALREADY_DONE = "com.hieltech.haramblur.PRAYER_ALREADY_DONE"
         const val ACTION_SHOW_QURANIC_GUIDANCE = "com.hieltech.haramblur.SHOW_QURANIC_GUIDANCE"
-        
+
         // Extras
         const val EXTRA_PRAYER_NAME = "prayer_name"
         const val EXTRA_PRAYER_TIME = "prayer_time"
-        
+
         // Timing constants
         private const val REMINDER_DELAY_MS = 10 * 60 * 1000L // 10 minutes
         private const val FOLLOW_UP_DELAY_MS = 5 * 60 * 1000L // 5 minutes
-        
+
         // Notification type constants
         private const val NOTIF_TYPE_10MIN = "10min"
         private const val NOTIF_TYPE_5MIN = "5min"
         private const val NOTIF_TYPE_AT_TIME = "attime"
         private const val NOTIF_TYPE_LATE = "late"
     }
-    
+
     private val notificationManager = NotificationManagerCompat.from(context)
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val prefs = context.getSharedPreferences("prayer_completion_prefs", Context.MODE_PRIVATE)
     private val followUpPrefs = context.getSharedPreferences("prayer_followup_prefs", Context.MODE_PRIVATE)
     private val notificationTrackingPrefs = context.getSharedPreferences("prayer_notification_tracking", Context.MODE_PRIVATE)
-    
+
     // Track prayer completion status
     private val prayerCompletionStatus = mutableMapOf<String, Boolean>()
     private val pendingReminders = mutableMapOf<String, Long>() // prayer -> timestamp
-    
+
     /**
      * Check if notification permission is granted
      */
@@ -106,22 +106,21 @@ class PrayerTimeNotificationManager @Inject constructor(
     init {
         createNotificationChannels()
         cleanupOldPrayerCompletionData()
-        
+
         // Initialize notification tracking
         if (!notificationTrackingPrefs.contains("last_reset_date")) {
             notificationTrackingPrefs.edit().putString("last_reset_date", getCurrentDateKey()).apply()
         }
         checkAndResetIfDateChanged()
-        scheduleDailyReset()
     }
-    
+
     /**
      * Create notification channels for prayer notifications
      */
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            
+
             // High-priority channel for prayer time notifications
             val prayerTimeChannel = NotificationChannel(
                 PRAYER_TIME_CHANNEL_ID,
@@ -137,7 +136,7 @@ class PrayerTimeNotificationManager @Inject constructor(
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 setBypassDnd(true) // Important for prayer times
             }
-            
+
             // Medium-priority channel for prayer reminders
             val prayerReminderChannel = NotificationChannel(
                 PRAYER_REMINDER_CHANNEL_ID,
@@ -152,12 +151,12 @@ class PrayerTimeNotificationManager @Inject constructor(
                 setShowBadge(true)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
-            
+
             manager.createNotificationChannel(prayerTimeChannel)
             manager.createNotificationChannel(prayerReminderChannel)
         }
     }
-    
+
     /**
      * Send prayer time notification when prayer time arrives
      */
@@ -171,37 +170,37 @@ class PrayerTimeNotificationManager @Inject constructor(
                 }
 
                 val settings = settingsRepository.getCurrentSettings()
-                
+
                 if (!settings.enablePrayerNotifications) {
                     Log.d(TAG, "🚫 Prayer notifications disabled")
                     return@launch
                 }
-                
+
                 // Check and reset if date changed
                 checkAndResetIfDateChanged()
-                
+
                 // Check if notification already sent
                 if (hasNotificationBeenSent(prayerName.name, NOTIF_TYPE_AT_TIME)) {
                     Log.d(TAG, "⏭️ Prayer time notification for $prayerName already sent today, skipping")
                     return@launch
                 }
-                
+
                 Log.i(TAG, "🔔 Sending prayer time notification for $prayerName at $prayerTime")
-                
+
                 // Create the main notification
                 val notification = createPrayerTimeNotification(prayerName, prayerTime, settings.preferredLanguage.name)
-                notificationManager.notify(PRAYER_TIME_NOTIFICATION_ID, notification)
-                
+                notificationManager.notify(PRAYER_TIME_NOTIFICATION_ID + prayerName.ordinal, notification)
+
                 // Mark notification as sent
                 markNotificationAsSent(prayerName.name, NOTIF_TYPE_AT_TIME)
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error sending prayer time notification", e)
                 // Don't mark as sent if there was an error
             }
         }
     }
-    
+
     /**
      * Send advance notification for upcoming prayer
      * @param prayerName The prayer name
@@ -222,26 +221,26 @@ class PrayerTimeNotificationManager @Inject constructor(
                 Log.d(TAG, "🚫 Prayer notifications disabled, skipping advance notification")
                 return
             }
-            
+
             // Check and reset if date changed
             checkAndResetIfDateChanged()
-            
+
             // Determine notification type and check if already sent
             val notificationType = if (minutesUntil == 10) NOTIF_TYPE_10MIN else NOTIF_TYPE_5MIN
             if (hasNotificationBeenSent(prayerName.name, notificationType)) {
                 Log.d(TAG, "⏭️ Advance notification for $prayerName ($minutesUntil min) already sent today, skipping")
                 return
             }
-            
+
             Log.i(TAG, "🔔 Sending advance notification for $prayerName in $minutesUntil minutes (language: $language)")
-            
+
             // Get localized strings based on minutes
             val titleResId = if (minutesUntil == 10) R.string.prayer_advance_10min_text else R.string.prayer_advance_5min_text
             val messageResId = if (minutesUntil == 10) R.string.prayer_advance_10min_message else R.string.prayer_advance_5min_message
-            
+
             val title = context.getString(titleResId, getPrayerNameForCurrentLocale(prayerName))
             val message = context.getString(messageResId)
-            
+
             // Create PendingIntent to MainActivity
             val intent = Intent(context, MainActivity::class.java)
             val pendingIntent = PendingIntent.getActivity(
@@ -250,7 +249,7 @@ class PrayerTimeNotificationManager @Inject constructor(
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            
+
             // Build notification
             val notification = NotificationCompat.Builder(context, PRAYER_TIME_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_shield_islamic)
@@ -263,44 +262,44 @@ class PrayerTimeNotificationManager @Inject constructor(
                 .setContentIntent(pendingIntent)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))
                 .build()
-            
+
             // Use unique notification ID based on prayer name and minutes
             val uniqueNotificationId = ADVANCE_NOTIFICATION_BASE_ID + (prayerName.ordinal * 100) + minutesUntil
-            
+
             // Send the notification
             notificationManager.notify(uniqueNotificationId, notification)
             Log.d(TAG, "Advance notification sent successfully with ID: $uniqueNotificationId")
-            
+
             // Mark notification as sent
             markNotificationAsSent(prayerName.name, notificationType)
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error sending advance notification for $prayerName in $minutesUntil minutes", e)
             // Don't mark as sent if there was an error
         }
     }
-    
+
     /**
      * Create prayer time notification
      */
     private fun createPrayerTimeNotification(
-        prayerName: PrayerName, 
-        prayerTime: String, 
+        prayerName: PrayerName,
+        prayerTime: String,
         language: String
     ): android.app.Notification {
-        
+
         val title = when (language.lowercase()) {
             "arabic", "ar" -> "وقت صلاة ${getPrayerNameArabic(prayerName)}"
             "french", "fr" -> "Temps de prière ${getPrayerNameFrench(prayerName)}"
             else -> "Time for ${getPrayerNameEnglish(prayerName)} Prayer"
         }
-        
+
         val message = when (language.lowercase()) {
             "arabic", "ar" -> "حان الآن وقت صلاة ${getPrayerNameArabic(prayerName)}. بارك الله فيك."
             "french", "fr" -> "Il est temps pour la prière de ${getPrayerNameFrench(prayerName)}. Qu'Allah vous bénisse."
             else -> "It's time for ${getPrayerNameEnglish(prayerName)} prayer. May Allah bless you."
         }
-        
+
         val intent = Intent(context, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -308,7 +307,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        
+
         return NotificationCompat.Builder(context, PRAYER_TIME_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_islamic)
             .setContentTitle(title)
@@ -321,7 +320,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .build()
     }
-    
+
     /**
      * Send prayer reminder notification (private implementation)
      */
@@ -333,11 +332,11 @@ class PrayerTimeNotificationManager @Inject constructor(
             getPrayerNameEnglish(prayerName),
             getPrayerNameArabic(prayerName)
         )
-        
+
         // Get localized action button labels
         val yesText = context.getString(R.string.prayer_action_yes_bilingual)
         val noText = context.getString(R.string.prayer_action_no_bilingual)
-        
+
         val yesIntent = Intent(ACTION_PRAYER_COMPLETED).apply {
             putExtra(EXTRA_PRAYER_NAME, prayerName.name)
             putExtra(EXTRA_PRAYER_TIME, prayerTime)
@@ -349,7 +348,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             yesIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        
+
         val noIntent = Intent(ACTION_PRAYER_NOT_COMPLETED).apply {
             putExtra(EXTRA_PRAYER_NAME, prayerName.name)
             putExtra(EXTRA_PRAYER_TIME, prayerTime)
@@ -361,7 +360,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             noIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        
+
         val notification = NotificationCompat.Builder(context, PRAYER_REMINDER_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_islamic)
             .setContentTitle(title)
@@ -373,57 +372,57 @@ class PrayerTimeNotificationManager @Inject constructor(
             .addAction(R.drawable.ic_launcher_background, noText, noPendingIntent)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .build()
-        
-        notificationManager.notify(PRAYER_REMINDER_NOTIFICATION_ID, notification)
-        
+
+        notificationManager.notify(PRAYER_REMINDER_NOTIFICATION_ID + prayerName.ordinal, notification)
+
         // Schedule follow-up reminder if no response in 5 minutes
         scheduleFollowUpReminder(prayerName, prayerTime, prayerKey)
     }
-    
+
     /**
      * Handle prayer completion response (Yes button)
      */
     fun handlePrayerCompleted(prayerName: String, prayerTime: String) {
         Log.i(TAG, "User confirmed prayer completion for $prayerName")
-        
+
         val prayerKey = "${prayerName}_${getCurrentDateKey()}"
         prayerCompletionStatus[prayerKey] = true
         prefs.edit().putBoolean(prayerKey, true).apply()
 
-        // Cancel reminder notification
-        notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID)
-        
+        // Cancel reminder notification for this specific prayer
+        cancelReminderForPrayer(prayerName)
+
         // Show positive acknowledgment
         showPrayerCompletionAcknowledgment(prayerName)
     }
-    
+
     /**
      * Handle prayer not completed response (No button)
      */
     fun handlePrayerNotCompleted(prayerName: String, prayerTime: String) {
         Log.i(TAG, "User indicated prayer not completed for $prayerName")
-        
-        // Cancel reminder notification
-        notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID)
-        
+
+        // Cancel reminder notification for this specific prayer
+        cancelReminderForPrayer(prayerName)
+
         // Schedule follow-up reminder in 5 minutes
         scheduleFollowUpCheck(prayerName, 5)
-        
+
         // Show Quranic guidance notification
         showPrayerGuidanceNotification(prayerName, prayerTime)
     }
-    
+
     /**
      * Show prayer guidance notification with Quranic verse about timely prayer.
      * This notification is persistent (non-dismissible) and requires user action.
-     * 
+     *
      * The notification includes:
      * - Bilingual encouraging message (Arabic + English)
      * - Random Quranic verse about prayer timeliness
      * - Full verse text in Arabic with English translation
      * - Reflection on the verse's meaning
      * - "I Will Pray Now" action button to dismiss
-     * 
+     *
      * @param prayerName The name of the prayer that was missed
      * @param prayerTime The time of the prayer
      */
@@ -434,19 +433,19 @@ class PrayerTimeNotificationManager @Inject constructor(
                 val verse = quranicRepository.getPrayerTimelinessVerse()
                 val settings = settingsRepository.getCurrentSettings()
                 val language = settings.preferredLanguage
-                
+
                 // Get localized strings
                 val title = context.getString(R.string.prayer_guidance_title_bilingual)
-                
+
                 // Create notification message with localized encouragement and verse reference
                 val encouragingMessage = context.getString(R.string.prayer_guidance_encouragement_bilingual) + "\n\n"
                 val verseReference = context.getString(R.string.prayer_guidance_verse_reference, verse.surahNumber, verse.verseNumber) + "\n\n"
                 val arabicText = "${verse.arabicText}\n\n"
                 val englishTranslation = "${verse.translations[Language.ENGLISH]}\n\n"
                 val reflection = verse.reflection
-                
+
                 val fullMessage = encouragingMessage + verseReference + arabicText + englishTranslation + reflection
-                
+
                 // Create content intent to open MainActivity
                 val intent = Intent(context, MainActivity::class.java)
                 val pendingIntent = PendingIntent.getActivity(
@@ -455,7 +454,7 @@ class PrayerTimeNotificationManager @Inject constructor(
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-                
+
                 // Create "I Will Pray Now" action button
                 val willPrayIntent = Intent(ACTION_PRAYER_WILL_DO_NOW).apply {
                     putExtra(EXTRA_PRAYER_NAME, prayerName)
@@ -468,7 +467,7 @@ class PrayerTimeNotificationManager @Inject constructor(
                     willPrayIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-                
+
                 // Build the notification
                 val notification = NotificationCompat.Builder(context, PRAYER_REMINDER_CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_shield_islamic)
@@ -486,17 +485,17 @@ class PrayerTimeNotificationManager @Inject constructor(
                         willPrayPendingIntent
                     )
                     .build()
-                
+
                 // Send the notification
                 notificationManager.notify(QURANIC_GUIDANCE_NOTIFICATION_ID, notification)
                 Log.d(TAG, "Prayer guidance notification sent with verse ${verse.surahNumber}:${verse.verseNumber}")
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error showing prayer guidance notification", e)
             }
         }
     }
-    
+
     /**
      * Schedule follow-up reminder if user ignores the reminder
      */
@@ -505,7 +504,7 @@ class PrayerTimeNotificationManager @Inject constructor(
         scheduleFollowUpCheck(prayerName.name, 5)
         Log.d(TAG, "Scheduled follow-up check for $prayerName in 5 minutes")
     }
-    
+
     /**
      * Send follow-up reminder with more options
      */
@@ -517,7 +516,7 @@ class PrayerTimeNotificationManager @Inject constructor(
         }
         val settings = settingsRepository.getCurrentSettings()
         val language = settings.preferredLanguage.name
-        
+
         // Get localized strings
         val title = context.getString(R.string.prayer_followup_title_bilingual)
         val message = context.getString(
@@ -525,11 +524,11 @@ class PrayerTimeNotificationManager @Inject constructor(
             getPrayerNameEnglish(prayerName),
             getPrayerNameArabic(prayerName)
         )
-        
+
         // Get localized action button labels
         val alreadyDoneText = context.getString(R.string.prayer_action_already_prayed_bilingual)
         val willDoNowText = context.getString(R.string.prayer_action_will_pray_now_bilingual)
-        
+
         val alreadyDoneIntent = Intent(ACTION_PRAYER_ALREADY_DONE).apply {
             putExtra(EXTRA_PRAYER_NAME, prayerName.name)
             putExtra(EXTRA_PRAYER_TIME, prayerTime)
@@ -541,7 +540,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             alreadyDoneIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        
+
         val willDoNowIntent = Intent(ACTION_PRAYER_WILL_DO_NOW).apply {
             putExtra(EXTRA_PRAYER_NAME, prayerName.name)
             putExtra(EXTRA_PRAYER_TIME, prayerTime)
@@ -553,7 +552,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             willDoNowIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        
+
         val notification = NotificationCompat.Builder(context, PRAYER_REMINDER_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_islamic)
             .setContentTitle(title)
@@ -565,47 +564,47 @@ class PrayerTimeNotificationManager @Inject constructor(
             .addAction(R.drawable.ic_launcher_background, willDoNowText, willDoNowPendingIntent)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .build()
-        
-        notificationManager.notify(PRAYER_REMINDER_NOTIFICATION_ID, notification)
+
+        notificationManager.notify(PRAYER_REMINDER_NOTIFICATION_ID + prayerName.ordinal, notification)
     }
-    
+
     /**
      * Handle "Already Prayed" response
      */
     fun handlePrayerAlreadyDone(prayerName: String, prayerTime: String) {
         Log.i(TAG, "User confirmed prayer already done for $prayerName")
-        
+
         val prayerKey = "${prayerName}_${getCurrentDateKey()}"
         prayerCompletionStatus[prayerKey] = true
         prefs.edit().putBoolean(prayerKey, true).apply()
 
-        notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID)
+        cancelReminderForPrayer(prayerName)
         showPrayerCompletionAcknowledgment(prayerName)
     }
-    
+
     /**
      * Handle "Will Do Now" response
      */
     fun handleWillPrayNow(prayerName: String, prayerTime: String) {
         Log.i(TAG, "User committed to pray now for $prayerName")
-        
-        notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID)
+
+        cancelReminderForPrayer(prayerName)
         notificationManager.cancel(QURANIC_GUIDANCE_NOTIFICATION_ID)
-        
+
         // Show encouraging message and schedule final check
         showWillPrayNowAcknowledgment(prayerName)
-        
+
         // Schedule final check in 15 minutes
         scheduleFinalPrayerCheck(prayerName, prayerTime)
     }
-    
+
     /**
      * Show positive acknowledgment for prayer completion
      */
     private fun showPrayerCompletionAcknowledgment(prayerName: String) {
         // Get localized message
         val message = context.getString(R.string.prayer_completion_acknowledgment_bilingual)
-        
+
         // Show a brief positive notification
         val notification = NotificationCompat.Builder(context, PRAYER_REMINDER_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_islamic)
@@ -615,17 +614,17 @@ class PrayerTimeNotificationManager @Inject constructor(
             .setAutoCancel(true)
             .setTimeoutAfter(5000L) // Auto-dismiss after 5 seconds
             .build()
-        
+
         notificationManager.notify(PRAYER_REMINDER_NOTIFICATION_ID + 100, notification)
     }
-    
+
     /**
      * Show encouragement for "will pray now" commitment
      */
     private fun showWillPrayNowAcknowledgment(prayerName: String) {
         // Get localized message
         val message = context.getString(R.string.prayer_will_pray_acknowledgment_bilingual)
-        
+
         val notification = NotificationCompat.Builder(context, PRAYER_REMINDER_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_islamic)
             .setContentTitle("🤲")
@@ -634,10 +633,10 @@ class PrayerTimeNotificationManager @Inject constructor(
             .setAutoCancel(true)
             .setTimeoutAfter(5000L)
             .build()
-        
+
         notificationManager.notify(PRAYER_REMINDER_NOTIFICATION_ID + 101, notification)
     }
-    
+
     /**
      * Schedule final prayer check after user commits to praying
      */
@@ -645,7 +644,7 @@ class PrayerTimeNotificationManager @Inject constructor(
         scheduleFollowUpCheck(prayerName, 15)
         Log.d(TAG, "Scheduled final prayer check for $prayerName in 15 minutes")
     }
-    
+
     /**
      * Cleanup old prayer completion data (older than 7 days)
      */
@@ -653,10 +652,10 @@ class PrayerTimeNotificationManager @Inject constructor(
         try {
             val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(getCurrentDateKey())
             val sevenDaysAgo = currentDate!!.time - (7 * 24 * 60 * 60 * 1000L)
-            
+
             val allKeys = prefs.all.keys
             var cleanedCount = 0
-            
+
             allKeys.forEach { key ->
                 // Extract date from key format: {prayerName}_{yyyy-MM-dd}
                 val parts = key.split("_")
@@ -673,16 +672,16 @@ class PrayerTimeNotificationManager @Inject constructor(
                     }
                 }
             }
-            
+
             if (cleanedCount > 0) {
                 Log.d(TAG, "Cleaned up $cleanedCount old prayer completion entries")
             }
-            
+
             // Cleanup old follow-up entries (older than 1 day)
             val oneDayAgo = currentDate!!.time - (24 * 60 * 60 * 1000L)
             val followUpKeys = followUpPrefs.all.keys
             var followUpCleanedCount = 0
-            
+
             followUpKeys.forEach { key ->
                 if (key.startsWith("followup_")) {
                     // Extract date from key format: followup_{prayerName}_{yyyy-MM-dd}
@@ -701,15 +700,15 @@ class PrayerTimeNotificationManager @Inject constructor(
                     }
                 }
             }
-            
+
             if (followUpCleanedCount > 0) {
                 Log.d(TAG, "Cleaned up $followUpCleanedCount old follow-up entries")
             }
-            
+
             // Cleanup old notification tracking entries (older than 1 day)
             val notifTrackingKeys = notificationTrackingPrefs.all.keys
             var notifTrackingCleanedCount = 0
-            
+
             notifTrackingKeys.forEach { key ->
                 if (key.startsWith("notif_") && key != "last_reset_date") {
                     // Extract date from key format: notif_{prayerName}_{notificationType}_{yyyy-MM-dd}
@@ -728,7 +727,7 @@ class PrayerTimeNotificationManager @Inject constructor(
                     }
                 }
             }
-            
+
             if (notifTrackingCleanedCount > 0) {
                 Log.d(TAG, "Cleaned up $notifTrackingCleanedCount old notification tracking entries")
             }
@@ -736,7 +735,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             Log.e(TAG, "Error cleaning up old prayer completion data", e)
         }
     }
-    
+
     /**
      * Schedule a follow-up check for a prayer
      * @param prayerName The prayer name
@@ -746,27 +745,27 @@ class PrayerTimeNotificationManager @Inject constructor(
         val followUpTimestamp = System.currentTimeMillis() + (followUpDelayMinutes * 60 * 1000L)
         val dateKey = getCurrentDateKey()
         val key = "followup_${prayerName}_$dateKey"
-        
+
         followUpPrefs.edit().putLong(key, followUpTimestamp).apply()
         Log.d(TAG, "Scheduled follow-up for $prayerName in $followUpDelayMinutes minutes (timestamp: $followUpTimestamp)")
     }
-    
+
     /**
      * Get all pending follow-ups
      * @return Map of prayer keys to timestamps
      */
     fun getPendingFollowUps(): Map<String, Long> {
         val pendingFollowUps = mutableMapOf<String, Long>()
-        
+
         followUpPrefs.all.forEach { (key, value) ->
             if (key.startsWith("followup_") && value is Long) {
                 pendingFollowUps[key] = value
             }
         }
-        
+
         return pendingFollowUps
     }
-    
+
     /**
      * Clear a follow-up for a specific prayer
      * @param prayerName The prayer name
@@ -774,11 +773,11 @@ class PrayerTimeNotificationManager @Inject constructor(
     fun clearFollowUp(prayerName: String) {
         val dateKey = getCurrentDateKey()
         val key = "followup_${prayerName}_$dateKey"
-        
+
         followUpPrefs.edit().remove(key).apply()
         Log.d(TAG, "Cleared follow-up for $prayerName")
     }
-    
+
     /**
      * Check and send pending follow-up reminders
      * Called by PrayerNotificationWorker during periodic checks
@@ -787,7 +786,7 @@ class PrayerTimeNotificationManager @Inject constructor(
         try {
             val currentTime = System.currentTimeMillis()
             val pendingFollowUps = getPendingFollowUps()
-            
+
             pendingFollowUps.forEach { (key, timestamp) ->
                 if (currentTime >= timestamp) {
                     // Extract prayer name from key format: followup_{prayerName}_{date}
@@ -795,14 +794,14 @@ class PrayerTimeNotificationManager @Inject constructor(
                     if (parts.size >= 2) {
                         val prayerName = parts[1]
                         val dateKey = parts.drop(2).joinToString("_")
-                        
+
                         try {
                             val prayerEnum = PrayerName.valueOf(prayerName.uppercase())
                             val prayerKey = "${prayerName}_$dateKey"
-                            
+
                             Log.i(TAG, "Follow-up time reached for $prayerName, sending reminder")
                             sendFollowUpReminderNotification(prayerEnum, "", prayerKey)
-                            
+
                             // Clear the follow-up entry
                             followUpPrefs.edit().remove(key).apply()
                         } catch (e: IllegalArgumentException) {
@@ -817,38 +816,57 @@ class PrayerTimeNotificationManager @Inject constructor(
             Log.e(TAG, "Error checking pending follow-ups", e)
         }
     }
-    
+
+    /**
+     * Cancel reminder notification for a specific prayer (by string name)
+     */
+    private fun cancelReminderForPrayer(prayerName: String) {
+        try {
+            val ordinal = PrayerName.valueOf(prayerName).ordinal
+            notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID + ordinal)
+        } catch (_: IllegalArgumentException) {
+            // Fallback: cancel all reminder IDs
+            PrayerName.values().forEach {
+                notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID + it.ordinal)
+            }
+        }
+    }
+
     /**
      * Cancel all prayer notifications
      */
     fun cancelAllNotifications() {
-        notificationManager.cancel(PRAYER_TIME_NOTIFICATION_ID)
-        notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID)
-        notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID + 100)
-        notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID + 101)
         notificationManager.cancel(QURANIC_GUIDANCE_NOTIFICATION_ID)
-        
-        // Cancel all advance notifications for all prayers
+
+        // Cancel all per-prayer notifications
         PrayerName.values().forEach { prayerName ->
+            // Cancel prayer time notification
+            notificationManager.cancel(PRAYER_TIME_NOTIFICATION_ID + prayerName.ordinal)
+            // Cancel reminder notification
+            notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID + prayerName.ordinal)
+            // Cancel acknowledgment notifications
+            notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID + 100)
+            notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID + 101)
+            // Cancel post-prayer notification
+            notificationManager.cancel(PRAYER_REMINDER_NOTIFICATION_ID + 300 + prayerName.ordinal)
             // Cancel 10-minute advance notification
             val id10min = ADVANCE_NOTIFICATION_BASE_ID + (prayerName.ordinal * 100) + 10
             notificationManager.cancel(id10min)
-            
             // Cancel 5-minute advance notification
             val id5min = ADVANCE_NOTIFICATION_BASE_ID + (prayerName.ordinal * 100) + 5
             notificationManager.cancel(id5min)
         }
-        
+
         // Clear all pending follow-ups
         followUpPrefs.edit().clear().apply()
-        
+
         // Clear all notification tracking
         notificationTrackingPrefs.edit().clear().apply()
         notificationTrackingPrefs.edit().putString("last_reset_date", getCurrentDateKey()).apply()
         Log.d(TAG, "Notification tracking cleared")
     }
-    
-    
+
+
     /**
      * Send prayer reminder notification (public version)
      * Called by PrayerNotificationWorker when prayer is 10 minutes late
@@ -859,24 +877,24 @@ class PrayerTimeNotificationManager @Inject constructor(
             try {
                 // Check and reset if date changed
                 checkAndResetIfDateChanged()
-                
+
                 // Check if notification already sent
                 if (hasNotificationBeenSent(prayerName.name, NOTIF_TYPE_LATE)) {
                     Log.d(TAG, "Late reminder for $prayerName already sent today, skipping")
                     return@launch
                 }
-                
+
                 val dateKey = getCurrentDateKey()
                 val prayerKey = "${prayerName.name}_$dateKey"
-                
+
                 // Check if prayer is already completed
                 if (isPrayerCompleted(prayerKey)) {
                     Log.d(TAG, "Prayer $prayerName already completed, skipping reminder")
                     return@launch
                 }
-                
+
                 Log.i(TAG, "Sending 10-minute late reminder for $prayerName")
-                
+
                 // Get prayer time
                 val prayerTimesResult = prayerTimesRepository.getPrayerTimes()
                 val prayerTime = prayerTimesResult.getOrNull()?.let { prayerData ->
@@ -889,20 +907,67 @@ class PrayerTimeNotificationManager @Inject constructor(
                         else -> ""
                     }
                 } ?: ""
-                
+
                 // Call the private implementation
                 sendPrayerReminderNotification(prayerName, prayerTime, prayerKey)
-                
+
                 // Mark notification as sent
                 markNotificationAsSent(prayerName.name, NOTIF_TYPE_LATE)
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending prayer reminder notification for $prayerName", e)
                 // Don't mark as sent if there was an error
             }
         }
     }
-    
+
+        /**
+     * Send post-prayer notification (5 minutes after prayer time)
+     * Reminds user to do dhikr after completing prayer
+     */
+    fun sendPostPrayerNotification(prayerName: PrayerName) {
+        serviceScope.launch {
+            try {
+                // Check and reset if date changed
+                checkAndResetIfDateChanged()
+
+                // Check if notification already sent
+                if (hasNotificationBeenSent(prayerName.name, "after5min")) {
+                    Log.d(TAG, "Post-prayer notification for $prayerName already sent today, skipping")
+                    return@launch
+                }
+
+                Log.i(TAG, "Sending post-prayer dhikr reminder for $prayerName")
+
+                val title = context.getString(R.string.post_prayer_title_bilingual)
+                val message = context.getString(
+                    R.string.post_prayer_message_bilingual,
+                    getPrayerNameEnglish(prayerName),
+                    getPrayerNameArabic(prayerName)
+                )
+
+                // Create notification with dhikr reminder
+                val notification = NotificationCompat.Builder(context, PRAYER_REMINDER_CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_shield_islamic)
+                    .setContentTitle(title)
+                    .setContentText(message)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                    .setAutoCancel(true)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                    .build()
+
+                notificationManager.notify(PRAYER_REMINDER_NOTIFICATION_ID + 300 + prayerName.ordinal, notification)
+
+                // Mark notification as sent
+                markNotificationAsSent(prayerName.name, "after5min")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending post-prayer notification for $prayerName", e)
+            }
+        }
+    }
+
     /**
      * Get current date key for tracking daily prayer completion
      */
@@ -910,14 +975,14 @@ class PrayerTimeNotificationManager @Inject constructor(
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         return dateFormat.format(Date())
     }
-    
+
     /**
      * Check if prayer is completed (checks both in-memory and persisted status)
      */
     private fun isPrayerCompleted(prayerKey: String): Boolean {
         return prayerCompletionStatus[prayerKey] == true || prefs.getBoolean(prayerKey, false)
     }
-    
+
     /**
      * Get prayer name in English
      */
@@ -931,7 +996,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             PrayerName.ISHA -> "Isha"
         }
     }
-    
+
     /**
      * Get prayer name in Arabic
      */
@@ -945,7 +1010,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             PrayerName.ISHA -> "العشاء"
         }
     }
-    
+
     /**
      * Get prayer name in French
      */
@@ -959,7 +1024,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             PrayerName.ISHA -> "Isha"
         }
     }
-    
+
     /**
      * Get prayer name for current device locale
      */
@@ -970,14 +1035,14 @@ class PrayerTimeNotificationManager @Inject constructor(
             @Suppress("DEPRECATION")
             context.resources.configuration.locale
         }
-        
+
         return when (locale.language) {
             "ar" -> getPrayerNameArabic(prayerName)
             "fr" -> getPrayerNameFrench(prayerName)
             else -> getPrayerNameEnglish(prayerName)
         }
     }
-    
+
     /**
      * Check if a notification has been sent today
      */
@@ -988,7 +1053,7 @@ class PrayerTimeNotificationManager @Inject constructor(
         Log.d(TAG, "Checking notification status: $key = $result")
         return result
     }
-    
+
     /**
      * Mark a notification as sent
      */
@@ -998,7 +1063,7 @@ class PrayerTimeNotificationManager @Inject constructor(
         notificationTrackingPrefs.edit().putBoolean(key, true).apply()
         Log.d(TAG, "Marked notification as sent: $prayerName - $notificationType")
     }
-    
+
     /**
      * Reset daily notification tracking (clears all notification tracking)
      */
@@ -1008,52 +1073,20 @@ class PrayerTimeNotificationManager @Inject constructor(
         notificationTrackingPrefs.edit().putString("last_reset_date", getCurrentDateKey()).apply()
         Log.d(TAG, "Daily notification tracking reset completed")
     }
-    
-    /**
-     * Schedule daily reset at midnight
-     */
-    private fun scheduleDailyReset() {
-        serviceScope.launch {
-            try {
-                // Calculate milliseconds until next midnight
-                val calendar = Calendar.getInstance()
-                calendar.add(Calendar.DAY_OF_MONTH, 1)
-                calendar.set(Calendar.HOUR_OF_DAY, 0)
-                calendar.set(Calendar.MINUTE, 0)
-                calendar.set(Calendar.SECOND, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
-                
-                val delayMillis = calendar.timeInMillis - System.currentTimeMillis()
-                Log.d(TAG, "Scheduled daily reset in ${delayMillis / 1000 / 60} minutes (at midnight)")
-                
-                // Wait until midnight
-                kotlinx.coroutines.delay(delayMillis)
-                
-                // Reset notification tracking
-                resetDailyNotificationTracking()
-                
-                // Schedule next day's reset
-                scheduleDailyReset()
-                
-            } catch (e: Exception) {
-                Log.e(TAG, "Error scheduling daily reset", e)
-            }
-        }
-    }
-    
+
     /**
      * Check if date has changed and reset if needed
      */
     private fun checkAndResetIfDateChanged() {
         val lastResetDate = notificationTrackingPrefs.getString("last_reset_date", "")
         val currentDateKey = getCurrentDateKey()
-        
+
         if (lastResetDate != currentDateKey) {
             Log.d(TAG, "Date changed from $lastResetDate to $currentDateKey, resetting notification tracking")
             resetDailyNotificationTracking()
         }
     }
-    
+
     /**
      * Get notification tracking status (for debugging/testing)
      */
@@ -1062,7 +1095,7 @@ class PrayerTimeNotificationManager @Inject constructor(
             .filterKeys { it.startsWith("notif_") }
             .mapValues { it.value as? Boolean ?: false }
     }
-    
+
     /**
      * Manually reset notification tracking (for debugging/testing)
      */

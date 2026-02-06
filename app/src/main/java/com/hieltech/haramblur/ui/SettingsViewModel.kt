@@ -60,14 +60,26 @@ class SettingsViewModel @Inject constructor(
     fun updateMaleBlur(enabled: Boolean) {
         viewModelScope.launch {
             val current = settings.value
-            settingsRepository.updateSettings(current.copy(blurMaleFaces = enabled))
+			// Any manual change to blur targets is an explicit override of the gender-locked defaults.
+			settingsRepository.updateSettings(
+				current.copy(
+					blurMaleFaces = enabled,
+					allowCustomGenderBlur = true
+				)
+			)
         }
     }
     
     fun updateFemaleBlur(enabled: Boolean) {
         viewModelScope.launch {
             val current = settings.value
-            settingsRepository.updateSettings(current.copy(blurFemaleFaces = enabled))
+			// Any manual change to blur targets is an explicit override of the gender-locked defaults.
+			settingsRepository.updateSettings(
+				current.copy(
+					blurFemaleFaces = enabled,
+					allowCustomGenderBlur = true
+				)
+			)
         }
     }
     
@@ -704,8 +716,8 @@ class SettingsViewModel @Inject constructor(
             errors.add("Gender confidence threshold (${settings.genderConfidenceThreshold}) is outside valid range (0.3-0.8)")
         }
 
-        if (settings.nsfwConfidenceThreshold !in 0.4f..0.7f) {
-            errors.add("NSFW confidence threshold (${settings.nsfwConfidenceThreshold}) is outside valid range (0.4-0.7)")
+        if (settings.nsfwConfidenceThreshold !in 0.3f..0.7f) {
+            errors.add("NSFW confidence threshold (${settings.nsfwConfidenceThreshold}) is outside valid range (0.3-0.7)")
         }
 
         // Dependency checks

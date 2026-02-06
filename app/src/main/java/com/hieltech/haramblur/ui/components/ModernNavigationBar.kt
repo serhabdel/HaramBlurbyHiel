@@ -7,7 +7,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,8 +37,8 @@ fun ModernNavigationBar(
     currentRoute: String? = null,
     onNavigateToHome: () -> Unit = {},
     onNavigateToBlockAppsSites: () -> Unit = {},
+    onNavigateToPrayer: () -> Unit = {},
     onNavigateToDhikr: () -> Unit = {},
-    onNavigateToInsights: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -56,18 +61,18 @@ fun ModernNavigationBar(
             description = "Content blocking and filtering"
         ),
         NavigationItem(
+            route = NavRoutes.PRAYER,
+            label = "Prayer",
+            icon = Icons.Default.FavoriteBorder,
+            selectedIcon = Icons.Default.Favorite,
+            description = "Prayer times and Qibla"
+        ),
+        NavigationItem(
             route = NavRoutes.DHIKR,
             label = "Dhikr",
             icon = Icons.Default.FavoriteBorder,
             selectedIcon = Icons.Default.Favorite,
             description = "Islamic remembrance and tasbih"
-        ),
-        NavigationItem(
-            route = NavRoutes.INSIGHTS,
-            label = "Insights",
-            icon = Icons.Default.Info,
-            selectedIcon = Icons.Default.Info,
-            description = "Stats and feature status"
         ),
         NavigationItem(
             route = NavRoutes.SETTINGS,
@@ -105,8 +110,8 @@ fun ModernNavigationBar(
                         when (item.route) {
                             NavRoutes.HOME -> onNavigateToHome()
                             NavRoutes.BLOCK_APPS_SITES -> onNavigateToBlockAppsSites()
+                            NavRoutes.PRAYER -> onNavigateToPrayer()
                             NavRoutes.DHIKR -> onNavigateToDhikr()
-                            NavRoutes.INSIGHTS -> onNavigateToInsights()
                             NavRoutes.SETTINGS -> onNavigateToSettings()
                         }
                     }

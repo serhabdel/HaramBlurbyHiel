@@ -138,8 +138,14 @@ class FastContentDetectorImpl @Inject constructor(
                 // Perform fast region detection for enhanced full-screen triggering
                 val regionAnalysis = performFastRegionDetection(processedBitmap, settings, currentPerformanceMode)
 
-                // Combine results and make blur decision
-                val shouldBlur = determineBlurDecisionFast(faceResult, nsfwResult, skinToneResult, settings)
+	                // Combine results and make blur decision
+	                val shouldBlur = determineBlurDecisionFast(
+	                    faceResult,
+	                    nsfwResult,
+	                    skinToneResult,
+	                    settings,
+	                    regionAnalysis
+	                )
                 
                 // CRITICAL FIX: Pass original dimensions to calculateBlurRegionsFast
                 // This ensures any region calculations use original bitmap size, not downscaled
@@ -512,18 +518,25 @@ class FastContentDetectorImpl @Inject constructor(
                 (if (red < green && red < blue) red else if (green < blue) green else blue) > 15
     }
     
-    private fun determineBlurDecisionFast(
-        faceResult: FaceDetectionManager.FaceDetectionResult,
-        nsfwResult: MLModelManager.DetectionResult,
-        skinToneRatio: Float,
-        settings: AppSettings
-    ): Boolean {
+	    private fun determineBlurDecisionFast(
+	        faceResult: FaceDetectionManager.FaceDetectionResult,
+	        nsfwResult: MLModelManager.DetectionResult,
+	        skinToneRatio: Float,
+	        settings: AppSettings,
+	        regionAnalysis: FastRegionAnalysis
+	    ): Boolean {
         // Fast blur decision logic
         
         // NSFW content check
-        if (settings.enableNSFWDetection && nsfwResult.isNSFW && 
-            nsfwResult.confidence >= settings.nsfwConfidenceThreshold) {
+	        if (settings.enableNSFWDetection) {
+	            // IMPORTANT: Don't rely only on nsfwResult.isNSFW (internal MLModelManager threshold).
+	            // Use the user-configured threshold and region-analysis confidence.
+	            val threshold = settings.nsfwConfidenceThreshold
+	            val nsfwByGlobalConfidence = nsfwResult.confidence >= threshold
+	            val nsfwByRegions = regionAnalysis.regionCount > 0 && regionAnalysis.maxConfidence >= threshold
+	            if (nsfwByGlobalConfidence || nsfwByRegions) {
             return true
+	            }
         }
         
         // Face detection check

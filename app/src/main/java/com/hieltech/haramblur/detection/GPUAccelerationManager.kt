@@ -72,7 +72,10 @@ class GPUAccelerationManager @Inject constructor() {
     /**
      * Create optimized interpreter options with GPU acceleration
      */
-    fun createOptimizedInterpreterOptions(enableGPU: Boolean = true): Interpreter.Options {
+    fun createOptimizedInterpreterOptions(
+        enableGPU: Boolean = true,
+        enableNNAPI: Boolean = true
+    ): Interpreter.Options {
         val options = Interpreter.Options()
         
         // Set number of threads for CPU processing
@@ -91,8 +94,8 @@ class GPUAccelerationManager @Inject constructor() {
             }
         }
         
-        // Add NNAPI delegate if GPU is not available
-        if (!enableGPU || !isGPUSupported) {
+        // Add NNAPI delegate if GPU is not available (only when explicitly enabled)
+        if (enableNNAPI && (!enableGPU || !isGPUSupported)) {
             if (isNNAPISupported && nnApiDelegate != null) {
                 try {
                     options.addDelegate(nnApiDelegate!!)
@@ -104,6 +107,16 @@ class GPUAccelerationManager @Inject constructor() {
         }
         
         return options
+    }
+
+    /**
+     * CPU-only options (XNNPACK + threading). Useful when NNAPI is unstable on a device.
+     */
+    fun createCpuOnlyInterpreterOptions(numThreads: Int = 4): Interpreter.Options {
+        return Interpreter.Options().apply {
+            setNumThreads(numThreads)
+            setUseXNNPACK(true)
+        }
     }
     
     /**

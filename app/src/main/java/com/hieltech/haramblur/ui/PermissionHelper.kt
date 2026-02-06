@@ -568,6 +568,34 @@ class PermissionHelper @Inject constructor(
             )
         }
     }
+
+    /**
+     * Open accessibility settings
+     */
+    fun openAccessibilitySettings(context: Context) {
+        try {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            Log.d("PermissionHelper", "Opened accessibility settings")
+        } catch (e: Exception) {
+            Log.e("PermissionHelper", "Failed to open accessibility settings", e)
+        }
+    }
+
+    /**
+     * Open usage access settings
+     */
+    fun openUsageAccessSettings(context: Context) {
+        try {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            Log.d("PermissionHelper", "Opened usage access settings")
+        } catch (e: Exception) {
+            Log.e("PermissionHelper", "Failed to open usage access settings", e)
+        }
+    }
 }
 
 /**

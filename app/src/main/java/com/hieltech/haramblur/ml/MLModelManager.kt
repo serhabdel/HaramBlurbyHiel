@@ -16,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
@@ -68,6 +70,9 @@ class MLModelManager @Inject constructor(
     private var isGenderModelReady = false
     private var currentPerformanceMode = PerformanceMode.BALANCED
     private var isNsfwModelQuantized = false // Track if using INT8 quantized model
+
+    // TensorFlow Lite Interpreter / ImageProcessor are not thread-safe for concurrent inference.
+    private val genderModelMutex = Mutex()
     
     // Gender prediction cache for performance
     private val genderCache = mutableMapOf<Int, GenderCacheEntry>()
@@ -320,8 +325,13 @@ class MLModelManager @Inject constructor(
         try {
             Log.d(TAG, "Initializing gender classification model...")
 
-            // Use optimized options with GPU acceleration
-            val options = gpuAccelerationManager.createOptimizedInterpreterOptions(enableGPU = true)
+            // Use optimized options with GPU acceleration, but DISABLE NNAPI.
+            // Rationale: Some devices crash native (SIGABRT) with NNAPI delegate (ANEURALNETWORKS_BAD_STATE).
+            val options = gpuAccelerationManager.createOptimizedInterpreterOptions(
+                enableGPU = true,
+                enableNNAPI = false
+            )
+            Log.i(TAG, "Gender model init: NNAPI disabled for stability; GPU active=${gpuAccelerationManager.isGPUActive()}")
 
             // Load the actual gender model file
             try {
@@ -726,44 +736,46 @@ class MLModelManager @Inject constructor(
         return try {
             // Extract face region from bitmap
             val faceRegion = extractFaceRegion(face, bitmap)
-            
-            // Process image for model input (128x128)
-            val tensorImage = TensorImage.fromBitmap(faceRegion)
-            val processedImage = genderImageProcessor!!.process(tensorImage)
-            
-            // Prepare input buffer (4 bytes per float * 128 * 128 * 3 channels = 196608 bytes)
-            val inputBuffer = ByteBuffer.allocateDirect(4 * GENDER_INPUT_SIZE * GENDER_INPUT_SIZE * 3)
-            inputBuffer.order(ByteOrder.nativeOrder())
-            
-            // Convert processed image to input buffer
-            val imageArray = processedImage.tensorBuffer.floatArray
-            inputBuffer.rewind()
-            for (pixel in imageArray) {
-                inputBuffer.putFloat(pixel)
-            }
-            
-            // Prepare output buffer
-            val outputBuffer = ByteBuffer.allocateDirect(4 * 2) // 2 classes: male, female
-            outputBuffer.order(ByteOrder.nativeOrder())
-            
-            // Run actual gender model inference
-            val (maleConfidence, femaleConfidence) = if (genderInterpreter != null && isGenderModelReady) {
-                try {
-                    genderInterpreter?.run(inputBuffer, outputBuffer)
-                    outputBuffer.rewind()
-                    val male = outputBuffer.getFloat()
-                    val female = outputBuffer.getFloat()
-                    Log.d(TAG, "Gender model inference: male=$male, female=$female")
-                    Pair(male, female)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Gender model inference failed, using heuristics", e)
+
+            // Serialize the entire model path (processor + interpreter) to avoid concurrent access.
+            val (maleConfidence, femaleConfidence) = genderModelMutex.withLock {
+                // Process image for model input (128x128)
+                val tensorImage = TensorImage.fromBitmap(faceRegion)
+                val processedImage = genderImageProcessor!!.process(tensorImage)
+
+                // Prepare input buffer (4 bytes per float * 128 * 128 * 3 channels = 196608 bytes)
+                val inputBuffer = ByteBuffer.allocateDirect(4 * GENDER_INPUT_SIZE * GENDER_INPUT_SIZE * 3)
+                inputBuffer.order(ByteOrder.nativeOrder())
+
+                // Convert processed image to input buffer
+                val imageArray = processedImage.tensorBuffer.floatArray
+                inputBuffer.rewind()
+                for (pixel in imageArray) {
+                    inputBuffer.putFloat(pixel)
+                }
+
+                // Prepare output buffer
+                val outputBuffer = ByteBuffer.allocateDirect(4 * 2) // 2 classes: male, female
+                outputBuffer.order(ByteOrder.nativeOrder())
+
+                if (genderInterpreter != null && isGenderModelReady) {
+                    try {
+                        genderInterpreter?.run(inputBuffer, outputBuffer)
+                        outputBuffer.rewind()
+                        val male = outputBuffer.getFloat()
+                        val female = outputBuffer.getFloat()
+                        Log.d(TAG, "Gender model inference: male=$male, female=$female")
+                        Pair(male, female)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Gender model inference failed, using heuristics", e)
+                        val simulated = simulateGenderModelOutput(face, bitmap)
+                        Pair(simulated[0], simulated[1])
+                    }
+                } else {
+                    Log.d(TAG, "Gender model not ready, using heuristics")
                     val simulated = simulateGenderModelOutput(face, bitmap)
                     Pair(simulated[0], simulated[1])
                 }
-            } else {
-                Log.d(TAG, "Gender model not ready, using heuristics")
-                val simulated = simulateGenderModelOutput(face, bitmap)
-                Pair(simulated[0], simulated[1])
             }
             
             // FIXED: Use asymmetric thresholds to counteract model bias toward male detection
