@@ -75,7 +75,8 @@ class UnifiedSiteBlockingManager @Inject constructor(
         "google.com", "youtube.com", "wikipedia.org", "github.com", "stackoverflow.com",
         "microsoft.com", "apple.com", "amazon.com", "facebook.com", "twitter.com",
         "linkedin.com", "reddit.com", "quora.com", "medium.com", "netflix.com",
-        "spotify.com", "dropbox.com", "zoom.us", "slack.com", "discord.com"
+        "spotify.com", "dropbox.com", "zoom.us", "slack.com", "discord.com",
+        "tumblr.com", "instagram.com", "vice.com", "craigslist.org"
     )
 
     data class CachedResult(
@@ -183,10 +184,10 @@ class UnifiedSiteBlockingManager @Inject constructor(
             )
         }
 
-        // Check URL patterns for adult content
-        val lowercaseUrl = url.lowercase()
+        // Check URL patterns for adult content — apply to domain only
+        val lowercaseDomain = domain.lowercase()
         for (pattern in adultContentPatterns) {
-            if (pattern.matcher(lowercaseUrl).matches()) {
+            if (pattern.matcher(lowercaseDomain).matches()) {
                 return createBlockingResult(
                     category = BlockingCategory.EXPLICIT_CONTENT,
                     confidence = 0.95f,
@@ -196,19 +197,54 @@ class UnifiedSiteBlockingManager @Inject constructor(
             }
         }
 
-        // Quick keyword check
+        // Keyword check — domain only, with word boundary via regex
         for (keyword in suspiciousKeywords) {
-            if (lowercaseUrl.contains(keyword)) {
-                return createBlockingResult(
-                    category = BlockingCategory.EXPLICIT_CONTENT,
-                    confidence = 0.8f,
-                    reason = "Adult content keyword: $keyword",
-                    matchedPattern = keyword
-                )
+            // Use word boundary to prevent "cum" matching "cumulus", etc.
+            val keywordPattern = regexCache.getOrPut("kwb_$keyword") {
+                Pattern.compile("\\b${Pattern.quote(keyword)}\\b", Pattern.CASE_INSENSITIVE)
+            }
+            if (keywordPattern.matcher(lowercaseDomain).find()) {
+                // Check for false positives before blocking
+                if (!isLikelyFalsePositive(lowercaseDomain, keyword)) {
+                    return createBlockingResult(
+                        category = BlockingCategory.EXPLICIT_CONTENT,
+                        confidence = 0.8f,
+                        reason = "Adult content keyword: $keyword",
+                        matchedPattern = keyword
+                    )
+                }
             }
         }
 
         return createSafeResult("Not adult content")
+    }
+
+    /**
+     * Check if a domain that matched a keyword is likely a false positive.
+     * Ported from SiteBlockingManagerImpl with enhancements.
+     */
+    private fun isLikelyFalsePositive(domain: String, matchedKeyword: String): Boolean {
+        // Geographic locations containing "sex"
+        val geographicFalsePositives = listOf(
+            "essex", "sussex", "wessex", "middlesex", "sexsmith", "sexten"
+        )
+        if (geographicFalsePositives.any { domain.contains(it) }) {
+            return true
+        }
+
+        // Medical/educational/scientific context
+        val legitimateContextIndicators = listOf(
+            "education", "medical", "health", "science", "research",
+            "university", ".edu", ".gov", ".org", "news", "wikipedia",
+            "dictionary", "encyclopedia", "museum", "library",
+            "academic", "study", "learn", "course", "tutorial",
+            "therapy", "screening", "cancer", "clinic"
+        )
+        if (legitimateContextIndicators.any { domain.contains(it) }) {
+            return true
+        }
+
+        return false
     }
 
     /**
@@ -279,9 +315,10 @@ class UnifiedSiteBlockingManager @Inject constructor(
         }
 
         // Check for dating/hookup keywords (domain only)
+        // FIXED: Removed overly generic words like "match", "meet", "chat", "romance"
         val datingKeywords = listOf(
-            "dating", "hookup", "tinder", "bumble", "match", "singles",
-            "flirt", "romance", "meet", "chat", "adult-dating"
+            "hookup", "tinder", "bumble", "adult-dating",
+            "flirt", "okcupid", "plentyoffish", "eharmony"
         )
 
         for (keyword in datingKeywords) {
@@ -298,10 +335,11 @@ class UnifiedSiteBlockingManager @Inject constructor(
             }
         }
 
-        // Check for porn TLD patterns (domain only)
-        val pornTlds = listOf(".porn", ".sex", ".xxx", ".adult", ".cam", ".tube", ".video")
+        // Check for adult-specific TLD patterns (must be actual TLD, not substring)
+        // FIXED: Use endsWith instead of contains to prevent ".tube" matching "youtube"
+        val pornTlds = listOf(".porn", ".sex", ".xxx", ".adult")
         for (tld in pornTlds) {
-            if (lowercaseDomain.contains(tld)) {
+            if (lowercaseDomain.endsWith(tld)) {
                 return SiteBlockingResult(
                     isBlocked = true,
                     category = BlockingCategory.EXPLICIT_CONTENT,
@@ -323,20 +361,19 @@ class UnifiedSiteBlockingManager @Inject constructor(
     private fun isAuthenticationUrl(url: String): Boolean {
         val lowercaseUrl = url.lowercase()
         
-        // Google authentication URLs
+        // Google authentication URLs (explicit match)
         if (lowercaseUrl.contains("accounts.google.com") || 
             lowercaseUrl.contains("oauth2.googleapis.com") ||
             lowercaseUrl.contains("google.com/oauth")) {
             return true
         }
         
-        // Common authentication patterns
+        // Common authentication patterns in path (not domain)
         val authPatterns = listOf(
-            "oauth", "authenticate", "signin", "login", "sso", "auth",
+            "oauth", "authenticate", "signin", "login", "sso",
             "openid", "saml", "cas", "oidc"
         )
         
-        // Check if URL contains authentication patterns in the path (not domain)
         for (pattern in authPatterns) {
             if (lowercaseUrl.contains("/$pattern") || 
                 lowercaseUrl.contains("?$pattern") ||
@@ -345,16 +382,15 @@ class UnifiedSiteBlockingManager @Inject constructor(
             }
         }
         
-        // Check for common OAuth parameters
-        val oauthParams = listOf(
-            "client_id=", "redirect_uri=", "response_type=", "scope=",
-            "access_token=", "refresh_token=", "code=", "state="
+        // HARDENED: Require at least 2 OAuth indicators to prevent bypass
+        // Single generic params like "state=" or "code=" are too common
+        val oauthIndicators = listOf(
+            "client_id=", "redirect_uri=", "response_type=",
+            "access_token=", "refresh_token="
         )
-        
-        for (param in oauthParams) {
-            if (lowercaseUrl.contains(param)) {
-                return true
-            }
+        val matchCount = oauthIndicators.count { lowercaseUrl.contains(it) }
+        if (matchCount >= 2) {
+            return true
         }
         
         return false
@@ -459,11 +495,14 @@ class UnifiedSiteBlockingManager @Inject constructor(
 
     private fun cacheResult(domain: String, result: SiteBlockingResult) {
         if (domainCache.size >= MAX_CACHE_SIZE) {
-            // Remove oldest entries (simple LRU)
-            val oldestEntries = domainCache.entries
-                .sortedBy { it.value.timestamp }
-                .take(MAX_CACHE_SIZE / 4)
-            oldestEntries.forEach { domainCache.remove(it.key) }
+            // Remove oldest 25% using insertion order (O(n/4) instead of O(n log n) sort)
+            val iterator = domainCache.entries.iterator()
+            var removeCount = MAX_CACHE_SIZE / 4
+            while (iterator.hasNext() && removeCount > 0) {
+                iterator.next()
+                iterator.remove()
+                removeCount--
+            }
         }
 
         domainCache[domain] = CachedResult(result, System.currentTimeMillis())
@@ -819,15 +858,25 @@ class BloomFilter(
     }
 
     /**
-     * Generate hash values for an element
+     * Generate hash values for an element using FNV-1a inspired dual hashing.
+     * Better distribution than String.hashCode() + reversed hash.
      */
     private fun getHashes(element: String): IntArray {
-        val hash1 = element.hashCode()
-        val hash2 = element.reversed().hashCode()
+        // FNV-1a inspired hash for hash1
+        var h1 = 0x811c9dc5.toInt()
+        for (c in element) {
+            h1 = h1 xor c.code
+            h1 = (h1 * 0x01000193)
+        }
+        // DJB2 inspired hash for hash2
+        var h2 = 5381
+        for (c in element) {
+            h2 = ((h2 shl 5) + h2) + c.code
+        }
 
         val hashes = IntArray(hashFunctions)
         for (i in 0 until hashFunctions) {
-            hashes[i] = Math.abs((hash1 + i * hash2) % bitArraySize)
+            hashes[i] = Math.abs((h1 + i * h2) % bitArraySize)
         }
         return hashes
     }

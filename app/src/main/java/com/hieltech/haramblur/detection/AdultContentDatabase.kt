@@ -93,11 +93,9 @@ object AdultContentDatabase {
         hashDomain("e621.net"),
         hashDomain("sankakucomplex.com"),
         
-        // Adult social media and communities
-        hashDomain("reddit.com"), // Note: Reddit has both adult and non-adult content
-        hashDomain("tumblr.com"), // Note: Tumblr has both adult and non-adult content
-        hashDomain("twitter.com"), // Note: Twitter has both adult and non-adult content
-        hashDomain("discord.gg"), // Note: Discord has both adult and non-adult content
+        // Note: reddit.com, tumblr.com, twitter.com, discord.gg removed
+        // These are general-purpose platforms, not adult-specific
+        // Users can still add them manually via custom blocked sites
         
         // Adult shopping and services
         hashDomain("adameve.com"),
@@ -149,7 +147,7 @@ object AdultContentDatabase {
         
         // Adult classified ads
         hashDomain("backpage.com"), // Note: Site may be defunct
-        hashDomain("craigslist.org"), // Note: Has both adult and non-adult content
+        // Note: craigslist.org removed — general-purpose classifieds
         hashDomain("doublelist.com"),
         hashDomain("bedpage.com"),
         hashDomain("megapersonals.eu"),
@@ -188,10 +186,10 @@ object AdultContentDatabase {
         hashDomain("collarspace.com"),
         hashDomain("alt.com"),
         
-        // Adult educational and health
+        // Adult educational (borderline — keeping only explicitly adult sites)
         hashDomain("sexinfo101.com"),
-        hashDomain("scarleteen.com"), // Note: Educational but adult-themed
-        hashDomain("plannedparenthood.org"), // Note: Health organization, not adult content
+        // Note: scarleteen.com removed — educational resource
+        // Note: plannedparenthood.org removed — health organization
         
         // Adult art and photography
         hashDomain("metart.com"),
@@ -256,7 +254,7 @@ object AdultContentDatabase {
         
         // Adult blockchain and crypto
         hashDomain("spankchain.com"),
-        hashDomain("vice.com"), // Note: News site, not adult content
+        // Note: vice.com removed — news organization
         hashDomain("camsoda.com"),
         
         // Adult social networks
@@ -278,18 +276,23 @@ object AdultContentDatabase {
      * Adult content TLDs and domains patterns
      */
     val ADULT_TLDS = setOf(
-        ".porn", ".sex", ".xxx", ".adult", ".cam", ".tube", ".video", ".live"
+        ".porn", ".sex", ".xxx", ".adult"
+        // Note: .tube, .video, .live removed — legitimate gTLDs used by non-adult sites
     )
     
     /**
      * Adult content keywords for pattern matching
      */
+    /**
+     * Unambiguous explicit keywords only.
+     * Context-dependent words (teen, gay, adult, mature, escort, dating, etc.)
+     * were removed to prevent false positives on legitimate sites.
+     */
     val ADULT_KEYWORDS = setOf(
-        "porn", "sex", "xxx", "nude", "naked", "fuck", "pussy", "dick", "cock",
-        "tits", "boobs", "ass", "cum", "blowjob", "handjob", "anal", "milf",
-        "teen", "gay", "lesbian", "hentai", "onlyfans", "chaturbate", "cam4",
-        "adult", "nsfw", "18+", "mature", "explicit", "erotic", "fetish",
-        "bdsm", "kink", "swinger", "escort", "hookup", "dating", "singles"
+        "porn", "xxx", "nude", "naked", "fuck", "pussy", "dick", "cock",
+        "tits", "boobs", "blowjob", "handjob", "milf",
+        "hentai", "onlyfans", "chaturbate", "cam4",
+        "nsfw", "pornhub", "xvideos", "xnxx", "xhamster", "redtube", "youporn"
     )
     
     /**

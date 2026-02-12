@@ -25,21 +25,22 @@ class EmbeddedSiteBlockingList @Inject constructor() {
         )
         
         // URL patterns that indicate inappropriate content
+        // FIXED: Use word boundaries and match domain only where possible
+        // Removed overly broad patterns like .*bet.*, .*adult.*, .*sex.*
         private val BLOCKED_PATTERNS = listOf(
-            Regex(".*adult.*", RegexOption.IGNORE_CASE),
-            Regex(".*xxx.*", RegexOption.IGNORE_CASE),
-            Regex(".*porn.*", RegexOption.IGNORE_CASE),
-            Regex(".*sex.*", RegexOption.IGNORE_CASE),
-            Regex(".*nude.*", RegexOption.IGNORE_CASE),
-            Regex(".*nsfw.*", RegexOption.IGNORE_CASE),
-            Regex(".*explicit.*", RegexOption.IGNORE_CASE),
-            Regex(".*erotic.*", RegexOption.IGNORE_CASE),
-            Regex(".*cam.*girl.*", RegexOption.IGNORE_CASE),
-            Regex(".*escort.*", RegexOption.IGNORE_CASE),
-            Regex(".*dating.*hookup.*", RegexOption.IGNORE_CASE),
-            Regex(".*casino.*", RegexOption.IGNORE_CASE),
-            Regex(".*gambling.*", RegexOption.IGNORE_CASE),
-            Regex(".*bet.*", RegexOption.IGNORE_CASE)
+            Regex("\\bxxx\\b", RegexOption.IGNORE_CASE),
+            Regex("\\bporn\\b", RegexOption.IGNORE_CASE),
+            Regex("\\bnude(s)?\\b", RegexOption.IGNORE_CASE),
+            Regex("\\bnsfw\\b", RegexOption.IGNORE_CASE),
+            Regex("\\bexplicit\\b", RegexOption.IGNORE_CASE),
+            Regex("\\berotic(a)?\\b", RegexOption.IGNORE_CASE),
+            Regex("\\bcamgirl(s)?\\b", RegexOption.IGNORE_CASE),
+            Regex("\\bcasino(s)?\\b", RegexOption.IGNORE_CASE),
+            Regex("\\bgambling\\b", RegexOption.IGNORE_CASE)
+            // Note: removed .*bet.* (matches alphabet, diabetes, better)
+            // Note: removed .*sex.* (matches essex, sussex, unisex)
+            // Note: removed .*adult.* (matches adulteration, adult education)
+            // Note: removed .*escort.* (matches Ford Escort, escorted tours)
         )
         
         // Suspicious path patterns
@@ -109,14 +110,15 @@ class EmbeddedSiteBlockingList @Inject constructor() {
                 )
             }
             
-            // Check against URL patterns
+            // Check against URL patterns — match domain only to prevent path/query false positives
+            val domainToCheck = domain.ifEmpty { normalizedUrl }
             for (pattern in BLOCKED_PATTERNS) {
-                if (pattern.containsMatchIn(normalizedUrl)) {
+                if (pattern.containsMatchIn(domainToCheck)) {
                     Log.d(TAG, "URL blocked by pattern match: ${pattern.pattern}")
                     return createBlockingResult(
                         isBlocked = true,
                         category = determineCategory(pattern.pattern),
-                        reason = "URL pattern match: ${pattern.pattern}",
+                        reason = "Domain pattern match: ${pattern.pattern}",
                         confidence = 0.8f
                     )
                 }
@@ -135,16 +137,8 @@ class EmbeddedSiteBlockingList @Inject constructor() {
                 }
             }
             
-            // Check for suspicious keywords in query parameters
-            if (hasSuspiciousQueryParams(normalizedUrl)) {
-                Log.d(TAG, "URL blocked by suspicious query parameters")
-                return createBlockingResult(
-                    isBlocked = true,
-                    category = BlockingCategory.SUSPICIOUS_CONTENT,
-                    reason = "Suspicious query parameters",
-                    confidence = 0.6f
-                )
-            }
+            // Skip suspicious query param checks — too many false positives
+            // Query parameters like ?adult=false, ?mature=no cause blocks on legitimate sites
             
             // URL not blocked
             Log.d(TAG, "URL not blocked by embedded list")
@@ -159,12 +153,14 @@ class EmbeddedSiteBlockingList @Inject constructor() {
             
         } catch (e: Exception) {
             Log.e(TAG, "Error checking URL against embedded list", e)
-            // Fail safe - block on error
-            createBlockingResult(
-                isBlocked = true,
-                category = BlockingCategory.SUSPICIOUS_CONTENT,
-                reason = "Error during check, blocking for safety",
-                confidence = 1.0f
+            // Fail open on error — blocking legitimate sites is worse than missing one
+            EmbeddedBlockingResult(
+                isBlocked = false,
+                category = null,
+                reason = "Error during embedded check: ${e.message}",
+                confidence = 0.0f,
+                verse = null,
+                processingTimeMs = 0L
             )
         }
     }
