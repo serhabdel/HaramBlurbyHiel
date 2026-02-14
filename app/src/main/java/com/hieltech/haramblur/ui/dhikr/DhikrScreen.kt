@@ -463,7 +463,7 @@ private fun CategorySelector(
             FilterChip(
                 selected = selectedCategory == category,
                 onClick = { onCategorySelected(category) },
-                label = { Text(category.displayNameEn) },
+                label = { Text(stringResource(category.displayNameResId)) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = IslamicGreen,
                     selectedLabelColor = Color.White
@@ -632,7 +632,7 @@ private fun DhikrCard(
                 color = IslamicGreen.copy(alpha = 0.1f)
             ) {
                 Text(
-                    text = dhikr.category,
+                    text = stringResource(dhikr.category.displayNameResId),
                     style = MaterialTheme.typography.labelSmall,
                     color = IslamicGreen,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)

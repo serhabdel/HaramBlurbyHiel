@@ -1,29 +1,48 @@
 package com.hieltech.haramblur.data
 
 import androidx.compose.runtime.Immutable
+import androidx.annotation.StringRes
+import com.hieltech.haramblur.R
+import android.content.Context
 
 /**
  * Represents the time of day for dhikr display
  */
-enum class DhikrTime(val displayName: String) {
-    MORNING("Morning"),
-    EVENING("Evening"),
-    ANYTIME("Anytime"),
-    AFTER_PRAYER("After Prayer")
+enum class DhikrTime(
+    @StringRes val displayNameResId: Int
+) {
+    MORNING(R.string.dhikr_time_morning),
+    EVENING(R.string.dhikr_time_evening),
+    ANYTIME(R.string.dhikr_time_anytime),
+    AFTER_PRAYER(R.string.dhikr_time_after_prayer);
+    
+    companion object {
+        fun getByDisplayName(displayName: String): DhikrTime? {
+            return values().find { it.name == displayName }
+        }
+    }
 }
 
 /**
  * Category for dhikr grouping
  */
-enum class DhikrCategory(val displayNameEn: String, val displayNameAr: String, val displayNameFr: String) {
-    MORNING_REMEMBRANCE("Morning Remembrance", "أذكار الصباح", "Rappels du matin"),
-    EVENING_REMEMBRANCE("Evening Remembrance", "أذكار المساء", "Rappels du soir"),
-    AFTER_PRAYER("After Prayer", "أذكار بعد الصلاة", "Après la prière"),
-    GENERAL("General", "عام", "Général"),
-    TASBIH("Tasbih", "تسبيح", "Tasbih"),
-    ISTIGHFAR("Seeking Forgiveness", "استغفار", "Demande de pardon"),
-    SALAWAT("Salawat", "صلوات", "Salawat"),
-    DUA("Du'a", "دعاء", "Du'a")
+enum class DhikrCategory(
+    @StringRes val displayNameResId: Int
+) {
+    MORNING_REMEMBRANCE(R.string.dhikr_category_morning_remembrance),
+    EVENING_REMEMBRANCE(R.string.dhikr_category_evening_remembrance),
+    AFTER_PRAYER(R.string.dhikr_category_after_prayer),
+    GENERAL(R.string.dhikr_category_general),
+    TASBIH(R.string.dhikr_category_tasbih),
+    ISTIGHFAR(R.string.dhikr_category_istighfar),
+    SALAWAT(R.string.dhikr_category_salawat),
+    DUA(R.string.dhikr_category_dua);
+    
+    companion object {
+        fun getByDisplayName(displayName: String): DhikrCategory? {
+            return values().find { it.name == displayName }
+        }
+    }
 }
 
 /**
@@ -37,7 +56,7 @@ data class Dhikr(
     val englishTranslation: String,
     val time: DhikrTime,
     val estimatedReadingTimeSeconds: Int = 8,
-    val category: String = "General"
+    val category: DhikrCategory = DhikrCategory.GENERAL
 )
 
 /**
@@ -67,12 +86,20 @@ data class DhikrSettings(
 /**
  * Position for dhikr overlay
  */
-enum class DhikrPosition(val displayName: String) {
-    TOP_RIGHT("Top Right"),
-    TOP_LEFT("Top Left"),
-    BOTTOM_RIGHT("Bottom Right"),
-    BOTTOM_LEFT("Bottom Left"),
-    CENTER("Center")
+enum class DhikrPosition(
+    @StringRes val displayNameResId: Int
+) {
+    TOP_RIGHT(R.string.position_top_right),
+    TOP_LEFT(R.string.position_top_left),
+    BOTTOM_RIGHT(R.string.position_bottom_right),
+    BOTTOM_LEFT(R.string.position_bottom_left),
+    CENTER(R.string.position_center);
+    
+    companion object {
+        fun getByDisplayName(displayName: String): DhikrPosition? {
+            return values().find { it.name == displayName }
+        }
+    }
 }
 
 /**
@@ -88,7 +115,7 @@ object DhikrDataSource {
             englishTranslation = "We have reached the morning and at this very time unto Allah belongs all sovereignty, and all praise is for Allah. None has the right to be worshipped except Allah, alone, without partner.",
             time = DhikrTime.MORNING,
             estimatedReadingTimeSeconds = 12,
-            category = "Morning Remembrance"
+            category = DhikrCategory.MORNING_REMEMBRANCE
         ),
         Dhikr(
             id = "morning_2",
@@ -97,7 +124,7 @@ object DhikrDataSource {
             englishTranslation = "O Allah, You are my Lord, none has the right to be worshipped except You, You created me and I am Your servant.",
             time = DhikrTime.MORNING,
             estimatedReadingTimeSeconds = 8,
-            category = "Morning Remembrance"
+            category = DhikrCategory.MORNING_REMEMBRANCE
         ),
         Dhikr(
             id = "morning_3",
@@ -106,7 +133,7 @@ object DhikrDataSource {
             englishTranslation = "I am pleased with Allah as a Lord, and Islam as a religion, and Muhammad (ﷺ) as a Messenger.",
             time = DhikrTime.MORNING,
             estimatedReadingTimeSeconds = 9,
-            category = "Morning Remembrance"
+            category = DhikrCategory.MORNING_REMEMBRANCE
         ),
         Dhikr(
             id = "morning_4",
@@ -115,7 +142,7 @@ object DhikrDataSource {
             englishTranslation = "Exalted is Allah and in His praise, by the number of His creation, by His pleasure, by the weight of His throne, and by the ink of His words.",
             time = DhikrTime.MORNING,
             estimatedReadingTimeSeconds = 11,
-            category = "Morning Remembrance"
+            category = DhikrCategory.MORNING_REMEMBRANCE
         )
     )
     
@@ -127,7 +154,7 @@ object DhikrDataSource {
             englishTranslation = "We have reached the evening and at this very time unto Allah belongs all sovereignty, and all praise is for Allah. None has the right to be worshipped except Allah, alone, without partner.",
             time = DhikrTime.EVENING,
             estimatedReadingTimeSeconds = 12,
-            category = "Evening Remembrance"
+            category = DhikrCategory.EVENING_REMEMBRANCE
         ),
         Dhikr(
             id = "evening_2",
@@ -136,7 +163,7 @@ object DhikrDataSource {
             englishTranslation = "O Allah, by Your leave we have reached the evening and by Your leave we have reached the morning, by Your leave we live and die, and unto You is the resurrection.",
             time = DhikrTime.EVENING,
             estimatedReadingTimeSeconds = 10,
-            category = "Evening Remembrance"
+            category = DhikrCategory.EVENING_REMEMBRANCE
         ),
         Dhikr(
             id = "evening_3",
@@ -145,7 +172,7 @@ object DhikrDataSource {
             englishTranslation = "O Allah, help me remember You, to be grateful to You, and to worship You in an excellent manner.",
             time = DhikrTime.EVENING,
             estimatedReadingTimeSeconds = 8,
-            category = "Evening Remembrance"
+            category = DhikrCategory.EVENING_REMEMBRANCE
         ),
         Dhikr(
             id = "evening_4",
@@ -154,7 +181,7 @@ object DhikrDataSource {
             englishTranslation = "O Allah, grant me health in my body. O Allah, grant me health in my hearing. O Allah, grant me health in my sight.",
             time = DhikrTime.EVENING,
             estimatedReadingTimeSeconds = 9,
-            category = "Evening Remembrance"
+            category = DhikrCategory.EVENING_REMEMBRANCE
         )
     )
     
@@ -166,7 +193,7 @@ object DhikrDataSource {
             englishTranslation = "Exalted is Allah and in His praise.",
             time = DhikrTime.ANYTIME,
             estimatedReadingTimeSeconds = 5,
-            category = "General Remembrance"
+            category = DhikrCategory.GENERAL
         ),
         Dhikr(
             id = "anytime_2",
@@ -175,7 +202,7 @@ object DhikrDataSource {
             englishTranslation = "None has the right to be worshipped except Allah, alone, without partner, to Him belongs all sovereignty and praise, and He is over all things omnipotent.",
             time = DhikrTime.ANYTIME,
             estimatedReadingTimeSeconds = 10,
-            category = "General Remembrance"
+            category = DhikrCategory.GENERAL
         ),
         Dhikr(
             id = "anytime_3",
@@ -184,7 +211,7 @@ object DhikrDataSource {
             englishTranslation = "All praise is for Allah, Lord of the worlds.",
             time = DhikrTime.ANYTIME,
             estimatedReadingTimeSeconds = 6,
-            category = "General Remembrance"
+            category = DhikrCategory.GENERAL
         ),
         Dhikr(
             id = "anytime_4",
@@ -193,7 +220,7 @@ object DhikrDataSource {
             englishTranslation = "I seek forgiveness of Allah, besides whom, none has the right to be worshipped except He, The Ever Living, The Self-Subsisting and Supporter of all, and I turn to Him in repentance.",
             time = DhikrTime.ANYTIME,
             estimatedReadingTimeSeconds = 11,
-            category = "Seeking Forgiveness"
+            category = DhikrCategory.ISTIGHFAR
         ),
         Dhikr(
             id = "anytime_5",
@@ -202,7 +229,7 @@ object DhikrDataSource {
             englishTranslation = "Our Lord, give us in this world [that which is] good and in the next world [that which is] good and protect us from the punishment of the Fire.",
             time = DhikrTime.ANYTIME,
             estimatedReadingTimeSeconds = 9,
-            category = "Du'a"
+            category = DhikrCategory.DUA
         )
     )
     
@@ -218,7 +245,7 @@ object DhikrDataSource {
             englishTranslation = "I seek forgiveness from Allah.",
             time = DhikrTime.AFTER_PRAYER,
             estimatedReadingTimeSeconds = 3,
-            category = "After Prayer"
+            category = DhikrCategory.AFTER_PRAYER
         ),
         Dhikr(
             id = "after_prayer_2",
@@ -227,7 +254,7 @@ object DhikrDataSource {
             englishTranslation = "O Allah, You are Peace and from You comes peace. Blessed are You, O Owner of majesty and honor.",
             time = DhikrTime.AFTER_PRAYER,
             estimatedReadingTimeSeconds = 10,
-            category = "After Prayer"
+            category = DhikrCategory.AFTER_PRAYER
         ),
         Dhikr(
             id = "after_prayer_3",
@@ -236,7 +263,7 @@ object DhikrDataSource {
             englishTranslation = "None has the right to be worshipped except Allah, alone, without partner, to Him belongs all sovereignty and praise, and He is over all things omnipotent.",
             time = DhikrTime.AFTER_PRAYER,
             estimatedReadingTimeSeconds = 12,
-            category = "After Prayer"
+            category = DhikrCategory.AFTER_PRAYER
         ),
         Dhikr(
             id = "after_prayer_4",
@@ -245,7 +272,7 @@ object DhikrDataSource {
             englishTranslation = "O Allah, help me to remember You, to thank You, and to worship You in the best manner.",
             time = DhikrTime.AFTER_PRAYER,
             estimatedReadingTimeSeconds = 8,
-            category = "After Prayer"
+            category = DhikrCategory.AFTER_PRAYER
         )
     )
     
@@ -260,7 +287,7 @@ object DhikrDataSource {
             englishTranslation = "Glory be to Allah",
             time = DhikrTime.AFTER_PRAYER,
             estimatedReadingTimeSeconds = 2,
-            category = "Tasbih"
+            category = DhikrCategory.TASBIH
         ),
         Dhikr(
             id = "tasbih_alhamdulillah",
@@ -269,7 +296,7 @@ object DhikrDataSource {
             englishTranslation = "All praise is for Allah",
             time = DhikrTime.AFTER_PRAYER,
             estimatedReadingTimeSeconds = 2,
-            category = "Tasbih"
+            category = DhikrCategory.TASBIH
         ),
         Dhikr(
             id = "tasbih_allahuakbar",
@@ -278,7 +305,7 @@ object DhikrDataSource {
             englishTranslation = "Allah is the Greatest",
             time = DhikrTime.AFTER_PRAYER,
             estimatedReadingTimeSeconds = 2,
-            category = "Tasbih"
+            category = DhikrCategory.TASBIH
         )
     )
     
@@ -333,3 +360,42 @@ data class DailyDhikrProgress(
     val tasbihSets: Int = 0, // Number of complete 33x3 sets
     val totalDhikrCount: Int = 0
 )
+
+/**
+ * Extension function to get localized display name for a DhikrCategory
+ */
+fun DhikrCategory.getDisplayName(context: android.content.Context): String {
+    return context.getString(this.displayNameResId)
+}
+
+/**
+ * Extension property to get localized display name (requires Context)
+ */
+val DhikrCategory.localizedName: String
+    get() = throw UnsupportedOperationException("Use getDisplayName(Context) instead")
+
+/**
+ * Extension function to get localized display name for a DhikrTime
+ */
+fun DhikrTime.getDisplayName(context: Context): String {
+    return context.getString(this.displayNameResId)
+}
+
+/**
+ * Extension property to get localized display name for DhikrTime (requires Context)
+ */
+val DhikrTime.localizedName: String
+    get() = throw UnsupportedOperationException("Use getDisplayName(Context) instead")
+
+/**
+ * Extension function to get localized display name for a DhikrPosition
+ */
+fun DhikrPosition.getDisplayName(context: Context): String {
+    return context.getString(this.displayNameResId)
+}
+
+/**
+ * Extension property to get localized display name for DhikrPosition (requires Context)
+ */
+val DhikrPosition.localizedName: String
+    get() = throw UnsupportedOperationException("Use getDisplayName(Context) instead")

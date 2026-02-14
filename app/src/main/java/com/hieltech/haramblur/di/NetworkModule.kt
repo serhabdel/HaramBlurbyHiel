@@ -8,6 +8,7 @@ import com.hieltech.haramblur.data.cities.CitiesApiService
 import com.hieltech.haramblur.data.cities.CitiesRepository
 import com.hieltech.haramblur.utils.LocationHelper
 import com.hieltech.haramblur.data.api.HadithApiService
+import com.hieltech.haramblur.data.api.QuranApiService
 
 import dagger.Module
 import dagger.Provides
@@ -150,6 +151,45 @@ object NetworkModule {
         @Named("hadith") retrofit: Retrofit
     ): HadithApiService {
         return retrofit.create(HadithApiService::class.java)
+    }
+
+    // ==================== Quran.com Public API ====================
+
+    @Provides
+    @Singleton
+    @Named("quranOkHttp")
+    fun provideQuranOkHttpClient(
+        loggingInterceptor: HttpLoggingInterceptor
+    ): OkHttpClient {
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .addInterceptor(createUserAgentInterceptor())
+            .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    @Named("quran")
+    fun provideQuranRetrofit(
+        @Named("quranOkHttp") okHttpClient: OkHttpClient,
+        gson: Gson
+    ): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(QuranApiService.API_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideQuranApiService(
+        @Named("quran") retrofit: Retrofit
+    ): QuranApiService {
+        return retrofit.create(QuranApiService::class.java)
     }
 
     @Provides

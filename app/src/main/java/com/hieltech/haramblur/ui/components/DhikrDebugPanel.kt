@@ -124,7 +124,7 @@ private fun StatusSection(title: String, status: DhikrSystemStatus) {
             StatusItem("Accessibility Service", status.accessibilityServiceRunning)
             StatusItem("Overlay Visible", status.isOverlayVisible)
             StatusItem("Daily Count", status.dailyDhikrCount.toString())
-            StatusItem("Current Time Window", status.currentTimeWindow.displayName)
+            StatusItem("Current Time Window", status.currentTimeWindow.name)
             StatusItem("Recommended Method", status.recommendedDisplayMethod.name)
 
             val timeText = if (status.timeUntilNextDhikr > 0) {

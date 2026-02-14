@@ -125,7 +125,7 @@ fun DhikrStatusCard(
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            text = status.currentTimeWindow.displayName,
+                            text = stringResource(status.currentTimeWindow.displayNameResId),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold

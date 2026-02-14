@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HaramBlur</string>
+
+    <!-- Quran Feature -->
+    <string name="quran_title">قرآن کریم</string>
+    <string name="quran_subtitle">قرآن مجید</string>
+    <string name="quran_tab_surahs">سوره‌ها</string>
+    <string name="quran_tab_juz">جزءها</string>
+    <string name="quran_tab_bookmarks">نشانک‌ها</string>
+    <string name="quran_verse_of_day">آیه روز</string>
+    <string name="quran_continue_reading">ادامه مطالعه</string>
+    <string name="quran_search_hint">جستجو در قرآن…</string>
+    <string name="quran_ayah">آیه</string>
+    <string name="quran_ayahs">آیات</string>
+    <string name="quran_surah">سوره</string>
+    <string name="quran_juz">جزء</string>
+    <string name="quran_no_bookmarks">هنوز نشانکی وجود ندارد</string>
+    <string name="quran_remove_bookmark">حذف نشانک</string>
+    <string name="quran_retry">تلاش مجدد</string>
+    <string name="quran_back">بازگشت</string>
+    <string name="quran_loading_verses">در حال بارگذاری آیات…</string>
+    <string name="quran_no_verses">آیه‌ای یافت نشد</string>
+    <string name="quran_swipe_hint">برای حرکت بکشید</string>
+    <string name="quran_translation">ترجمه</string>
+    <string name="quran_bookmark_added">نشانک اضافه شد</string>
+    <string name="quran_bookmark_removed">نشانک حذف شد</string>
+    <string name="quran_share">اشتراک‌گذاری آیه</string>
+
+    <!-- Quran Audio Feature -->
+    <string name="quran_audio_play">پخش</string>
+    <string name="quran_audio_pause">مکث</string>
+    <string name="quran_audio_stop">توقف</string>
+    <string name="quran_audio_next">بعدی</string>
+    <string name="quran_audio_previous">قبلی</string>
+    <string name="quran_audio_now_playing">در حال پخش</string>
+    <string name="quran_audio_select_reciter">انتخاب قاری</string>
+    <string name="quran_audio_loading">در حال بارگذاری صوت…</string>
+
+</resources>

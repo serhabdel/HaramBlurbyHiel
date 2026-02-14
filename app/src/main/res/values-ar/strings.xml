@@ -88,14 +88,32 @@
 
     <!-- Why do I need this? explanations -->
     <string name="why_usage_stats_title">لماذا الوصول إلى إحصائيات الاستخدام؟</string>
-    <string name="why_usage_stats_explanation">يسمح إذن إحصائيات الاستخدام لحرم بلور بـ:\n\n• الكشف عن إطلاق التطبيقات المحظورة\n• تطبيق الحظر فورًا\n• توفير أوقات استجابة أسرع\n• مراقبة أنماط استخدام التطبيقات\n\nهذا الإذن اختياري ويحسن سرعة الحظر فقط.</string>
+    <string name="why_usage_stats_explanation">يسمح إذن إحصائيات الاستخدام لحرم بلور بـ:
+
+• الكشف عن إطلاق التطبيقات المحظورة
+• تطبيق الحظر فورًا
+• توفير أوقات استجابة أسرع
+• مراقبة أنماط استخدام التطبيقات
+
+هذا الإذن اختياري ويحسن سرعة الحظر فقط.</string>
 
     <string name="why_device_admin_title">لماذا الوصول إلى مسؤول الجهاز؟</string>
-    <string name="why_device_admin_explanation">يسمح إذن مسؤول الجهاز لحرم بلور بـ:\n\n• إغلاق التطبيقات المحظورة بالقوة\n• توفير إنفاذ أقوى\n• منع التطبيقات من تجاوز الحظر\n• عرض حظر أكثر موثوقية\n\nهذا الإذن اختياري تمامًا - يعمل التطبيق بدونه.</string>
+    <string name="why_device_admin_explanation">يسمح إذن مسؤول الجهاز لحرم بلور بـ:
+
+• إغلاق التطبيقات المحظورة بالقوة
+• توفير إنفاذ أقوى
+• منع التطبيقات من تجاوز الحظر
+• عرض حظر أكثر موثوقية
+
+هذا الإذن اختياري تمامًا - يعمل التطبيق بدونه.</string>
 
     <!-- Privacy assurance -->
     <string name="privacy_assurance_title">الخصوصية والأمان</string>
-    <string name="privacy_assurance_message">• جميع الأذونات اختيارية\n• يفعل الحظر المحسن فقط بموافقتك\n• لا يتم إرسال أي بيانات إلى خوادم خارجية\n• تحدث جميع المعالجة محليًا على جهازك\n• يمكنك إلغاء الأذونات في أي وقت</string>
+    <string name="privacy_assurance_message">• جميع الأذونات اختيارية
+• يفعل الحظر المحسن فقط بموافقتك
+• لا يتم إرسال أي بيانات إلى خوادم خارجية
+• تحدث جميع المعالجة محليًا على جهازك
+• يمكنك إلغاء الأذونات في أي وقت</string>
 
     <!-- Blocking method selection -->
     <string name="blocking_method_selection_title">اختر طريقة الحظر</string>
@@ -209,6 +227,67 @@
     <string name="language_bengali">বাংলা (Bengali)</string>
     <string name="language_persian">فارسی (Persian)</string>
     <string name="language_spanish">Español (Spanish)</string>
+    
+    <!-- Language Names -->
+    <string name="language_name_english">الإنجليزية</string>
+    <string name="language_name_arabic">العربية</string>
+    <string name="language_name_urdu">الأوردية</string>
+    <string name="language_name_french">الفرنسية</string>
+    <string name="language_name_indonesian">الإندونيسية</string>
+    <string name="language_name_turkish">التركية</string>
+    <string name="language_name_malay">الماليزية</string>
+    <string name="language_name_bengali">البنغالية</string>
+    <string name="language_name_persian">الفارسية</string>
+    <string name="language_name_spanish">الإسبانية</string>
+    
+    <!-- Dhikr Category Names -->
+    <string name="dhikr_category_morning_remembrance">أذكار الصباح</string>
+    <string name="dhikr_category_evening_remembrance">أذكار المساء</string>
+    <string name="dhikr_category_after_prayer">أذكار بعد الصلاة</string>
+    <string name="dhikr_category_general">عام</string>
+    <string name="dhikr_category_tasbih">تسبيح</string>
+    <string name="dhikr_category_istighfar">استغفار</string>
+    <string name="dhikr_category_salawat">صلوات</string>
+    <string name="dhikr_category_dua">دعاء</string>
+    
+    <!-- Support Components Strings -->
+    <string name="buy_me_a_coffee">اشترِ لي كوب قهوة</string>
+    <string name="support_development_and_help_maintain_haramblur">ادعم التطوير وساعد في الحفاظ على حرم بلور</string>
+    <string name="external_link">رابط خارجي</string>
+    <string name="github_repository">مستودع جيت هاب</string>
+    <string name="source_code_documentation_community">الكود المصدري، التوثيق والمجتمع</string>
+    <string name="repository">المستودع</string>
+    <string name="issues">المشاكل</string>
+    <string name="discussions">المناقشات</string>
+    <string name="community_resources">📚 موارد المجتمع</string>
+    <string name="documentation">التوثيق</string>
+    <string name="user_guides_and_setup_instructions">أدلة المستخدم وتعليمات الإعداد</string>
+    <string name="share_app">مشاركة التطبيق</string>
+    <string name="help_others_discover_haramblur">ساعد الآخرين في اكتشاف حرم بلور</string>
+    <string name="share_haramblur">مشاركة حرم بلور</string>
+    <string name="help_others_discover_islamic_content_filtering">ساعد الآخرين في اكتشاف تصفية المحتوى الإسلامي</string>
+    
+    <!-- Service Control Strings -->
+    <string name="service_paused_emoji">🛑</string>
+    <string name="service_active_emoji">🛡️</string>
+    <string name="service_control_title">التحكم في الخدمة</string>
+    <string name="all_services_paused">⚠️ جميع خدمات حرم بلور متوقفة حالياً</string>
+    <string name="all_services_active_protecting">✅ جميع الخدمات نشطة وتحمي شاشتك</string>
+    <string name="tap_to_resume_services">اضغط لاستئناف جميع خدمات الكشف والمنع</string>
+    <string name="tap_to_pause_services">اضغط لإيقاف جميع خدمات الكشف والمنع</string>
+    
+    <!-- Dhikr Time Names -->
+    <string name="dhikr_time_morning">الصباح</string>
+    <string name="dhikr_time_evening">المساء</string>
+    <string name="dhikr_time_anytime">في أي وقت</string>
+    <string name="dhikr_time_after_prayer">بعد الصلاة</string>
+    
+    <!-- Achievement Rarity Names -->
+    <string name="achievement_rarity_common">شائع</string>
+    <string name="achievement_rarity_uncommon">غير شائع</string>
+    <string name="achievement_rarity_rare">نادر</string>
+    <string name="achievement_rarity_epic">ملحمي</string>
+    <string name="achievement_rarity_legendary">أسطوري</string>
 
     <!-- Porn Blocking Dialog Strings -->
     <string name="porn_blocking_title">محمي من الحرام</string>
@@ -245,7 +324,6 @@
     <string name="privacy_policy">سياسة الخصوصية</string>
     <string name="terms_of_service">شروط الخدمة</string>
     <string name="rate_app">تقييم التطبيق</string>
-    <string name="share_app">مشاركة التطبيق</string>
     <string name="more_apps">تطبيقات أخرى</string>
 
     <!-- Additional UI Strings -->
@@ -633,5 +711,191 @@
     <string name="sunan_ibn_majah">سنن ابن ماجه</string>
     <string name="musnad_ahmad">مسند أحمد</string>
     <string name="muwatta_malik">موطأ مالك</string>
+    
+    <!-- أنواع التسارع -->
+    <string name="acceleration_type_gpu">GPU</string>
+    <string name="acceleration_type_gpu_description">تسريع وحدة معالجة الرسوميات</string>
+    <string name="acceleration_type_nnapi">NNAPI</string>
+    <string name="acceleration_type_nnapi_description">تسريع واجهة الشبكات العصبية لنظام أندرويد</string>
+    <string name="acceleration_type_cpu_optimized">CPU+</string>
+    <string name="acceleration_type_cpu_optimized_description">معالجة CPU محسّنة باستخدام XNNPACK</string>
+    <string name="acceleration_type_cpu_basic">CPU</string>
+    <string name="acceleration_type_cpu_basic_description">معالجة CPU أساسية</string>
+    
+    <!-- أسماء كتب الحديث -->
+    <string name="hadith_book_sahih_bukhari">صحيح البخاري</string>
+    <string name="hadith_book_sahih_muslim">صحيح مسلم</string>
+    <string name="hadith_book_jami_tirmidhi">جامع الترمذي</string>
+    <string name="hadith_book_sunan_abu_dawud">سنن أبي داود</string>
+    <string name="hadith_book_sunan_ibn_majah">سنن ابن ماجه</string>
+    <string name="hadith_book_sunan_nasai">سنن النسائي</string>
+    <string name="hadith_book_musnad_ahmad">مسند أحمد</string>
+    <string name="hadith_book_muwatta_malik">موطأ مالك</string>
+    
+    <!-- أسماء الإنجازات -->
+    <string name="achievement_first_step">الخطوة الأولى</string>
+    <string name="achievement_week_warrior">محارب الأسبوع</string>
+    <string name="achievement_month_master">سيد الشهر</string>
+    <string name="achievement_centurion">المئة</string>
+    <string name="achievement_guardian">الحارس</string>
+    <string name="achievement_dhikr_devotee">مخلص الذكر</string>
+    <string name="achievement_salah_star">نجم الصلاة</string>
+    
+    <!-- وصف الإنجازات -->
+    <string name="achievement_desc_first_step">أكمل يومك الأول مع حرم بلور</string>
+    <string name="achievement_desc_week_warrior">حافظ على الحماية لمدة 7 أيام متتالية</string>
+    <string name="achievement_desc_month_master">رائع! 30 يوماً من الحماية</string>
+    <string name="achievement_desc_centurion">100 يوم من الحماية المستمرة</string>
+    <string name="achievement_desc_guardian">احجب 1000 عنصر غير لائق</string>
+    <string name="achievement_desc_dhikr_devotee">أكمل 100 مجموعة تسبيح</string>
+    <string name="achievement_desc_salah_star">لا تفوت إشعارات أوقات الصلاة لمدة أسبوع</string>
+    
+    <!-- نصوص الشارات -->
+    <string name="badge_active">نشط</string>
+    <string name="badge_enabled">مفعل</string>
+    
+    <!-- أسماء الإعدادات السريعة -->
+    <string name="quick_setting_protection_active">الحماية نشطة</string>
+    <string name="quick_setting_prayer_times">أوقات الصلاة</string>
+    <string name="quick_setting_dhikr">الذكر</string>
+    <string name="quick_setting_site_blocking">حظر المواقع</string>
+    <string name="quick_setting_nsfw_detection">كشف المحتوى غير المناسب</string>
+    <string name="quick_setting_blur_intensity">شدة التعتيم</string>
+    
+    <!-- وصف الإعدادات السريعة -->
+    <string name="quick_setting_desc_protection_disabled">الحماية معطلة - اضغط للتفعيل وكشف الوجوه وحظر المحتوى</string>
+    <string name="quick_setting_desc_accessibility_inactive">الحماية مفعلة لكن خدمة الوصول غير نشطة - فعّلها في إعدادات الجهاز</string>
+    <string name="quick_setting_desc_realtime_disabled">الحماية مفعلة لكن المعالجة الفورية معطلة - فعّلها في الإعدادات</string>
+    <string name="quick_setting_desc_protection_active">الحماية نشطة - كشف الوجوه وحظر المحتوى مفعل</string>
+    <string name="quick_setting_desc_prayer_times">عرض إشعارات أوقات الصلاة</string>
+    <string name="quick_setting_desc_dhikr">تفعيل تذكيرات الذكر</string>
+    <string name="quick_setting_desc_site_blocking">حظر المواقع غير المناسبة</string>
+    <string name="quick_setting_desc_nsfw_detection">كشف وتعتيم المحتوى غير المناسب</string>
+    <string name="quick_setting_desc_blur_intensity">ضبط شدة التعتيم للمحتوى المكتشف</string>
+    
+    <!-- تسميات واجهة المستخدم -->
+    <string name="quick_controls">التحكم السريع</string>
+    <string name="apply_preset">تطبيق الإعداد المسبق</string>
+    <string name="choose_preset_config">اختر إعداداً مسبقاً لتطبيقه على إعداداتك.</string>
+
+    <!-- نصوص الويدجت -->
+    <string name="widget_tap_to_open_app">اضغط لفتح التطبيق</string>
+    <string name="widget_prayer_times_sync">ستتم مزامنة أوقات الصلاة تلقائياً</string>
+    <string name="widget_date_prefix">📅</string>
+    <string name="widget_prayer_times_fallback">أوقات الصلاة</string>
+    <string name="widget_counter_display">%1$d / 33</string>
+    <string name="widget_reset_icon">↺</string>
+    <string name="widget_tap_anywhere_count">اضغط في أي مكان للعد</string>
+    <string name="widget_mosque_icon">🕌</string>
+    <string name="widget_clock_icon">⏰</string>
+    <string name="widget_prayer_fajr">الفجر</string>
+    <string name="widget_prayer_dhuhr">الظهر</string>
+    <string name="widget_prayer_asr">العصر</string>
+    <string name="widget_prayer_maghrib">المغرب</string>
+    <string name="widget_prayer_isha">العشاء</string>
+    
+    <!-- رسائل الحالة -->
+    <string name="status_shield_active">🛡️</string>
+    <string name="status_warning">⚠️</string>
+    <string name="status_ml_active">التعلم الآلي نشط</string>
+    <string name="status_gpu_accel">تسريع GPU</string>
+    <string name="status_service_active_indicator">🟢</string>
+    <string name="status_service_inactive_indicator">🔴</string>
+    <string name="status_model_files_verified">تم التحقق من جميع ملفات النموذج بنجاح</string>
+    <string name="status_model_files_missing">بعض ملفات النموذج مفقودة: %s</string>
+    <string name="status_model_files_error">خطأ في التحقق من ملفات النموذج: %s</string>
+    <string name="status_load_settings_failed">فشل تحميل بيانات الإعدادات: %s</string>
+    <string name="status_load_data_failed">فشل تحميل البيانات</string>
+    <string name="status_load_insights_failed">فشل تحميل الرؤى: %s</string>
+    <string name="status_load_dashboard_failed">فشل تحميل بيانات لوحة التحكم: %s</string>
+    
+    <!-- إضافات مفقودة للترجمة العربية -->
+    <string name="local_processing_only">المعالجة المحلية فقط</string>
+    <string name="maghrib">المغرب</string>
+    <string name="no_actions_tested">لم يتم اختبار أي إجراءات</string>
+    <string name="no_data_available">لا توجد بيانات متاحة</string>
+    <string name="nsfw">محتوى غير لائق</string>
+    <string name="optimal_performance">أداء مثالي</string>
+    <string name="performance_score">درجة الأداء</string>
+    <string name="performance_warning">تحذير الأداء</string>
+    <string name="prayer_times_description">وصف أوقات الصلاة</string>
+    <string name="prayer_times_notification">إشعار أوقات الصلاة</string>
+    <string name="prayer_times_notification_description">وصف إشعار أوقات الصلاة</string>
+    <string name="prayer_times_notification_label">تسمية إشعار أوقات الصلاة</string>
+    <string name="prayer_times_notification_subtitle">عنوان فرعي لإشعار أوقات الصلاة</string>
+    <string name="prayer_times_notification_title">عنوان إشعار أوقات الصلاة</string>
+    <string name="prayer_times_overlay">تراكب أوقات الصلاة</string>
+    <string name="prayer_times_overlay_description">وصف تراكب أوقات الصلاة</string>
+    <string name="prayer_times_overlay_label">تسمية تراكب أوقات الصلاة</string>
+    <string name="prayer_times_overlay_subtitle">عنوان فرعي لتراكب أوقات الصلاة</string>
+    <string name="prayer_times_overlay_title">عنوان تراكب أوقات الصلاة</string>
+    <string name="prayer_times_settings">إعدادات أوقات الصلاة</string>
+    <string name="prayer_times_settings_description">وصف إعدادات أوقات الصلاة</string>
+    <string name="prayer_times_settings_label">تسمية إعدادات أوقات الصلاة</string>
+    <string name="prayer_times_settings_subtitle">عنوان فرعي لإعدادات أوقات الصلاة</string>
+    <string name="prayer_times_settings_title">عنوان إعدادات أوقات الصلاة</string>
+    <string name="prayer_times_widget_label">تسمية ويدجت أوقات الصلاة</string>
+    <string name="prayer_times_widget_subtitle">عنوان فرعي لويدجت أوقات الصلاة</string>
+    <string name="prayer_times_widget_title">عنوان ويدجت أوقات الصلاة</string>
+    <string name="qibla_direction">اتجاه القبلة</string>
+    <string name="qibla_direction_description">وصف اتجاه القبلة</string>
+    <string name="real_time_metrics">المقاييس في الوقت الفعلي</string>
+    <string name="search_settings">إعدادات البحث</string>
+    <string name="clear">مسح</string>
+    <string name="got_it">فهمت</string>
+    <string name="learn_more">معرفة المزيد</string>
+    <string name="total_measurements">إجمالي القياسات</string>
+    <string name="violation_rate">معدل الانتهاك</string>
+
+    <!-- شاشة تفاصيل الحديث -->
+    <string name="hadith_back">رجوع</string>
+    <string name="hadith_share">مشاركة الحديث</string>
+    <string name="hadith_urdu_text">الترجمة الأردية</string>
+    <string name="hadith_of_the_day">حديث اليوم</string>
+    <string name="hadith_swipe_hint">اسحب يساراً أو يميناً لقراءة المزيد</string>
+    <string name="hadith_read_more">اقرأ الحديث كاملاً</string>
+    <string name="hadith_preferred_book">الكتاب المفضل</string>
+    <string name="hadith_enable_notifications">إشعار الحديث اليومي</string>
+    <string name="hadith_notification_time">وقت الإشعار</string>
+    <string name="hadith_notification_title">الحديث اليومي</string>
+    <string name="hadith_notification_description">تذكيرك بالحديث اليومي</string>
+    <string name="hadith_notification_channel_name">الحديث اليومي</string>
+    <string name="hadith_notification_channel_desc">إشعارات تذكير الحديث اليومي</string>
+    <string name="hadith_share_text">%1$s\n\n— %2$s\n\n(%3$s #%4$s)</string>
+
+    <!-- Quran Feature -->
+    <string name="quran_title">القرآن الكريم</string>
+    <string name="quran_subtitle">القرآن النبيل</string>
+    <string name="quran_tab_surahs">السور</string>
+    <string name="quran_tab_juz">الأجزاء</string>
+    <string name="quran_tab_bookmarks">المحفوظات</string>
+    <string name="quran_verse_of_day">آية اليوم</string>
+    <string name="quran_continue_reading">متابعة القراءة</string>
+    <string name="quran_search_hint">ابحث في القرآن…</string>
+    <string name="quran_ayah">آية</string>
+    <string name="quran_ayahs">آيات</string>
+    <string name="quran_surah">سورة</string>
+    <string name="quran_juz">جزء</string>
+    <string name="quran_no_bookmarks">لا توجد محفوظات بعد</string>
+    <string name="quran_remove_bookmark">إزالة المحفوظة</string>
+    <string name="quran_retry">إعادة المحاولة</string>
+    <string name="quran_back">رجوع</string>
+    <string name="quran_loading_verses">جاري تحميل الآيات…</string>
+    <string name="quran_no_verses">لم يتم العثور على آيات</string>
+    <string name="quran_swipe_hint">اسحب للتنقل</string>
+    <string name="quran_translation">الترجمة</string>
+    <string name="quran_bookmark_added">تمت إضافة المحفوظة</string>
+    <string name="quran_bookmark_removed">تمت إزالة المحفوظة</string>
+    <string name="quran_share">مشاركة الآية</string>
+
+    <!-- Quran Audio Feature -->
+    <string name="quran_audio_play">تشغيل</string>
+    <string name="quran_audio_pause">إيقاف مؤقت</string>
+    <string name="quran_audio_stop">إيقاف</string>
+    <string name="quran_audio_next">التالي</string>
+    <string name="quran_audio_previous">السابق</string>
+    <string name="quran_audio_now_playing">يتم التشغيل الآن</string>
+    <string name="quran_audio_select_reciter">اختر القارئ</string>
+    <string name="quran_audio_loading">جاري تحميل الصوت…</string>
 
 </resources>

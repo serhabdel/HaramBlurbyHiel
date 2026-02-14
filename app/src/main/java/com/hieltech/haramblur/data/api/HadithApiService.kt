@@ -73,13 +73,15 @@ data class Hadith(
     val hadithNumber: String,
     val arabicText: String,
     val englishText: String,
+    val urduText: String,
     val narrator: String,
     val chapterNumber: String,
     val bookName: String,
     val bookSlug: String,
     val grade: String,
     val headingArabic: String,
-    val headingEnglish: String
+    val headingEnglish: String,
+    val headingUrdu: String
 )
 
 fun HadithDto.toDomain(): Hadith = Hadith(
@@ -87,11 +89,13 @@ fun HadithDto.toDomain(): Hadith = Hadith(
     hadithNumber = hadithNumber,
     arabicText = hadithArabic ?: "",
     englishText = hadithEnglish ?: "",
+    urduText = hadithUrdu ?: "",
     narrator = englishNarrator ?: "",
     chapterNumber = chapterNumber ?: "",
     bookName = book?.bookName ?: bookSlug ?: "",
     bookSlug = bookSlug ?: "",
     grade = status ?: "",
     headingArabic = headingArabic ?: "",
-    headingEnglish = headingEnglish ?: ""
+    headingEnglish = headingEnglish ?: "",
+    headingUrdu = headingUrdu ?: ""
 )

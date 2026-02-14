@@ -87,7 +87,7 @@ fun PrayerTimesWidget(
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(
-                            text = "🕌",
+                            text = stringResource(R.string.widget_mosque_icon),
                             style = MaterialTheme.typography.headlineMedium
                         )
                         Column {
@@ -184,7 +184,7 @@ fun PrayerTimesWidget(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
                                     Text(
-                                        text = "⏰",
+                                        text = stringResource(R.string.widget_clock_icon),
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(

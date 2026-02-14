@@ -895,7 +895,7 @@ private fun ExpandedHomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 StatusCard(
-                    title = if (accessibilityGranted && serviceRunning) "🟢 ${stringResource(R.string.service_active)}" else "🔴 ${stringResource(R.string.service_inactive)}",
+                    title = if (accessibilityGranted && serviceRunning) "${stringResource(R.string.status_service_active_indicator)} ${stringResource(R.string.service_active)}" else "${stringResource(R.string.status_service_inactive_indicator)} ${stringResource(R.string.service_inactive)}",
                     subtitle = when {
                         accessibilityGranted && serviceRunning -> stringResource(R.string.content_filtering_enabled)
                         else -> stringResource(R.string.complete_setup_to_enable_filtering)

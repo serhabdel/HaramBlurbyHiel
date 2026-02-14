@@ -1,0 +1,979 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HaramBlur</string>
+    <string name="accessibility_service_description">HaramBlur te ayuda a navegar por tu dispositivo respetando los valores islámicos detectando y difuminando automáticamente el contenido inapropiado en todas las aplicaciones. Todo el procesamiento ocurre localmente en tu dispositivo para una privacidad completa.</string>
+
+    <!-- Enhanced App Blocking Strings -->
+
+    <!-- Section titles and descriptions -->
+    <string name="enhanced_blocking_title">🔒 Bloqueo de Aplicaciones Mejorado</string>
+    <string name="enhanced_blocking_description">Bloqueo más rápido, aplicación más confiable con permisos opcionales</string>
+    <string name="enhanced_blocking_benefits">• Tiempo de respuesta de bloqueo más rápido\n• Aplicación más confiable\n• Monitoreo del lanzamiento de aplicaciones en tiempo real</string>
+
+    <!-- Permission explanations -->
+    <string name="usage_stats_permission_title">Acceso a Estadísticas de Uso</string>
+    <string name="usage_stats_permission_description">Permite la detección en tiempo real del lanzamiento de aplicaciones para un bloqueo inmediato</string>
+    <string name="device_admin_permission_title">Acceso de Administrador de Dispositivo</string>
+    <string name="device_admin_permission_description">Permite cerrar forzosamente las aplicaciones bloqueadas para reforzar la aplicación</string>
+
+    <!-- Blocking method descriptions -->
+    <string name="blocking_method_accessibility_only">Solo Accesibilidad</string>
+    <string name="blocking_method_accessibility_description">Usa el servicio de accesibilidad para el bloqueo (método actual)</string>
+    <string name="blocking_method_force_close_preferred">Cierre Forzado Preferido</string>
+    <string name="blocking_method_force_close_description">Cierra inmediatamente las aplicaciones bloqueadas cuando sea posible</string>
+    <string name="blocking_method_adaptive">Adaptativo</string>
+    <string name="blocking_method_adaptive_description">Elige automáticamente el método más fuerte disponible según las capacidades de tu dispositivo</string>
+
+    <!-- Permission request strings -->
+    <string name="grant_permission">Otorgar</string>
+    <string name="permission_granted">✓ Otorgado</string>
+    <string name="permission_not_granted">⚠ No otorgado</string>
+    <string name="permission_required_for_enhanced">Requerido para bloqueo mejorado</string>
+
+    <!-- Status messages -->
+    <string name="blocking_strength_basic">Básico</string>
+    <string name="blocking_strength_enhanced">Mejorado</string>
+    <string name="blocking_strength_maximum">Máximo</string>
+    <string name="blocking_strength_basic_description">Solo bloqueo del servicio de accesibilidad</string>
+    <string name="blocking_strength_enhanced_description">Monitoreo en tiempo real activo</string>
+    <string name="blocking_strength_maximum_description">Cierre forzado + monitoreo en tiempo real activo</string>
+
+    <!-- Current blocking strength indicator -->
+    <string name="current_blocking_strength">🛡️ Fuerza de bloqueo actual: %s</string>
+    <string name="force_close_monitoring_active">Cierre forzado + monitoreo en tiempo real activo</string>
+    <string name="monitoring_active">Monitoreo en tiempo real activo</string>
+    <string name="accessibility_only_active">Solo bloqueo básico de accesibilidad</string>
+
+    <!-- Device Admin specific strings -->
+    <string name="device_admin_activation_title">Permiso de Administrador de Dispositivo</string>
+    <string name="device_admin_activation_message">El acceso de administrador de dispositivo permite reforzar el bloqueo de aplicaciones al permitir que la aplicación cierre forzosamente las aplicaciones bloqueadas. Este permiso es opcional y mejora las capacidades de bloqueo.</string>
+    <string name="device_admin_explanation">El acceso de administrador de dispositivo permite a HaramBlur cerrar forzosamente las aplicaciones bloqueadas para una aplicación más fuerte. Esto es completamente opcional - la aplicación funciona perfectamente sin ello.</string>
+    <string name="device_admin_disabled_message">El permiso de administrador de dispositivo ha sido desactivado. El bloqueo volverá solo al servicio de accesibilidad.</string>
+
+    <!-- Error messages -->
+    <string name="permission_denied_title">Permiso Requerido</string>
+    <string name="permission_denied_message">Este permiso es requerido para las funciones de bloqueo mejorado.</string>
+    <string name="enhanced_blocking_error_title">Error de Bloqueo Mejorado</string>
+    <string name="enhanced_blocking_error_message">Ocurrió un error al aplicar el bloqueo mejorado. Volviendo al bloqueo de accesibilidad.</string>
+
+    <!-- Success messages -->
+    <string name="permission_granted_success">¡Permiso otorgado exitosamente!</string>
+    <string name="enhanced_blocking_enabled">Bloqueo mejorado habilitado</string>
+    <string name="enhanced_blocking_disabled">Bloqueo mejorado deshabilitado</string>
+
+    <!-- Setup and onboarding -->
+    <string name="setup_enhanced_blocking">Configurar Bloqueo Mejorado</string>
+    <string name="enhanced_blocking_setup_complete">¡Configuración de bloqueo mejorado completada!</string>
+    <string name="enhanced_blocking_onboarding_title">Bloqueo de Aplicaciones Mejorado</string>
+    <string name="enhanced_blocking_onboarding_message">Otorga permisos opcionales para capacidades de bloqueo de aplicaciones más fuertes. La aplicación funciona perfectamente sin ellos.</string>
+
+    <!-- Troubleshooting -->
+    <string name="troubleshooting_title">Solución de Problemas</string>
+    <string name="permission_troubleshooting">Si los permisos no funcionan:\n• Ve a Configuración > Aplicaciones > HaramBlur > Permisos\n• Habilita los permisos requeridos\n• Reinicia la aplicación</string>
+    <string name="enhanced_blocking_not_working">¿El bloqueo mejorado no funciona?\n• Verifica que los permisos estén otorgados\n• Asegúrate de que el servicio de accesibilidad esté habilitado\n• Intenta reiniciar el dispositivo</string>
+
+    <!-- Diagnostics -->
+    <string name="blocking_diagnostics_title">Diagnósticos de Bloqueo</string>
+    <string name="enhanced_blocking_enabled_status">Bloqueo Mejorado Habilitado: %s</string>
+    <string name="usage_stats_granted">Permiso de Estadísticas de Uso: %s</string>
+    <string name="device_admin_granted">Permiso de Administrador de Dispositivo: %s</string>
+    <string name="preferred_method">Método Preferido: %s</string>
+    <string name="effective_method">Método Efectivo: %s</string>
+    <string name="capability_level">Nivel de Capacidad de Bloqueo: %s</string>
+    <string name="force_close_timeout">Tiempo de Espera de Cierre Forzado: %dms</string>
+
+    <!-- Accessibility labels -->
+    <string name="permission_status_icon">Indicador de estado de permiso</string>
+    <string name="blocking_strength_indicator">Indicador de fuerza de bloqueo actual</string>
+    <string name="grant_permission_button">Botón de otorgar permiso</string>
+
+    <!-- Why do I need this? explanations -->
+    <string name="why_usage_stats_title">¿Por qué el acceso a estadísticas de uso?</string>
+    <string name="why_usage_stats_explanation">El permiso de estadísticas de uso permite a HaramBlur:
+    
+• Detectar cuándo se lanzan aplicaciones bloqueadas
+• Aplicar el bloqueo inmediatamente
+• Proporcionar tiempos de respuesta más rápidos
+• Monitorear patrones de uso de aplicaciones
+    
+Este permiso es opcional y solo mejora la velocidad de bloqueo.</string>
+
+    <string name="why_device_admin_title">¿Por qué el acceso de administrador de dispositivo?</string>
+    <string name="why_device_admin_explanation">El permiso de administrador de dispositivo permite a HaramBlur:
+    
+• Cerrar forzosamente aplicaciones bloqueadas
+• Proporcionar aplicación más fuerte
+• Prevenir que las aplicaciones eviten el bloqueo
+• Ofrecer bloqueo más confiable
+    
+Este permiso es completamente opcional - la aplicación funciona sin ello.</string>
+
+    <!-- Privacy assurance -->
+    <string name="privacy_assurance_title">Privacidad y Seguridad</string>
+    <string name="privacy_assurance_message">• Todos los permisos son opcionales
+• El bloqueo mejorado solo se activa con tu consentimiento
+• No se envían datos a servidores externos
+• Todo el procesamiento ocurre localmente en tu dispositivo
+• Puedes revocar permisos en cualquier momento</string>
+
+    <!-- Blocking method selection -->
+    <string name="blocking_method_selection_title">Elegir Método de Bloqueo</string>
+    <string name="accessibility_only_info">Usa el servicio de accesibilidad de Android para superponer contenido. Funciona en todos los dispositivos pero puede ser más lento.</string>
+    <string name="force_close_preferred_info">Cierra inmediatamente las aplicaciones bloqueadas al lanzarse. Requiere permiso de administrador de dispositivo. Método más rápido y confiable.</string>
+    <string name="adaptive_info">Elige automáticamente el mejor método disponible según las capacidades de tu dispositivo y los permisos otorgados.</string>
+
+    <!-- Settings validation -->
+    <string name="enhanced_blocking_settings_warning">El bloqueo mejorado está habilitado pero faltan los permisos requeridos. El bloqueo se limitará solo al servicio de accesibilidad.</string>
+    <string name="force_close_timeout_warning">El tiempo de espera de cierre forzado es demasiado corto (%dms). El mínimo recomendado es 1000ms.</string>
+
+    <!-- Test blocking -->
+    <string name="test_blocking">Probar Bloqueo</string>
+    <string name="test_blocking_description">Lanza una aplicación bloqueada para probar la efectividad del bloqueo mejorado</string>
+    <string name="test_blocking_success">¡Prueba completada exitosamente! El bloqueo mejorado está funcionando.</string>
+    <string name="test_blocking_failed">Prueba fallida. Verifica los permisos e inténtalo de nuevo.</string>
+
+    <!-- Home Screen Strings -->
+    <string name="welcome_title">Bienvenido a HaramBlur</string>
+    <string name="welcome_subtitle">Tu Guardián de Contenido Islámico</string>
+    <string name="setup_complete">¡Configuración Completa!</string>
+    <string name="complete_setup">Completar Configuración</string>
+    <string name="service_active">Servicio Activo</string>
+    <string name="service_inactive">Servicio Inactivo</string>
+    <string name="blocking_enabled">Bloqueo Habilitado</string>
+    <string name="blocking_disabled">Bloqueo Deshabilitado</string>
+    <string name="apps_blocked_today">Aplicaciones bloqueadas hoy</string>
+    <string name="sites_blocked_today">Sitios bloqueados hoy</string>
+    <string name="dhikr_completed_today">Dhikr completado hoy</string>
+    <string name="prayers_completed_today">Oraciones completadas hoy</string>
+    <string name="quick_actions">Acciones Rápidas</string>
+    <string name="enable_service">Habilitar Servicio</string>
+    <string name="disable_service">Deshabilitar Servicio</string>
+    <string name="view_stats">Ver Estadísticas</string>
+    <string name="open_settings">Abrir Configuración</string>
+    <string name="recent_activity">Actividad Reciente</string>
+    <string name="no_recent_activity">Sin actividad reciente</string>
+    <string name="app_blocked">Aplicación bloqueada</string>
+    <string name="site_blocked">Sitio bloqueado</string>
+    <string name="dhikr_completed">Dhikr completado</string>
+    <string name="prayer_completed">Oración completada</string>
+    <string name="islamic_features">Características Islámicas</string>
+    <string name="quranic_verses">Versículos Coránicos</string>
+    <string name="dhikr_reminders">Recordatorios de Dhikr</string>
+    <string name="prayer_times">Tiempos de Oración</string>
+    <string name="islamic_calendar">Calendario Islámico</string>
+    <string name="protection_stats">Estadísticas de Protección</string>
+    <string name="total_blocked">Total Bloqueado</string>
+    <string name="today_blocked">Hoy</string>
+    <string name="this_week">Esta Semana</string>
+    <string name="this_month">Este Mes</string>
+    <string name="most_blocked_category">Categoría Más Bloqueada</string>
+    <string name="protection_active">Protección Activa</string>
+    <string name="protection_paused">Protección Pausada</string>
+    <string name="setup_required">Configuración Requerida</string>
+    <string name="setup_in_progress">Configuración en Progreso</string>
+    <string name="setup_wizard">Asistente de Configuración</string>
+    <string name="skip_setup">Saltar Configuración</string>
+    <string name="next_step">Siguiente</string>
+    <string name="previous_step">Anterior</string>
+    <string name="finish_setup">Finalizar</string>
+
+    <!-- Additional Home Screen Strings -->
+    <string name="custom">personalizado</string>
+    <string name="blocked">bloqueado</string>
+    <string name="activity_history">historial de actividad</string>
+    <string name="get_help">obtener ayuda</string>
+    <string name="islamic_content_filter">Tu filtro de contenido islámico está listo para proteger tu espacio digital</string>
+    <string name="content_filtering_enabled">El filtrado de contenido está habilitado</string>
+    <string name="accessibility_enabled_service_not_running">Accesibilidad habilitada, servicio no en ejecución</string>
+    <string name="complete_setup_to_enable_filtering">Completa la configuración para habilitar el filtrado</string>
+    <string name="service_paused">Servicio pausado</string>
+    <string name="all_services_active">Todos los servicios activos</string>
+    <string name="show_dhikr">Mostrar Dhikr</string>
+    <string name="islamic_remembrance">Recuerdo islámico</string>
+    <string name="setup_incomplete">Configuración Incompleta</string>
+    <string name="complete_setup_to_enable_content_filtering">Completa la configuración para habilitar el filtrado de contenido</string>
+
+    <!-- Debug Screen Strings -->
+    <string name="accessibility_service">🎯 Servicio de Accesibilidad</string>
+    <string name="service_running">Servicio en Ejecución</string>
+    <string name="processing_active">Procesamiento Activo</string>
+    <string name="screen_capture">Captura de Pantalla</string>
+    <string name="overlay_active">Superposición Activa</string>
+    <string name="detection_engine">Motor de Detección</string>
+    <string name="engine_ready">Motor Listo</string>
+    <string name="ml_models_loaded">Modelos ML Cargados</string>
+    <string name="gpu_acceleration">Aceleración GPU</string>
+    <string name="last_processing_time">Último Tiempo de Procesamiento</string>
+    <string name="face_detection">Detección de Rostros</string>
+    <string name="face_detector_ready">Detector de Rostros Listo</string>
+    <string name="gender_detector_ready">Detector de Género Listo</string>
+    <string name="last_faces_detected">Últimos Rostros Detectados</string>
+    <string name="female_faces">Rostros Femeninos</string>
+    <string name="detection_confidence">Confianza de Detección</string>
+    <string name="content_detection">Detección de Contenido</string>
+    <string name="nsfw_model_ready">Modelo NSFW Listo</string>
+    <string name="last_detection">Última Detección</string>
+    <string name="confidence">Confianza</string>
+    <string name="processing_mode">Modo de Procesamiento</string>
+    <string name="performance_metrics">Métricas de Rendimiento</string>
+    <string name="cpu_usage">Uso de CPU</string>
+    <string name="memory_usage">Uso de Memoria</string>
+    <string name="behavioral_actions_testing">Prueba de Acciones Conductuales</string>
+    <string name="test_behavioral_system">Probar Sistema Conductual</string>
+    <string name="test_close_tab_action">Probar Acción Cerrar Pestaña</string>
+    <string name="test_scroll_up_action">Probar Acción Desplazar Arriba</string>
+    <string name="test_navigate_safe_action">Probar Acción Navegar Seguro</string>
+    <string name="test_show_islamic_action">Probar Acción Mostrar Islámico</string>
+    <string name="test_emergency_blur_action">Probar Acción Difuminar Emergencia</string>
+    <string name="emergency_hide_overlays">Emergencia: Ocultar Todas las Superposiciones</string>
+    <string name="last_action_result">Resultado de Última Acción:</string>
+    <string name="recent_debug_logs">Registros de Depuración Recientes</string>
+
+    <!-- Additional missing strings -->
+    <string name="refresh">Actualizar</string>
+    <string name="test">Probar</string>
+    <string name="service_status">Estado del Servicio</string>
+    <string name="support">Soporte</string>
+    <string name="welcome_to_haramblur">Bienvenido a HaramBlur</string>
+    <string name="your_islamic_content_filter">Tu Filtro de Contenido Islámico</string>
+    <string name="active">Activo</string>
+    <string name="inactive">Inactivo</string>
+    <string name="setup_needed">Configuración Necesaria</string>
+    <string name="quick_actions_title">Acciones Rápidas</string>
+    <string name="resume">Reanudar</string>
+    <string name="pause">Pausar</string>
+    <string name="paused">Pausado</string>
+    <string name="block_apps">Bloquear Aplicaciones</string>
+    <string name="block_sites">Bloquear Sitios</string>
+    <string name="sites">Sitios</string>
+    <string name="view_logs">Ver Registros</string>
+    <string name="history">Historial</string>
+    <string name="help">Ayuda</string>
+    <string name="about_haramblur_title">Acerca de HaramBlur</string>
+    <string name="about_haramblur_description">HaramBlur es una aplicación de filtrado de contenido islámico que detecta y difumina automáticamente contenido inapropiado en todas las aplicaciones de tu dispositivo Android.</string>
+    <string name="performance">Rendimiento</string>
+    <string name="detections_today">Detecciones Hoy</string>
+    <string name="success_rate">Tasa de Éxito</string>
+    <string name="detections">Detecciones</string>
+    <string name="dashboard">Panel</string>
+    <string name="resume_services">Reanudar Servicios</string>
+    <string name="pause_services">Pausar Servicios</string>
+    <string name="analytics">Analíticas</string>
+    <string name="detection_rate">Tasa de Detección</string>
+    <string name="success_rate_title">Tasa de Éxito</string>
+    <string name="trend">Tendencia</string>
+    <string name="improving">Mejorando</string>
+
+    <!-- More missing strings -->
+    <string name="application_logs">Registros de Aplicación</string>
+    <string name="back">Atrás</string>
+    <string name="export_logs_title">Exportar Registros</string>
+    <string name="clear_logs">Limpiar Registros</string>
+    <string name="diagnostics_title">Diagnósticos de Aplicación</string>
+    <string name="total">Total</string>
+    <string name="errors">Errores</string>
+    <string name="warnings">Advertencias</string>
+    <string name="info">Información</string>
+    <string name="search_logs">Buscar registros...</string>
+    <string name="clear_search">Limpiar Búsqueda</string>
+    <string name="no_logs_found">No se encontraron registros</string>
+    <string name="adjust_filters">Intenta ajustar tus filtros o consulta de búsqueda</string>
+    <string name="category">Categoría</string>
+    <string name="user_action">Acción de Usuario</string>
+    <string name="stack_trace">Seguimiento de Pila:</string>
+    <string name="dp">dp</string>
+    <string name="haramblur_shield">Escudo HaramBlur</string>
+    <string name="settings">Configuración</string>
+    <string name="optimal">Óptimo</string>
+    <string name="reset">Restablecer</string>
+    <string name="privacy_focus_title">Enfoque en Privacidad</string>
+    <string name="privacy_focus_description">Tu privacidad es nuestra máxima prioridad. HaramBlur procesa todo localmente en tu dispositivo.</string>
+    <string name="protection_inactive">Protección Inactiva</string>
+    <string name="monitoring_and_filtering">Monitoreo y Filtrado</string>
+    <string name="enable_accessibility_service">Habilitar Servicio de Accesibilidad</string>
+    <string name="ml_models">Modelos ML</string>
+    <string name="gpu">GPU</string>
+    <string name="accelerated">Acelerado</string>
+    <string name="privacy">Privacidad</string>
+    <string name="local">Local</string>
+    <string name="detection_stats">Estadísticas de Detección</string>
+    <string name="live_detection_statistics">Estadísticas de Detección en Vivo</string>
+    <string name="faces_detected">Rostros Detectados</string>
+    <string name="content_filtered">Contenido Filtrado</string>
+    <string name="blur_regions">Regiones de Difuminado</string>
+    <string name="recent_activity_details">Detalles de Actividad Reciente</string>
+
+    <!-- Permission Wizard strings -->
+    <string name="checking_permissions">Verificando permisos...</string>
+    <string name="welcome_to_haramblur_setup">Bienvenido a la Configuración de HaramBlur</string>
+    <string name="setup_permissions_description">Configura los permisos necesarios para una protección óptima</string>
+    <string name="retry">Reintentar</string>
+    <string name="setup_complete_title">¡Configuración Completa!</string>
+    <string name="haramblur_ready">HaramBlur ahora está listo para proteger tu espacio digital</string>
+    <string name="granted_permissions">✅ Permisos otorgados</string>
+    <string name="continue_to_haramblur">Continuar a HaramBlur</string>
+    <string name="how_it_works">📱 Cómo funciona:</string>
+    <string name="please_complete_setup">⚠️ Por favor completa la configuración en ajustes para continuar</string>
+    <string name="why_needed">📊 Por qué es necesario:</string>
+    <string name="usage_stats_description">El permiso de Estadísticas de Uso permite un mejor bloqueo de aplicaciones al detectar lanzamientos de aplicaciones, permitiendo tiempos de respuesta más rápidos.</string>
+    <string name="please_grant_permission">⚠️ Por favor otorga el permiso en ajustes para continuar</string>
+
+    <!-- Wizard Step Titles and Descriptions -->
+    <string name="wizard_step_language_title">Seleccionar Idioma</string>
+    <string name="wizard_step_language_description">Elige tu idioma preferido para la aplicación</string>
+    <string name="wizard_step_gender_title">Selección de Género</string>
+    <string name="wizard_step_gender_description">Ayúdanos a proporcionar filtrado de contenido conforme a valores islámicos</string>
+    <string name="wizard_step_accessibility_title">Servicio de Accesibilidad</string>
+    <string name="wizard_step_accessibility_description">Habilita detección de contenido en tiempo real en todas las aplicaciones</string>
+    <string name="wizard_step_usage_stats_title">Acceso a Estadísticas de Uso</string>
+    <string name="wizard_step_usage_stats_description">Monitorea el uso de aplicaciones para capacidades de bloqueo mejoradas</string>
+    <string name="wizard_step_overlay_title">Permiso de Superposición</string>
+    <string name="wizard_step_overlay_description">Permite a HaramBlur difuminar contenido sensible en tu pantalla</string>
+    <string name="wizard_step_location_title">Permiso de Ubicación</string>
+    <string name="wizard_step_location_description">Habilita tiempos de oración precisos y calendario islámico</string>
+    <string name="wizard_step_notification_title">Permiso de Notificación</string>
+    <string name="wizard_step_notification_description">Muestra recordatorios de dhikr y alertas islámicas</string>
+    <string name="wizard_step_islamic_features_title">Características Islámicas</string>
+    <string name="wizard_step_islamic_features_description">Configura tiempos de oración, calendario islámico y características espirituales</string>
+
+    <!-- Missing Spanish Strings -->
+    <string name="accessibility_description">El servicio de accesibilidad permite a HaramBlur monitorear contenido en todas las aplicaciones en tiempo real, permitiendo detección automática y aplicación de difuminado.</string>
+    <string name="islamic_settings_title">Configuración Islámica</string>
+    <string name="settings_title">Configuración</string>
+    <string name="dhikr_title">Dhikr (Remembranza)</string>
+    <string name="dhikr_description">Remembranzas islámicas para ayudar a mantener la conciencia espiritual</string>
+    <string name="quranic_guidance_title">Guía Coránica</string>
+    <string name="quranic_guidance_description">Muestra versículos coránicos al bloquear contenido</string>
+    <string name="performance_settings_title">Configuración de Rendimiento</string>
+    <string name="nav_general_title">General</string>
+    <string name="nav_general_description">Control de servicio y configuración básica</string>
+    <string name="nav_detection_title">Detección</string>
+    <string name="nav_detection_description">Configuración de detección de rostros y contenido</string>
+    <string name="nav_performance_title">Rendimiento</string>
+    <string name="nav_performance_description">Velocidad y optimización de recursos</string>
+    <string name="nav_islamic_title">Islámico</string>
+    <string name="nav_islamic_description">Guía coránica y Dhikr</string>
+    <string name="nav_advanced_title">Avanzado</string>
+    <string name="nav_advanced_description">Opciones de IA y desarrollador</string>
+    <string name="advance_notice_title">Aviso Anticipado</string>
+    <string name="advance_notice_description">Muestra notificaciones de oración antes del tiempo de oración</string>
+    <string name="animation_title">Animaciones</string>
+    <string name="animation_description">Habilita transiciones y animaciones suaves</string>
+    <string name="anytime_dhikr_title">Dhikr en Cualquier Momento</string>
+    <string name="anytime_dhikr_description">Muestra recordatorios de dhikr durante todo el día</string>
+    <string name="arabic_text_display_title">Visualización de Texto Árabe</string>
+    <string name="arabic_text_display_description">Muestra texto árabe en versículos coránicos</string>
+    <string name="auto_detect_location_title">Detección Automática de Ubicación</string>
+    <string name="auto_detect_location_description">Detecta automáticamente tu ubicación para tiempos de oración</string>
+    <string name="city_search_cache_title">Caché de Búsqueda de Ciudad</string>
+    <string name="city_search_cache_description">Almacena en caché resultados recientes de búsqueda de ciudad para búsquedas más rápidas</string>
+    <string name="offline_city_fallback_title">Alternativa de Ciudad Sin Conexión</string>
+    <string name="offline_city_fallback_description">Usa una lista integrada de ciudades populares cuando esté sin conexión</string>
+    <string name="prefer_stored_coordinates_title">Preferir Coordenadas Almacenadas</string>
+    <string name="prefer_stored_coordinates_description">Usa latitud/longitud guardada para tiempos de oración si está disponible</string>
+    <string name="blur_area_expansion_title">Expansión del Área de Difuminado</string>
+    <string name="blur_area_expansion_description">Expande áreas de difuminado alrededor del contenido detectado</string>
+    <string name="blur_customization_title">Personalización de Difuminado</string>
+    <string name="blur_expansion_title">Expansión de Difuminado</string>
+    <string name="blur_expansion_description">Expande regiones de difuminado para mejor cobertura</string>
+    <string name="blur_style_artistic">Artístico</string>
+    <string name="blur_style_artistic_description">Efecto de difuminado artístico</string>
+    <string name="blur_style_combined">Combinado</string>
+    <string name="blur_style_combined_description">Estilos de difuminado combinados</string>
+    <string name="blur_style_description">Elige tu estilo de difuminado preferido</string>
+    <string name="blur_style_noise">Ruido</string>
+    <string name="blur_style_noise_description">Efecto de difuminado basado en ruido</string>
+    <string name="blur_style_pixelated">Pixelado</string>
+    <string name="blur_style_pixelated_description">Efecto de difuminado pixelado</string>
+    <string name="blur_style_solid">Sólido</string>
+    <string name="blur_style_solid_description">Superposición de color sólido</string>
+    <string name="blur_style_title">Estilo de Difuminado</string>
+    <string name="calculation_method_title">Método de Cálculo</string>
+    <string name="calendar_update_interval_title">Intervalo de Actualización del Calendario</string>
+    <string name="calendar_update_interval_description">Con qué frecuencia actualizar el calendario islámico</string>
+    <string name="current_location_title">Ubicación Actual</string>
+    <string name="custom_reflection_time_title">Tiempo de Reflexión Personalizado</string>
+    <string name="custom_reflection_time_description">Establece período de reflexión personalizado para contenido bloqueado</string>
+    <string name="display_duration_title">Duración de Visualización</string>
+    <string name="display_duration_description">Cuánto tiempo mostrar superposiciones de dhikr</string>
+    <string name="display_interval_title">Intervalo de Visualización</string>
+    <string name="display_interval_description">Tiempo entre visualizaciones de dhikr</string>
+    <string name="display_position_title">Posición de Visualización</string>
+    <string name="enable_dhikr_title">Habilitar Dhikr</string>
+    <string name="enable_dhikr_description">Muestra superposiciones de remembranza islámica</string>
+    <string name="enable_islamic_calendar_title">Habilitar Calendario Islámico</string>
+    <string name="enable_islamic_calendar_description">Muestra eventos del calendario islámico</string>
+    <string name="enable_prayer_times_title">Habilitar Tiempos de Oración</string>
+    <string name="enable_prayer_times_description">Muestra notificaciones de tiempos de oración</string>
+    <string name="enable_qibla_direction_title">Habilitar Dirección de Qibla</string>
+    <string name="enable_qibla_direction_description">Muestra indicador de dirección de Qibla</string>
+    <string name="error_reporting_title">Informe de Errores</string>
+    <string name="error_reporting_description">Informa automáticamente errores para mejora</string>
+    <string name="evening_dhikr_title">Dhikr Vespertino</string>
+    <string name="evening_dhikr_description">Recordatorios de dhikr para oraciones vespertinas</string>
+    <string name="frame_skip_threshold_title">Umbral de Salto de Fotogramas</string>
+    <string name="frame_skip_threshold_description">Salta fotogramas cuando el procesamiento es lento</string>
+    <string name="full_screen_blur_nsfw_title">Difuminado de Pantalla Completa NSFW</string>
+    <string name="full_screen_blur_nsfw_description">Difumina toda la pantalla para contenido NSFW</string>
+    <string name="gpu_acceleration_title">Aceleración GPU</string>
+    <string name="gpu_acceleration_description">Usa GPU para procesamiento más rápido</string>
+    <string name="haramlur_protecting">HaramBlur está protegiendo tu dispositivo</string>
+    <string name="haramlur_ready">HaramBlur está listo para proteger tu espacio digital</string>
+    <string name="hardware_acceleration_title">Aceleración de Hardware</string>
+    <string name="image_downscale_ratio_title">Relación de Reducción de Imagen</string>
+    <string name="image_downscale_ratio_description">Reduce el tamaño de imagen para procesamiento más rápido</string>
+    <string name="location_settings_title">Configuración de Ubicación</string>
+    <string name="location_settings_description">Configura ubicación para tiempos de oración</string>
+    <string name="max_processing_time_title">Tiempo Máximo de Procesamiento</string>
+    <string name="max_processing_time_description">Tiempo máximo permitido para procesamiento de contenido</string>
+    <string name="method_egyptian">Autoridad General Egipcia</string>
+    <string name="method_isna">Sociedad Islámica de América del Norte</string>
+    <string name="method_karachi">Universidad de Ciencias Islámicas, Karachi</string>
+    <string name="method_muslim_world_league">Liga Mundial Musulmana</string>
+    <string name="method_umm_al_qura">Universidad Umm al-Qura, La Meca</string>
+    <string name="morning_dhikr_title">Dhikr Matutino</string>
+    <string name="morning_dhikr_description">Recordatorios de dhikr para oraciones matutinas</string>
+    <string name="performance_logging_title">Registro de Rendimiento</string>
+    <string name="performance_logging_description">Registra métricas de rendimiento para optimización</string>
+    <string name="performance_monitoring_title_alt">Monitoreo de Rendimiento</string>
+    <string name="position_bottom_left">Abajo Izquierda</string>
+    <string name="position_bottom_right">Abajo Derecha</string>
+    <string name="position_center">Centro</string>
+    <string name="position_top_left">Arriba Izquierda</string>
+    <string name="position_top_right">Arriba Derecha</string>
+    <string name="prayer_notifications_title">Notificaciones de Oración</string>
+    <string name="prayer_notifications_description">Recibe notificaciones para tiempos de oración</string>
+    <string name="prayer_times_calendar_title">Calendario de Tiempos de Oración</string>
+    <string name="prayer_times_calendar_description">Muestra tiempos de oración en vista de calendario</string>
+    <string name="preferred_language_title">Idioma Preferido</string>
+    <string name="preferred_language_description">Elige tu idioma preferido para contenido islámico</string>
+    <string name="privacy_controls_title">Controles de Privacidad</string>
+    <string name="privacy_settings_title">Configuración de Privacidad</string>
+    <string name="processing_speed_title">Velocidad de Procesamiento</string>
+    <string name="processing_speed_description">Equilibrio entre velocidad y precisión</string>
+    <string name="real_time_processing_title">Procesamiento en Tiempo Real</string>
+    <string name="real_time_processing_description">Procesa contenido en tiempo real</string>
+    <string name="resource_management_title">Gestión de Recursos</string>
+    <string name="show_blur_borders_title">Mostrar Bordes de Difuminado</string>
+    <string name="show_blur_borders_description">Muestra bordes alrededor de áreas difuminadas</string>
+    <string name="show_translation_title">Mostrar Traducción</string>
+    <string name="show_translation_description">Muestra traducciones de texto árabe</string>
+    <string name="show_transliteration_title">Mostrar Transliteración</string>
+    <string name="show_transliteration_description">Muestra transliteración de texto árabe</string>
+    <string name="update_interval_title">Intervalo de Actualización</string>
+    <string name="update_interval_description">Con qué frecuencia actualizar contenido</string>
+    <string name="verse_display_duration_title">Duración de Visualización de Versículo</string>
+    <string name="verse_display_duration_description">Cuánto tiempo mostrar versículos coránicos</string>
+    <string name="device_admin_description">El acceso de administrador de dispositivo permite un bloqueo de aplicaciones más fuerte al permitir que HaramBlur cierre forzosamente aplicaciones bloqueadas cuando se detecten.</string>
+    <string name="optional_recommended">Este permiso es opcional pero recomendado para protección máxima.</string>
+    <string name="why_location_access">📍 ¿Por qué acceso a ubicación?</string>
+    <string name="restart_app">Reiniciar Aplicación</string>
+    <string name="location_description">El permiso de ubicación permite tiempos de oración islámicos precisos, dirección de Qibla y cálculos de calendario islámico para tu ubicación específica. Sin esto, la aplicación usará configuraciones predeterminadas.</string>
+    <string name="manual_city_settings">También puedes seleccionar manualmente tu ciudad en configuración islámica si prefieres no compartir tu ubicación.</string>
+    <string name="please_grant_location">⚠️ Por favor otorga el permiso de ubicación en ajustes para continuar</string>
+    <string name="why_notification_access">🔔 ¿Por qué acceso a notificaciones?</string>
+    <string name="notification_description">El permiso de notificación permite que la aplicación muestre recordatorios de Dhikr y alertas islámicas. Esto es esencial para que las características espirituales de HaramBlur funcionen correctamente.</string>
+    <string name="dhikr_notifications">Sin este permiso, las notificaciones de Dhikr no pueden mostrarse, limitando las características espirituales de la aplicación.</string>
+    <string name="please_grant_notification">⚠️ Por favor otorga el permiso de notificación en ajustes para continuar</string>
+
+    <!-- Support Screen strings -->
+    <string name="support_help">🆘 Soporte y Ayuda</string>
+    <string name="quick_help">Ayuda Rápida</string>
+    <string name="haramblur_protecting">HaramBlur está protegiendo tu dispositivo</string>
+    <string name="enable_accessibility_settings">Habilita el servicio de accesibilidad en ajustes</string>
+    <string name="troubleshooting">🔧 Solución de Problemas</string>
+    <string name="content_not_blurring">El contenido no se difumina</string>
+    <string name="check_accessibility_enabled">Verifica si el servicio de accesibilidad está habilitado y la aplicación tiene los permisos necesarios</string>
+    <string name="app_slow_laggy">La aplicación es lenta o se traba</string>
+    <string name="reduce_sensitivity">Intenta reducir la sensibilidad de detección o deshabilitar la aceleración GPU</string>
+    <string name="adjust_settings">Ajustar Configuración</string>
+    <string name="false_positives">Falsos positivos</string>
+    <string name="lower_confidence_threshold">Reduce el umbral de confianza de detección en configuración avanzada</string>
+    <string name="fine_tune_detection">Ajustar Detección</string>
+    <string name="system_information">Información del Sistema:</string>
+    <string name="android_version">Versión de Android</string>
+    <string name="device">Dispositivo</string>
+    <string name="app_version">Versión de Aplicación</string>
+    <string name="running">En ejecución</string>
+    <string name="stopped">Detenido</string>
+    <string name="contact_support">📞 Contactar Soporte</string>
+    <string name="support_description">¿Necesitas ayuda? Elige tu canal de soporte preferido. Se recomiendan problemas de GitHub para informes de errores y solicitudes de funciones.</string>
+    <string name="email_support">Soporte por Email</string>
+    <string name="send_detailed_request">Enviar solicitud de soporte detallada con registros</string>
+    <string name="report_bug_github">Reportar Error en GitHub</string>
+    <string name="create_issue_template">Crear problema con plantilla de informe de error</string>
+    <string name="about_haramblur">📱 Acerca de HaramBlur</string>
+    <string name="key_features">Características Clave:</string>
+    <string name="real_time_detection">🛡️ Detección de contenido en tiempo real</string>
+    <string name="female_focused_filtering">🎯 Filtrado enfocado en mujeres</string>
+    <string name="gpu_accelerated">⚡ Procesamiento acelerado por GPU</string>
+    <string name="local_processing">🔒 Procesamiento local (sin datos enviados a servidores)</string>
+    <string name="detailed_logging">📊 Registro detallado para soporte</string>
+    <string name="customizable_settings">⚙️ Configuración de detección personalizable</string>
+    <string name="privacy_data">🔒 Privacidad y Datos</string>
+    <string name="privacy_priority">Tu privacidad es nuestra prioridad. HaramBlur procesa todo localmente en tu dispositivo.</string>
+    <string name="no_data_sent">📱 No se envían datos a servidores externos</string>
+    <string name="logs_stored_locally">📊 Los registros se almacenan localmente para solución de problemas</string>
+    <string name="logs_auto_cleanup">🗑️ Los registros se limpian automáticamente</string>
+    <string name="no_personal_collection">🔐 No se recopilan datos personales</string>
+    <string name="focused_filtering">🎯 Enfocado únicamente en filtrado de contenido</string>
+    <string name="data_summary">Resumen de Datos</string>
+    <string name="clear_data">Limpiar Datos</string>
+    <string name="emergency_actions">🚨 Acciones de Emergencia</string>
+    <string name="emergency_description">Usa estas opciones si las superposiciones de difuminado se atascan o aparecen cuando no deberían.</string>
+    <string name="force_hide_overlays">Forzar ocultar todas las superposiciones</string>
+
+    <!-- MainScreen strings -->
+    <string name="setup_required_title">Configuración Requerida</string>
+    <string name="setup_instructions">Instrucciones de Configuración</string>
+    <string name="open_accessibility_settings">Abrir Configuración de Accesibilidad</string>
+    <!-- Qibla & Compass strings -->
+    <string name="qibla_accuracy_unreliable">Precisión: No confiable</string>
+    <string name="qibla_accuracy_low">Precisión: Baja</string>
+    <string name="qibla_accuracy_medium">Precisión: Media</string>
+    <string name="qibla_accuracy_high">Precisión: Alta</string>
+    <string name="qibla_accuracy_unavailable">Precisión: No disponible</string>
+    <string name="qibla_aligned">Qibla alineada</string>
+    <string name="grant_location_permission">Otorgar permiso de ubicación</string>
+
+    <!-- UnifiedBlockingScreen strings -->
+    <string name="failed_to_load_data">Error al cargar datos</string>
+    <string name="block_apps_sites">Bloquear Aplicaciones y Sitios</string>
+    <string name="social_media">Redes Sociales</string>
+    <string name="websites">Sitios Web</string>
+    <string name="search_apps">Buscar aplicaciones</string>
+    <string name="overview">Visión General</string>
+    <string name="total_apps">Total de Aplicaciones</string>
+    <string name="block_all">Bloquear Todo</string>
+    <string name="unblock_all">Desbloquear Todo</string>
+    <string name="no_social_media_found">No se encontraron redes sociales</string>
+    <string name="great_job">Buen trabajo</string>
+    <string name="website_blocking">Bloqueo de Sitios Web</string>
+    <string name="add_custom_websites">Agregar sitios web personalizados</string>
+    <string name="add_website_to_block">Agregar sitio web para bloquear</string>
+    <string name="no_websites_blocked">No hay sitios web bloqueados</string>
+    <string name="add_websites_above">Agrega sitios web arriba</string>
+    <string name="enter_website_url">Ingresa URL de sitio web</string>
+    <string name="website_url">URL de Sitio Web</string>
+    <string name="example_url">ejemplo.com</string>
+    <string name="add">Agregar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="remove_blocked_site">Eliminar sitio bloqueado</string>
+
+    <!-- PornBlockingDialog strings -->
+    <string name="critical_warning">Advertencia Crítica</string>
+    <string name="protected_from_haram">PROTEGIDO DEL HARAM</string>
+    <string name="language_settings">Configuración de Idioma</string>
+    <string name="urgent_protection_activated">Protección Urgente Activada</string>
+    <string name="content_violates_principles">El contenido viola principios</string>
+    <string name="protection_guidance">Protección y Guía</string>
+    <string name="immediate_actions">Acciones Inmediatas</string>
+    <string name="dua_for_protection">Dua para Protección</string>
+    <string name="blocking_details">Detalles de Bloqueo</string>
+    <string name="reason">Razón</string>
+    <string name="detected_pattern">Patrón Detectado</string>
+    <string name="severity">Gravedad</string>
+    <string name="extended_reflection_period">Período de Reflexión Extendido</string>
+    <string name="take_extended_time">Toma tiempo extendido</string>
+    <string name="close_seek_protection">Cerrar y Buscar Protección</string>
+    <string name="continue_after_reflection">Continuar después de reflexión</string>
+    <string name="high_risk_content_warning">Advertencia de Contenido de Alto Riesgo</string>
+    <string name="content_explicit_harmful">Contenido explícito dañino</string>
+    <string name="understand_risk_continue">Entiendo el riesgo continuar</string>
+    <string name="complete_reflection_period">Completar período de reflexión</string>
+    <string name="select_language">Seleccionar Idioma</string>
+    <string name="selected">Seleccionado</string>
+
+    <!-- Settings Screen strings -->
+    <string name="advanced_settings_title">Configuración Avanzada</string>
+    <string name="developer_logging_title">Registro de Desarrollador</string>
+    <string name="detailed_logging_title">Registro Detallado</string>
+    <string name="detailed_logging_description">Habilita registro detallado para depuración</string>
+    <string name="log_level_title">Nivel de Registro</string>
+    <string name="log_retention_title">Retención de Registros</string>
+    <string name="log_retention_description">Cuánto tiempo mantener archivos de registro</string>
+    <string name="ultra_fast_mode_title">Modo Ultra Rápido</string>
+    <string name="ultra_fast_mode_description">Optimiza para velocidad sobre precisión</string>
+    <string name="advanced_features_title">Características Avanzadas</string>
+    <string name="fallback_detection_title">Detección de Respaldo</string>
+    <string name="fallback_detection_description">Usa métodos de detección de respaldo</string>
+    <string name="user_action_logging_title">Registro de Acciones de Usuario</string>
+    <string name="user_action_logging_description">Registra acciones de usuario para análisis</string>
+    <string name="detection_settings_title">Configuración de Detección</string>
+    <string name="detection_sensitivity_title">Sensibilidad de Detección</string>
+    <string name="detection_sensitivity_description">Ajusta sensibilidad de detección</string>
+    <string name="overall_detection_sensitivity_title">Sensibilidad General de Detección</string>
+    <string name="overall_detection_sensitivity_description">Sensibilidad general de detección</string>
+    <string name="detection_sensitivity_title_alt">Sensibilidad de Detección</string>
+    <string name="detection_sensitivity_description_alt">Descripción de sensibilidad de detección</string>
+    <string name="gender_confidence_threshold_title">Umbral de Confianza de Género</string>
+    <string name="gender_confidence_threshold_description">Umbral de confianza de género</string>
+    <string name="nsfw_confidence_threshold_title">Umbral de Confianza NSFW</string>
+    <string name="nsfw_confidence_threshold_description">Umbral de confianza NSFW</string>
+    <string name="advanced_detection_title">Detección Avanzada</string>
+    <string name="performance_monitoring_title">Monitoreo de Rendimiento</string>
+    <string name="performance_monitoring_description">Monitorea métricas de rendimiento</string>
+    <string name="general_settings_title">Configuración General</string>
+    <string name="language_settings_title">Configuración de Idioma</string>
+    <string name="app_language_title">Idioma de Aplicación</string>
+    <string name="select_language_title">Seleccionar Idioma</string>
+    <string name="language_description">Selecciona tu idioma preferido</string>
+    <string name="language_changed_restart">Idioma cambiado, se requiere reiniciar</string>
+    <string name="quick_presets_title">Preajustes Rápidos</string>
+    <string name="quick_presets_description">Configuraciones preestablecidas rápidas</string>
+    <string name="maximum_protection_name">Protección Máxima</string>
+    <string name="maximum_protection_description">Configuraciones de protección máxima</string>
+    <string name="optimal_performance_name">Rendimiento Óptimo</string>
+    <string name="optimal_performance_description">Configuraciones de rendimiento óptimo</string>
+    <string name="custom_settings_name">Configuración Personalizada</string>
+    <string name="custom_settings_description">Configuración personalizada</string>
+    <string name="basic_settings_title">Configuración Básica</string>
+    <string name="face_detection_title">Detección de Rostros</string>
+    <string name="face_detection_description">Habilita detección de rostros</string>
+    <string name="nsfw_detection_title">Detección NSFW</string>
+    <string name="nsfw_detection_description">Habilita detección NSFW</string>
+    <string name="detect_female_faces_title">Detectar Rostros Femeninos</string>
+    <string name="detect_female_faces_description">Detecta rostros femeninos</string>
+    <string name="blur_intensity_title">Intensidad de Difuminado</string>
+    <string name="blur_intensity_light">Ligero</string>
+    <string name="blur_intensity_light_description">Intensidad de difuminado ligero</string>
+    <string name="blur_intensity_medium">Medio</string>
+    <string name="blur_intensity_medium_description">Intensidad de difuminado medio</string>
+    <string name="blur_intensity_strong">Fuerte</string>
+    <string name="blur_intensity_strong_description">Intensidad de difuminado fuerte</string>
+    <string name="blur_intensity_maximum">Máximo</string>
+    <string name="blur_intensity_maximum_description">Intensidad de difuminado máximo</string>
+    <string name="islamic_light_theme">Luz Islámica</string>
+    <string name="islamic_dark_theme">Oscuridad Islámica</string>
+    <string name="modern_light_theme">Luz Moderna</string>
+    <string name="modern_dark_theme">Oscuridad Moderna</string>
+    <string name="minimal_light_theme">Luz Minimalista</string>
+    <string name="minimal_dark_theme">Oscuridad Minimalista</string>
+    <string name="app_theme_title">Tema de Aplicación</string>
+
+    <!-- Dhikr Status Card -->
+    <string name="dhikr_status_title">🕌 Estado de Dhikr</string>
+    <string name="dhikr_today_count">%d hoy</string>
+    <string name="status_label">Estado:</string>
+    <string name="status_displaying">Mostrando</string>
+    <string name="status_ready">Listo</string>
+    <string name="status_next_in_minutes">Siguiente en %dm</string>
+    <string name="time_window_label">Ventana de Tiempo:</string>
+    <string name="display_method_label">Método de Visualización:</string>
+    <string name="display_method_overlay">Superposición</string>
+    <string name="display_method_notification">Notificación</string>
+    <string name="display_method_none">Ninguno</string>
+    <string name="show_dhikr_now">Mostrar Dhikr Ahora</string>
+
+    <!-- Dhikr Sleep/Quiet Hours Settings -->
+    <string name="dhikr_quiet_hours_title">Horas de Silencio</string>
+    <string name="dhikr_quiet_hours_description">Las notificaciones de dhikr se pausarán durante estas horas</string>
+    <string name="dhikr_sleep_time_title">Hora de Dormir</string>
+    <string name="dhikr_sleep_time_description">Cuándo comenzar horas de silencio</string>
+    <string name="dhikr_wake_time_title">Hora de Despertar</string>
+    <string name="dhikr_wake_time_description">Cuándo terminar horas de silencio</string>
+    <string name="dhikr_quiet_hours_crosses_midnight">Horas de silencio: %1$s - %2$s (día siguiente)</string>
+    <string name="dhikr_quiet_hours_same_day">Horas de silencio: %1$s - %2$s</string>
+    <string name="dhikr_quiet_hours_validation_error">La ventana de sueño debe estar entre 1 y 20 horas</string>
+
+    <!-- Prayer Times & Qibla -->
+    <string name="prayer_times_title">🕌 Tiempos de Oración</string>
+    <string name="location_settings_cd">Configuración de Ubicación</string>
+    <string name="next_prayer_label">Próxima Oración: %s</string>
+    <string name="prayer_name_fajr">Fajr</string>
+    <string name="prayer_name_sunrise">Amanecer</string>
+    <string name="prayer_name_dhuhr">Dhuhr</string>
+    <string name="prayer_name_asr">Asr</string>
+    <string name="prayer_name_maghrib">Maghrib</string>
+    <string name="prayer_name_sunset">Atardecer</string>
+    <string name="prayer_name_isha">Isha</string>
+    <string name="islamic_calendar_title">📅 Calendario Islámico</string>
+    <string name="special_day_label">Día Especial</string>
+    <string name="qibla_direction_title">🧭 Dirección de Qibla</string>
+    <string name="direction_north">Norte</string>
+    <string name="direction_northeast">Noreste</string>
+    <string name="direction_east">Este</string>
+    <string name="direction_southeast">Sureste</string>
+    <string name="direction_south">Sur</string>
+    <string name="direction_southwest">Suroeste</string>
+    <string name="direction_west">Oeste</string>
+    <string name="direction_northwest">Noroeste</string>
+    <string name="direction_unknown">Desconocido</string>
+
+    <!-- App-Specific Detection Strings -->
+    <string name="app_specific_detection_title">🛡️ Detección Específica de Aplicaciones</string>
+    <string name="app_specific_detection_description">Controla qué aplicaciones se monitorean para detección de contenido</string>
+    <string name="enable_app_specific_detection_title">Habilitar Detección Específica de Aplicaciones</string>
+    <string name="enable_app_specific_detection_description">Monitorea solo categorías específicas de aplicaciones en lugar de todas las aplicaciones</string>
+    <string name="app_categories_title">📂 Categorías de Aplicaciones</string>
+    <string name="custom_apps_title">Aplicaciones Personalizadas (%d)</string>
+    <string name="excluded_apps_title">🚫 Aplicaciones Excluidas (%d)</string>
+    <string name="add_app_title">Agregar Aplicación</string>
+    <string name="no_custom_apps">No se agregaron aplicaciones personalizadas</string>
+    <string name="no_excluded_apps">No hay aplicaciones excluidas del monitoreo</string>
+    <string name="package_name_title">Nombre de Paquete</string>
+    <string name="package_name_placeholder">com.ejemplo.app</string>
+    <string name="package_name_example">Ejemplo: com.instagram.android</string>
+    <string name="add_custom_app_title">Agregar Aplicación Personalizada</string>
+    <string name="select_app_title">Seleccionar Aplicación</string>
+
+    <!-- Usage Time Management Strings -->
+    <string name="usage_time_management_title">⏰ Gestión de Tiempo de Uso</string>
+    <string name="usage_time_management_description">Establece límites de tiempo y recibe guía islámica cuando se exceden los límites</string>
+    <string name="enable_usage_time_notifications_title">Habilitar Notificaciones de Tiempo de Uso</string>
+    <string name="enable_usage_time_notifications_description">Muestra versículos coránicos y guía islámica cuando se exceden los límites de tiempo de aplicaciones</string>
+    <string name="default_time_limits_title">⏱️ Límites de Tiempo Predeterminados</string>
+    <string name="default_time_limits_description">Establece límites de tiempo diarios predeterminados para diferentes categorías de aplicaciones. Las aplicaciones individuales pueden tener límites personalizados.</string>
+    <string name="social_media_apps_title">Aplicaciones de Redes Sociales</string>
+    <string name="social_media_apps_description">Instagram, Facebook, TikTok, Twitter, Snapchat</string>
+    <string name="messaging_apps_title">Aplicaciones de Mensajería</string>
+    <string name="messaging_apps_description">WhatsApp, Telegram, Discord, Messenger</string>
+    <string name="notification_settings_title">🔔 Configuración de Notificaciones</string>
+    <string name="notification_frequency_title">Frecuencia de Notificación</string>
+    <string name="notification_frequency_description">Con qué frecuencia mostrar recordatorios después de exceder el límite de tiempo</string>
+    <string name="minutes_title">%d minutos</string>
+    <string name="daily_reset_title">Restablecimiento Diario</string>
+    <string name="daily_reset_description">Restablece estadísticas de uso diariamente a medianoche</string>
+    <string name="custom_app_limits_title">⚙️ Límites de Aplicaciones Personalizados</string>
+    <string name="custom_app_limits_count">%d límites personalizados establecidos</string>
+    <string name="add_custom_limit_title">Agregar Límite Personalizado</string>
+    <string name="no_custom_limits">No se establecieron límites de aplicaciones personalizados\nUsa el botón arriba para agregar límites específicos para aplicaciones individuales</string>
+    <string name="app_package_name_title">Nombre de Paquete de Aplicación</string>
+    <string name="time_limit_title">Límite de Tiempo</string>
+    <string name="add_custom_time_limit_title">Agregar Límite de Tiempo Personalizado</string>
+    <string name="edit_time_limit_title">Editar Límite de Tiempo</string>
+    <string name="update_title">Actualizar</string>
+    <string name="add_title">Agregar</string>
+
+    <!-- Time Formatting Strings -->
+    <string name="time_format_minutes">%dm</string>
+    <string name="time_format_hours">%dh</string>
+    <string name="time_format_hours_minutes" formatted="false">%dh %dm</string>
+    <string name="time_range_format" formatted="false">%s - %s</string>
+
+    <!-- App Display Names -->
+    <string name="app_name_instagram">Instagram</string>
+    <string name="app_name_facebook">Facebook</string>
+    <string name="app_name_tiktok">TikTok</string>
+    <string name="app_name_twitter">Twitter</string>
+    <string name="app_name_whatsapp">WhatsApp</string>
+    <string name="app_name_chrome">Chrome</string>
+    <string name="app_name_firefox">Firefox</string>
+    <string name="app_name_youtube">YouTube</string>
+    <string name="app_name_netflix">Netflix</string>
+
+    <!-- App Category Names -->
+    <string name="category_social_media">Redes Sociales</string>
+    <string name="category_browsers">Navegadores</string>
+    <string name="category_dating">Citas</string>
+    <string name="category_messaging">Mensajería</string>
+    <string name="category_entertainment">Entretenimiento</string>
+
+    <!-- Plurals -->
+    <plurals name="apps_count">
+        <item quantity="one">%d aplicación</item>
+        <item quantity="other">%d aplicaciones</item>
+    </plurals>
+    <plurals name="custom_limits_count">
+        <item quantity="one">%d límite personalizado establecido</item>
+        <item quantity="other">%d límites personalizados establecidos</item>
+    </plurals>
+
+    <!-- Missing string resources -->
+    <string name="about">Acerca de</string>
+    <string name="advanced_settings">Configuración Avanzada</string>
+    <string name="app_language">Idioma de Aplicación</string>
+    <string name="apply">Aplicar</string>
+    <string name="asr">ASR</string>
+    <string name="average_processing_time">Tiempo Promedio de Procesamiento</string>
+    <string name="avg_time">Tiempo Prom</string>
+    <string name="avg_time_short">Prom</string>
+    <string name="blocked_apps">Aplicaciones Bloqueadas</string>
+    <string name="blocked_sites">Sitios Bloqueados</string>
+    <string name="close">Cerrar</string>
+    <string name="close_and_seek_protection">Cerrar y Buscar Protección</string>
+    <string name="confidence_percentage">Confianza %</string>
+    <string name="consecutive_violations">Violaciones Consecutivas</string>
+    <string name="contact">Contacto</string>
+    <string name="critical_performance">Rendimiento Crítico</string>
+    <string name="debug">Depurar</string>
+    <string name="debug_system_status">Estado del Sistema de Depuración</string>
+    <string name="degraded_performance">Rendimiento Degradado</string>
+    <string name="delete">Eliminar</string>
+    <string name="detection_settings">Configuración de Detección</string>
+    <string name="detection_timeline">Línea de Tiempo de Detección</string>
+    <string name="dhuhr">Dhuhr</string>
+    <string name="disable">Deshabilitar</string>
+    <string name="edit">Editar</string>
+    <string name="enable">Habilitar</string>
+    <string name="enhanced_blocking">Bloqueo Mejorado</string>
+    <string name="error">Error</string>
+    <string name="export_data">Exportar Datos</string>
+    <string name="export_logs">Exportar Registros</string>
+    <string name="faces">Rostros</string>
+    <string name="fajr">Fajr</string>
+    <string name="feedback">Comentarios</string>
+    <string name="filter">Filtrar</string>
+    <string name="frames_processed">Fotogramas Procesados</string>
+    <string name="frames_skipped">Fotogramas Saltados</string>
+    <string name="general_settings">Configuración General</string>
+    <string name="haram_content_blocked">Contenido Haram Bloqueado</string>
+    <string name="haramblur_description">Descripción de HaramBlur</string>
+    <string name="high_risk_explanation">Explicación de Alto Riesgo</string>
+    <string name="home">Inicio</string>
+    <string name="isha">Isha</string>
+    <string name="islamic_settings">Configuración Islámica</string>
+    <string name="language_arabic">العربية</string>
+    <string name="language_bengali">বাংলা</string>
+    <string name="language_english">English</string>
+    <string name="language_french">Français</string>
+    <string name="language_indonesian">Bahasa Indonesia</string>
+    <string name="language_malay">Bahasa Melayu</string>
+    <string name="language_persian">فارسی</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_turkish">Türkçe</string>
+    <string name="language_urdu">اردو</string>
+    
+    <!-- Language Names -->
+    <string name="language_name_english">Inglés</string>
+    <string name="language_name_arabic">Árabe</string>
+    <string name="language_name_urdu">Urdu</string>
+    <string name="language_name_french">Francés</string>
+    <string name="language_name_indonesian">Indonesio</string>
+    <string name="language_name_turkish">Turco</string>
+    <string name="language_name_malay">Malayo</string>
+    <string name="language_name_bengali">Bengalí</string>
+    <string name="language_name_persian">Persa</string>
+    <string name="language_name_spanish">Español</string>
+    
+    <!-- Dhikr Category Names -->
+    <string name="dhikr_category_morning_remembrance">Remembranza Matutina</string>
+    <string name="dhikr_category_evening_remembrance">Remembranza Vespertina</string>
+    <string name="dhikr_category_after_prayer">Después de la Oración</string>
+    <string name="dhikr_category_general">General</string>
+    <string name="dhikr_category_tasbih">Tasbih</string>
+    <string name="dhikr_category_istighfar">Búsqueda de Perdón</string>
+    <string name="dhikr_category_salawat">Salawat</string>
+    <string name="dhikr_category_dua">Du\'a</string>
+        
+    <!-- Formatting Strings -->
+    <string name="format_percentage">%1$d%%</string>
+    <string name="format_duration_minutes">%1$d min</string>
+    <string name="format_size_bytes">%1$d bytes</string>
+    <string name="format_size_kb">%.1f KB</string>
+    <string name="format_size_mb">%.1f MB</string>
+    <string name="format_size_gb">%.1f GB</string>
+    
+    <!-- Support Components Strings -->
+    <string name="buy_me_a_coffee">Cómprame un café</string>
+    <string name="support_development_and_help_maintain_haramblur">Apoya el desarrollo y ayuda a mantener HaramBlur</string>
+    <string name="external_link">Enlace externo</string>
+    <string name="github_repository">Repositorio de GitHub</string>
+    <string name="source_code_documentation_community">Código fuente, documentación y comunidad</string>
+    <string name="repository">Repositorio</string>
+    <string name="issues">Problemas</string>
+    <string name="discussions">Discusiones</string>
+    <string name="community_resources">📚 Recursos comunitarios</string>
+    <string name="documentation">Documentación</string>
+    <string name="user_guides_and_setup_instructions">Guías de usuario e instrucciones de configuración</string>
+    <string name="share_app">Compartir aplicación</string>
+    <string name="help_others_discover_haramblur">Ayuda a otros a descubrir HaramBlur</string>
+    <string name="share_haramblur">Compartir HaramBlur</string>
+    <string name="help_others_discover_islamic_content_filtering">Ayuda a otros a descubrir el filtrado de contenido islámico</string>
+    
+    <!-- Service Control Strings -->
+    <string name="service_paused_emoji">🛑</string>
+    <string name="service_active_emoji">🛡️</string>
+    <string name="service_control_title">Control de Servicio</string>
+    <string name="all_services_paused">⚠️ Todos los servicios de HaramBlur están actualmente EN PAUSA</string>
+    <string name="all_services_active_protecting">✅ Todos los servicios están activos y protegiendo tu pantalla</string>
+    <string name="tap_to_resume_services">Toca para REANUDAR todos los servicios de detección y bloqueo</string>
+    <string name="tap_to_pause_services">Toca para PAUSAR todos los servicios de detección y bloqueo</string>
+    
+    <!-- Dhikr Time Names -->
+    <string name="dhikr_time_morning">Mañana</string>
+    <string name="dhikr_time_evening">Noche</string>
+    <string name="dhikr_time_anytime">En cualquier momento</string>
+    <string name="dhikr_time_after_prayer">Después de la oración</string>
+        
+    <!-- Achievement Rarity Names -->
+    <string name="achievement_rarity_common">Común</string>
+    <string name="achievement_rarity_uncommon">Poco Común</string>
+    <string name="achievement_rarity_rare">Raro</string>
+    <string name="achievement_rarity_epic">Épico</string>
+    <string name="achievement_rarity_legendary">Legendario</string>
+    
+    <!-- Acceleration Type Names and Descriptions -->
+    <string name="acceleration_type_gpu">GPU</string>
+    <string name="acceleration_type_gpu_description">Aceleración de Unidad de Procesamiento Gráfico</string>
+    <string name="acceleration_type_nnapi">NNAPI</string>
+    <string name="acceleration_type_nnapi_description">Aceleración de API de Redes Neuronales de Android</string>
+    <string name="acceleration_type_cpu_optimized">CPU+</string>
+    <string name="acceleration_type_cpu_optimized_description">Procesamiento CPU optimizado con XNNPACK</string>
+    <string name="acceleration_type_cpu_basic">CPU</string>
+    <string name="acceleration_type_cpu_basic_description">Procesamiento CPU básico</string>
+    
+    <!-- Hadith Book Names -->
+    <string name="hadith_book_sahih_bukhari">Sahih Bukhari</string>
+    <string name="hadith_book_sahih_muslim">Sahih Muslim</string>
+    <string name="hadith_book_jami_tirmidhi">Jami Tirmidhi</string>
+    <string name="hadith_book_sunan_abu_dawud">Sunan Abu Dawud</string>
+    <string name="hadith_book_sunan_ibn_majah">Sunan Ibn Majah</string>
+    <string name="hadith_book_sunan_nasai">Sunan An-Nasa\'i</string>
+    <string name="hadith_book_musnad_ahmad">Musnad Ahmad</string>
+    <string name="hadith_book_muwatta_malik">Muwatta Malik</string>
+    
+    <!-- Achievement Names -->
+    <string name="achievement_first_step">Primer Paso</string>
+    <string name="achievement_week_warrior">Guerrero de la Semana</string>
+    <string name="achievement_month_master">Maestro del Mes</string>
+    <string name="achievement_centurion">Centurión</string>
+    <string name="achievement_guardian">Guardián</string>
+    <string name="achievement_dhikr_devotee">Devoto de Dhikr</string>
+    <string name="achievement_salah_star">Estrella de Salah</string>
+    
+    <!-- Achievement Descriptions -->
+    <string name="achievement_desc_first_step">Completa tu primer día con HaramBlur</string>
+    <string name="achievement_desc_week_warrior">Mantén protección durante 7 días consecutivos</string>
+    <string name="achievement_desc_month_master">¡Increíble! 30 días de protección</string>
+    <string name="achievement_desc_centurion">100 días de protección consistente</string>
+    <string name="achievement_desc_guardian">Bloquea 1000 elementos inapropiados</string>
+    <string name="achievement_desc_dhikr_devotee">Completa 100 conjuntos de tasbih</string>
+    <string name="achievement_desc_salah_star">Nunca pierdas una notificación de tiempo de oración durante una semana</string>
+
+    <!-- Quran Feature -->
+    <string name="quran_title">Al-Quran</string>
+    <string name="quran_subtitle">El Noble Corán</string>
+    <string name="quran_tab_surahs">Suras</string>
+    <string name="quran_tab_juz">Juz</string>
+    <string name="quran_tab_bookmarks">Marcadores</string>
+    <string name="quran_verse_of_day">Verso del día</string>
+    <string name="quran_continue_reading">Seguir leyendo</string>
+    <string name="quran_search_hint">Buscar en el Corán…</string>
+    <string name="quran_ayah">Ayah</string>
+    <string name="quran_ayahs">Ayahs</string>
+    <string name="quran_surah">Sura</string>
+    <string name="quran_juz">Juz</string>
+    <string name="quran_no_bookmarks">Aún no hay marcadores</string>
+    <string name="quran_remove_bookmark">Eliminar marcador</string>
+    <string name="quran_retry">Reintentar</string>
+    <string name="quran_back">Atrás</string>
+    <string name="quran_loading_verses">Cargando versos…</string>
+    <string name="quran_no_verses">No se encontraron versos</string>
+    <string name="quran_swipe_hint">Desliza para navegar</string>
+    <string name="quran_translation">Traducción</string>
+    <string name="quran_bookmark_added">Marcador añadido</string>
+    <string name="quran_bookmark_removed">Marcador eliminado</string>
+    <string name="quran_share">Compartir verso</string>
+
+    <!-- Quran Audio Feature -->
+    <string name="quran_audio_play">Reproducir</string>
+    <string name="quran_audio_pause">Pausar</string>
+    <string name="quran_audio_stop">Detener</string>
+    <string name="quran_audio_next">Siguiente</string>
+    <string name="quran_audio_previous">Anterior</string>
+    <string name="quran_audio_now_playing">Reproduciendo ahora</string>
+    <string name="quran_audio_select_reciter">Seleccionar recitador</string>
+    <string name="quran_audio_loading">Cargando audio…</string>
+
+</resources>

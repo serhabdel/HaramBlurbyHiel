@@ -95,7 +95,11 @@
 
     <!-- Privacy assurance -->
     <string name="privacy_assurance_title">Confidentialité et sécurité</string>
-    <string name="privacy_assurance_message">• Toutes les permissions sont optionnelles\n• Le blocage amélioré ne s\'active qu\'avec votre consentement\n• Aucune donnée n\'est envoyée à des serveurs externes\n• Tout le traitement se fait localement sur votre appareil\n• Vous pouvez révoquer les permissions à tout moment</string>
+    <string name="privacy_assurance_message">• Toutes les permissions sont optionnelles
+• Le blocage amélioré ne s\'active qu\'avec votre consentement
+• Aucune donnée n\'est envoyée à des serveurs externes
+• Tout le traitement se fait localement sur votre appareil
+• Vous pouvez révoquer les permissions à tout moment</string>
 
     <!-- Blocking method selection -->
     <string name="blocking_method_selection_title">Choisir la méthode de blocage</string>
@@ -207,6 +211,67 @@
     <string name="language_bengali">বাংলা (Bengali)</string>
     <string name="language_persian">فارسی (Persian)</string>
     <string name="language_spanish">Español (Spanish)</string>
+    
+    <!-- Language Names -->
+    <string name="language_name_english">Anglais</string>
+    <string name="language_name_arabic">Arabe</string>
+    <string name="language_name_urdu">Ourdou</string>
+    <string name="language_name_french">Français</string>
+    <string name="language_name_indonesian">Indonésien</string>
+    <string name="language_name_turkish">Turc</string>
+    <string name="language_name_malay">Malais</string>
+    <string name="language_name_bengali">Bengali</string>
+    <string name="language_name_persian">Persan</string>
+    <string name="language_name_spanish">Espagnol</string>
+    
+    <!-- Dhikr Category Names -->
+    <string name="dhikr_category_morning_remembrance">Rappels du matin</string>
+    <string name="dhikr_category_evening_remembrance">Rappels du soir</string>
+    <string name="dhikr_category_after_prayer">Après la prière</string>
+    <string name="dhikr_category_general">Général</string>
+    <string name="dhikr_category_tasbih">Tasbih</string>
+    <string name="dhikr_category_istighfar">Demande de pardon</string>
+    <string name="dhikr_category_salawat">Salawat</string>
+    <string name="dhikr_category_dua">Du\'a</string>
+    
+    <!-- Support Components Strings -->
+    <string name="buy_me_a_coffee">Offrez-moi un café</string>
+    <string name="support_development_and_help_maintain_haramblur">Soutenez le développement et aidez à maintenir HaramBlur</string>
+    <string name="external_link">Lien externe</string>
+    <string name="github_repository">Dépôt GitHub</string>
+    <string name="source_code_documentation_community">Code source, documentation et communauté</string>
+    <string name="repository">Dépôt</string>
+    <string name="issues">Problèmes</string>
+    <string name="discussions">Discussions</string>
+    <string name="community_resources">📚 Ressources communautaires</string>
+    <string name="documentation">Documentation</string>
+    <string name="user_guides_and_setup_instructions">Guides utilisateur et instructions de configuration</string>
+    <string name="share_app">Partager l\'application</string>
+    <string name="help_others_discover_haramblur">Aidez les autres à découvrir HaramBlur</string>
+    <string name="share_haramblur">Partager HaramBlur</string>
+    <string name="help_others_discover_islamic_content_filtering">Aidez les autres à découvrir le filtrage de contenu islamique</string>
+    
+    <!-- Service Control Strings -->
+    <string name="service_paused_emoji">🛑</string>
+    <string name="service_active_emoji">🛡️</string>
+    <string name="service_control_title">Contrôle du Service</string>
+    <string name="all_services_paused">⚠️ Tous les services HaramBlur sont actuellement EN PAUSE</string>
+    <string name="all_services_active_protecting">✅ Tous les services sont actifs et protègent votre écran</string>
+    <string name="tap_to_resume_services">Appuyez pour REPRENDRE tous les services de détection et de blocage</string>
+    <string name="tap_to_pause_services">Appuyez pour METTRE EN PAUSE tous les services de détection et de blocage</string>
+    
+    <!-- Dhikr Time Names -->
+    <string name="dhikr_time_morning">Matin</string>
+    <string name="dhikr_time_evening">Soir</string>
+    <string name="dhikr_time_anytime">N\'importe quand</string>
+    <string name="dhikr_time_after_prayer">Après la prière</string>
+    
+    <!-- Achievement Rarity Names -->
+    <string name="achievement_rarity_common">Commun</string>
+    <string name="achievement_rarity_uncommon">Peu commun</string>
+    <string name="achievement_rarity_rare">Rare</string>
+    <string name="achievement_rarity_epic">Épique</string>
+    <string name="achievement_rarity_legendary">Légendaire</string>
 
     <!-- Porn Blocking Dialog Strings -->
     <string name="porn_blocking_title">PROTÉGÉ DU HARAM</string>
@@ -243,7 +308,6 @@
     <string name="privacy_policy">Politique de confidentialité</string>
     <string name="terms_of_service">Conditions d\'utilisation</string>
     <string name="rate_app">Évaluer l\'app</string>
-    <string name="share_app">Partager l\'app</string>
     <string name="more_apps">Plus d\'apps</string>
 
     <!-- Additional UI Strings -->
@@ -908,5 +972,159 @@
     <string name="sunan_ibn_majah">Sunan Ibn Majah</string>
     <string name="musnad_ahmad">Musnad Ahmad</string>
     <string name="muwatta_malik">Muwatta Malik</string>
+    
+    <!-- Types d'accélération -->
+    <string name="acceleration_type_gpu">GPU</string>
+    <string name="acceleration_type_gpu_description">Accélération par unité de traitement graphique</string>
+    <string name="acceleration_type_nnapi">NNAPI</string>
+    <string name="acceleration_type_nnapi_description">Accélération par l\'API de réseaux neuronaux Android</string>
+    <string name="acceleration_type_cpu_optimized">CPU+</string>
+    <string name="acceleration_type_cpu_optimized_description">Traitement CPU optimisé avec XNNPACK</string>
+    <string name="acceleration_type_cpu_basic">CPU</string>
+    <string name="acceleration_type_cpu_basic_description">Traitement CPU de base</string>
+    
+    <!-- Noms des livres d'hadith -->
+    <string name="hadith_book_sahih_bukhari">Sahih al-Bukhari</string>
+    <string name="hadith_book_sahih_muslim">Sahih Muslim</string>
+    <string name="hadith_book_jami_tirmidhi">Jami al-Tirmidhi</string>
+    <string name="hadith_book_sunan_abu_dawud">Sunan Abi Dawud</string>
+    <string name="hadith_book_sunan_ibn_majah">Sunan Ibn Majah</string>
+    <string name="hadith_book_sunan_nasai">Sunan an-Nasa\'i</string>
+    <string name="hadith_book_musnad_ahmad">Musnad Ahmad</string>
+    <string name="hadith_book_muwatta_malik">Muwatta Malik</string>
+    
+    <!-- Noms des réalisations -->
+    <string name="achievement_first_step">Premier pas</string>
+    <string name="achievement_week_warrior">Guerrier de la semaine</string>
+    <string name="achievement_month_master">Maître du mois</string>
+    <string name="achievement_centurion">Centurion</string>
+    <string name="achievement_guardian">Gardien</string>
+    <string name="achievement_dhikr_devotee">Dévot du dhikr</string>
+    <string name="achievement_salah_star">Étoile de la prière</string>
+    
+    <!-- Descriptions des réalisations -->
+    <string name="achievement_desc_first_step">Terminez votre première journée avec HaramBlur</string>
+    <string name="achievement_desc_week_warrior">Maintenez la protection pendant 7 jours consécutifs</string>
+    <string name="achievement_desc_month_master">Incroyable ! 30 jours de protection</string>
+    <string name="achievement_desc_centurion">100 jours de protection constante</string>
+    <string name="achievement_desc_guardian">Bloquez 1000 éléments inappropriés</string>
+    <string name="achievement_desc_dhikr_devotee">Terminez 100 séries de tasbih</string>
+    <string name="achievement_desc_salah_star">Ne manquez jamais une notification de temps de prière pendant une semaine</string>
+    
+    <!-- Textes des badges -->
+    <string name="badge_active">Actif</string>
+    <string name="badge_enabled">Activé</string>
+    
+    <!-- Noms des paramètres rapides -->
+    <string name="quick_setting_protection_active">Protection active</string>
+    <string name="quick_setting_prayer_times">Temps de prière</string>
+    <string name="quick_setting_dhikr">Dhikr</string>
+    <string name="quick_setting_site_blocking">Blocage de sites</string>
+    <string name="quick_setting_nsfw_detection">Détection NSFW</string>
+    <string name="quick_setting_blur_intensity">Intensité du flou</string>
+    
+    <!-- Descriptions des paramètres rapides -->
+    <string name="quick_setting_desc_protection_disabled">La protection est désactivée - appuyez pour activer la détection faciale et le blocage de contenu</string>
+    <string name="quick_setting_desc_accessibility_inactive">La protection est activée mais le service d\'accessibilité est inactif - activez-le dans les paramètres de l\'appareil</string>
+    <string name="quick_setting_desc_realtime_disabled">La protection est activée mais le traitement en temps réel est désactivé - activez-le dans les paramètres</string>
+    <string name="quick_setting_desc_protection_active">La protection est active - détection faciale et blocage de contenu activés</string>
+    <string name="quick_setting_desc_prayer_times">Afficher les notifications des temps de prière</string>
+    <string name="quick_setting_desc_dhikr">Activer les rappels de dhikr</string>
+    <string name="quick_setting_desc_site_blocking">Bloquer les sites web inappropriés</string>
+    <string name="quick_setting_desc_nsfw_detection">Détecter et flouter le contenu inapproprié</string>
+    <string name="quick_setting_desc_blur_intensity">Ajuster l\'intensité du flou pour le contenu détecté</string>
+    
+    <!-- Étiquettes de l'interface utilisateur -->
+    <string name="quick_controls">Contrôles rapides</string>
+    <string name="apply_preset">Appliquer le préréglage</string>
+    <string name="choose_preset_config">Choisissez une configuration prédéfinie à appliquer à vos paramètres.</string>
+
+    <!-- Textes des widgets -->
+    <string name="widget_tap_to_open_app">Appuyez pour ouvrir l\'application</string>
+    <string name="widget_prayer_times_sync">Les horaires de prière se synchroniseront automatiquement</string>
+    <string name="widget_date_prefix">📅</string>
+    <string name="widget_prayer_times_fallback">Horaires de prière</string>
+    <string name="widget_counter_display">%1$d / 33</string>
+    <string name="widget_reset_icon">↺</string>
+    <string name="widget_tap_anywhere_count">Appuyez n\'importe où pour compter</string>
+    <string name="widget_mosque_icon">🕌</string>
+    <string name="widget_clock_icon">⏰</string>
+    <string name="widget_prayer_fajr">Fajr</string>
+    <string name="widget_prayer_dhuhr">Dhuhr</string>
+    <string name="widget_prayer_asr">Asr</string>
+    <string name="widget_prayer_maghrib">Maghrib</string>
+    <string name="widget_prayer_isha">Isha</string>
+    
+    <!-- Messages d'état -->
+    <string name="status_shield_active">🛡️</string>
+    <string name="status_warning">⚠️</string>
+    <string name="status_ml_active">ML Actif</string>
+    <string name="status_gpu_accel">Accel GPU</string>
+    <string name="status_service_active_indicator">🟢</string>
+    <string name="status_service_inactive_indicator">🔴</string>
+    <string name="status_model_files_verified">Tous les fichiers de modèle vérifiés avec succès</string>
+    <string name="status_model_files_missing">Certains fichiers de modèle manquants : %s</string>
+    <string name="status_model_files_error">Erreur lors de la vérification des fichiers de modèle : %s</string>
+    <string name="status_load_settings_failed">Échec du chargement des données de paramètres : %s</string>
+    <string name="status_load_data_failed">Échec du chargement des données</string>
+    <string name="status_load_insights_failed">Échec du chargement des analyses : %s</string>
+    <string name="status_load_dashboard_failed">Échec du chargement des données du tableau de bord : %s</string>
+    
+    <!-- Ajouts manquants pour la traduction française -->
+    <string name="search_settings">Paramètres de recherche</string>
+    <string name="clear">Effacer</string>
+    <string name="got_it">Compris</string>
+    <string name="learn_more">En savoir plus</string>
+
+    <!-- Écran détail Hadith -->
+    <string name="hadith_back">Retour</string>
+    <string name="hadith_share">Partager le hadith</string>
+    <string name="hadith_urdu_text">Traduction ourdou</string>
+    <string name="hadith_of_the_day">Hadith du jour</string>
+    <string name="hadith_swipe_hint">Balayez à gauche ou à droite pour lire plus</string>
+    <string name="hadith_read_more">Lire le hadith complet</string>
+    <string name="hadith_preferred_book">Livre préféré</string>
+    <string name="hadith_enable_notifications">Notification quotidienne de hadith</string>
+    <string name="hadith_notification_time">Heure de notification</string>
+    <string name="hadith_notification_title">Hadith quotidien</string>
+    <string name="hadith_notification_description">Votre rappel quotidien de hadith</string>
+    <string name="hadith_notification_channel_name">Hadith quotidien</string>
+    <string name="hadith_notification_channel_desc">Rappels de notification quotidienne de hadith</string>
+    <string name="hadith_share_text">%1$s\n\n— %2$s\n\n(%3$s #%4$s)</string>
+
+    <!-- Quran Feature -->
+    <string name="quran_title">Al-Quran</string>
+    <string name="quran_subtitle">Le Noble Coran</string>
+    <string name="quran_tab_surahs">Sourates</string>
+    <string name="quran_tab_juz">Juz</string>
+    <string name="quran_tab_bookmarks">Favoris</string>
+    <string name="quran_verse_of_day">Verset du jour</string>
+    <string name="quran_continue_reading">Continuer la lecture</string>
+    <string name="quran_search_hint">Rechercher dans le Coran…</string>
+    <string name="quran_ayah">Ayah</string>
+    <string name="quran_ayahs">Ayahs</string>
+    <string name="quran_surah">Sourate</string>
+    <string name="quran_juz">Juz</string>
+    <string name="quran_no_bookmarks">Aucun favori pour le moment</string>
+    <string name="quran_remove_bookmark">Supprimer le favori</string>
+    <string name="quran_retry">Réessayer</string>
+    <string name="quran_back">Retour</string>
+    <string name="quran_loading_verses">Chargement des versets…</string>
+    <string name="quran_no_verses">Aucun verset trouvé</string>
+    <string name="quran_swipe_hint">Glissez pour naviguer</string>
+    <string name="quran_translation">Traduction</string>
+    <string name="quran_bookmark_added">Favori ajouté</string>
+    <string name="quran_bookmark_removed">Favori supprimé</string>
+    <string name="quran_share">Partager le verset</string>
+
+    <!-- Quran Audio Feature -->
+    <string name="quran_audio_play">Lire</string>
+    <string name="quran_audio_pause">Pause</string>
+    <string name="quran_audio_stop">Arrêter</string>
+    <string name="quran_audio_next">Suivant</string>
+    <string name="quran_audio_previous">Précédent</string>
+    <string name="quran_audio_now_playing">En cours de lecture</string>
+    <string name="quran_audio_select_reciter">Choisir un récitateur</string>
+    <string name="quran_audio_loading">Chargement de l\'audio…</string>
 
 </resources>

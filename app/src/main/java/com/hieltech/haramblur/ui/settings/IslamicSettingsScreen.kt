@@ -78,12 +78,12 @@ fun IslamicSettingsScreen(
                 icon = "📖",
                 isExpanded = settings.enableQuranicGuidance,
                 onToggle = { viewModel.updateQuranicGuidance(!settings.enableQuranicGuidance) },
-                badge = if (settings.enableQuranicGuidance) "Enabled" else null
+                badge = if (settings.enableQuranicGuidance) stringResource(R.string.badge_enabled) else null
             ) {
                 RadioButtonGroup(
                     title = stringResource(R.string.preferred_language_title),
                     options = Language.values().map {
-                        it.displayName to stringResource(R.string.preferred_language_description)
+                        stringResource(it.displayNameResId) to stringResource(R.string.preferred_language_description)
                     },
                     selectedIndex = Language.values().indexOf(settings.preferredLanguage),
                     onSelectionChange = { index ->
@@ -124,7 +124,7 @@ fun IslamicSettingsScreen(
                 icon = "🕌",
                 isExpanded = settings.dhikrEnabled,
                 onToggle = { viewModel.updateDhikrEnabled(!settings.dhikrEnabled) },
-                badge = if (settings.dhikrEnabled) "Active" else null
+                badge = if (settings.dhikrEnabled) stringResource(R.string.badge_active) else null
             ) {
                 SwitchSetting(
                     title = stringResource(R.string.morning_dhikr_title),
@@ -275,7 +275,7 @@ fun IslamicSettingsScreen(
                 icon = "🕐",
                 isExpanded = settings.enablePrayerTimes,
                 onToggle = { viewModel.updatePrayerTimesEnabled(!settings.enablePrayerTimes) },
-                badge = if (settings.enablePrayerTimes) "Enabled" else null
+                badge = if (settings.enablePrayerTimes) stringResource(R.string.badge_enabled) else null
             ) {
                 Text(
                     text = "This section is temporarily simplified to complete the build.",
@@ -291,7 +291,7 @@ fun IslamicSettingsScreen(
                 icon = "🧭",
                 isExpanded = settings.enableQiblaDirection,
                 onToggle = { viewModel.updateQiblaDirectionEnabled(!settings.enableQiblaDirection) },
-                badge = if (settings.enableQiblaDirection) "Active" else null
+                badge = if (settings.enableQiblaDirection) stringResource(R.string.badge_active) else null
             ) {
 
                 // Toggles

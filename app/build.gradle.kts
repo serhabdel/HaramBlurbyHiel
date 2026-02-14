@@ -32,6 +32,12 @@ android {
         if (localProps.exists()) { props.load(localProps.inputStream()) }
         buildConfigField("String", "HADITH_API_KEY",
             "\"${System.getenv("HADITH_API_KEY") ?: props.getProperty("HADITH_API_KEY", "YOUR_API_KEY_HERE")}\"")
+
+        // Quran Foundation API credentials from local.properties or environment
+        buildConfigField("String", "QURAN_CLIENT_ID",
+            "\"${System.getenv("QURAN_CLIENT_ID") ?: props.getProperty("QURAN_CLIENT_ID", "")}\"")
+        buildConfigField("String", "QURAN_CLIENT_SECRET",
+            "\"${System.getenv("QURAN_CLIENT_SECRET") ?: props.getProperty("QURAN_CLIENT_SECRET", "")}\"")
     }
     
     // 16KB page size compatibility and native library packaging
@@ -150,6 +156,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.activity.compose)
     debugImplementation("androidx.compose.ui:ui-tooling")
 
@@ -205,6 +212,11 @@ dependencies {
 
     // Location services for prayer times
     implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    // Media3 ExoPlayer for Quran audio playback
+    implementation("androidx.media3:media3-exoplayer:1.2.1")
+    implementation("androidx.media3:media3-ui:1.2.1")
+    implementation("androidx.media3:media3-session:1.2.1")
 
     // Testing
     testImplementation(libs.junit)

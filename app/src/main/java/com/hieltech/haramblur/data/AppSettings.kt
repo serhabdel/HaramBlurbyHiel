@@ -288,8 +288,24 @@ data class AppSettings(
     val lastUsageResetDate: Long? = null, // Epoch day of last usage reset (LocalDate.toEpochDay())
     val usageDefaultsSeeded: Boolean = false, // Whether default app time limits have been prepopulated
 
-    // Settings schema version. Bump to 10 for local prayer calculation settings
-    val settingsVersion: Int = 10 // Configuration version for compatibility tracking
+    // Hadith Settings
+    val preferredHadithBook: String? = null, // Preferred hadith book slug for personalized browsing (null = all books)
+    val enableHadithNotifications: Boolean = false, // Enable daily hadith notification
+    val hadithNotificationTime: String = "08:00", // Time for daily hadith notification (HH:mm format)
+
+    // Quran Settings
+    val lastReadSurah: Int = 0, // Last read surah number (0 = none)
+    val lastReadVerse: Int = 0, // Last read verse number within surah
+    val preferredTranslationId: String = "", // Quran translation resource ID (empty = auto based on language)
+    val preferredTranslationName: String = "", // Display name for selected translation
+    val quranBookmarkedVerses: Set<String> = emptySet(), // Bookmarked verse keys (e.g., "2:255")
+    val quranFontSize: Float = 28f, // Arabic text font size
+    val quranShowTranslation: Boolean = true, // Show translation below Arabic text
+    val quranShowTransliteration: Boolean = false, // Show transliteration
+    val preferredReciterId: Int = 7, // Default reciter: Mishari Rashid al-Afasy (id=7)
+
+    // Settings schema version. Bump to 16 for Quran audio settings
+    val settingsVersion: Int = 16 // Configuration version for compatibility tracking
 )
 
 enum class BlurIntensity(val displayName: String, val alphaValue: Int, val description: String) {

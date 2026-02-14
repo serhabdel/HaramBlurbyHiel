@@ -13,6 +13,7 @@ import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.Dhikr
 import com.hieltech.haramblur.data.DhikrSettings
 import com.hieltech.haramblur.data.DhikrTime
+import com.hieltech.haramblur.data.getDisplayName
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -95,7 +96,7 @@ class DhikrNotificationManager @Inject constructor(
             // Force heads-up by using a higher priority notification
             val headsUpNotification = NotificationCompat.Builder(context, DHIKR_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_shield_islamic)
-                .setContentTitle("🔔 ${dhikr.time.displayName} Dhikr")
+                .setContentTitle("🔔 ${dhikr.time.getDisplayName(context)} Dhikr")
                 .setContentText(dhikr.arabicText)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -103,7 +104,7 @@ class DhikrNotificationManager @Inject constructor(
                 .setTimeoutAfter(settings.displayDurationSeconds * 1000L)
                 .setContentIntent(notification.contentIntent)
                 .setStyle(NotificationCompat.BigTextStyle()
-                    .setBigContentTitle("🔔 ${dhikr.time.displayName} Dhikr")
+                    .setBigContentTitle("🔔 ${dhikr.time.getDisplayName(context)} Dhikr")
                     .bigText("${dhikr.arabicText}\n\n${if (settings.showTranslation) dhikr.englishTranslation else ""}"))
                 .build()
 
@@ -150,7 +151,7 @@ class DhikrNotificationManager @Inject constructor(
 
         val builder = NotificationCompat.Builder(context, DHIKR_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_islamic)
-            .setContentTitle("${dhikr.time.displayName} Dhikr")
+            .setContentTitle("${dhikr.time.getDisplayName(context)} Dhikr")
             .setContentText(dhikr.arabicText)
             .setPriority(NotificationCompat.PRIORITY_HIGH) // Reduced from MAX to prevent sticking
             .setCategory(NotificationCompat.CATEGORY_REMINDER)

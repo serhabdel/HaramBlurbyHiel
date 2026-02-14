@@ -1,7 +1,9 @@
 package com.hieltech.haramblur.ui.insights
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.AppSettings
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.data.StatsRepository
@@ -13,6 +15,7 @@ import com.hieltech.haramblur.detection.PerformanceMonitor
 import com.hieltech.haramblur.detection.PerformanceState
 import com.hieltech.haramblur.ml.MLModelManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,7 +36,8 @@ class InsightsViewModel @Inject constructor(
     private val performanceMonitor: PerformanceMonitor,
     private val appBlockingManager: AppBlockingManager,
     private val siteBlockingManager: EnhancedSiteBlockingManager,
-    private val statsRepository: StatsRepository
+    private val statsRepository: StatsRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     companion object {
@@ -305,7 +309,7 @@ class InsightsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _insightsState.value = _insightsState.value.copy(
                     isLoading = false,
-                    error = "Failed to load insights: ${e.message}"
+                    error = context.getString(R.string.status_load_insights_failed, e.message ?: "Unknown error")
                 )
             }
         }

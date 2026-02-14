@@ -11,6 +11,7 @@ import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.detection.AppBlockingManager
 import com.hieltech.haramblur.services.DhikrManager
 import com.hieltech.haramblur.services.DhikrNotificationManager
+import com.hieltech.haramblur.services.HadithNotificationWorker
 import com.hieltech.haramblur.services.PrayerNotificationWorker
 import com.hieltech.haramblur.utils.LocaleUtils
 import dagger.hilt.android.HiltAndroidApp
@@ -101,7 +102,7 @@ class HaramBlurApplication : Application(), Configuration.Provider {
     override fun attachBaseContext(base: Context) {
         // Apply language before creating the base context using LocaleUtils
         val language = getSavedLanguage(base)
-        Log.d(TAG, "Wrapping base context with saved language via LocaleUtils: ${language.displayName} (${language.name})")
+        Log.d(TAG, "Wrapping base context with saved language via LocaleUtils: ${language.name}")
         val wrapped = LocaleUtils.wrap(base, language)
         super.attachBaseContext(wrapped)
     }
@@ -119,7 +120,7 @@ class HaramBlurApplication : Application(), Configuration.Provider {
                     stored ?: com.hieltech.haramblur.detection.Language.ENGLISH.name
                 )
             }.getOrElse { com.hieltech.haramblur.detection.Language.ENGLISH }
-            Log.d(TAG, "Loaded saved language from prefs: ${lang.displayName} (${lang.name})")
+            Log.d(TAG, "Loaded saved language from prefs: ${lang.name} (${lang.code})")
             lang
         } catch (e: Exception) {
             Log.e(TAG, "Error getting saved language, using English", e)
@@ -165,6 +166,15 @@ class HaramBlurApplication : Application(), Configuration.Provider {
                     Log.e(TAG, "❌ Prayer notification worker retry failed", retryException)
                 }
             }
+        }
+
+        // Schedule daily hadith notification worker
+        try {
+            Log.d(TAG, "📖 Scheduling hadith notification worker")
+            HadithNotificationWorker.scheduleDaily(this)
+            Log.i(TAG, "✅ Hadith notification worker scheduled successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to schedule hadith notification worker", e)
         }
     }
 

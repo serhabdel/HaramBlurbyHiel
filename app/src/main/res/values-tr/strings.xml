@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HaramBlur</string>
+
+    <!-- Quran Feature -->
+    <string name="quran_title">Kur\'an-ı Kerim</string>
+    <string name="quran_subtitle">Yüce Kur\'an</string>
+    <string name="quran_tab_surahs">Sureler</string>
+    <string name="quran_tab_juz">Cüzler</string>
+    <string name="quran_tab_bookmarks">Yer İşaretleri</string>
+    <string name="quran_verse_of_day">Günün Ayeti</string>
+    <string name="quran_continue_reading">Okumaya Devam Et</string>
+    <string name="quran_search_hint">Kur\'an\'da ara…</string>
+    <string name="quran_ayah">Ayet</string>
+    <string name="quran_ayahs">Ayet</string>
+    <string name="quran_surah">Sure</string>
+    <string name="quran_juz">Cüz</string>
+    <string name="quran_no_bookmarks">Henüz yer işareti yok</string>
+    <string name="quran_remove_bookmark">Yer işaretini kaldır</string>
+    <string name="quran_retry">Tekrar dene</string>
+    <string name="quran_back">Geri</string>
+    <string name="quran_loading_verses">Ayetler yükleniyor…</string>
+    <string name="quran_no_verses">Ayet bulunamadı</string>
+    <string name="quran_swipe_hint">Gezinmek için kaydırın</string>
+    <string name="quran_translation">Çeviri</string>
+    <string name="quran_bookmark_added">Yer işareti eklendi</string>
+    <string name="quran_bookmark_removed">Yer işareti kaldırıldı</string>
+    <string name="quran_share">Ayeti paylaş</string>
+
+    <!-- Quran Audio Feature -->
+    <string name="quran_audio_play">Oynat</string>
+    <string name="quran_audio_pause">Duraklat</string>
+    <string name="quran_audio_stop">Durdur</string>
+    <string name="quran_audio_next">Sonraki</string>
+    <string name="quran_audio_previous">Önceki</string>
+    <string name="quran_audio_now_playing">Şimdi Oynatılıyor</string>
+    <string name="quran_audio_select_reciter">Kâri Seçin</string>
+    <string name="quran_audio_loading">Ses yükleniyor…</string>
+
+</resources>

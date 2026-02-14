@@ -120,6 +120,9 @@ private fun UnifiedBlockingScreenSimple(
         }
     }
 
+    // Pre-capture string resources for use in suspend functions
+    val loadDataFailedMessage = stringResource(R.string.status_load_data_failed)
+
     // Function to load data (accessible from composables)
     suspend fun loadDataFunction() {
         if (isLoading) return // Prevent multiple simultaneous loads
@@ -140,8 +143,8 @@ private fun UnifiedBlockingScreenSimple(
                     val allSites = siteBlockingManager?.getCustomBlockedWebsites() ?: emptyList()
                     // Extra filtering to ensure only user-added sites are shown
                     customBlockedSites = allSites.filter { site ->
-                        site.addedByUser && 
-                        site.source == "user_added" && 
+                        site.addedByUser &&
+                        site.source == "user_added" &&
                         !site.pattern.contains("porn", ignoreCase = true) &&
                         !site.pattern.contains("sex", ignoreCase = true) &&
                         !site.pattern.contains("adult", ignoreCase = true) &&
@@ -155,7 +158,7 @@ private fun UnifiedBlockingScreenSimple(
         } catch (e: Exception) {
             // Simplified error handling
             snackbarHostState.showSnackbar(
-                message = "Failed to load data",
+                message = loadDataFailedMessage,
                 duration = SnackbarDuration.Short
             )
         } finally {

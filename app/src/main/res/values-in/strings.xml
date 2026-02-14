@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HaramBlur</string>
+
+    <!-- Quran Feature -->
+    <string name="quran_title">Al-Quran</string>
+    <string name="quran_subtitle">Al-Quran yang Mulia</string>
+    <string name="quran_tab_surahs">Surah</string>
+    <string name="quran_tab_juz">Juz</string>
+    <string name="quran_tab_bookmarks">Penanda</string>
+    <string name="quran_verse_of_day">Ayat Hari Ini</string>
+    <string name="quran_continue_reading">Lanjutkan Membaca</string>
+    <string name="quran_search_hint">Cari di Al-Quran…</string>
+    <string name="quran_ayah">Ayat</string>
+    <string name="quran_ayahs">Ayat</string>
+    <string name="quran_surah">Surah</string>
+    <string name="quran_juz">Juz</string>
+    <string name="quran_no_bookmarks">Belum ada penanda</string>
+    <string name="quran_remove_bookmark">Hapus penanda</string>
+    <string name="quran_retry">Coba lagi</string>
+    <string name="quran_back">Kembali</string>
+    <string name="quran_loading_verses">Memuat ayat…</string>
+    <string name="quran_no_verses">Ayat tidak ditemukan</string>
+    <string name="quran_swipe_hint">Geser untuk navigasi</string>
+    <string name="quran_translation">Terjemahan</string>
+    <string name="quran_bookmark_added">Penanda ditambahkan</string>
+    <string name="quran_bookmark_removed">Penanda dihapus</string>
+    <string name="quran_share">Bagikan ayat</string>
+
+    <!-- Quran Audio Feature -->
+    <string name="quran_audio_play">Putar</string>
+    <string name="quran_audio_pause">Jeda</string>
+    <string name="quran_audio_stop">Berhenti</string>
+    <string name="quran_audio_next">Berikutnya</string>
+    <string name="quran_audio_previous">Sebelumnya</string>
+    <string name="quran_audio_now_playing">Sedang Diputar</string>
+    <string name="quran_audio_select_reciter">Pilih Qari</string>
+    <string name="quran_audio_loading">Memuat audio…</string>
+
+</resources>

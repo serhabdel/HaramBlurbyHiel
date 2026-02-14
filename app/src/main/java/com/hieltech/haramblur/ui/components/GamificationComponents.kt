@@ -20,6 +20,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import androidx.annotation.StringRes
+import com.hieltech.haramblur.R
 import androidx.compose.ui.unit.dp
 
 /**
@@ -148,6 +152,7 @@ fun AchievementBadge(
     modifier: Modifier = Modifier,
     isNew: Boolean = false
 ) {
+    val context = LocalContext.current
     val scale by animateFloatAsState(
         targetValue = if (isNew) 1.1f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
@@ -190,7 +195,7 @@ fun AchievementBadge(
 
             // Badge name
             Text(
-                text = achievement.name,
+                text = achievement.getName(context),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = if (achievement.isUnlocked) {
@@ -201,7 +206,7 @@ fun AchievementBadge(
 
             // Description
             Text(
-                text = achievement.description,
+                text = achievement.getDescription(context),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -232,7 +237,7 @@ fun AchievementBadge(
                     color = achievement.rarity.color.copy(alpha = 0.1f)
                 ) {
                     Text(
-                        text = achievement.rarity.displayName,
+                        text = achievement.rarity.getDisplayName(LocalContext.current),
                         style = MaterialTheme.typography.labelSmall,
                         color = achievement.rarity.color,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -346,24 +351,33 @@ private fun MiniStat(emoji: String, value: String, label: String) {
  */
 data class Achievement(
     val id: String,
-    val name: String,
-    val description: String,
+    @StringRes val nameResId: Int,
+    @StringRes val descriptionResId: Int,
     val emoji: String,
     val rarity: AchievementRarity,
     val isUnlocked: Boolean,
     val progress: Int = 0,
     val maxProgress: Int = 1
-)
+) {
+    fun getName(context: Context): String = context.getString(nameResId)
+    fun getDescription(context: Context): String = context.getString(descriptionResId)
+}
 
 enum class AchievementRarity(
-    val displayName: String,
+    @StringRes val displayNameResId: Int,
     val color: Color
 ) {
-    COMMON("Common", Color(0xFF9E9E9E)),
-    UNCOMMON("Uncommon", Color(0xFF4CAF50)),
-    RARE("Rare", Color(0xFF2196F3)),
-    EPIC("Epic", Color(0xFF9C27B0)),
-    LEGENDARY("Legendary", Color(0xFFFFD700))
+    COMMON(R.string.achievement_rarity_common, Color(0xFF9E9E9E)),
+    UNCOMMON(R.string.achievement_rarity_uncommon, Color(0xFF4CAF50)),
+    RARE(R.string.achievement_rarity_rare, Color(0xFF2196F3)),
+    EPIC(R.string.achievement_rarity_epic, Color(0xFF9C27B0)),
+    LEGENDARY(R.string.achievement_rarity_legendary, Color(0xFFFFD700));
+    
+    companion object {
+        fun getByDisplayName(displayName: String): AchievementRarity? {
+            return values().find { it.name == displayName }
+        }
+    }
 }
 
 /**
@@ -373,40 +387,40 @@ object DefaultAchievements {
     val all = listOf(
         Achievement(
             id = "first_day",
-            name = "First Step",
-            description = "Complete your first day with HaramBlur",
+            nameResId = R.string.achievement_first_step,
+            descriptionResId = R.string.achievement_desc_first_step,
             emoji = "🌟",
             rarity = AchievementRarity.COMMON,
             isUnlocked = false
         ),
         Achievement(
             id = "week_warrior",
-            name = "Week Warrior",
-            description = "Maintain protection for 7 days straight",
+            nameResId = R.string.achievement_week_warrior,
+            descriptionResId = R.string.achievement_desc_week_warrior,
             emoji = "🔥",
             rarity = AchievementRarity.UNCOMMON,
             isUnlocked = false
         ),
         Achievement(
             id = "month_master",
-            name = "Month Master",
-            description = "Incredible! 30 days of protection",
+            nameResId = R.string.achievement_month_master,
+            descriptionResId = R.string.achievement_desc_month_master,
             emoji = "🛡️",
             rarity = AchievementRarity.RARE,
             isUnlocked = false
         ),
         Achievement(
             id = "hundred_hero",
-            name = "Centurion",
-            description = "100 days of consistent protection",
+            nameResId = R.string.achievement_centurion,
+            descriptionResId = R.string.achievement_desc_centurion,
             emoji = "👑",
             rarity = AchievementRarity.EPIC,
             isUnlocked = false
         ),
         Achievement(
             id = "block_master",
-            name = "Guardian",
-            description = "Block 1000 inappropriate items",
+            nameResId = R.string.achievement_guardian,
+            descriptionResId = R.string.achievement_desc_guardian,
             emoji = "🚫",
             rarity = AchievementRarity.RARE,
             isUnlocked = false,
@@ -415,8 +429,8 @@ object DefaultAchievements {
         ),
         Achievement(
             id = "dhikr_devotee",
-            name = "Dhikr Devotee",
-            description = "Complete 100 tasbih sets",
+            nameResId = R.string.achievement_dhikr_devotee,
+            descriptionResId = R.string.achievement_desc_dhikr_devotee,
             emoji = "📿",
             rarity = AchievementRarity.UNCOMMON,
             isUnlocked = false,
@@ -425,11 +439,24 @@ object DefaultAchievements {
         ),
         Achievement(
             id = "prayer_punctual",
-            name = "Salah Star",
-            description = "Never miss a prayer time notification for a week",
+            nameResId = R.string.achievement_salah_star,
+            descriptionResId = R.string.achievement_desc_salah_star,
             emoji = "🕌",
             rarity = AchievementRarity.RARE,
             isUnlocked = false
         )
     )
 }
+
+/**
+ * Extension function to get localized display name for an AchievementRarity
+ */
+fun AchievementRarity.getDisplayName(context: android.content.Context): String {
+    return context.getString(this.displayNameResId)
+}
+
+/**
+ * Extension property to get localized display name (requires Context)
+ */
+val AchievementRarity.localizedName: String
+    get() = throw UnsupportedOperationException("Use getDisplayName(Context) instead")

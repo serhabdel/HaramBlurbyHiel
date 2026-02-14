@@ -16,10 +16,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.ui.HomeScreenResponsive
 import com.hieltech.haramblur.ui.UnifiedBlockingScreenResponsive
@@ -304,6 +306,17 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     },
+                                    onNavigateToQuran = {
+                                        if (currentRoute != NavRoutes.QURAN) {
+                                            navController.navigate(NavRoutes.QURAN) {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
+                                                }
+                                            }
+                                        }
+                                    },
                                     onNavigateToSettings = {
                                         if (currentRoute != NavRoutes.SETTINGS) {
                                             navController.navigate(NavRoutes.SETTINGS) {
@@ -384,7 +397,72 @@ class MainActivity : ComponentActivity() {
                                     com.hieltech.haramblur.ui.dhikr.DhikrScreen()
                                 }
                                 composable(NavRoutes.HADITH) {
-                                    com.hieltech.haramblur.ui.hadith.HadithScreen()
+                                    com.hieltech.haramblur.ui.hadith.HadithScreen(
+                                        onHadithClick = { index ->
+                                            navController.navigate("hadith_detail/$index")
+                                        }
+                                    )
+                                }
+                                composable(
+                                    NavRoutes.HADITH_DETAIL,
+                                    arguments = listOf(navArgument("hadithIndex") { type = NavType.IntType })
+                                ) { backStackEntry ->
+                                    val hadithIndex = backStackEntry.arguments?.getInt("hadithIndex") ?: 0
+                                    val parentEntry = remember(backStackEntry) {
+                                        navController.getBackStackEntry(NavRoutes.HADITH)
+                                    }
+                                    val hadithViewModel: com.hieltech.haramblur.ui.hadith.HadithViewModel = hiltViewModel(parentEntry)
+                                    val uiState by hadithViewModel.uiState.collectAsState()
+                                    com.hieltech.haramblur.ui.hadith.HadithDetailScreen(
+                                        hadiths = uiState.hadiths,
+                                        initialIndex = hadithIndex,
+                                        appLanguage = uiState.appLanguage,
+                                        onBack = { navController.popBackStack() },
+                                        onShare = { hadith ->
+                                            val shareText = getString(
+                                                R.string.hadith_share_text,
+                                                hadith.englishText,
+                                                hadith.narrator,
+                                                hadith.bookName,
+                                                hadith.hadithNumber
+                                            )
+                                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                            }
+                                            startActivity(android.content.Intent.createChooser(intent, getString(R.string.hadith_share)))
+                                        }
+                                    )
+                                }
+                                composable(NavRoutes.QURAN) {
+                                    com.hieltech.haramblur.ui.quran.QuranScreen(
+                                        onSurahClick = { surahNumber ->
+                                            navController.navigate("quran_reader/$surahNumber")
+                                        }
+                                    )
+                                }
+                                composable(
+                                    NavRoutes.QURAN_READER,
+                                    arguments = listOf(androidx.navigation.navArgument("surahNumber") { type = androidx.navigation.NavType.IntType })
+                                ) { backStackEntry ->
+                                    val surahNumber = backStackEntry.arguments?.getInt("surahNumber") ?: 1
+                                    val parentEntry = remember(backStackEntry) {
+                                        navController.getBackStackEntry(NavRoutes.QURAN)
+                                    }
+                                    val quranViewModel: com.hieltech.haramblur.ui.quran.QuranViewModel = hiltViewModel(parentEntry)
+                                    com.hieltech.haramblur.ui.quran.QuranReaderScreen(
+                                        surahNumber = surahNumber,
+                                        viewModel = quranViewModel,
+                                        onBack = { navController.popBackStack() },
+                                        onShare = { verse ->
+                                            val shareText = "${verse.textUthmani}\n\n${verse.translationText}\n\n— ${verse.verseKey}"
+                                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                            }
+                                            startActivity(android.content.Intent.createChooser(intent, getString(R.string.quran_share)))
+                                        }
+                                    )
                                 }
                                 composable(NavRoutes.SETTINGS) {
                                     SettingsScreen(

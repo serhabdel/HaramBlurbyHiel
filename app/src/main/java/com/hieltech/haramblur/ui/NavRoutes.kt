@@ -12,6 +12,9 @@ object NavRoutes {
     const val INSIGHTS = "insights"
     const val SETTINGS = "settings"
     const val HADITH = "hadith"
+    const val HADITH_DETAIL = "hadith_detail/{hadithIndex}"
+    const val QURAN = "quran"
+    const val QURAN_READER = "quran_reader/{surahNumber}"
     const val LOGS = "logs"
     const val DEBUG = "debug"
     const val SUPPORT = "support"
@@ -20,5 +23,5 @@ object NavRoutes {
     /**
      * Primary routes that show bottom navigation
      */
-    val PRIMARY_ROUTES = listOf(HOME, BLOCK_APPS_SITES, PRAYER, DHIKR, HADITH, SETTINGS)
+    val PRIMARY_ROUTES = listOf(HOME, BLOCK_APPS_SITES, PRAYER, DHIKR, HADITH, QURAN, SETTINGS)
 }

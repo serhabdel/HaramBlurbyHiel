@@ -478,11 +478,11 @@ private fun ApplyPresetDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Apply Preset") },
-        text = { Text("Choose a preset configuration to apply to your settings.") },
+        title = { Text(stringResource(R.string.apply_preset)) },
+        text = { Text(stringResource(R.string.choose_preset_config)) },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("OK")
+                Text(stringResource(R.string.ok))
             }
         }
     )
@@ -501,7 +501,7 @@ private fun QuickSettingsRow(
         modifier = modifier.fillMaxWidth()
     ) {
         Text(
-            text = "Quick Controls",
+            text = stringResource(R.string.quick_controls),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )

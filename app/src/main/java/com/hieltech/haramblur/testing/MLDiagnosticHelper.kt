@@ -5,9 +5,11 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.util.Log
 import com.google.mlkit.vision.common.InputImage
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.ml.FaceDetectionManager
 import com.hieltech.haramblur.ml.MLModelManager
 import com.hieltech.haramblur.detection.Gender
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -246,9 +248,9 @@ class MLDiagnosticHelper @Inject constructor(
             
             val allExist = fileStatuses.all { it.exists }
             val statusMessage = if (allExist) {
-                "All model files verified successfully"
+                context.getString(R.string.status_model_files_verified)
             } else {
-                "Some model files missing: ${fileStatuses.filter { !it.exists }.joinToString { it.fileName }}"
+                context.getString(R.string.status_model_files_missing, fileStatuses.filter { !it.exists }.joinToString { it.fileName })
             }
             
             ModelFileStatus(
@@ -262,7 +264,7 @@ class MLDiagnosticHelper @Inject constructor(
             ModelFileStatus(
                 allFilesExist = false,
                 fileDetails = emptyList(),
-                statusMessage = "Error verifying model files: ${e.message}"
+                statusMessage = context.getString(R.string.status_model_files_error, e.message ?: "Unknown error")
             )
         }
     }

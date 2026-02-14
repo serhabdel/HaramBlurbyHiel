@@ -25,6 +25,7 @@ import androidx.glance.layout.*
 import androidx.glance.text.*
 import androidx.glance.unit.ColorProvider
 import com.hieltech.haramblur.MainActivity
+import com.hieltech.haramblur.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -237,7 +238,7 @@ class DhikrCounterGlanceWidget : GlanceAppWidget() {
                     Spacer(modifier = GlanceModifier.height(4.dp))
                     
                     Text(
-                        text = "Tap anywhere to count",
+                        text = context.getString(R.string.widget_tap_anywhere_count),
                         style = TextStyle(
                             color = ColorProvider(Color.White.copy(alpha = 0.6f)),
                             fontSize = 9.sp
@@ -265,7 +266,7 @@ class DhikrCounterGlanceWidget : GlanceAppWidget() {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "↺",
+                            text = context.getString(R.string.widget_reset_icon),
                             style = TextStyle(
                                 color = ColorProvider(Color.White),
                                 fontSize = 14.sp

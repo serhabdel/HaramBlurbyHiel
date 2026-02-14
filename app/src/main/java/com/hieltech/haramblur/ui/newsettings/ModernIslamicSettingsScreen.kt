@@ -134,7 +134,7 @@ private fun QuranicGuidanceSection(
                 EnhancedRadioGroup(
                     title = stringResource(R.string.preferred_language_title),
                     options = Language.values().map { language ->
-                        language.displayName to "Display verses in ${language.displayName}"
+                        stringResource(language.displayNameResId) to stringResource(R.string.preferred_language_description)
                     },
                     selectedIndex = Language.values().indexOf(settings.preferredLanguage),
                     onSelectionChange = { index -> viewModel.updatePreferredLanguage(Language.values()[index]) }

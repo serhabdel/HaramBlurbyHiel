@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -32,6 +33,7 @@ import com.hieltech.haramblur.data.QuranicVerse
 import com.hieltech.haramblur.data.WarningDialogAction
 import com.hieltech.haramblur.detection.BlockingCategory
 import com.hieltech.haramblur.detection.Language
+import com.hieltech.haramblur.detection.getDisplayName
 import com.hieltech.haramblur.detection.SiteBlockingResult
 import kotlinx.coroutines.delay
 
@@ -245,7 +247,7 @@ private fun LanguageDropdown(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(language.displayName)
+                        Text(language.getDisplayName(LocalContext.current))
                         if (language == selectedLanguage) {
                             Icon(
                                 Icons.Default.Settings,

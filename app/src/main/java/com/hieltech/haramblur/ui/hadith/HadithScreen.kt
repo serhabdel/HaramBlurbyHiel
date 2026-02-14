@@ -3,6 +3,7 @@ package com.hieltech.haramblur.ui.hadith
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -19,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -40,9 +43,11 @@ private val DaifRed = Color(0xFFD32F2F)
 
 @Composable
 fun HadithScreen(
-    viewModel: HadithViewModel = hiltViewModel()
+    viewModel: HadithViewModel = hiltViewModel(),
+    onHadithClick: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     LazyColumn(
         modifier = Modifier
@@ -56,6 +61,27 @@ fun HadithScreen(
             HadithHeaderCard(total = uiState.total)
         }
 
+        // Hadith of the Day
+        if (uiState.hadithOfDay != null) {
+            item {
+                HadithOfDayCard(
+                    hadith = uiState.hadithOfDay!!,
+                    onClick = {
+                        // Find index in list, or navigate with -1 for standalone
+                        val idx = uiState.hadiths.indexOfFirst {
+                            it.hadithNumber == uiState.hadithOfDay!!.hadithNumber &&
+                            it.bookSlug == uiState.hadithOfDay!!.bookSlug
+                        }
+                        onHadithClick(if (idx >= 0) idx else 0)
+                    }
+                )
+            }
+        } else if (uiState.isLoadingHadithOfDay) {
+            item {
+                HadithOfDayShimmer()
+            }
+        }
+
         // API Key Required State
         if (!uiState.hasApiKey) {
             item {
@@ -65,6 +91,7 @@ fun HadithScreen(
             // Book Selector
             item {
                 BookSelectorSection(
+                    context = context,
                     selectedBook = uiState.selectedBook,
                     availableBooks = viewModel.availableBooks,
                     onBookSelected = { viewModel.selectBook(it) }
@@ -91,7 +118,11 @@ fun HadithScreen(
             // Hadiths List
             if (uiState.hadiths.isNotEmpty()) {
                 itemsIndexed(uiState.hadiths) { index, hadith ->
-                    AnimatedHadithCard(hadith = hadith, index = index)
+                    AnimatedHadithCard(
+                        hadith = hadith,
+                        index = index,
+                        onClick = { onHadithClick(index) }
+                    )
                 }
 
                 // Load More
@@ -165,6 +196,157 @@ private fun HadithHeaderCard(total: Int) {
 }
 
 @Composable
+private fun HadithOfDayCard(hadith: Hadith, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = HadithGoldDark.copy(alpha = 0.08f)
+        ),
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, HadithGold.copy(alpha = 0.4f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Title row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "✨", fontSize = 24.sp)
+                    Text(
+                        text = stringResource(R.string.hadith_of_the_day),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = HadithGoldDark
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = HadithGreen.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = hadith.bookName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = HadithGreen,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // Arabic text preview
+            if (hadith.arabicText.isNotEmpty()) {
+                Text(
+                    text = hadith.arabicText,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        textDirection = TextDirection.Rtl,
+                        lineHeight = 30.sp
+                    ),
+                    color = HadithGreen,
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+
+            // English text preview
+            if (hadith.englishText.isNotEmpty()) {
+                Text(
+                    text = hadith.englishText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+
+            // Read more hint
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.hadith_read_more),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = HadithGoldDark,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    Icons.Default.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = HadithGoldDark
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HadithOfDayShimmer() {
+    val infiniteTransition = rememberInfiniteTransition(label = "hodShimmer")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "hodShimmerAlpha"
+    )
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = HadithGoldDark.copy(alpha = alpha * 0.06f)
+        ),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(180.dp)
+                    .height(20.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * 0.12f))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * 0.08f))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * 0.1f))
+            )
+        }
+    }
+}
+
+
+@Composable
 private fun ApiKeyRequiredCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -200,6 +382,7 @@ private fun ApiKeyRequiredCard() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BookSelectorSection(
+    context: Context,
     selectedBook: String?,
     availableBooks: List<HadithBook>,
     onBookSelected: (String?) -> Unit
@@ -263,7 +446,7 @@ private fun BookSelectorSection(
                         onClick = { onBookSelected(book.slug) },
                         label = {
                             Text(
-                                book.displayName,
+                                book.getDisplayName(context),
                                 style = MaterialTheme.typography.labelMedium
                             )
                         },
@@ -293,7 +476,7 @@ private fun BookSelectorSection(
 }
 
 @Composable
-private fun AnimatedHadithCard(hadith: Hadith, index: Int) {
+private fun AnimatedHadithCard(hadith: Hadith, index: Int, onClick: () -> Unit = {}) {
     // Staggered entrance animation
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -324,7 +507,8 @@ private fun AnimatedHadithCard(hadith: Hadith, index: Int) {
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer(alpha = alpha, translationY = offsetY)
-            .animateContentSize(),
+            .animateContentSize()
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)

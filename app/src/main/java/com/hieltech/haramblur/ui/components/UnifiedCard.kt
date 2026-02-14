@@ -18,7 +18,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.hieltech.haramblur.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -159,7 +161,7 @@ fun HeroStatusCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isActive) "🛡️" else "⚠️",
+                    text = if (isActive) stringResource(R.string.status_shield_active) else stringResource(R.string.status_warning),
                     fontSize = MaterialTheme.typography.displaySmall.fontSize
                 )
             }
@@ -184,8 +186,8 @@ fun HeroStatusCard(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    StatusChip(text = "ML Active", icon = "✓")
-                    StatusChip(text = "GPU Accel", icon = "⚡")
+                    StatusChip(text = stringResource(R.string.status_ml_active), icon = "✓")
+                    StatusChip(text = stringResource(R.string.status_gpu_accel), icon = "⚡")
                 }
             }
         }

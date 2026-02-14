@@ -54,7 +54,7 @@ object LocaleUtils {
         // Locale changes are applied via wrap() in Application.attachBaseContext after process/activity recreation.
         val locale = mapLanguageToLocale(language)
         Locale.setDefault(locale)
-        Log.d(TAG, "updateLocale called for ${language.displayName}; no-op. Changes will apply after recreation.")
+        Log.d(TAG, "updateLocale called for ${language.name}; no-op. Changes will apply after recreation.")
     }
 
     /**

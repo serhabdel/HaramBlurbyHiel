@@ -217,7 +217,7 @@ private fun LanguageSettingsSection(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = settings.preferredLanguage.displayName,
+                            text = stringResource(settings.preferredLanguage.displayNameResId),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -316,7 +316,7 @@ private fun LanguageSelectionDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = language.displayName,
+                                text = stringResource(language.displayNameResId),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                 color = if (isSelected) {

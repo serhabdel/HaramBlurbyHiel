@@ -1,7 +1,9 @@
 package com.hieltech.haramblur.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.models.SystemStatus
 import com.hieltech.haramblur.data.models.QuickSetting
 import com.hieltech.haramblur.data.models.RecentSetting
@@ -13,6 +15,7 @@ import com.hieltech.haramblur.data.repository.StatisticsRepository
 import com.hieltech.haramblur.data.SettingsRepository
 import com.hieltech.haramblur.utils.SystemHealthMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,7 +30,8 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val statisticsRepository: StatisticsRepository,
     private val settingsRepository: SettingsRepository,
-    private val systemHealthMonitor: SystemHealthMonitor
+    private val systemHealthMonitor: SystemHealthMonitor,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
     
     // System status state
@@ -79,7 +83,7 @@ class SettingsViewModel @Inject constructor(
                 _systemHealth.value = systemHealthMonitor.getSystemHealth()
                 
             } catch (e: Exception) {
-                _error.value = "Failed to load settings data: ${e.message}"
+                _error.value = context.getString(R.string.status_load_settings_failed, e.message ?: "Unknown error")
             } finally {
                 _isLoading.value = false
             }
@@ -163,16 +167,16 @@ class SettingsViewModel @Inject constructor(
 
         // Determine status indicator and description based on system health
         val (statusIndicator, description) = when {
-            !protectionEnabled -> StatusIndicator.DISABLED to "Protection is disabled - tap to enable face detection and content blocking"
-            !accessibilityServiceActive -> StatusIndicator.WARNING to "Protection enabled but Accessibility Service is inactive - enable in device settings"
-            !realTimeProcessingEnabled -> StatusIndicator.WARNING to "Protection enabled but Real-time processing is disabled - enable in settings"
-            else -> StatusIndicator.ENABLED to "Protection is active - face detection and content blocking enabled"
+            !protectionEnabled -> StatusIndicator.DISABLED to context.getString(R.string.quick_setting_desc_protection_disabled)
+            !accessibilityServiceActive -> StatusIndicator.WARNING to context.getString(R.string.quick_setting_desc_accessibility_inactive)
+            !realTimeProcessingEnabled -> StatusIndicator.WARNING to context.getString(R.string.quick_setting_desc_realtime_disabled)
+            else -> StatusIndicator.ENABLED to context.getString(R.string.quick_setting_desc_protection_active)
         }
 
         return listOf(
             QuickSetting(
                 id = "protection",
-                displayName = "Protection Active",
+                displayName = context.getString(R.string.quick_setting_protection_active),
                 currentValue = protectionEnabled,
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_dialog_alert,
@@ -181,48 +185,48 @@ class SettingsViewModel @Inject constructor(
             ),
             QuickSetting(
                 id = "prayer_times",
-                displayName = "Prayer Times",
+                displayName = context.getString(R.string.quick_setting_prayer_times),
                 currentValue = true, // Would be loaded from actual settings
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_menu_my_calendar,
                 statusIndicator = StatusIndicator.ENABLED,
-                description = "Show prayer time notifications"
+                description = context.getString(R.string.quick_setting_desc_prayer_times)
             ),
             QuickSetting(
                 id = "dhikr",
-                displayName = "Dhikr",
+                displayName = context.getString(R.string.quick_setting_dhikr),
                 currentValue = true, // Would be loaded from actual settings
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_menu_edit,
                 statusIndicator = StatusIndicator.ENABLED,
-                description = "Enable dhikr reminders"
+                description = context.getString(R.string.quick_setting_desc_dhikr)
             ),
             QuickSetting(
                 id = "site_blocking",
-                displayName = "Site Blocking",
+                displayName = context.getString(R.string.quick_setting_site_blocking),
                 currentValue = true, // Would be loaded from actual settings
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_menu_close_clear_cancel,
                 statusIndicator = StatusIndicator.ENABLED,
-                description = "Block inappropriate websites"
+                description = context.getString(R.string.quick_setting_desc_site_blocking)
             ),
             QuickSetting(
                 id = "nsfw_detection",
-                displayName = "NSFW Detection",
+                displayName = context.getString(R.string.quick_setting_nsfw_detection),
                 currentValue = true, // Would be loaded from actual settings
                 settingType = SettingType.TOGGLE,
                 iconRes = android.R.drawable.ic_menu_view,
                 statusIndicator = StatusIndicator.ENABLED,
-                description = "Detect and blur inappropriate content"
+                description = context.getString(R.string.quick_setting_desc_nsfw_detection)
             ),
             QuickSetting(
                 id = "blur_intensity",
-                displayName = "Blur Intensity",
+                displayName = context.getString(R.string.quick_setting_blur_intensity),
                 currentValue = 0.7f, // Would be loaded from actual settings
                 settingType = SettingType.SLIDER,
                 iconRes = android.R.drawable.ic_menu_manage,
                 statusIndicator = StatusIndicator.ENABLED,
-                description = "Adjust blur intensity for detected content"
+                description = context.getString(R.string.quick_setting_desc_blur_intensity)
             )
         )
     }

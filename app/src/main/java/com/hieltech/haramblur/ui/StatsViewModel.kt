@@ -2,6 +2,7 @@ package com.hieltech.haramblur.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.LogRepository
 import com.hieltech.haramblur.data.LogRepository.LogCategory
 import com.hieltech.haramblur.detection.AppBlockingManager
@@ -174,7 +175,7 @@ class StatsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _dashboardState.value = _dashboardState.value.copy(
                     isLoading = false,
-                    error = "Failed to load dashboard data: ${e.message}"
+                    error = context.getString(R.string.status_load_dashboard_failed, e.message ?: "Unknown error")
                 )
             }
         }

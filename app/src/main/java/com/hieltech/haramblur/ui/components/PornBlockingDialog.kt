@@ -698,7 +698,7 @@ private fun PornLanguageDropdown(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(language.displayName, color = Color.White)
+                        Text(stringResource(language.displayNameResId), color = Color.White)
                         if (language == selectedLanguage) {
                             Icon(
                                 Icons.Default.Warning,

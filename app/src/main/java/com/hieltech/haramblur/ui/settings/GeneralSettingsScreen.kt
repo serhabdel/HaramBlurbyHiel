@@ -14,10 +14,13 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hieltech.haramblur.R
 import com.hieltech.haramblur.data.*
+import com.hieltech.haramblur.detection.Language
+import com.hieltech.haramblur.detection.getDisplayName
 import com.hieltech.haramblur.ui.components.*
 import com.hieltech.haramblur.ui.components.ServiceControlCard
 import com.hieltech.haramblur.ui.SettingsViewModel
@@ -95,7 +98,7 @@ fun GeneralSettingsScreen(
                     RadioButtonGroup(
                         title = stringResource(R.string.select_language_title),
                         options = com.hieltech.haramblur.detection.Language.values().map {
-                            it.displayName to stringResource(R.string.language_description, it.displayName)
+                            stringResource(it.displayNameResId) to stringResource(R.string.language_description, stringResource(it.displayNameResId))
                         },
                         selectedIndex = com.hieltech.haramblur.detection.Language.values().indexOf(settings.preferredLanguage),
                         onSelectionChange = { index ->
@@ -117,14 +120,14 @@ fun GeneralSettingsScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "Language changed to ${settings.preferredLanguage.displayName}",
+                                    text = "Language changed to ${settings.preferredLanguage.getDisplayName(LocalContext.current)}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontWeight = FontWeight.Medium
                                 )
                                 
                                 Text(
-                                    text = "The interface should now display in ${settings.preferredLanguage.displayName}",
+                                    text = "The interface should now display in ${settings.preferredLanguage.getDisplayName(LocalContext.current)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )

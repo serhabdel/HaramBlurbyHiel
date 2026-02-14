@@ -16,6 +16,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.hieltech.haramblur.data.DhikrCategory
+import com.hieltech.haramblur.data.getDisplayName
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hieltech.haramblur.data.Dhikr
@@ -111,7 +115,7 @@ private fun DhikrCard(
         ) {
             // Header with dhikr type
             Text(
-                text = "${dhikr.time.displayName} Dhikr",
+                text = "${stringResource(dhikr.time.displayNameResId)} Dhikr",
                 style = MaterialTheme.typography.labelMedium,
                 color = Color(0xFF2E7D32),
                 fontWeight = FontWeight.Medium
@@ -166,7 +170,7 @@ private fun DhikrCard(
                 modifier = Modifier.padding(horizontal = 4.dp)
             ) {
                 Text(
-                    text = dhikr.category,
+                    text = dhikr.category.getDisplayName(LocalContext.current),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFF2E7D32),
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)

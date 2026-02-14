@@ -108,9 +108,9 @@ class DhikrViewModel @Inject constructor(
             DhikrCategory.AFTER_PRAYER -> DhikrDataSource.afterPrayerDhikr
             DhikrCategory.TASBIH -> DhikrDataSource.tasbihDhikr
             DhikrCategory.GENERAL -> DhikrDataSource.anytimeDhikr
-            DhikrCategory.ISTIGHFAR -> DhikrDataSource.anytimeDhikr.filter { it.category == "Seeking Forgiveness" }
+            DhikrCategory.ISTIGHFAR -> DhikrDataSource.anytimeDhikr.filter { it.category == DhikrCategory.ISTIGHFAR }
             DhikrCategory.SALAWAT -> emptyList() // Can be extended
-            DhikrCategory.DUA -> DhikrDataSource.anytimeDhikr.filter { it.category == "Du'a" }
+            DhikrCategory.DUA -> DhikrDataSource.anytimeDhikr.filter { it.category == DhikrCategory.DUA }
         }
     }
 

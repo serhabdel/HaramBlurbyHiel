@@ -30,6 +30,7 @@ import com.hieltech.haramblur.data.WarningDialogAction
 import com.hieltech.haramblur.data.WarningDialogState
 import com.hieltech.haramblur.detection.BlockingCategory
 import com.hieltech.haramblur.detection.Language
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.delay
 
 /**
@@ -266,7 +267,7 @@ private fun LanguageSelector(
         onExpandedChange = { expanded = !expanded }
     ) {
         OutlinedTextField(
-            value = currentLanguage.displayName,
+            value = stringResource(currentLanguage.displayNameResId),
             onValueChange = { },
             readOnly = true,
             label = { Text("Translation Language") },
@@ -286,7 +287,7 @@ private fun LanguageSelector(
         ) {
             availableLanguages.forEach { language ->
                 DropdownMenuItem(
-                    text = { Text(language.displayName) },
+                    text = { Text(stringResource(language.displayNameResId)) },
                     onClick = {
                         onLanguageChange(language)
                         expanded = false

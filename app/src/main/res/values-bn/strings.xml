@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HaramBlur</string>
+
+    <!-- Quran Feature -->
+    <string name="quran_title">আল-কুরআন</string>
+    <string name="quran_subtitle">পবিত্র কুরআন</string>
+    <string name="quran_tab_surahs">সূরা</string>
+    <string name="quran_tab_juz">পারা</string>
+    <string name="quran_tab_bookmarks">বুকমার্ক</string>
+    <string name="quran_verse_of_day">আজকের আয়াত</string>
+    <string name="quran_continue_reading">পড়া চালিয়ে যান</string>
+    <string name="quran_search_hint">কুরআনে অনুসন্ধান করুন…</string>
+    <string name="quran_ayah">আয়াত</string>
+    <string name="quran_ayahs">আয়াত</string>
+    <string name="quran_surah">সূরা</string>
+    <string name="quran_juz">পারা</string>
+    <string name="quran_no_bookmarks">এখনও কোনো বুকমার্ক নেই</string>
+    <string name="quran_remove_bookmark">বুকমার্ক সরান</string>
+    <string name="quran_retry">পুনরায় চেষ্টা করুন</string>
+    <string name="quran_back">পিছনে</string>
+    <string name="quran_loading_verses">আয়াত লোড হচ্ছে…</string>
+    <string name="quran_no_verses">কোনো আয়াত পাওয়া যায়নি</string>
+    <string name="quran_swipe_hint">নেভিগেট করতে সোয়াইপ করুন</string>
+    <string name="quran_translation">অনুবাদ</string>
+    <string name="quran_bookmark_added">বুকমার্ক যোগ করা হয়েছে</string>
+    <string name="quran_bookmark_removed">বুকমার্ক সরানো হয়েছে</string>
+    <string name="quran_share">আয়াত শেয়ার করুন</string>
+
+    <!-- Quran Audio Feature -->
+    <string name="quran_audio_play">চালান</string>
+    <string name="quran_audio_pause">বিরতি</string>
+    <string name="quran_audio_stop">থামান</string>
+    <string name="quran_audio_next">পরবর্তী</string>
+    <string name="quran_audio_previous">পূর্ববর্তী</string>
+    <string name="quran_audio_now_playing">এখন চলছে</string>
+    <string name="quran_audio_select_reciter">ক্বারী নির্বাচন করুন</string>
+    <string name="quran_audio_loading">অডিও লোড হচ্ছে…</string>
+
+</resources>

@@ -299,7 +299,7 @@ class SettingsViewModel @Inject constructor(
                 settingsRepository.persistPreferredLanguageSync(language)
                 
                 // Log the language change
-                logRepository.logInfo("Language changed to: ${language.displayName}", "SettingsViewModel")
+                logRepository.logInfo("Language changed to: ${language.name}", "SettingsViewModel")
                 android.util.Log.d("SettingsViewModel", "Persisted language; requesting activity recreation")
                 
                 // Optional verification: read-back and ensure it matches
@@ -315,7 +315,7 @@ class SettingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 android.util.Log.e("SettingsViewModel", "Error updating locale", e)
                 // Log the error for debugging
-                logRepository.logError("SettingsViewModel", "Failed to update language to: ${language.displayName}", e)
+                logRepository.logError("SettingsViewModel", "Failed to update language to: ${language.name}", e)
             }
         }
     }
@@ -332,7 +332,7 @@ class SettingsViewModel @Inject constructor(
             val success = settingsRepository.persistPreferredLanguageSyncWithResult(language)
             
             // Log the language change
-            logRepository.logInfo("Language changed to: ${language.displayName}", "SettingsViewModel")
+            logRepository.logInfo("Language changed to: ${language.name}", "SettingsViewModel")
             android.util.Log.d("SettingsViewModel", "Persisted language: ${language.name}, success: $success")
             
             if (success && !suppressRecreation) {
@@ -349,7 +349,7 @@ class SettingsViewModel @Inject constructor(
         } catch (e: Exception) {
             android.util.Log.e("SettingsViewModel", "Error updating locale", e)
             // Log the error for debugging
-            logRepository.logError("SettingsViewModel", "Failed to update language to: ${language.displayName}", e)
+            logRepository.logError("SettingsViewModel", "Failed to update language to: ${language.name}", e)
             false
         }
     }

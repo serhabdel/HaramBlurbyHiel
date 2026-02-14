@@ -18,11 +18,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.hieltech.haramblur.R
 import com.hieltech.haramblur.utils.ExternalLinkHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -75,13 +77,13 @@ fun DonationCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Buy Me a Coffee",
+                    text = stringResource(R.string.buy_me_a_coffee),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Support development and help maintain HaramBlur",
+                    text = stringResource(R.string.support_development_and_help_maintain_haramblur),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -96,7 +98,7 @@ fun DonationCard(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "External link",
+                        text = stringResource(R.string.external_link),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -148,12 +150,12 @@ fun GitHubLinkCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "GitHub Repository",
+                        text = stringResource(R.string.github_repository),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Source code, documentation & community",
+                        text = stringResource(R.string.source_code_documentation_community),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -167,19 +169,19 @@ fun GitHubLinkCard(
             ) {
                 GitHubActionButton(
                     icon = Icons.Default.Home,
-                    title = "Repository",
+                    title = stringResource(R.string.repository),
                     onClick = onRepositoryClick,
                     modifier = Modifier.weight(1f)
                 )
                 GitHubActionButton(
                     icon = Icons.Default.Warning,
-                    title = "Issues",
+                    title = stringResource(R.string.issues),
                     onClick = onIssuesClick,
                     modifier = Modifier.weight(1f)
                 )
                 GitHubActionButton(
                     icon = Icons.Default.Email,
-                    title = "Discussions",
+                    title = stringResource(R.string.discussions),
                     onClick = onDiscussionsClick,
                     modifier = Modifier.weight(1f)
                 )
@@ -243,22 +245,22 @@ fun CommunitySection(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "📚 Community Resources",
+                text = stringResource(R.string.community_resources),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
 
             CommunityActionCard(
                 icon = Icons.AutoMirrored.Filled.List,
-                title = "Documentation",
-                description = "User guides and setup instructions",
+                title = stringResource(R.string.documentation),
+                description = stringResource(R.string.user_guides_and_setup_instructions),
                 onClick = onDocumentationClick
             )
 
             CommunityActionCard(
                 icon = Icons.Default.Share,
-                title = "Share App",
-                description = "Help others discover HaramBlur",
+                title = stringResource(R.string.share_app),
+                description = stringResource(R.string.help_others_discover_haramblur),
                 onClick = onShareAppClick
             )
         }
@@ -475,12 +477,12 @@ fun ShareAppCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Share HaramBlur",
+                    text = stringResource(R.string.share_haramblur),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Help others discover Islamic content filtering",
+                    text = stringResource(R.string.help_others_discover_islamic_content_filtering),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

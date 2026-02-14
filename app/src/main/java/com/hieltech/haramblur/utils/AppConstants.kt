@@ -107,6 +107,7 @@ object AppConstants {
         const val SERVICE_CHANNEL_ID = "haramblur_service_channel"
         const val USAGE_TIME_CHANNEL_ID = "haramblur_usage_time_channel"
         const val GENERAL_CHANNEL_ID = "haramblur_general_channel"
+        const val HADITH_CHANNEL_ID = "haramblur_hadith_channel"
     }
 
     /**

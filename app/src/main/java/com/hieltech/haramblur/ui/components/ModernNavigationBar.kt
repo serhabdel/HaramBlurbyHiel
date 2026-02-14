@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Menu
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,6 +44,7 @@ fun ModernNavigationBar(
     onNavigateToPrayer: () -> Unit = {},
     onNavigateToDhikr: () -> Unit = {},
     onNavigateToHadith: () -> Unit = {},
+    onNavigateToQuran: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -86,6 +88,13 @@ fun ModernNavigationBar(
             description = "Prophetic Traditions"
         ),
         NavigationItem(
+            route = NavRoutes.QURAN,
+            label = "Quran",
+            icon = Icons.Default.Menu,
+            selectedIcon = Icons.Default.Menu,
+            description = "Holy Quran reader"
+        ),
+        NavigationItem(
             route = NavRoutes.SETTINGS,
             label = "Settings",
             icon = Icons.Default.Settings,
@@ -124,6 +133,7 @@ fun ModernNavigationBar(
                             NavRoutes.PRAYER -> onNavigateToPrayer()
                             NavRoutes.DHIKR -> onNavigateToDhikr()
                             NavRoutes.HADITH -> onNavigateToHadith()
+                            NavRoutes.QURAN -> onNavigateToQuran()
                             NavRoutes.SETTINGS -> onNavigateToSettings()
                         }
                     }

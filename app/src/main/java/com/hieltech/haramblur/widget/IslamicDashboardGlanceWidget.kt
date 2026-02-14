@@ -79,12 +79,12 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "🕌",
+                            text = context.getString(R.string.widget_mosque_icon),
                             style = TextStyle(fontSize = 32.sp)
                         )
                         Spacer(modifier = GlanceModifier.height(8.dp))
                         Text(
-                            text = "Tap to open app",
+                            text = context.getString(R.string.widget_tap_to_open_app),
                             style = TextStyle(
                                 color = ColorProvider(Color.White),
                                 fontSize = 14.sp,
@@ -93,7 +93,7 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
                         )
                         Spacer(modifier = GlanceModifier.height(4.dp))
                         Text(
-                            text = "Prayer times will sync automatically",
+                            text = context.getString(R.string.widget_prayer_times_sync),
                             style = TextStyle(
                                 color = ColorProvider(Color.White.copy(alpha = 0.7f)),
                                 fontSize = 11.sp,
@@ -110,14 +110,14 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
                     ) {
                         // Header - Next Prayer calculated dynamically
                         val dynamicNextPrayer = WidgetDataProvider.getDynamicNextPrayer(context)
-                        NextPrayerSectionDynamic(dynamicNextPrayer)
+                        NextPrayerSectionDynamic(context, dynamicNextPrayer)
                         
                         Spacer(modifier = GlanceModifier.height(8.dp))
                         
                         // Hijri Date
                         if (hijriDate.isNotEmpty()) {
                             Text(
-                                text = "📅 $hijriDate",
+                                text = context.getString(R.string.widget_date_prefix) + " " + hijriDate,
                                 style = TextStyle(
                                     color = ColorProvider(Color.White.copy(alpha = 0.9f)),
                                     fontSize = 12.sp
@@ -144,6 +144,7 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
                             // Prayer Times List
                             if (prayerTimes != null) {
                                 PrayerTimesSection(
+                                    context = context,
                                     prayerTimes = prayerTimes,
                                     modifier = GlanceModifier.defaultWeight()
                                 )
@@ -157,9 +158,10 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
     
     @Composable
     private fun NextPrayerSectionDynamic(
+        context: Context,
         dynamicNextPrayer: WidgetDataProvider.DynamicNextPrayer?
     ) {
-        val displayName = dynamicNextPrayer?.name ?: "Prayer Times"
+        val displayName = dynamicNextPrayer?.name ?: context.getString(R.string.widget_prayer_times_fallback)
         val countdown = dynamicNextPrayer?.countdown ?: ""
         
         Row(
@@ -167,7 +169,7 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "🕌",
+                text = context.getString(R.string.widget_mosque_icon),
                 style = TextStyle(fontSize = 24.sp)
             )
             Spacer(modifier = GlanceModifier.width(8.dp))
@@ -196,6 +198,7 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
     
     @Composable
     private fun NextPrayerSection(
+        context: Context,
         nextPrayer: com.hieltech.haramblur.data.prayer.NextPrayerInfo?,
         prayerTimes: com.hieltech.haramblur.data.prayer.PrayerTimings?,
         dynamicCountdown: String = ""
@@ -209,7 +212,7 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "🕌",
+                text = context.getString(R.string.widget_mosque_icon),
                 style = TextStyle(fontSize = 24.sp)
             )
             Spacer(modifier = GlanceModifier.width(8.dp))
@@ -269,7 +272,7 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
                 )
                 Spacer(modifier = GlanceModifier.height(4.dp))
                 Text(
-                    text = "$count / 33",
+                    text = context.getString(R.string.widget_counter_display, count),
                     style = TextStyle(
                         color = ColorProvider(Color(0xFFFFD700)),
                         fontSize = 20.sp,
@@ -278,7 +281,7 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
                 )
                 Spacer(modifier = GlanceModifier.height(2.dp))
                 Text(
-                    text = "Tap to count",
+                    text = context.getString(R.string.widget_tap_to_count),
                     style = TextStyle(
                         color = ColorProvider(Color.White.copy(alpha = 0.7f)),
                         fontSize = 10.sp
@@ -290,6 +293,7 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
     
     @Composable
     private fun PrayerTimesSection(
+        context: Context,
         prayerTimes: com.hieltech.haramblur.data.prayer.PrayerTimings,
         modifier: GlanceModifier
     ) {
@@ -299,11 +303,11 @@ class IslamicDashboardGlanceWidget : GlanceAppWidget() {
                 .cornerRadius(12.dp)
                 .padding(8.dp)
         ) {
-            PrayerTimeRow("Fajr", prayerTimes.Fajr)
-            PrayerTimeRow("Dhuhr", prayerTimes.Dhuhr)
-            PrayerTimeRow("Asr", prayerTimes.Asr)
-            PrayerTimeRow("Maghrib", prayerTimes.Maghrib)
-            PrayerTimeRow("Isha", prayerTimes.Isha)
+            PrayerTimeRow(context.getString(R.string.widget_prayer_fajr), prayerTimes.Fajr)
+            PrayerTimeRow(context.getString(R.string.widget_prayer_dhuhr), prayerTimes.Dhuhr)
+            PrayerTimeRow(context.getString(R.string.widget_prayer_asr), prayerTimes.Asr)
+            PrayerTimeRow(context.getString(R.string.widget_prayer_maghrib), prayerTimes.Maghrib)
+            PrayerTimeRow(context.getString(R.string.widget_prayer_isha), prayerTimes.Isha)
         }
     }
     

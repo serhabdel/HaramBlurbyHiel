@@ -9,8 +9,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.hieltech.haramblur.R
 
 @Composable
 fun ServiceControlCard(
@@ -45,11 +47,11 @@ fun ServiceControlCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = if (isServicePaused) "🛑" else "🛡️",
+                        text = if (isServicePaused) stringResource(R.string.service_paused_emoji) else stringResource(R.string.service_active_emoji),
                         style = MaterialTheme.typography.headlineMedium
                     )
                     Text(
-                        text = "Service Control",
+                        text = stringResource(R.string.service_control_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -60,9 +62,9 @@ fun ServiceControlCard(
 
                 Text(
                     text = if (isServicePaused) {
-                        "⚠️ All HaramBlur services are currently PAUSED"
+                        stringResource(R.string.all_services_paused)
                     } else {
-                        "✅ All services are active and protecting your screen"
+                        stringResource(R.string.all_services_active_protecting)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -72,9 +74,9 @@ fun ServiceControlCard(
 
                 Text(
                     text = if (isServicePaused) {
-                        "Tap to RESUME all detection and blocking services"
+                        stringResource(R.string.tap_to_resume_services)
                     } else {
-                        "Tap to PAUSE all detection and blocking services"
+                        stringResource(R.string.tap_to_pause_services)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,

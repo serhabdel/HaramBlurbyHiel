@@ -34,7 +34,7 @@ class SettingsRepository @Inject constructor(
     companion object {
         private const val TAG = "SettingsRepository"
         private const val SETTINGS_VERSION_KEY = "settings_version"
-	        private const val CURRENT_SETTINGS_VERSION = 13
+	        private const val CURRENT_SETTINGS_VERSION = 14
     }
     
     private val _settings = MutableStateFlow(loadSettingsWithMigration())
@@ -287,7 +287,23 @@ class SettingsRepository @Inject constructor(
             // Blur Edge Refinement Settings
             enableBlurEdgeRefinement = prefs.getBoolean("enable_blur_edge_refinement", true),
             blurEdgeAntiAliasing = prefs.getBoolean("blur_edge_anti_aliasing", true),
-            blurBoundaryPrecision = prefs.getFloat("blur_boundary_precision", 0.5f)
+            blurBoundaryPrecision = prefs.getFloat("blur_boundary_precision", 0.5f),
+
+            // Hadith Settings
+            preferredHadithBook = prefs.getString("preferred_hadith_book", null),
+            enableHadithNotifications = prefs.getBoolean("enable_hadith_notifications", false),
+            hadithNotificationTime = prefs.getString("hadith_notification_time", "08:00") ?: "08:00",
+
+            // Quran Settings
+            lastReadSurah = prefs.getInt("quran_last_read_surah", 0),
+            lastReadVerse = prefs.getInt("quran_last_read_verse", 0),
+            preferredTranslationId = prefs.getString("quran_preferred_translation_id", "") ?: "",
+            preferredTranslationName = prefs.getString("quran_preferred_translation_name", "") ?: "",
+            quranBookmarkedVerses = prefs.getStringSet("quran_bookmarked_verses", emptySet()) ?: emptySet(),
+            quranFontSize = prefs.getFloat("quran_font_size", 28f),
+            quranShowTranslation = prefs.getBoolean("quran_show_translation", true),
+            quranShowTransliteration = prefs.getBoolean("quran_show_transliteration", false),
+            preferredReciterId = prefs.getInt("quran_preferred_reciter_id", 7)
         )
     }
 
@@ -581,6 +597,22 @@ class SettingsRepository @Inject constructor(
             putBoolean("enable_blur_edge_refinement", settings.enableBlurEdgeRefinement)
             putBoolean("blur_edge_anti_aliasing", settings.blurEdgeAntiAliasing)
             putFloat("blur_boundary_precision", settings.blurBoundaryPrecision)
+
+            // Hadith Settings
+            putString("preferred_hadith_book", settings.preferredHadithBook)
+            putBoolean("enable_hadith_notifications", settings.enableHadithNotifications)
+            putString("hadith_notification_time", settings.hadithNotificationTime)
+
+            // Quran Settings
+            putInt("quran_last_read_surah", settings.lastReadSurah)
+            putInt("quran_last_read_verse", settings.lastReadVerse)
+            putString("quran_preferred_translation_id", settings.preferredTranslationId)
+            putString("quran_preferred_translation_name", settings.preferredTranslationName)
+            putStringSet("quran_bookmarked_verses", settings.quranBookmarkedVerses)
+            putFloat("quran_font_size", settings.quranFontSize)
+            putBoolean("quran_show_translation", settings.quranShowTranslation)
+            putBoolean("quran_show_transliteration", settings.quranShowTransliteration)
+            putInt("quran_preferred_reciter_id", settings.preferredReciterId)
 
             // Force immediate commit to prevent data loss
             apply()
@@ -1373,6 +1405,31 @@ class SettingsRepository @Inject constructor(
 	                    prefs.edit().putFloat("nsfw_confidence_threshold", newDefault).apply()
 	                }
 	            }
+                13 -> {
+                    // Migration to version 14: Add hadith settings with sensible defaults
+                    Log.i(TAG, "Migrating from version 13: Adding hadith notification and preference settings")
+                    prefs.edit().apply {
+                        putString("preferred_hadith_book", null)
+                        putBoolean("enable_hadith_notifications", false)
+                        putString("hadith_notification_time", "08:00")
+                        apply()
+                    }
+                }
+                14 -> {
+                    // Migration to version 15: Add Quran settings
+                    Log.i(TAG, "Migrating from version 14: Adding Quran feature settings")
+                    prefs.edit().apply {
+                        putInt("quran_last_read_surah", 0)
+                        putInt("quran_last_read_verse", 0)
+                        putString("quran_preferred_translation_id", "")
+                        putString("quran_preferred_translation_name", "")
+                        putStringSet("quran_bookmarked_verses", emptySet())
+                        putFloat("quran_font_size", 28f)
+                        putBoolean("quran_show_translation", true)
+                        putBoolean("quran_show_transliteration", false)
+                        apply()
+                    }
+                }
         }
     }
     

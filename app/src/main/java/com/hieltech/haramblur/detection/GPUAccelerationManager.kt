@@ -6,8 +6,10 @@ import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.gpu.CompatibilityList
 import org.tensorflow.lite.gpu.GpuDelegate
 import org.tensorflow.lite.nnapi.NnApiDelegate
+import androidx.annotation.StringRes
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.hieltech.haramblur.R
 
 /**
  * Manages GPU acceleration and hardware optimization for TensorFlow Lite models
@@ -259,9 +261,26 @@ data class AccelerationInfo(
 /**
  * Types of hardware acceleration available
  */
-enum class AccelerationType(val displayName: String, val description: String) {
-    GPU("GPU", "Graphics Processing Unit acceleration"),
-    NNAPI("NNAPI", "Android Neural Networks API acceleration"),
-    CPU_OPTIMIZED("CPU+", "Optimized CPU processing with XNNPACK"),
-    CPU_BASIC("CPU", "Basic CPU processing")
+enum class AccelerationType(
+    @StringRes val displayNameResId: Int,
+    @StringRes val descriptionResId: Int
+) {
+    GPU(R.string.acceleration_type_gpu, R.string.acceleration_type_gpu_description),
+    NNAPI(R.string.acceleration_type_nnapi, R.string.acceleration_type_nnapi_description),
+    CPU_OPTIMIZED(R.string.acceleration_type_cpu_optimized, R.string.acceleration_type_cpu_optimized_description),
+    CPU_BASIC(R.string.acceleration_type_cpu_basic, R.string.acceleration_type_cpu_basic_description);
+    
+    /**
+     * Get the display name for this acceleration type
+     */
+    fun getDisplayName(context: Context): String {
+        return context.getString(displayNameResId)
+    }
+    
+    /**
+     * Get the description for this acceleration type
+     */
+    fun getDescription(context: Context): String {
+        return context.getString(descriptionResId)
+    }
 }

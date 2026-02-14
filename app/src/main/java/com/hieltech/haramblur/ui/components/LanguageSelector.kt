@@ -192,7 +192,7 @@ fun LanguageSelectionStep(
                     // Use coroutine to handle language update with proper error handling
                     coroutineScope.launch {
                         try {
-                            Log.d("LanguageSelector", "🔄 Starting language persistence for ${selectedLanguage.appLanguage.displayName}")
+                            Log.d("LanguageSelector", "🔄 Starting language persistence for ${selectedLanguage.appLanguage.name}")
                             
                             // Use the enhanced method with result and suppress recreation for wizard flow
                             val success = settingsViewModel.updatePreferredLanguageWithResult(
@@ -201,13 +201,13 @@ fun LanguageSelectionStep(
                             )
                             
                             if (success) {
-                                Log.d("LanguageSelector", "✅ Language persistence successful: ${selectedLanguage.appLanguage.displayName}")
+                                Log.d("LanguageSelector", "✅ Language persistence successful: ${selectedLanguage.appLanguage.name}")
                                 // Mark language step as complete
                                 viewModel.completeLanguageSelection()
                                 onLanguageSelected()
                             } else {
                                 // Handle failure case with retry
-                                Log.w("LanguageSelector", "❌ First attempt failed for ${selectedLanguage.appLanguage.displayName}, retrying...")
+                                Log.w("LanguageSelector", "❌ First attempt failed for ${selectedLanguage.appLanguage.name}, retrying...")
                                 kotlinx.coroutines.delay(500) // Brief delay before retry
                                 
                                 val retrySuccess = settingsViewModel.updatePreferredLanguageWithResult(
@@ -216,18 +216,18 @@ fun LanguageSelectionStep(
                                 )
                                 
                                 if (retrySuccess) {
-                                    Log.d("LanguageSelector", "✅ Language persistence successful on retry: ${selectedLanguage.appLanguage.displayName}")
+                                    Log.d("LanguageSelector", "✅ Language persistence successful on retry: ${selectedLanguage.appLanguage.name}")
                                     viewModel.completeLanguageSelection()
                                     onLanguageSelected()
                                 } else {
-                                    Log.e("LanguageSelector", "❌ Language persistence failed after retry for ${selectedLanguage.appLanguage.displayName}")
+                                    Log.e("LanguageSelector", "❌ Language persistence failed after retry for ${selectedLanguage.appLanguage.name}")
                                     errorMessage = "Failed to save language after retry. Please try again."
                                     isSaving = false
                                 }
                             }
                         } catch (e: Exception) {
                             // Handle exception case with detailed logging
-                            Log.e("LanguageSelector", "❌ Exception during language save for ${selectedLanguage.appLanguage.displayName}", e)
+                            Log.e("LanguageSelector", "❌ Exception during language save for ${selectedLanguage.appLanguage.name}", e)
                             errorMessage = "Error saving language: ${e.message}"
                             isSaving = false
                         }
