@@ -997,4 +997,45 @@
     <string name="evening_adhkar">Evening</string>
     <string name="tasbih_sets_label">Tasbih</string>
     
+    <!-- Logs Screen (additional) -->
+    <string name="logs_screen_subtitle">Monitor app activity and diagnostics</string>
+
+    <!-- Dashboard Drawer -->
+    <string name="dashboard_description">Stats and monitoring dashboard</string>
+
+    <!-- Hadith Screen -->
+    <string name="hadith">Hadith</string>
+    <string name="hadith_screen_title">Hadith</string>
+    <string name="hadith_screen_subtitle">Prophetic Traditions</string>
+    <string name="hadith_search_placeholder">Search hadiths…</string>
+    <string name="hadith_select_book">Select Book</string>
+    <string name="hadith_all_books">All Books</string>
+    <string name="hadith_narrator">Narrator</string>
+    <string name="hadith_hadith_number">Hadith #%d</string>
+    <string name="hadith_chapter">Chapter</string>
+    <string name="hadith_grade">Grade</string>
+    <string name="hadith_book">Book</string>
+    <string name="hadith_arabic_text">Arabic Text</string>
+    <string name="hadith_english_text">English Translation</string>
+    <string name="hadith_loading">Loading hadiths…</string>
+    <string name="hadith_error">Failed to load hadiths</string>
+    <string name="hadith_retry">Retry</string>
+    <string name="hadith_no_results">No hadiths found</string>
+    <string name="hadith_load_more">Load More</string>
+    <string name="hadith_api_key_required">API key required</string>
+    <string name="hadith_api_key_message">Please configure your Hadith API key in settings to browse prophetic traditions.</string>
+    <string name="hadith_total_hadiths">%d hadiths</string>
+    <string name="hadith_page">Page %d</string>
+    <string name="hadith_sahih">Sahih</string>
+    <string name="hadith_hasan">Hasan</string>
+    <string name="hadith_daif">Da\'if</string>
+    <string name="sahih_bukhari">Sahih Bukhari</string>
+    <string name="sahih_muslim">Sahih Muslim</string>
+    <string name="jami_tirmidhi">Jami Tirmidhi</string>
+    <string name="sunan_abu_dawud">Sunan Abu Dawud</string>
+    <string name="sunan_nasai">Sunan An-Nasa\'i</string>
+    <string name="sunan_ibn_majah">Sunan Ibn Majah</string>
+    <string name="musnad_ahmad">Musnad Ahmad</string>
+    <string name="muwatta_malik">Muwatta Malik</string>
+
 </resources>

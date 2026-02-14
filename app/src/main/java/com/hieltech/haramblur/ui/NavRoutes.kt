@@ -11,6 +11,7 @@ object NavRoutes {
     const val PRAYER = "prayer"
     const val INSIGHTS = "insights"
     const val SETTINGS = "settings"
+    const val HADITH = "hadith"
     const val LOGS = "logs"
     const val DEBUG = "debug"
     const val SUPPORT = "support"
@@ -19,5 +20,5 @@ object NavRoutes {
     /**
      * Primary routes that show bottom navigation
      */
-    val PRIMARY_ROUTES = listOf(HOME, BLOCK_APPS_SITES, PRAYER, DHIKR, SETTINGS)
+    val PRIMARY_ROUTES = listOf(HOME, BLOCK_APPS_SITES, PRAYER, DHIKR, HADITH, SETTINGS)
 }

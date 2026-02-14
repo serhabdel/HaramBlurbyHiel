@@ -868,4 +868,45 @@
     <string name="evening_adhkar">Soir</string>
     <string name="tasbih_sets_label">Tasbih</string>
 
+    <!-- Logs Screen -->
+    <string name="logs_screen_subtitle">Surveiller l\'activité et les diagnostics de l\'application</string>
+
+    <!-- Dashboard Drawer -->
+    <string name="dashboard_description">Tableau de bord des statistiques et de la surveillance</string>
+
+    <!-- Hadith Screen -->
+    <string name="hadith">Hadith</string>
+    <string name="hadith_screen_title">Hadith</string>
+    <string name="hadith_screen_subtitle">Traditions Prophétiques</string>
+    <string name="hadith_search_placeholder">Rechercher des hadiths…</string>
+    <string name="hadith_select_book">Sélectionner un livre</string>
+    <string name="hadith_all_books">Tous les livres</string>
+    <string name="hadith_narrator">Narrateur</string>
+    <string name="hadith_hadith_number">Hadith n°%d</string>
+    <string name="hadith_chapter">Chapitre</string>
+    <string name="hadith_grade">Grade</string>
+    <string name="hadith_book">Livre</string>
+    <string name="hadith_arabic_text">Texte arabe</string>
+    <string name="hadith_english_text">Traduction anglaise</string>
+    <string name="hadith_loading">Chargement des hadiths…</string>
+    <string name="hadith_error">Échec du chargement des hadiths</string>
+    <string name="hadith_retry">Réessayer</string>
+    <string name="hadith_no_results">Aucun hadith trouvé</string>
+    <string name="hadith_load_more">Charger plus</string>
+    <string name="hadith_api_key_required">Clé API requise</string>
+    <string name="hadith_api_key_message">Veuillez configurer votre clé API Hadith dans les paramètres pour parcourir les traditions prophétiques.</string>
+    <string name="hadith_total_hadiths">%d hadiths</string>
+    <string name="hadith_page">Page %d</string>
+    <string name="hadith_sahih">Sahih</string>
+    <string name="hadith_hasan">Hasan</string>
+    <string name="hadith_daif">Da\'if</string>
+    <string name="sahih_bukhari">Sahih Bukhari</string>
+    <string name="sahih_muslim">Sahih Muslim</string>
+    <string name="jami_tirmidhi">Jami Tirmidhi</string>
+    <string name="sunan_abu_dawud">Sunan Abu Dawud</string>
+    <string name="sunan_nasai">Sunan An-Nasa\'i</string>
+    <string name="sunan_ibn_majah">Sunan Ibn Majah</string>
+    <string name="musnad_ahmad">Musnad Ahmad</string>
+    <string name="muwatta_malik">Muwatta Malik</string>
+
 </resources>

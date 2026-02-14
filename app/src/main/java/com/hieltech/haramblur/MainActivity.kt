@@ -214,6 +214,11 @@ class MainActivity : ComponentActivity() {
                         drawerContent = {
                                                     ModernNavigationDrawerContent(
             currentRoute = currentRoute,
+            onNavigateToInsights = {
+                if (currentRoute != NavRoutes.INSIGHTS) {
+                    navController.navigate(NavRoutes.INSIGHTS)
+                }
+            },
             onNavigateToLogs = {
                 if (currentRoute != NavRoutes.LOGS) {
                     navController.navigate(NavRoutes.LOGS)
@@ -280,6 +285,17 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToDhikr = {
                                         if (currentRoute != NavRoutes.DHIKR) {
                                             navController.navigate(NavRoutes.DHIKR) {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onNavigateToHadith = {
+                                        if (currentRoute != NavRoutes.HADITH) {
+                                            navController.navigate(NavRoutes.HADITH) {
                                                 launchSingleTop = true
                                                 restoreState = true
                                                 popUpTo(navController.graph.startDestinationId) {
@@ -367,7 +383,10 @@ class MainActivity : ComponentActivity() {
                                 composable(NavRoutes.DHIKR) {
                                     com.hieltech.haramblur.ui.dhikr.DhikrScreen()
                                 }
-                                                            composable(NavRoutes.SETTINGS) {
+                                composable(NavRoutes.HADITH) {
+                                    com.hieltech.haramblur.ui.hadith.HadithScreen()
+                                }
+                                composable(NavRoutes.SETTINGS) {
                                     SettingsScreen(
                                         onNavigateBack = { navController.popBackStack() },
                                         onNavigateToLogs = {

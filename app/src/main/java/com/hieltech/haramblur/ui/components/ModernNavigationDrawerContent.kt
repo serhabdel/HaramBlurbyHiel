@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ModernNavigationDrawerContent(
     currentRoute: String? = null,
+    onNavigateToInsights: () -> Unit = {},
     onNavigateToLogs: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToSupport: () -> Unit = {},
@@ -32,6 +33,13 @@ fun ModernNavigationDrawerContent(
     modifier: Modifier = Modifier
 ) {
     val drawerItems = listOf(
+        DrawerItem(
+            route = NavRoutes.INSIGHTS,
+            label = "Dashboard",
+            icon = Icons.Default.Star,
+            selectedIcon = Icons.Default.Star,
+            description = "Stats & monitoring dashboard"
+        ),
         DrawerItem(
             route = NavRoutes.SUPPORT,
             label = "Support",
@@ -105,6 +113,7 @@ fun ModernNavigationDrawerContent(
                     selected = isSelected,
                     onClick = {
                         when (item.route) {
+                            NavRoutes.INSIGHTS -> onNavigateToInsights()
                             "logs" -> onNavigateToLogs()
                             "debug" -> onNavigateToDebug()
                             "support" -> onNavigateToSupport()

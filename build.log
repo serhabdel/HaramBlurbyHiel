@@ -1,0 +1,36 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.13/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :app
+WARNING: The option 'android.bundle.enableUncompressedNativeLibs' is deprecated.
+The current default is 'true'.
+It was removed in version 8.1 of the Android Gradle plugin.
+WARNING: BuildType 'proguardDebug' is both debuggable and has 'isMinifyEnabled' set to true.
+All code optimizations and obfuscation are disabled for debuggable builds.
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+
+> Task :app:mergeDebugResources FAILED
+ERROR: D:\repos\kotlin\HaramBlurbyHiel\app\src\main\res\values\strings.xml: Resource and asset merger: Found item String/application_logs more than one time
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:mergeDebugResources'.
+> D:\repos\kotlin\HaramBlurbyHiel\app\src\main\res\values\strings.xml: Error: Found item String/application_logs more than one time
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 18s
+5 actionable tasks: 1 executed, 4 up-to-date

@@ -20,11 +20,18 @@ android {
         versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
+
         // Native library configuration for 16KB page size compatibility
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
+
+        // Hadith API key from local.properties or environment
+        val localProps = rootProject.file("local.properties")
+        val props = Properties()
+        if (localProps.exists()) { props.load(localProps.inputStream()) }
+        buildConfigField("String", "HADITH_API_KEY",
+            "\"${System.getenv("HADITH_API_KEY") ?: props.getProperty("HADITH_API_KEY", "YOUR_API_KEY_HERE")}\"")
     }
     
     // 16KB page size compatibility and native library packaging
@@ -113,6 +120,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {

@@ -7,6 +7,8 @@ import com.hieltech.haramblur.data.api.AladhanApiService
 import com.hieltech.haramblur.data.cities.CitiesApiService
 import com.hieltech.haramblur.data.cities.CitiesRepository
 import com.hieltech.haramblur.utils.LocationHelper
+import com.hieltech.haramblur.data.api.HadithApiService
+
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -126,6 +128,28 @@ object NetworkModule {
         gson: Gson
     ): CitiesRepository {
         return CitiesRepository(context, citiesApiService, gson)
+    }
+
+    @Provides
+    @Singleton
+    @Named("hadith")
+    fun provideHadithRetrofit(
+        okHttpClient: OkHttpClient,
+        gson: Gson
+    ): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(HadithApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideHadithApiService(
+        @Named("hadith") retrofit: Retrofit
+    ): HadithApiService {
+        return retrofit.create(HadithApiService::class.java)
     }
 
     @Provides

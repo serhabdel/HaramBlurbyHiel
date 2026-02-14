@@ -593,4 +593,45 @@
     <string name="evening_adhkar">المساء</string>
     <string name="tasbih_sets_label">التسبيح</string>
 
+    <!-- Logs Screen -->
+    <string name="logs_screen_subtitle">مراقبة نشاط التطبيق والتشخيصات</string>
+
+    <!-- Dashboard Drawer -->
+    <string name="dashboard_description">لوحة الإحصائيات والمراقبة</string>
+
+    <!-- Hadith Screen -->
+    <string name="hadith">حديث</string>
+    <string name="hadith_screen_title">الأحاديث النبوية</string>
+    <string name="hadith_screen_subtitle">السنة النبوية الشريفة</string>
+    <string name="hadith_search_placeholder">ابحث في الأحاديث…</string>
+    <string name="hadith_select_book">اختر الكتاب</string>
+    <string name="hadith_all_books">جميع الكتب</string>
+    <string name="hadith_narrator">الراوي</string>
+    <string name="hadith_hadith_number">حديث رقم %d</string>
+    <string name="hadith_chapter">الباب</string>
+    <string name="hadith_grade">الدرجة</string>
+    <string name="hadith_book">الكتاب</string>
+    <string name="hadith_arabic_text">النص العربي</string>
+    <string name="hadith_english_text">الترجمة الإنجليزية</string>
+    <string name="hadith_loading">جارٍ تحميل الأحاديث…</string>
+    <string name="hadith_error">فشل في تحميل الأحاديث</string>
+    <string name="hadith_retry">إعادة المحاولة</string>
+    <string name="hadith_no_results">لم يتم العثور على أحاديث</string>
+    <string name="hadith_load_more">تحميل المزيد</string>
+    <string name="hadith_api_key_required">مطلوب مفتاح API</string>
+    <string name="hadith_api_key_message">يرجى تكوين مفتاح API للأحاديث في الإعدادات لتصفح الأحاديث النبوية.</string>
+    <string name="hadith_total_hadiths">%d حديث</string>
+    <string name="hadith_page">صفحة %d</string>
+    <string name="hadith_sahih">صحيح</string>
+    <string name="hadith_hasan">حسن</string>
+    <string name="hadith_daif">ضعيف</string>
+    <string name="sahih_bukhari">صحيح البخاري</string>
+    <string name="sahih_muslim">صحيح مسلم</string>
+    <string name="jami_tirmidhi">جامع الترمذي</string>
+    <string name="sunan_abu_dawud">سنن أبي داود</string>
+    <string name="sunan_nasai">سنن النسائي</string>
+    <string name="sunan_ibn_majah">سنن ابن ماجه</string>
+    <string name="musnad_ahmad">مسند أحمد</string>
+    <string name="muwatta_malik">موطأ مالك</string>
+
 </resources>

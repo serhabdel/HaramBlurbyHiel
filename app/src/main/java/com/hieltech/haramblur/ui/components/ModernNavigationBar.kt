@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,6 +42,7 @@ fun ModernNavigationBar(
     onNavigateToBlockAppsSites: () -> Unit = {},
     onNavigateToPrayer: () -> Unit = {},
     onNavigateToDhikr: () -> Unit = {},
+    onNavigateToHadith: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -75,6 +77,13 @@ fun ModernNavigationBar(
             icon = Icons.Default.Star,
             selectedIcon = Icons.Default.Star,
             description = "Islamic remembrance and tasbih"
+        ),
+        NavigationItem(
+            route = NavRoutes.HADITH,
+            label = "Hadith",
+            icon = Icons.Default.Info,
+            selectedIcon = Icons.Default.Info,
+            description = "Prophetic Traditions"
         ),
         NavigationItem(
             route = NavRoutes.SETTINGS,
@@ -114,6 +123,7 @@ fun ModernNavigationBar(
                             NavRoutes.BLOCK_APPS_SITES -> onNavigateToBlockAppsSites()
                             NavRoutes.PRAYER -> onNavigateToPrayer()
                             NavRoutes.DHIKR -> onNavigateToDhikr()
+                            NavRoutes.HADITH -> onNavigateToHadith()
                             NavRoutes.SETTINGS -> onNavigateToSettings()
                         }
                     }
